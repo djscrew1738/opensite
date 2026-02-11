@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+backend.log
+frontend.log
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Process IDs
+.backend.pid
+.frontend.pid
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Database (future)
+*.db
+*.sqlite

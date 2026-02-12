@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
 import EstimateBreakdown from '../components/pricing/EstimateBreakdown';
 import BlueprintUpload from '../components/pricing/BlueprintUpload';
+import { useFormPersistence } from '../hooks/useFormPersistence';
 
 export default function Pricing() {
   const [formData, setFormData] = useState({
@@ -25,6 +26,17 @@ export default function Pricing() {
   const [analysis, setAnalysis] = useState(null);
   const [selectedModel, setSelectedModel] = useState('');
 
+  // Auto-save form data to localStorage
+  const { clearSaved } = useFormPersistence('pricing-calculator', formData, setFormData, {
+    shouldSave: (data) => {
+      // Only save if at least one field has a value
+      return Object.values(data).some(val => val !== '' && val !== null && val !== undefined);
+    },
+    onRestore: () => {
+      console.log('Pricing form data restored from auto-save');
+    }
+  });
+
   const { data: modelsData } = useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
@@ -39,6 +51,7 @@ export default function Pricing() {
     onSuccess: (data) => {
       setEstimate(data);
       setAnalysis(null); // Clear previous analysis
+      clearSaved(); // Clear auto-saved form data after successful calculation
     }
   });
 
@@ -47,6 +60,7 @@ export default function Pricing() {
     onSuccess: (data) => {
       setEstimate(data);
       setAnalysis(data.analysis);
+      clearSaved(); // Clear auto-saved form data after successful analysis
     }
   });
 

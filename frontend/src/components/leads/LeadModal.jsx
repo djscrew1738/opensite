@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useFormPersistence } from '../../hooks/useFormPersistence';
 
 export default function LeadModal({ lead, onClose, onSave }) {
   const [formData, setFormData] = useState({
@@ -11,6 +12,18 @@ export default function LeadModal({ lead, onClose, onSave }) {
     projectType: '',
     value: '',
     notes: ''
+  });
+
+  // Auto-save form data to localStorage (only for new leads, not edits)
+  const { clearSaved } = useFormPersistence('lead-form', formData, setFormData, {
+    enabled: !lead, // Only enable auto-save for new leads, not when editing
+    shouldSave: (data) => {
+      // Only save if name or company has a value
+      return data.name?.trim() || data.company?.trim();
+    },
+    onRestore: () => {
+      console.log('Lead form data restored from auto-save');
+    }
   });
 
   useEffect(() => {
@@ -25,8 +38,10 @@ export default function LeadModal({ lead, onClose, onSave }) {
         value: lead.value || '',
         notes: lead.notes || ''
       });
+      // Clear any auto-saved data when editing an existing lead
+      clearSaved();
     }
-  }, [lead]);
+  }, [lead, clearSaved]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -34,6 +49,7 @@ export default function LeadModal({ lead, onClose, onSave }) {
       ...formData,
       value: Number(formData.value) || 0
     });
+    clearSaved(); // Clear auto-saved form data after successful save
   };
 
   const handleChange = (e) => {

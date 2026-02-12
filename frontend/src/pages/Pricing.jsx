@@ -103,6 +103,9 @@ export default function Pricing() {
   };
 
   const handleBlueprintAnalysis = (result) => {
+    // Clear any auto-saved form data when loading blueprint data
+    clearSaved();
+
     // Auto-fill form with extracted data
     if (result.extractedData) {
       const extracted = result.extractedData;

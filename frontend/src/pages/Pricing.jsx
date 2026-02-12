@@ -3,7 +3,6 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
 import EstimateBreakdown from '../components/pricing/EstimateBreakdown';
-import TierComparison from '../components/pricing/TierComparison';
 import BlueprintUpload from '../components/pricing/BlueprintUpload';
 
 export default function Pricing() {
@@ -12,16 +11,19 @@ export default function Pricing() {
     bathrooms: '',
     units: '',
     stories: '',
-    tier: ''
+    lavatories: '',
+    barSinks: '',
+    tubs: '',
+    showerBases: '',
+    mudPans: '',
+    washingMachines: '',
+    toilets: '',
+    waterSoftenerPreplumb: '',
+    kitchenFaucets: ''
   });
   const [estimate, setEstimate] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [selectedModel, setSelectedModel] = useState('');
-
-  const { data: tiersData } = useQuery({
-    queryKey: ['pricing-tiers'],
-    queryFn: () => api.estimates.getTiers()
-  });
 
   const { data: modelsData } = useQuery({
     queryKey: ['ollama-models'],
@@ -54,7 +56,15 @@ export default function Pricing() {
       bathrooms: Number(formData.bathrooms),
       units: Number(formData.units),
       stories: Number(formData.stories),
-      tier: formData.tier
+      lavatories: Number(formData.lavatories) || 0,
+      barSinks: Number(formData.barSinks) || 0,
+      tubs: Number(formData.tubs) || 0,
+      showerBases: Number(formData.showerBases) || 0,
+      mudPans: Number(formData.mudPans) || 0,
+      washingMachines: Number(formData.washingMachines) || 0,
+      toilets: Number(formData.toilets) || 0,
+      waterSoftenerPreplumb: Number(formData.waterSoftenerPreplumb) || 0,
+      kitchenFaucets: Number(formData.kitchenFaucets) || 0
     };
     calculateMutation.mutate(data);
   };
@@ -65,7 +75,15 @@ export default function Pricing() {
       bathrooms: Number(formData.bathrooms),
       units: Number(formData.units),
       stories: Number(formData.stories),
-      tier: formData.tier
+      lavatories: Number(formData.lavatories) || 0,
+      barSinks: Number(formData.barSinks) || 0,
+      tubs: Number(formData.tubs) || 0,
+      showerBases: Number(formData.showerBases) || 0,
+      mudPans: Number(formData.mudPans) || 0,
+      washingMachines: Number(formData.washingMachines) || 0,
+      toilets: Number(formData.toilets) || 0,
+      waterSoftenerPreplumb: Number(formData.waterSoftenerPreplumb) || 0,
+      kitchenFaucets: Number(formData.kitchenFaucets) || 0
     };
     analyzeMutation.mutate(data);
   };
@@ -73,12 +91,21 @@ export default function Pricing() {
   const handleBlueprintAnalysis = (result) => {
     // Auto-fill form with extracted data
     if (result.extractedData) {
+      const extracted = result.extractedData;
       setFormData({
-        sqft: result.extractedData.sqft || '',
-        bathrooms: result.extractedData.bathrooms || '',
-        units: result.extractedData.units || '',
-        stories: result.extractedData.stories || '',
-        tier: formData.tier || 'custom'
+        sqft: extracted.sqft || '',
+        bathrooms: extracted.bathrooms || '',
+        units: extracted.units || '',
+        stories: extracted.stories || '',
+        lavatories: extracted.lavatories || '',
+        barSinks: extracted.barSinks || '',
+        tubs: extracted.tubs || '',
+        showerBases: extracted.showerBases || '',
+        mudPans: extracted.mudPans || '',
+        washingMachines: extracted.washingMachines || '',
+        toilets: extracted.toilets || '',
+        waterSoftenerPreplumb: extracted.waterSoftenerPreplumb || '',
+        kitchenFaucets: extracted.kitchenFaucets || ''
       });
     }
 
@@ -90,8 +117,6 @@ export default function Pricing() {
       setAnalysis(result.aiAnalysis);
     }
   };
-
-  const tiers = tiersData?.tiers || [];
 
   return (
     <div className="p-8">
@@ -117,14 +142,10 @@ export default function Pricing() {
         )}
       </div>
 
-      {/* Tier Comparison */}
-      <TierComparison tiers={tiers} selectedTier={formData.tier} />
-
       {/* Blueprint Upload */}
       <div className="mb-6">
         <BlueprintUpload
           onAnalysisComplete={handleBlueprintAnalysis}
-          tier={formData.tier}
           selectedModel={selectedModel || defaultModel}
         />
       </div>

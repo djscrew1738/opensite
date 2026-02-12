@@ -1,7 +1,7 @@
 // Dashboard statistics and overview routes
 
 import express from 'express';
-import { dataStore } from '../data/store.js';
+import { db } from '../services/database.js';
 import { pricingService } from '../services/pricing.js';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 // Get dashboard statistics
 router.get('/stats', (req, res) => {
   try {
-    const stats = dataStore.getDashboardStats();
+    const stats = db.getDashboardStats();
 
     res.json({
       pipelineValue: stats.pipelineValue,

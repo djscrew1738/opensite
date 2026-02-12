@@ -3,7 +3,7 @@
 import express from 'express';
 import { pricingService } from '../services/pricing.js';
 import { ollamaService } from '../services/ollama.js';
-import { dataStore } from '../data/store.js';
+import { db } from '../services/database.js';
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.post('/calculate', (req, res) => {
     });
 
     // Save estimate
-    const saved = dataStore.createEstimate({
+    const saved = db.createEstimate({
       ...req.body,
       ...estimate
     });
@@ -74,7 +74,7 @@ router.post('/analyze', async (req, res) => {
     }
 
     // Save estimate with analysis
-    const saved = dataStore.createEstimate({
+    const saved = db.createEstimate({
       ...req.body,
       ...estimate,
       analysis: result.response
@@ -93,7 +93,7 @@ router.post('/analyze', async (req, res) => {
 // Get saved estimate
 router.get('/:id', (req, res) => {
   try {
-    const estimate = dataStore.getEstimate(req.params.id);
+    const estimate = db.getEstimate(req.params.id);
 
     if (!estimate) {
       return res.status(404).json({ error: 'Estimate not found' });

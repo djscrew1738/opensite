@@ -2,7 +2,7 @@
 
 import express from 'express';
 import { ollamaService } from '../services/ollama.js';
-import { dataStore } from '../data/store.js';
+import { db } from '../services/database.js';
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ router.post('/chat', async (req, res) => {
     }
 
     // Get conversation history
-    const conversation = conversationId ? dataStore.getConversation(conversationId) : null;
+    const conversation = conversationId ? db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
 
     // Generate prompt with context
@@ -51,12 +51,12 @@ router.post('/chat', async (req, res) => {
 
     // Save conversation
     const newConversationId = conversationId || `conv-${Date.now()}`;
-    dataStore.createConversation({
+    db.createConversation({
       conversationId: newConversationId,
       role: 'user',
       content: message
     });
-    dataStore.createConversation({
+    db.createConversation({
       conversationId: newConversationId,
       role: 'assistant',
       content: result.response
@@ -87,7 +87,7 @@ router.post('/chat/stream', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     // Get conversation history
-    const conversation = conversationId ? dataStore.getConversation(conversationId) : null;
+    const conversation = conversationId ? db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
 
     // Generate prompt with context
@@ -95,7 +95,7 @@ router.post('/chat/stream', async (req, res) => {
 
     // Save user message
     const newConversationId = conversationId || `conv-${Date.now()}`;
-    dataStore.createConversation({
+    db.createConversation({
       conversationId: newConversationId,
       role: 'user',
       content: message
@@ -111,7 +111,7 @@ router.post('/chat/stream', async (req, res) => {
     }
 
     // Save assistant response
-    dataStore.createConversation({
+    db.createConversation({
       conversationId: newConversationId,
       role: 'assistant',
       content: fullResponse

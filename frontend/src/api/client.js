@@ -90,7 +90,7 @@ export const api = {
 
       return axios.post('/api/upload/blueprint', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000 // 2 minutes for large files
+        timeout: 300000 // 5 minutes for comprehensive AI analysis
       }).then(res => res.data);
     },
     extract: (file) => {

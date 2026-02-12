@@ -119,6 +119,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
 
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={handleUpload}
               disabled={uploading}
               className="btn-primary flex items-center gap-2"
@@ -136,6 +137,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
               )}
             </button>
             <button
+              type="button"
               onClick={clearFile}
               disabled={uploading}
               className="btn-secondary"
@@ -178,40 +180,134 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
           {result.extractedData && Object.keys(result.extractedData).length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-semibold text-blue-900 mb-3">Extracted Information</h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {result.extractedData.sqft && (
-                  <div>
-                    <span className="text-blue-700">Square Footage:</span>
-                    <span className="ml-2 font-semibold text-blue-900">
-                      {result.extractedData.sqft.toLocaleString()} sqft
-                    </span>
-                  </div>
-                )}
-                {result.extractedData.units && (
-                  <div>
-                    <span className="text-blue-700">Units:</span>
-                    <span className="ml-2 font-semibold text-blue-900">
-                      {result.extractedData.units}
-                    </span>
-                  </div>
-                )}
-                {result.extractedData.bathrooms && (
-                  <div>
-                    <span className="text-blue-700">Bathrooms:</span>
-                    <span className="ml-2 font-semibold text-blue-900">
-                      {result.extractedData.bathrooms}
-                    </span>
-                  </div>
-                )}
-                {result.extractedData.stories && (
-                  <div>
-                    <span className="text-blue-700">Stories:</span>
-                    <span className="ml-2 font-semibold text-blue-900">
-                      {result.extractedData.stories}
-                    </span>
-                  </div>
-                )}
+
+              {/* Basic Info */}
+              <div className="mb-3">
+                <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">
+                  Basic Information
+                </p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {result.extractedData.sqft && (
+                    <div>
+                      <span className="text-blue-700">Square Footage:</span>
+                      <span className="ml-2 font-semibold text-blue-900">
+                        {result.extractedData.sqft.toLocaleString()} sqft
+                      </span>
+                    </div>
+                  )}
+                  {result.extractedData.units && (
+                    <div>
+                      <span className="text-blue-700">Units:</span>
+                      <span className="ml-2 font-semibold text-blue-900">
+                        {result.extractedData.units}
+                      </span>
+                    </div>
+                  )}
+                  {result.extractedData.bathrooms && (
+                    <div>
+                      <span className="text-blue-700">Bathrooms:</span>
+                      <span className="ml-2 font-semibold text-blue-900">
+                        {result.extractedData.bathrooms}
+                      </span>
+                    </div>
+                  )}
+                  {result.extractedData.stories && (
+                    <div>
+                      <span className="text-blue-700">Stories:</span>
+                      <span className="ml-2 font-semibold text-blue-900">
+                        {result.extractedData.stories}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Fixtures */}
+              {(result.extractedData.lavatories || result.extractedData.kitchenFaucets ||
+                result.extractedData.barSinks || result.extractedData.toilets ||
+                result.extractedData.tubs || result.extractedData.showerBases ||
+                result.extractedData.mudPans || result.extractedData.washingMachines ||
+                result.extractedData.waterSoftenerPreplumb) && (
+                <div className="border-t border-blue-200 pt-3">
+                  <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">
+                    Plumbing Fixtures
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {result.extractedData.lavatories && (
+                      <div>
+                        <span className="text-blue-700">Lavatories:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.lavatories}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.kitchenFaucets && (
+                      <div>
+                        <span className="text-blue-700">Kitchen Faucets:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.kitchenFaucets}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.barSinks && (
+                      <div>
+                        <span className="text-blue-700">Bar Sinks:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.barSinks}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.toilets && (
+                      <div>
+                        <span className="text-blue-700">Toilets:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.toilets}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.tubs && (
+                      <div>
+                        <span className="text-blue-700">Tubs:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.tubs}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.showerBases && (
+                      <div>
+                        <span className="text-blue-700">Shower Bases:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.showerBases}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.mudPans && (
+                      <div>
+                        <span className="text-blue-700">Mud Pans:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.mudPans}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.washingMachines && (
+                      <div>
+                        <span className="text-blue-700">Washing Machines:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.washingMachines}
+                        </span>
+                      </div>
+                    )}
+                    {result.extractedData.waterSoftenerPreplumb && (
+                      <div className="col-span-2">
+                        <span className="text-blue-700">Water Softener Pre-plumb:</span>
+                        <span className="ml-2 font-semibold text-blue-900">
+                          {result.extractedData.waterSoftenerPreplumb}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -251,7 +347,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             </div>
           )}
 
-          <button onClick={clearFile} className="btn-secondary w-full">
+          <button type="button" onClick={clearFile} className="btn-secondary w-full">
             Upload Another Blueprint
           </button>
         </div>

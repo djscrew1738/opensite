@@ -3,20 +3,30 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import { randomUUID } from 'crypto';
+import fs from 'fs';
 import { blueprintService } from '../services/blueprint.js';
 import { ollamaService } from '../services/ollama.js';
 import { pricingService } from '../services/pricing.js';
 
 const router = express.Router();
 
+// Create uploads directory if it doesn't exist - store in tool folder
+const TOOL_DIR = path.join(process.cwd(), '../../tool');
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(TOOL_DIR, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true, mode: 0o700 });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, '/tmp');
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'blueprint-' + uniqueSuffix + path.extname(file.originalname));
+    // Use crypto.randomUUID() for unpredictable file names
+    const uniqueId = randomUUID();
+    cb(null, `blueprint-${uniqueId}${path.extname(file.originalname)}`);
   }
 });
 
@@ -24,40 +34,85 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.jpg', '.jpeg', '.png'];
+    // Only accept PDFs for now (images require vision model - future feature)
+    const allowedTypes = ['.pdf'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF and image files are allowed'));
+      cb(new Error('Only PDF files are currently supported. Image analysis requires vision model (coming soon).'));
     }
   }
 });
 
+// Validation helper
+const VALID_TIERS = ['production', 'custom', 'premium'];
+function validateInputs(tier, model) {
+  const errors = [];
+
+  if (tier && !VALID_TIERS.includes(tier.toLowerCase())) {
+    errors.push(`Invalid tier "${tier}". Must be one of: ${VALID_TIERS.join(', ')}`);
+  }
+
+  return errors;
+}
+
+// Helper function to process PDF and extract data (DRY - removes duplicate code)
+async function processPdfExtraction(filePath, fileName) {
+  const pdfResult = await blueprintService.extractPdfText(filePath);
+
+  if (!pdfResult.success) {
+    return {
+      success: false,
+      error: pdfResult.error,
+      fileName
+    };
+  }
+
+  const analysis = blueprintService.analyzeBlueprint(pdfResult.text, fileName);
+
+  return {
+    success: true,
+    fileName,
+    extractedData: analysis.extractedInfo,
+    relevantText: analysis.relevantText,
+    pages: pdfResult.pages
+  };
+}
+
 // Upload and analyze blueprint
 router.post('/blueprint', upload.single('file'), async (req, res) => {
+  let filePath = null;
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { tier, model } = req.body;
-    const filePath = req.file.path;
+    filePath = req.file.path;
     const fileName = req.file.originalname;
+    const { tier, model } = req.body;
 
-    let extractedData = {};
-    let blueprintText = '';
-
-    // Extract text from PDF
-    if (path.extname(fileName).toLowerCase() === '.pdf') {
-      const pdfResult = await blueprintService.extractPdfText(filePath);
-
-      if (pdfResult.success) {
-        const analysis = blueprintService.analyzeBlueprint(pdfResult.text, fileName);
-        extractedData = analysis.extractedInfo;
-        blueprintText = analysis.relevantText;
-      }
+    // Validate inputs
+    const validationErrors = validateInputs(tier, model);
+    if (validationErrors.length > 0) {
+      await blueprintService.deleteFile(filePath);
+      return res.status(400).json({ error: validationErrors.join('; ') });
     }
+
+    // Extract text from PDF using helper function (removes duplicate code)
+    const pdfData = await processPdfExtraction(filePath, fileName);
+
+    if (!pdfData.success) {
+      await blueprintService.deleteFile(filePath);
+      return res.status(400).json({
+        error: 'Failed to extract text from PDF',
+        details: pdfData.error
+      });
+    }
+
+    const extractedData = pdfData.extractedData;
+    const blueprintText = pdfData.relevantText;
 
     // Generate AI analysis prompt
     const aiModel = model || ollamaService.getRecommendedModel('analysis');
@@ -104,13 +159,13 @@ Please provide a comprehensive analysis including:
 
 Provide detailed, actionable insights formatted professionally.`;
 
-    // Get AI analysis
-    const aiResult = await ollamaService.generate(prompt, { model: aiModel, timeout: 120000 });
+    // Get AI analysis (extended timeout for comprehensive blueprint analysis)
+    const aiResult = await ollamaService.generate(prompt, { model: aiModel, timeout: 300000 }); // 5 minutes
 
     // Calculate estimate if we have enough data
     let estimate = null;
     if (extractedData.sqft && extractedData.units) {
-      const calcTier = tier || 'custom';
+      const calcTier = tier ? tier.toLowerCase() : 'custom';
       try {
         estimate = pricingService.calculateEstimate({
           sqft: extractedData.sqft,
@@ -121,25 +176,38 @@ Provide detailed, actionable insights formatted professionally.`;
         });
       } catch (error) {
         console.error('Estimate calculation error:', error);
+        // Continue even if estimate fails - still return analysis
       }
     }
 
     // Clean up uploaded file
     await blueprintService.deleteFile(filePath);
 
-    res.json({
+    const response = {
       fileName,
       extractedData,
-      aiAnalysis: aiResult.success ? aiResult.response : 'AI analysis unavailable',
+      aiAnalysis: aiResult.success ? aiResult.response : null,
+      aiError: aiResult.success ? null : aiResult.error,
       modelUsed: aiModel,
       estimate,
-      textExtracted: blueprintText.length > 0
-    });
+      textExtracted: blueprintText.length > 0,
+      warnings: []
+    };
+
+    // Add warnings for missing data
+    if (!extractedData.sqft || !extractedData.units) {
+      response.warnings.push('Could not extract enough data for automatic estimate. Manual review recommended.');
+    }
+    if (!aiResult.success) {
+      response.warnings.push('AI analysis unavailable. Showing extracted data only.');
+    }
+
+    res.json(response);
 
   } catch (error) {
-    // Clean up file on error
-    if (req.file) {
-      await blueprintService.deleteFile(req.file.path);
+    // Clean up file on error (check filePath instead of req.file to avoid race condition)
+    if (filePath) {
+      await blueprintService.deleteFile(filePath);
     }
     console.error('Blueprint upload error:', error);
     res.status(500).json({ error: error.message });
@@ -148,43 +216,38 @@ Provide detailed, actionable insights formatted professionally.`;
 
 // Upload for quick text extraction only
 router.post('/extract', upload.single('file'), async (req, res) => {
+  let filePath = null;
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const filePath = req.file.path;
+    filePath = req.file.path;
     const fileName = req.file.originalname;
 
-    let result = { fileName };
+    // Process PDF extraction
+    const result = await processPdfExtraction(filePath, fileName);
 
-    if (path.extname(fileName).toLowerCase() === '.pdf') {
-      const pdfResult = await blueprintService.extractPdfText(filePath);
-      if (pdfResult.success) {
-        const analysis = blueprintService.analyzeBlueprint(pdfResult.text, fileName);
-        result = {
-          ...result,
-          extractedData: analysis.extractedInfo,
-          pages: pdfResult.pages,
-          success: true
-        };
-      } else {
-        result.error = pdfResult.error;
-        result.success = false;
-      }
-    } else {
-      result.message = 'Image files require AI vision model (future feature)';
-      result.success = true;
-    }
-
+    // Clean up file
     await blueprintService.deleteFile(filePath);
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: 'Failed to extract text from PDF',
+        details: result.error,
+        fileName: result.fileName
+      });
+    }
 
     res.json(result);
 
   } catch (error) {
-    if (req.file) {
-      await blueprintService.deleteFile(req.file.path);
+    // Clean up file on error
+    if (filePath) {
+      await blueprintService.deleteFile(filePath);
     }
+    console.error('PDF extraction error:', error);
     res.status(500).json({ error: error.message });
   }
 });

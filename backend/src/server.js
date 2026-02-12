@@ -27,6 +27,7 @@ import {
   slowRequestLogger,
   performanceLogger
 } from './middleware/logging.js';
+import { responseWrapper } from './utils/response.js';
 
 // Import routes
 import healthRoutes from './routes/health.js';
@@ -36,6 +37,7 @@ import estimatesRoutes from './routes/estimates.js';
 import projectsRoutes from './routes/projects.js';
 import dashboardRoutes from './routes/dashboard.js';
 import uploadRoutes from './routes/upload.js';
+import jobsRoutes from './routes/jobs.js';
 
 // Load environment variables
 dotenv.config();
@@ -55,6 +57,7 @@ app.use(express.json({ limit: '10mb' })); // Parse JSON
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse URL-encoded
 app.use(sanitizeInput); // Sanitize inputs
 app.use(requestSizeLimiter); // Limit request size
+app.use(responseWrapper); // Standardized response format
 
 // Logging middleware
 app.use(requestLogger); // Log all requests
@@ -72,10 +75,11 @@ app.use('/api/estimates', estimatesRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/upload', uploadLimiter, uploadRoutes); // Upload routes with stricter rate limit
+app.use('/api/jobs', jobsRoutes); // Job status polling
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({
+  res.success({
     name: '1stein API',
     version: '2.0.0',
     description: 'CTL Plumbing Intelligence Platform - Enhanced Edition',
@@ -87,14 +91,16 @@ app.get('/', (req, res) => {
       'Rate limiting',
       'Request validation',
       'Security headers',
-      'Performance monitoring'
+      'Performance monitoring',
+      'Background job queue',
+      'Standardized responses'
     ]
   });
 });
 
 // Cache stats endpoint (for monitoring)
 app.get('/api/cache/stats', (req, res) => {
-  res.json(cache.getStats());
+  res.success(cache.getStats());
 });
 
 // Database backup endpoint
@@ -102,17 +108,10 @@ app.post('/api/admin/backup', (req, res) => {
   try {
     const backupPath = db.backup();
     logger.info('Database backup created', { path: backupPath });
-    res.json({
-      success: true,
-      message: 'Database backup created',
-      path: backupPath
-    });
+    res.success({ path: backupPath }, 'Database backup created');
   } catch (error) {
     logger.error('Backup failed', { error: error.message });
-    res.status(500).json({
-      error: 'Backup failed',
-      message: error.message
-    });
+    res.error('Backup failed', 'BACKUP_ERROR', { message: error.message }, 500);
   }
 });
 
@@ -126,11 +125,13 @@ app.use((err, req, res, next) => {
     requestId: req.id
   });
 
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-    requestId: req.id,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
+  const details = process.env.NODE_ENV === 'development' ? { stack: err.stack } : null;
+  res.error(
+    err.message || 'Internal server error',
+    'INTERNAL_ERROR',
+    details,
+    err.status || 500
+  );
 });
 
 // 404 handler
@@ -142,11 +143,7 @@ app.use((req, res) => {
     requestId: req.id
   });
 
-  res.status(404).json({
-    error: 'Endpoint not found',
-    path: req.originalUrl,
-    requestId: req.id
-  });
+  res.error('Endpoint not found', 'NOT_FOUND', { path: req.originalUrl }, 404);
 });
 
 // Graceful shutdown handler

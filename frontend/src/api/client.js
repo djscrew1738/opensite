@@ -20,13 +20,34 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor - handles standardized backend responses
 apiClient.interceptors.response.use(
   (response) => {
-    return response.data;
+    // Backend now returns standardized format:
+    // { success: true, data: {...}, message: "...", meta: {...} }
+    const responseData = response.data;
+
+    // If backend returns standardized format, extract the data field
+    if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+      return responseData.data;
+    }
+
+    // Fallback for legacy responses
+    return responseData;
   },
   (error) => {
-    const message = error.response?.data?.error || error.message || 'An error occurred';
+    // Extract error message from standardized error format
+    // { success: false, error: { message: "...", code: "...", details: {...} } }
+    let message = 'An error occurred';
+
+    if (error.response?.data?.error?.message) {
+      message = error.response.data.error.message;
+    } else if (error.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error.message) {
+      message = error.message;
+    }
+
     console.error('API Error:', message);
     return Promise.reject(new Error(message));
   }
@@ -82,16 +103,24 @@ export const api = {
 
   // Upload
   upload: {
-    blueprint: (file, tier, model) => {
+    blueprint: (file, tier, model, async = true) => {
       const formData = new FormData();
       formData.append('file', file);
       if (tier) formData.append('tier', tier);
       if (model) formData.append('model', model);
+      formData.append('async', async);
 
       return axios.post('/api/upload/blueprint', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000 // 5 minutes for comprehensive AI analysis
-      }).then(res => res.data);
+        timeout: async ? 30000 : 300000 // 30s for async, 5min for sync
+      }).then(res => {
+        // Handle standardized response format
+        const data = res.data;
+        if (data && typeof data === 'object' && 'success' in data) {
+          return data.data;
+        }
+        return data;
+      });
     },
     extract: (file) => {
       const formData = new FormData();
@@ -99,8 +128,22 @@ export const api = {
 
       return axios.post('/api/upload/extract', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
-      }).then(res => res.data);
+      }).then(res => {
+        // Handle standardized response format
+        const data = res.data;
+        if (data && typeof data === 'object' && 'success' in data) {
+          return data.data;
+        }
+        return data;
+      });
     }
+  },
+
+  // Jobs (for polling background tasks)
+  jobs: {
+    getStatus: (jobId) => apiClient.get(`/jobs/${jobId}`),
+    getQueueStats: () => apiClient.get('/jobs/queue/stats'),
+    cancel: (jobId) => apiClient.delete(`/jobs/${jobId}`)
   }
 };
 

@@ -1,12 +1,25 @@
-import { useState, useRef } from 'react';
-import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
 
 export default function BlueprintUpload({ onAnalysisComplete, tier, selectedModel }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [jobId, setJobId] = useState(null);
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const pollIntervalRef = useRef(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files?.[0];
@@ -14,6 +27,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
       setFile(selectedFile);
       setResult(null);
       setError(null);
+      setJobId(null);
+      setProgress(0);
     }
   };
 
@@ -24,11 +39,48 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
       setFile(droppedFile);
       setResult(null);
       setError(null);
+      setJobId(null);
+      setProgress(0);
     }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+  };
+
+  const pollJobStatus = async (id) => {
+    try {
+      const { api } = await import('../../api/client');
+      const jobStatus = await api.jobs.getStatus(id);
+
+      setProgress(jobStatus.progress || 0);
+
+      if (jobStatus.status === 'completed') {
+        // Job completed successfully
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+        setProcessing(false);
+        setResult(jobStatus.result);
+        setProgress(100);
+
+        // Pass extracted data back to parent
+        if (onAnalysisComplete && jobStatus.result) {
+          onAnalysisComplete(jobStatus.result);
+        }
+      } else if (jobStatus.status === 'failed') {
+        // Job failed
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+        setProcessing(false);
+        setError(jobStatus.error || 'Analysis failed');
+      }
+      // If status is 'processing' or 'pending', continue polling
+    } catch (err) {
+      console.error('Error polling job status:', err);
+      // Don't stop polling on network errors, just log them
+    }
   };
 
   const handleUpload = async () => {
@@ -37,21 +89,55 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
     setUploading(true);
     setError(null);
     setResult(null);
+    setProgress(0);
 
     try {
       const { api } = await import('../../api/client');
-      const response = await api.upload.blueprint(file, tier, selectedModel);
+      const response = await api.upload.blueprint(file, tier, selectedModel, true); // async=true
 
-      setResult(response);
+      // Upload complete, now we have a job ID
+      setUploading(false);
 
-      // Pass extracted data back to parent
-      if (onAnalysisComplete && response.extractedData) {
-        onAnalysisComplete(response);
+      if (response.jobId) {
+        // Async mode - start polling for job status
+        setJobId(response.jobId);
+        setProcessing(true);
+        setProgress(10);
+
+        // Show extracted data immediately if available
+        if (response.extractedData && Object.keys(response.extractedData).length > 0) {
+          // Create a partial result to show extracted data while AI processes
+          setResult({
+            fileName: response.fileName,
+            extractedData: response.extractedData,
+            textExtracted: response.textExtracted,
+            partial: true // Flag to indicate this is partial
+          });
+
+          // Also pass extracted data to parent immediately
+          if (onAnalysisComplete) {
+            onAnalysisComplete({
+              extractedData: response.extractedData,
+              fileName: response.fileName
+            });
+          }
+        }
+
+        // Start polling for full results
+        pollIntervalRef.current = setInterval(() => {
+          pollJobStatus(response.jobId);
+        }, 2000); // Poll every 2 seconds
+      } else {
+        // Sync mode response (has all data immediately)
+        setResult(response);
+        if (onAnalysisComplete && response.extractedData) {
+          onAnalysisComplete(response);
+        }
       }
     } catch (err) {
       setError(err.message || 'Upload failed');
-    } finally {
       setUploading(false);
+      setProcessing(false);
     }
   };
 
@@ -59,10 +145,19 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
     setFile(null);
     setResult(null);
     setError(null);
+    setJobId(null);
+    setProgress(0);
+    setProcessing(false);
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  const isAnalyzing = uploading || processing;
+  const showPartialResults = result && result.partial;
 
   return (
     <div className="card">
@@ -109,9 +204,10 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
               </div>
             </div>
             <button
+              type="button"
               onClick={clearFile}
-              disabled={uploading}
-              className="text-gray-400 hover:text-gray-600"
+              disabled={isAnalyzing}
+              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
             >
               <XCircle className="w-5 h-5" />
             </button>
@@ -121,13 +217,13 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             <button
               type="button"
               onClick={handleUpload}
-              disabled={uploading}
-              className="btn-primary flex items-center gap-2"
+              disabled={isAnalyzing}
+              className="btn-primary flex items-center gap-2 disabled:opacity-50"
             >
-              {uploading ? (
+              {isAnalyzing ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin" />
-                  Analyzing Blueprint...
+                  {uploading ? 'Uploading...' : 'Analyzing...'}
                 </>
               ) : (
                 <>
@@ -139,8 +235,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             <button
               type="button"
               onClick={clearFile}
-              disabled={uploading}
-              className="btn-secondary"
+              disabled={isAnalyzing}
+              className="btn-secondary disabled:opacity-50"
             >
               Cancel
             </button>
@@ -154,26 +250,68 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
         </div>
       )}
 
+      {/* Processing Status */}
+      {processing && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Clock className="w-5 h-5 text-blue-600 animate-pulse" />
+            <div className="flex-1">
+              <p className="font-medium text-blue-900">AI Analysis in Progress</p>
+              <p className="text-sm text-blue-700">
+                This may take 2-5 minutes. You can continue working while we analyze...
+              </p>
+            </div>
+          </div>
+          {/* Progress Bar */}
+          <div className="w-full bg-blue-100 rounded-full h-2.5">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-blue-600 text-right mt-1">{progress}%</p>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <p className="font-medium text-red-900">Upload Failed</p>
             <p className="text-sm text-red-700">{error}</p>
           </div>
+          <button
+            type="button"
+            onClick={clearFile}
+            className="text-sm text-red-600 hover:text-red-800 font-medium"
+          >
+            Try Again
+          </button>
         </div>
       )}
 
       {/* Results */}
       {result && (
         <div className="space-y-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <div>
-              <p className="font-medium text-green-900">Analysis Complete</p>
-              <p className="text-sm text-green-700">{result.fileName}</p>
-            </div>
+          <div className={`${showPartialResults ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4 flex items-center gap-3`}>
+            {showPartialResults ? (
+              <>
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <div>
+                  <p className="font-medium text-blue-900">Extracted Data Ready</p>
+                  <p className="text-sm text-blue-700">AI analysis in progress...</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-900">Analysis Complete</p>
+                  <p className="text-sm text-green-700">{result.fileName}</p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Extracted Data */}
@@ -233,7 +371,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                     Plumbing Fixtures
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    {result.extractedData.lavatories && (
+                    {result.extractedData.lavatories > 0 && (
                       <div>
                         <span className="text-blue-700">Lavatories:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -241,7 +379,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.kitchenFaucets && (
+                    {result.extractedData.kitchenFaucets > 0 && (
                       <div>
                         <span className="text-blue-700">Kitchen Faucets:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -249,7 +387,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.barSinks && (
+                    {result.extractedData.barSinks > 0 && (
                       <div>
                         <span className="text-blue-700">Bar Sinks:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -257,7 +395,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.toilets && (
+                    {result.extractedData.toilets > 0 && (
                       <div>
                         <span className="text-blue-700">Toilets:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -265,7 +403,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.tubs && (
+                    {result.extractedData.tubs > 0 && (
                       <div>
                         <span className="text-blue-700">Tubs:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -273,7 +411,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.showerBases && (
+                    {result.extractedData.showerBases > 0 && (
                       <div>
                         <span className="text-blue-700">Shower Bases:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -281,7 +419,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.mudPans && (
+                    {result.extractedData.mudPans > 0 && (
                       <div>
                         <span className="text-blue-700">Mud Pans:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -289,7 +427,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.washingMachines && (
+                    {result.extractedData.washingMachines > 0 && (
                       <div>
                         <span className="text-blue-700">Washing Machines:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -297,7 +435,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                         </span>
                       </div>
                     )}
-                    {result.extractedData.waterSoftenerPreplumb && (
+                    {result.extractedData.waterSoftenerPreplumb > 0 && (
                       <div className="col-span-2">
                         <span className="text-blue-700">Water Softener Pre-plumb:</span>
                         <span className="ml-2 font-semibold text-blue-900">
@@ -311,8 +449,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             </div>
           )}
 
-          {/* AI Analysis */}
-          {result.aiAnalysis && (
+          {/* AI Analysis - only show when complete */}
+          {result.aiAnalysis && !result.partial && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h4 className="font-semibold text-gray-900 mb-3">AI Analysis</h4>
               <div className="prose prose-sm max-w-none">
@@ -326,8 +464,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             </div>
           )}
 
-          {/* Estimate */}
-          {result.estimate && (
+          {/* Estimate - only show when complete */}
+          {result.estimate && !result.partial && (
             <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
               <h4 className="font-semibold text-primary-900 mb-3">Estimated Pricing</h4>
               <div className="grid grid-cols-2 gap-4">

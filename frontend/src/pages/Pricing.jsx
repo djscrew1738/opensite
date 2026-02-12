@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
-import EstimateBreakdown from '../components/pricing/EstimateBreakdown';
+import AnalysisDashboard from '../components/pricing/AnalysisDashboard';
 import BlueprintUpload from '../components/pricing/BlueprintUpload';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 
@@ -24,6 +24,8 @@ export default function Pricing() {
   });
   const [estimate, setEstimate] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [extractedData, setExtractedData] = useState(null);
+  const [blueprintFileName, setBlueprintFileName] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
 
   // Auto-save form data to localStorage
@@ -106,9 +108,16 @@ export default function Pricing() {
     // Clear any auto-saved form data when loading blueprint data
     clearSaved();
 
+    // Store blueprint filename
+    if (result.fileName) {
+      setBlueprintFileName(result.fileName);
+    }
+
     // Auto-fill form with extracted data
     if (result.extractedData) {
       const extracted = result.extractedData;
+      setExtractedData(extracted); // Store for dashboard
+
       setFormData({
         sqft: extracted.sqft || '',
         bathrooms: extracted.bathrooms || '',
@@ -183,9 +192,14 @@ export default function Pricing() {
           />
         </div>
 
-        {/* Right: Estimate Display */}
+        {/* Right: Analysis Dashboard */}
         <div>
-          <EstimateBreakdown estimate={estimate} analysis={analysis} />
+          <AnalysisDashboard
+            estimate={estimate}
+            analysis={analysis}
+            extractedData={extractedData}
+            fileName={blueprintFileName}
+          />
         </div>
       </div>
     </div>

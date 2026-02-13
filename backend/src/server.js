@@ -38,6 +38,12 @@ import projectsRoutes from './routes/projects.js';
 import dashboardRoutes from './routes/dashboard.js';
 import uploadRoutes from './routes/upload.js';
 import jobsRoutes from './routes/jobs.js';
+import plumbingRoutes from './routes/plumbing.js';
+import takeoffRoutes from './routes/takeoff.js';
+import permitsRoutes from './routes/permits.js';
+
+// Import permit jobs
+import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
 
 // Load environment variables
 dotenv.config();
@@ -76,6 +82,9 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/upload', uploadLimiter, uploadRoutes); // Upload routes with stricter rate limit
 app.use('/api/jobs', jobsRoutes); // Job status polling
+app.use('/api/plumbing', plumbingRoutes);
+app.use('/api/takeoff', takeoffRoutes);
+app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -149,6 +158,7 @@ app.use((req, res) => {
 // Graceful shutdown handler
 process.on('SIGTERM', () => {
   logger.info('SIGTERM signal received: closing HTTP server');
+  stopPermitJobs();
   server.close(() => {
     logger.info('HTTP server closed');
     db.close();
@@ -159,6 +169,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT signal received: closing HTTP server');
+  stopPermitJobs();
   server.close(() => {
     logger.info('HTTP server closed');
     db.close();
@@ -170,6 +181,11 @@ process.on('SIGINT', () => {
 // Start server on all interfaces
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', { port: PORT });
+
+  // Start permit background jobs
+  if (process.env.PERMIT_JOBS_ENABLED !== 'false') {
+    startPermitJobs();
+  }
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -189,6 +205,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
    🔒 Security Headers & Rate Limiting
    ✅ Request Validation
    ⚡ Performance Monitoring
+   🏗️  Permit Lead Tracking & Scoring
+   🔔 Automated Notifications
 
 🔒 Accessible via Tailscale network
 Press Ctrl+C to stop

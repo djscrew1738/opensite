@@ -13,7 +13,11 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowUpRight,
-  Activity
+  Activity,
+  Building2,
+  Flame,
+  Circle,
+  UserCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +46,19 @@ export default function Dashboard() {
   const { data: leadsData } = useQuery({
     queryKey: ['recent-leads'],
     queryFn: () => api.leads.getAll({ limit: 5 })
+  });
+
+  // Permit summary data
+  const { data: permitSummary } = useQuery({
+    queryKey: ['permit-summary'],
+    queryFn: () => api.permits.getSummary(),
+    refetchInterval: 60000 // Refresh every minute
+  });
+
+  // Top prospects (builders without plumbers)
+  const { data: prospects } = useQuery({
+    queryKey: ['top-prospects'],
+    queryFn: () => api.permits.getProspects(5)
   });
 
   // Calculate trends (mock data for now - will be real when backend provides historical data)
@@ -267,6 +284,97 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Permit Lead Tracking Section */}
+      {permitSummary && (
+        <>
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 className="w-6 h-6 text-blue-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Permit Lead Tracking</h2>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+            {/* Hot Permit Leads */}
+            <div className="card hover:shadow-lg transition-shadow duration-200 relative overflow-hidden group cursor-pointer" onClick={() => navigate('/leads')}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Flame className="w-6 h-6 text-red-600" />
+                  </div>
+                  <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                    Score ≥80
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">Hot Permits</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {permitSummary.hot || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">High-priority leads</p>
+              </div>
+            </div>
+
+            {/* Warm Permit Leads */}
+            <div className="card hover:shadow-lg transition-shadow duration-200 relative overflow-hidden group cursor-pointer" onClick={() => navigate('/leads')}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Circle className="w-6 h-6 text-orange-600 fill-orange-600" />
+                  </div>
+                  <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                    Score 50-79
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">Warm Permits</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {permitSummary.warm || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">Medium-priority leads</p>
+              </div>
+            </div>
+
+            {/* New Permits Today */}
+            <div className="card hover:shadow-lg transition-shadow duration-200 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Plus className="w-6 h-6 text-green-600" />
+                  </div>
+                  <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                    Today
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">New Permits</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {permitSummary.newToday || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">Ingested today</p>
+              </div>
+            </div>
+
+            {/* Total Permits */}
+            <div className="card hover:shadow-lg transition-shadow duration-200 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Building2 className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">Total Permits</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {permitSummary.total || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">All tracked permits</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Left Column - Active Projects & Hot Leads */}
@@ -448,6 +556,50 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Builder Prospects */}
+          {prospects && prospects.length > 0 && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                  Top Prospects
+                </h2>
+                <button
+                  onClick={() => navigate('/leads')}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  View All
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">Active builders without plumbers</p>
+              <div className="space-y-3">
+                {prospects.slice(0, 5).map((builder) => (
+                  <div
+                    key={builder.id}
+                    className="flex items-center justify-between p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer border border-blue-100"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm">{builder.name || builder.company}</h3>
+                      <p className="text-xs text-gray-600">
+                        {builder.permitsLast30d || 0} permits last 30 days
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Building2 className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-bold text-blue-600">
+                          {builder.totalPermits || 0}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">total</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pricing Tiers Quick Reference */}
           <div className="card">

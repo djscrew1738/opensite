@@ -139,11 +139,67 @@ export const api = {
     }
   },
 
+  // Takeoff
+  takeoff: {
+    // Takeoffs
+    getAll: (params) => apiClient.get('/takeoff', { params }),
+    getOne: (id) => apiClient.get(`/takeoff/${id}`),
+    create: (data) => apiClient.post('/takeoff', data),
+    update: (id, data) => apiClient.put(`/takeoff/${id}`, data),
+    delete: (id) => apiClient.delete(`/takeoff/${id}`),
+    getSummary: (id) => apiClient.get(`/takeoff/${id}/summary`),
+
+    // Takeoff Items
+    getItems: (takeoffId) => apiClient.get(`/takeoff/${takeoffId}/items`),
+    addItem: (takeoffId, data) => apiClient.post(`/takeoff/${takeoffId}/items`, data),
+    updateItem: (takeoffId, itemId, data) => apiClient.put(`/takeoff/${takeoffId}/items/${itemId}`, data),
+    deleteItem: (takeoffId, itemId) => apiClient.delete(`/takeoff/${takeoffId}/items/${itemId}`),
+
+    // Materials
+    getMaterials: (params) => apiClient.get('/takeoff/materials', { params }),
+    getCategories: () => apiClient.get('/takeoff/materials/categories'),
+    getSuppliers: () => apiClient.get('/takeoff/materials/suppliers'),
+    getStats: () => apiClient.get('/takeoff/materials/stats'),
+    getFavorites: () => apiClient.get('/takeoff/materials/favorites'),
+    getRecentlyUsed: (limit) => apiClient.get('/takeoff/materials/recent', { params: { limit } }),
+    getMostUsed: (limit) => apiClient.get('/takeoff/materials/most-used', { params: { limit } }),
+    getMaterial: (id) => apiClient.get(`/takeoff/materials/${id}`),
+    getPriceHistory: (id, limit) => apiClient.get(`/takeoff/materials/${id}/price-history`, { params: { limit } }),
+    createMaterial: (data) => apiClient.post('/takeoff/materials', data),
+    updateMaterial: (id, data) => apiClient.put(`/takeoff/materials/${id}`, data),
+    deleteMaterial: (id) => apiClient.delete(`/takeoff/materials/${id}`),
+    duplicateMaterial: (id) => apiClient.post(`/takeoff/materials/${id}/duplicate`),
+    toggleFavorite: (id) => apiClient.post(`/takeoff/materials/${id}/favorite`),
+    bulkImport: (materials) => apiClient.post('/takeoff/materials/import', { materials }),
+    bulkDelete: (ids) => apiClient.post('/takeoff/materials/bulk-delete', { ids }),
+    bulkPriceUpdate: (ids, percentageChange) => apiClient.post('/takeoff/materials/bulk-price-update', { ids, percentageChange }),
+    exportCsv: (category) => apiClient.get('/takeoff/materials/export/csv', {
+      params: { category },
+      responseType: 'blob',
+      // Override the interceptor for blob responses
+      transformResponse: [(data) => data]
+    })
+  },
+
   // Jobs (for polling background tasks)
   jobs: {
     getStatus: (jobId) => apiClient.get(`/jobs/${jobId}`),
     getQueueStats: () => apiClient.get('/jobs/queue/stats'),
     cancel: (jobId) => apiClient.delete(`/jobs/${jobId}`)
+  },
+
+  // Permits (lead finder)
+  permits: {
+    getAll: (params) => apiClient.get('/permits', { params }),
+    getSummary: () => apiClient.get('/permits/summary'),
+    getOne: (id) => apiClient.get(`/permits/${id}`),
+    updateStatus: (id, data) => apiClient.patch(`/permits/${id}/status`, data),
+    getNear: (lat, lng, radius) => apiClient.get('/permits/near', { params: { lat, lng, radius } }),
+
+    // Builders
+    getBuilders: (params) => apiClient.get('/permits/builders', { params }),
+    getProspects: (limit) => apiClient.get('/permits/builders/prospects', { params: { limit } }),
+    getBuilder: (id) => apiClient.get(`/permits/builders/${id}`)
   }
 };
 

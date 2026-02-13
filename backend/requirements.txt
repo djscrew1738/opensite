@@ -1,0 +1,8 @@
+arq
+instructor
+ollama
+chromadb
+rank-bm25
+PyMuPDF
+Pillow
+aiofiles

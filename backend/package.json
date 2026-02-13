@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "permits:ingest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualIngest(7))\"",
+    "permits:score": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualScore())\"",
+    "permits:digest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualDigest())\"",
+    "permits:rollup": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualRollup())\""
   },
   "keywords": [
     "plumbing",
@@ -29,7 +33,11 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "p-queue": "^8.0.1",
     "pdf-parse": "^1.1.4",
+    "twilio": "^5.3.0",
     "uuid": "^9.0.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"

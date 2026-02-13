@@ -35,7 +35,7 @@ Category: {permit_category}
 Description: {description}
 Work Type: {work_type}
 Occupancy: {occupancy_type}
-Estimated Cost: ${estimated_cost}
+Estimated Cost: {estimated_cost}
 Square Footage: {square_footage}
 Units: {units}
 Address: {address}

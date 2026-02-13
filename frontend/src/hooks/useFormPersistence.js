@@ -70,7 +70,24 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
     }
 
     initialLoadDone.current = true;
-  }, [enabled, storageKey]); // Only run once on mount
+  }, [enabled, storageKey, formKey, setFormData, onRestore, formData]); // Only run once on mount
+
+  // Clear old form data if storage is full
+  const clearOldFormData = () => {
+    try {
+      const keys = Object.keys(localStorage);
+      const formKeys = keys.filter(key => key.startsWith('1stein_form_'));
+
+      // Remove the oldest saved forms (keep only last 5)
+      if (formKeys.length > 5) {
+        formKeys.slice(0, formKeys.length - 5).forEach(key => {
+          localStorage.removeItem(key);
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to clear old form data:', error);
+    }
+  };
 
   // Auto-save on form data changes (debounced)
   useEffect(() => {
@@ -100,7 +117,7 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [formData, enabled, storageKey, debounceMs, shouldSave]);
+  }, [formData, enabled, storageKey, formKey, debounceMs, shouldSave]);
 
   // Clear saved data from localStorage
   const clearSaved = () => {
@@ -108,23 +125,6 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
       localStorage.removeItem(storageKey);
     } catch (error) {
       console.warn(`Failed to clear saved form data for "${formKey}":`, error);
-    }
-  };
-
-  // Clear old form data if storage is full
-  const clearOldFormData = () => {
-    try {
-      const keys = Object.keys(localStorage);
-      const formKeys = keys.filter(key => key.startsWith('1stein_form_'));
-
-      // Remove the oldest saved forms (keep only last 5)
-      if (formKeys.length > 5) {
-        formKeys.slice(0, formKeys.length - 5).forEach(key => {
-          localStorage.removeItem(key);
-        });
-      }
-    } catch (error) {
-      console.warn('Failed to clear old form data:', error);
     }
   };
 

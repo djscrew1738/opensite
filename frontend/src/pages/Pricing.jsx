@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
@@ -28,7 +28,6 @@ export default function Pricing() {
   const [analysis, setAnalysis] = useState(null);
   const [extractedData, setExtractedData] = useState(null);
   const [blueprintFileName, setBlueprintFileName] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
 
   // Auto-save form data to localStorage
   const { clearSaved } = useFormPersistence('pricing-calculator', formData, setFormData, {
@@ -43,20 +42,15 @@ export default function Pricing() {
 
   const { defaultModel } = useModelPreference();
 
-  const { data: modelsData } = useQuery({
+  // Use defaultModel directly, or keep the previously selected model
+  const [selectedModel, setSelectedModel] = useState('');
+  const effectiveModel = selectedModel || defaultModel;
+
+  useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
     retry: false
   });
-
-  const availableModels = modelsData?.models || [];
-
-  // Initialize with user's default preference
-  useEffect(() => {
-    if (!selectedModel && defaultModel) {
-      setSelectedModel(defaultModel);
-    }
-  }, [defaultModel, selectedModel]);
 
   const calculateMutation = useMutation({
     mutationFn: (data) => api.estimates.calculate(data),
@@ -175,7 +169,7 @@ export default function Pricing() {
       <div className="mb-6">
         <BlueprintUpload
           onAnalysisComplete={handleBlueprintAnalysis}
-          selectedModel={selectedModel}
+          selectedModel={effectiveModel}
         />
       </div>
 

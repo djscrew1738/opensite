@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Send, CheckCircle, Bot } from 'lucide-react';
 import { api } from '../api/client';
@@ -11,26 +11,20 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('');
 
   const { isStreaming, streamingMessage, sendMessage } = useStreamingResponse();
   const { defaultModel } = useModelPreference();
 
+  // Use defaultModel directly, or keep the previously selected model
+  const [selectedModel, setSelectedModel] = useState('');
+  const effectiveModel = selectedModel || defaultModel;
+
   // Fetch available models
-  const { data: modelsData } = useQuery({
+  useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
     retry: false
   });
-
-  const availableModels = modelsData?.models || [];
-
-  // Initialize with user's default preference
-  useEffect(() => {
-    if (!selectedModel && defaultModel) {
-      setSelectedModel(defaultModel);
-    }
-  }, [defaultModel, selectedModel]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -43,7 +37,7 @@ export default function AIAssistant() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     // Send message and stream response with selected model
-    await sendMessage(userMessage, conversationId, selectedModel, (response, newConversationId) => {
+    await sendMessage(userMessage, conversationId, effectiveModel, (response, newConversationId) => {
       if (response) {
         setMessages(prev => [...prev, { role: 'assistant', content: response }]);
       }

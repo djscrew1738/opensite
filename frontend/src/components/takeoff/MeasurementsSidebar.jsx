@@ -52,7 +52,6 @@ export default function MeasurementsSidebar({
   selectedId,
   onSelect,
   scale,
-  materials = [],
   onAssignMaterial
 }) {
   const [editingId, setEditingId] = useState(null);
@@ -142,7 +141,7 @@ export default function MeasurementsSidebar({
     const offsetAmt = 20;
     const dup = {
       ...JSON.parse(JSON.stringify(m)),
-      id: `m_${Date.now()}`,
+      id: `m_${crypto.randomUUID()}`,
       points: m.points.map(p => ({ x: p.x + offsetAmt, y: p.y + offsetAmt }))
     };
     onMeasurementsChange([...measurements, dup]);

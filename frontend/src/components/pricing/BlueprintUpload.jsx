@@ -7,7 +7,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [jobId, setJobId] = useState(null);
+  const [_jobId, setJobId] = useState(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
   const pollIntervalRef = useRef(null);

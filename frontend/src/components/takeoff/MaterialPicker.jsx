@@ -91,7 +91,9 @@ export default function MaterialPicker({ onSelect, onClose }) {
             { id: 'all', label: 'All', icon: Package },
             ...(favorites.length > 0 ? [{ id: 'favorites', label: `Favorites (${favorites.length})`, icon: Star }] : []),
             ...(recent.length > 0 ? [{ id: 'recent', label: 'Recent', icon: Clock }] : [])
-          ].map(({ id, label, icon: Icon }) => (
+          ].map(({ id, label, icon }) => {
+            const IconComponent = icon;
+            return (
             <button
               key={id}
               onClick={() => setActiveSection(id)}
@@ -101,10 +103,10 @@ export default function MaterialPicker({ onSelect, onClose }) {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <Icon className="w-3 h-3" />
+              <IconComponent className="w-3 h-3" />
               {label}
             </button>
-          ))}
+          )})}
         </div>
 
         {/* Search and Filter */}

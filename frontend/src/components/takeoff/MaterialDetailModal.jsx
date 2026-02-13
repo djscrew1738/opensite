@@ -324,11 +324,12 @@ export default function MaterialDetailModal({ materialId, onClose, onEdit, onDup
   );
 }
 
-function DetailItem({ icon: Icon, label, value, mono }) {
+function DetailItem({ icon, label, value, mono }) {
+  const IconComponent = icon;
   return (
     <div className="flex items-start gap-3">
       <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-        <Icon className="w-4 h-4 text-gray-500" />
+        <IconComponent className="w-4 h-4 text-gray-500" />
       </div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
@@ -338,7 +339,7 @@ function DetailItem({ icon: Icon, label, value, mono }) {
   );
 }
 
-function PriceHistoryChart({ history, currentPrice }) {
+function PriceHistoryChart({ history }) {
   if (history.length === 0) return null;
 
   // Build price points from history (oldest first)

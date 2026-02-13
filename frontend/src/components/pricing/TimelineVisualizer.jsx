@@ -3,9 +3,8 @@ import { Calendar, Clock, AlertCircle } from 'lucide-react';
 /**
  * TimelineVisualizer - Gantt-style timeline showing project phases
  * @param {object} aiAnalysis - Structured AI analysis with timeline data
- * @param {object} estimate - Pricing estimate with labor breakdown
  */
-export default function TimelineVisualizer({ aiAnalysis, estimate }) {
+export default function TimelineVisualizer({ aiAnalysis }) {
   if (!aiAnalysis?.timeline && !aiAnalysis?.laborEstimate) {
     return null;
   }

@@ -62,15 +62,15 @@ export default function Dashboard() {
   });
 
   // Calculate trends (mock data for now - will be real when backend provides historical data)
-  const getTrend = (value) => {
-    const trend = Math.random() > 0.5 ? 'up' : 'down';
-    const percent = (Math.random() * 20).toFixed(1);
-    return { trend, percent };
-  };
+  const [trends] = useState(() => ({
+    pipeline: { trend: 'up', percent: '12.5' },
+    projects: { trend: 'down', percent: '3.2' },
+    leads: { trend: 'up', percent: '8.7' }
+  }));
 
-  const pipelineTrend = getTrend(stats?.pipelineValue);
-  const projectsTrend = getTrend(stats?.activeProjectsCount);
-  const leadsTrend = getTrend(stats?.hotLeadsCount);
+  const pipelineTrend = trends.pipeline;
+  const projectsTrend = trends.projects;
+  const leadsTrend = trends.leads;
 
   if (error) {
     return (

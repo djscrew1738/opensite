@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import {
   ChevronDown,
   ChevronRight,
@@ -11,6 +9,35 @@ import {
   FileText,
   Wrench
 } from 'lucide-react';
+
+const CollapsibleSection = ({ title, icon: Icon, isExpanded, onToggle, children, badge }) => (
+  <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        {Icon && <Icon className="w-5 h-5 text-gray-600" />}
+        <h4 className="font-semibold text-gray-900">{title}</h4>
+        {badge && (
+          <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded">
+            {badge}
+          </span>
+        )}
+      </div>
+      {isExpanded ? (
+        <ChevronDown className="w-5 h-5 text-gray-500" />
+      ) : (
+        <ChevronRight className="w-5 h-5 text-gray-500" />
+      )}
+    </button>
+    {isExpanded && (
+      <div className="p-4 bg-white">
+        {children}
+      </div>
+    )}
+  </div>
+);
 
 /**
  * AIInsightsPanel - Structured AI analysis with collapsible sections
@@ -48,35 +75,6 @@ export default function AIInsightsPanel({ aiAnalysis, aiAnalysisText }) {
   if (!aiAnalysis) {
     return null;
   }
-
-  const CollapsibleSection = ({ title, icon: Icon, isExpanded, onToggle, children, badge }) => (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          {Icon && <Icon className="w-5 h-5 text-gray-600" />}
-          <h4 className="font-semibold text-gray-900">{title}</h4>
-          {badge && (
-            <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded">
-              {badge}
-            </span>
-          )}
-        </div>
-        {isExpanded ? (
-          <ChevronDown className="w-5 h-5 text-gray-500" />
-        ) : (
-          <ChevronRight className="w-5 h-5 text-gray-500" />
-        )}
-      </button>
-      {isExpanded && (
-        <div className="p-4 bg-white">
-          {children}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-6">

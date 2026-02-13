@@ -13,7 +13,6 @@ export default function LeadFinder() {
   const [tierFilter, setTierFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
-  const [selectedPermit, setSelectedPermit] = useState(null);
 
   const queryClient = useQueryClient();
 
@@ -82,8 +81,7 @@ export default function LeadFinder() {
     permitStatusMutation.mutate({ id: permitId, status });
   };
 
-  const handleViewPermitDetails = (permit) => {
-    setSelectedPermit(permit);
+  const handleViewPermitDetails = () => {
     // TODO: Implement permit details modal
     alert('Permit details modal - to be implemented');
   };

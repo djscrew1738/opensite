@@ -12,6 +12,24 @@ import {
   CartesianGrid
 } from 'recharts';
 
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+        <p className="font-semibold text-gray-900">{data.name || data.payload.name}</p>
+        <p className="text-2xl font-bold text-primary-600">
+          ${data.value?.toLocaleString()}
+        </p>
+        {data.payload.percentage && (
+          <p className="text-sm text-gray-500">{data.payload.percentage}% of total</p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 /**
  * CostVisualization - Donut chart and stacked bar charts for cost breakdown
  * @param {object} estimate - Pricing estimate with breakdown
@@ -59,24 +77,6 @@ export default function CostVisualization({ estimate }) {
         { category: 'Trim', labor: estimate.labor.trim, materials: 0, color: PHASE_COLORS.trim }
       ]
     : [];
-
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-          <p className="font-semibold text-gray-900">{data.name || data.payload.name}</p>
-          <p className="text-2xl font-bold text-primary-600">
-            ${data.value?.toLocaleString()}
-          </p>
-          {data.payload.percentage && (
-            <p className="text-sm text-gray-500">{data.payload.percentage}% of total</p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
 
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;

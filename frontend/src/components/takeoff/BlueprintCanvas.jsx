@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ZoomIn, ZoomOut, Maximize, Move, Ruler, Square, Hash, MousePointer,
   Undo2, Redo2, Trash2, RotateCcw, Grid3X3, Circle, RectangleHorizontal,
@@ -184,12 +184,13 @@ export default function BlueprintCanvas({
     };
   }, [zoom, offset]);
 
-  const imageToScreen = useCallback((imgX, imgY) => {
-    return {
-      x: imgX * zoom + offset.x,
-      y: imgY * zoom + offset.y
-    };
-  }, [zoom, offset]);
+  // Note: imageToScreen is currently unused but kept for potential future use
+  // const imageToScreen = useCallback((imgX, imgY) => {
+  //   return {
+  //     x: imgX * zoom + offset.x,
+  //     y: imgY * zoom + offset.y
+  //   };
+  // }, [zoom, offset]);
 
   // ---------------------------------------------------------------------------
   // Snap logic
@@ -265,10 +266,11 @@ export default function BlueprintCanvas({
   // Measurement formatting
   // ---------------------------------------------------------------------------
 
-  const pixelsToReal = useCallback((pixels) => {
-    if (!scale || !scale.pixelsPerUnit) return pixels;
-    return pixels / scale.pixelsPerUnit;
-  }, [scale]);
+  // Note: pixelsToReal is currently unused but kept for potential future use
+  // const pixelsToReal = useCallback((pixels) => {
+  //   if (!scale || !scale.pixelsPerUnit) return pixels;
+  //   return pixels / scale.pixelsPerUnit;
+  // }, [scale]);
 
   const formatLength = useCallback((px) => {
     if (!scale || !scale.pixelsPerUnit) return `${Math.round(px)}px`;
@@ -1092,7 +1094,7 @@ export default function BlueprintCanvas({
     setHoveredId(null);
   };
 
-  const handleDoubleClick = (e) => {
+  const handleDoubleClick = () => {
     // Close area polygon
     if (tool === TOOL_TYPES.AREA && currentPoints.length >= 3) {
       const newM = { id: `m_${Date.now()}`, type: 'area', points: [...currentPoints], label: '' };
@@ -1214,8 +1216,6 @@ export default function BlueprintCanvas({
       tctx.drawImage(image, 0, 0);
 
       // Render measurements at 1:1
-      const prevZoom = zoom;
-      const z = 1;
       measurements.forEach(m => {
         const color = COLORS[m.type] || '#666';
         const lw = 2;
@@ -1342,7 +1342,7 @@ export default function BlueprintCanvas({
       link.href = tmp.toDataURL('image/png');
       link.click();
     }
-  }, [image, imageSize, measurements, zoom, formatLength, formatArea]);
+  }, [image, imageSize, measurements, formatLength, formatArea]);
 
   // ---------------------------------------------------------------------------
   // Keyboard shortcuts

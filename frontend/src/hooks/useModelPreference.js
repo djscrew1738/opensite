@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 
@@ -35,44 +35,49 @@ export function useModelPreference() {
     retry: false
   });
 
-  const availableModels = modelsData?.models || [];
+  const availableModels = useMemo(() => modelsData?.models || [], [modelsData]);
   const backendDefaultModel = modelsData?.defaultModel || '';
 
   // Helper function to check if a model is available
-  const isModelAvailable = (modelName) => {
+  const isModelAvailable = useCallback((modelName) => {
     if (!modelName || availableModels.length === 0) return false;
     return availableModels.some(model => model.name === modelName);
-  };
+  }, [availableModels]);
 
-  // Initialize default model from localStorage or backend
+  // Initialize default model from localStorage or backend (runs once on mount)
+  const isInitializedRef = useRef(false);
   useEffect(() => {
-    if (!modelsData) return;
+    if (!modelsData || isInitializedRef.current) return;
 
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+    // Use requestAnimationFrame to defer setState and avoid cascading renders
+    requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
 
-      if (saved && isModelAvailable(saved)) {
-        // Use saved preference if it's still a valid model
-        setDefaultModelState(saved);
-      } else {
-        // Fallback to backend default
+        if (saved && isModelAvailable(saved)) {
+          // Use saved preference if it's still a valid model
+          setDefaultModelState(saved);
+        } else {
+          // Clean up invalid saved preference
+          if (saved) {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+          // Fallback to backend default
+          if (backendDefaultModel) {
+            setDefaultModelState(backendDefaultModel);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read model preference from localStorage:', error);
+        // Fallback to backend default on error
         if (backendDefaultModel) {
           setDefaultModelState(backendDefaultModel);
         }
+      }
+    });
 
-        // Clean up invalid saved preference
-        if (saved && !isModelAvailable(saved)) {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to read model preference from localStorage:', error);
-      // Fallback to backend default on error
-      if (backendDefaultModel) {
-        setDefaultModelState(backendDefaultModel);
-      }
-    }
-  }, [modelsData, backendDefaultModel]);
+    isInitializedRef.current = true;
+  }, [modelsData, backendDefaultModel, isModelAvailable]);
 
   // Set the default model preference
   const setDefaultModel = (modelName) => {

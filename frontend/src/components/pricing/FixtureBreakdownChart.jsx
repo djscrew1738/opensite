@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+        <p className="font-semibold text-gray-900">{payload[0].payload.name}</p>
+        <p className="text-2xl font-bold text-primary-600">{payload[0].value}</p>
+        <p className="text-xs text-gray-500">Click to filter</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 /**
  * FixtureBreakdownChart - Interactive bar chart showing fixture counts
  * @param {object} extractedData - Data extracted from blueprint
@@ -44,19 +57,6 @@ export default function FixtureBreakdownChart({ extractedData }) {
 
   const handleBarClick = (data) => {
     setSelectedFixture(selectedFixture === data.name ? null : data.name);
-  };
-
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-          <p className="font-semibold text-gray-900">{payload[0].payload.name}</p>
-          <p className="text-2xl font-bold text-primary-600">{payload[0].value}</p>
-          <p className="text-xs text-gray-500">Click to filter</p>
-        </div>
-      );
-    }
-    return null;
   };
 
   return (

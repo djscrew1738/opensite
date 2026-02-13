@@ -83,7 +83,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   // Bulk operations state
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [_showBulkActions, setShowBulkActions] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
   const [bulkPricePercent, setBulkPricePercent] = useState('');
 
@@ -193,7 +193,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: (id) => api.takeoff.toggleFavorite(id),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       queryClient.invalidateQueries({ queryKey: ['material-stats'] });
     }
@@ -239,7 +239,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   // ---- Derived data ----
 
-  const materials = materialsData?.materials || [];
+  const materials = useMemo(() => materialsData?.materials || [], [materialsData]);
   const categories = categoriesData?.categories || [];
   const suppliers = suppliersData?.suppliers || [];
   const stats = statsData || {};
@@ -434,7 +434,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   // ---- Render Helpers ----
 
-  const renderMaterialRow = (material, compact = false) => {
+  const renderMaterialRow = (material) => {
     const isSelected = selectedIds.has(material.id);
     const priceWithMarkup = material.markup
       ? material.unitCost * (1 + material.markup / 100)
@@ -885,7 +885,9 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
           { id: QUICK_FILTERS.FAVORITES, label: 'Favorites', icon: Star },
           { id: QUICK_FILTERS.RECENT, label: 'Recently Used', icon: Clock },
           { id: QUICK_FILTERS.MOST_USED, label: 'Most Used', icon: TrendingUp }
-        ].map(({ id, label, icon: Icon }) => (
+        ].map(({ id, label, icon }) => {
+          const IconComponent = icon;
+          return (
           <button
             key={id}
             onClick={() => setQuickFilter(id)}
@@ -895,10 +897,10 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <IconComponent className="w-3.5 h-3.5" />
             {label}
           </button>
-        ))}
+        )})}
       </div>
 
       {/* Search, Filters, and Actions Bar */}
@@ -968,7 +970,9 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 { mode: VIEW_MODES.GROUPED, icon: List, label: 'Grouped' },
                 { mode: VIEW_MODES.TABLE, icon: Table2, label: 'Table' },
                 { mode: VIEW_MODES.CARD, icon: Grid3X3, label: 'Cards' }
-              ].map(({ mode, icon: Icon, label }) => (
+              ].map(({ mode, icon, label }) => {
+                const IconComponent = icon;
+                return (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -979,9 +983,9 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                   }`}
                   title={label}
                 >
-                  <Icon className="w-4 h-4" />
+                  <IconComponent className="w-4 h-4" />
                 </button>
-              ))}
+              )})}
             </div>
           </div>
         </div>

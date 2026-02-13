@@ -4,13 +4,15 @@ import {
   Users,
   Calculator,
   MessageSquare,
-  Settings
+  Settings,
+  Ruler
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/leads', icon: Users, label: 'Lead Finder' },
   { path: '/pricing', icon: Calculator, label: 'Pricing' },
+  { path: '/takeoff', icon: Ruler, label: 'Takeoff' },
   { path: '/ai', icon: MessageSquare, label: 'AI Assistant' },
   { path: '/settings', icon: Settings, label: 'Settings' }
 ];

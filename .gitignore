@@ -38,3 +38,6 @@ Thumbs.db
 # Database (future)
 *.db
 *.sqlite
+
+# Persistent data volumes used by new plumbing worker
+data/

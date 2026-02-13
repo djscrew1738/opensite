@@ -52,6 +52,14 @@ cd /home/djscrew/1stein/frontend
 npm run dev
 ```
 
+### Plumbing Worker Stack
+
+Run `scripts/optimize_server.sh` on the machine running Ollama so the host exports `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE=24h`, and keeps `ollama serve` alive. Then start the worker infrastructure:
+
+```bash
+docker-compose up -d redis-plumber chromadb-plumber worker-plumber
+```
+
 ### 2. Test the Implementation
 1. Open http://localhost:3003/pricing
 2. Upload a blueprint PDF file

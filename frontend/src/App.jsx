@@ -6,6 +6,7 @@ import LeadFinder from './pages/LeadFinder';
 import Pricing from './pages/Pricing';
 import AIAssistant from './pages/AIAssistant';
 import Settings from './pages/Settings';
+import Takeoff from './pages/Takeoff';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +27,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="leads" element={<LeadFinder />} />
             <Route path="pricing" element={<Pricing />} />
+            <Route path="takeoff" element={<Takeoff />} />
             <Route path="ai" element={<AIAssistant />} />
             <Route path="settings" element={<Settings />} />
           </Route>

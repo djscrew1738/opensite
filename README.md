@@ -124,6 +124,10 @@ The frontend will start on port 3000.
    ollama pull llama3.1
    ```
 
+### Ollama Host Optimization
+
+Before starting the new worker stack, run `scripts/optimize_server.sh` on the machine that hosts Ollama. The script exports `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE=24h`, and keeps the server running with `ollama serve`. If Ollama lives inside Docker instead, set the same environment variables inside that container before standing up `worker-plumber`.
+
 ---
 
 ## Docker Deployment
@@ -142,6 +146,12 @@ docker-compose down
 ```
 
 **Note:** Ollama must be running on the host machine at `http://localhost:11434`
+
+Once the worker host is tuned, bring up the plumbing extraction infrastructure:
+
+```bash
+docker-compose up -d redis-plumber chromadb-plumber worker-plumber
+```
 
 ---
 
@@ -211,6 +221,13 @@ POST /api/ai/chat                  # Chat (non-streaming)
 POST /api/ai/chat/stream           # Chat (streaming)
 POST /api/ai/analyze               # General analysis
 ```
+
+### Plumbing Extraction
+```
+POST /api/plumbing/extract         # Upload blueprint PDF (form field `file`)
+```
+
+The endpoint saves the PDF to `data/uploads` and enqueues a `process_pdf` job on `redis-plumber`. The worker tiles the blueprint, sends each tile to `llava:13b` + Instructor, transforms coordinates globally, and reflects against the page text to verify the final `PlumbingExtraction` schema before replying.
 
 ### Dashboard
 ```

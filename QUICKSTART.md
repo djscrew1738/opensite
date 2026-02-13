@@ -55,6 +55,17 @@ ollama serve
 ollama pull llama3.1
 ```
 
+### Plumbing Worker Stack
+
+Before you start the plumbing extraction worker, run `scripts/optimize_server.sh` on the host where Ollama is running. The script pins `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE=24h`, and keeps the server alive with `ollama serve`.
+
+Then bring up the plumbing stack:
+```bash
+docker-compose up -d redis-plumber chromadb-plumber worker-plumber
+```
+
+The backend route `/api/plumbing/extract` will save uploads to `data/uploads` and enqueue `process_pdf` onto `redis-plumber`.
+
 ## 📋 Quick Verification Checklist
 
 1. ✅ Backend running on port 5001

@@ -12,10 +12,24 @@
   }
 
   body {
-    @apply bg-concrete-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
     font-feature-settings: 'cv11', 'ss01';
     touch-action: manipulation;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body {
+    background-color: #fafaf9;
+    color: #111827;
+  }
+
+  body.dark {
+    background-color: #030712;
+    color: #f3f4f6;
+  }
+
+  :root body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Custom scrollbar */
@@ -25,15 +39,28 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-concrete-100 dark:bg-gray-900;
+    background-color: #f5f5f4;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background-color: #111827;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary-300 rounded-full dark:bg-primary-700;
+    background-color: #9fb3c8;
+    border-radius: 9999px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: #334e68;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary-400 dark:bg-primary-600;
+    background-color: #829ab1;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #486581;
   }
 
   /* Smooth scroll behavior */

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Send, CheckCircle, Bot } from 'lucide-react';
 import { api } from '../api/client';
 import ChatInterface from '../components/ai/ChatInterface';
+import ModelSelector from '../components/ai/ModelSelector';
 import { useStreamingResponse } from '../hooks/useStreamingResponse';
+import { useModelPreference } from '../hooks/useModelPreference';
 
 export default function AIAssistant() {
   const [messages, setMessages] = useState([]);
@@ -12,6 +14,7 @@ export default function AIAssistant() {
   const [selectedModel, setSelectedModel] = useState('');
 
   const { isStreaming, streamingMessage, sendMessage } = useStreamingResponse();
+  const { defaultModel } = useModelPreference();
 
   // Fetch available models
   const { data: modelsData } = useQuery({
@@ -21,12 +24,13 @@ export default function AIAssistant() {
   });
 
   const availableModels = modelsData?.models || [];
-  const defaultModel = modelsData?.defaultModel || '';
 
-  // Set default model once loaded
-  if (!selectedModel && defaultModel) {
-    setSelectedModel(defaultModel);
-  }
+  // Initialize with user's default preference
+  useEffect(() => {
+    if (!selectedModel && defaultModel) {
+      setSelectedModel(defaultModel);
+    }
+  }, [defaultModel, selectedModel]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -67,24 +71,17 @@ export default function AIAssistant() {
         </div>
 
         {/* Model Selector */}
-        {availableModels.length > 0 && (
-          <div className="flex items-center gap-3">
-            <Bot className="w-4 h-4 text-gray-500" />
-            <label className="text-sm text-gray-600">Model:</label>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={isStreaming}
-              className="input text-sm py-1"
-            >
-              {availableModels.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {model.name} ({(model.size / (1024 ** 3)).toFixed(1)}GB)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Bot className="w-4 h-4 text-gray-500" />
+          <label className="text-sm text-gray-600">Model:</label>
+          <ModelSelector
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={isStreaming}
+            showSizes={true}
+            className="text-sm py-1"
+          />
+        </div>
       </div>
 
       {/* Chat Interface */}

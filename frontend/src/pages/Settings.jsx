@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useOllama } from '../hooks/useOllama';
+import { useModelPreference } from '../hooks/useModelPreference';
+import ModelSelector from '../components/ai/ModelSelector';
 import { CheckCircle, XCircle, RefreshCw, DollarSign, Building2, MapPin } from 'lucide-react';
 
 export default function Settings() {
   const { connected, model, available, isLoading, refetch } = useOllama();
+  const { defaultModel, setDefaultModel } = useModelPreference();
 
   const { data: tiersData } = useQuery({
     queryKey: ['pricing-tiers'],
@@ -27,6 +30,27 @@ export default function Settings() {
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
 
       <div className="space-y-6">
+        {/* User Preferences */}
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">User Preferences</h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Default AI Model
+              </label>
+              <ModelSelector
+                value={defaultModel}
+                onChange={(e) => setDefaultModel(e.target.value)}
+                showSizes={true}
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                This model will be used by default for AI features
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Ollama Connection Status */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Ollama AI Status</h2>

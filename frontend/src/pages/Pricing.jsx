@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
 import AnalysisDashboard from '../components/pricing/AnalysisDashboard';
 import BlueprintUpload from '../components/pricing/BlueprintUpload';
+import ModelSelector from '../components/ai/ModelSelector';
 import { useFormPersistence } from '../hooks/useFormPersistence';
+import { useModelPreference } from '../hooks/useModelPreference';
 
 export default function Pricing() {
   const [formData, setFormData] = useState({
@@ -39,6 +41,8 @@ export default function Pricing() {
     }
   });
 
+  const { defaultModel } = useModelPreference();
+
   const { data: modelsData } = useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
@@ -46,7 +50,13 @@ export default function Pricing() {
   });
 
   const availableModels = modelsData?.models || [];
-  const defaultModel = modelsData?.defaultModel || '';
+
+  // Initialize with user's default preference
+  useEffect(() => {
+    if (!selectedModel && defaultModel) {
+      setSelectedModel(defaultModel);
+    }
+  }, [defaultModel, selectedModel]);
 
   const calculateMutation = useMutation({
     mutationFn: (data) => api.estimates.calculate(data),
@@ -150,29 +160,22 @@ export default function Pricing() {
         <h1 className="text-3xl font-bold text-gray-900">Pricing Calculator</h1>
 
         {/* Model Selector */}
-        {availableModels.length > 0 && (
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-gray-600">AI Model:</label>
-            <select
-              value={selectedModel || defaultModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="input text-sm py-1"
-            >
-              {availableModels.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-gray-600">AI Model:</label>
+          <ModelSelector
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            showSizes={false}
+            className="text-sm py-1"
+          />
+        </div>
       </div>
 
       {/* Blueprint Upload */}
       <div className="mb-6">
         <BlueprintUpload
           onAnalysisComplete={handleBlueprintAnalysis}
-          selectedModel={selectedModel || defaultModel}
+          selectedModel={selectedModel}
         />
       </div>
 

@@ -5,8 +5,10 @@ import {
   Calculator,
   MessageSquare,
   Settings,
-  Ruler
+  Ruler,
+  Hammer
 } from 'lucide-react';
+import ThemeToggle from '../shared/ThemeToggle';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -19,44 +21,79 @@ const navItems = [
 
 export default function Sidebar() {
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-primary-600">1stein</h1>
-        <p className="text-xs text-gray-500 mt-1">CTL Plumbing Intelligence</p>
+    <aside className="w-72 bg-gradient-to-b from-primary-950 to-primary-900 h-screen flex flex-col text-white shadow-2xl">
+      {/* Logo & Branding */}
+      <div className="p-6 border-b border-primary-800/50">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Hammer className="w-6 h-6 text-white" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-display font-bold tracking-tight">1stein</h1>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+        <p className="text-xs text-primary-300 font-medium tracking-wide uppercase pl-1">
+          CTL Plumbing Intelligence
+        </p>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <ul className="space-y-1">
+      <nav className="flex-1 p-4 overflow-y-auto">
+        <ul className="space-y-2">
           {navItems.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  `group flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-gradient-to-r from-accent-500 to-accent-600 text-white shadow-lg shadow-accent-500/30'
+                      : 'text-primary-200 hover:bg-primary-800/50 hover:text-white'
                   }`
                 }
               >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <div className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
+                      <item.icon
+                        className="w-5 h-5"
+                        strokeWidth={isActive ? 2.5 : 2}
+                      />
+                    </div>
+                    <span className={`font-semibold ${isActive ? 'text-white' : ''}`}>
+                      {item.label}
+                    </span>
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">
-          <p className="font-medium">CTL Plumbing LLC</p>
-          <p>DFW Metroplex</p>
+      {/* Company Info Footer */}
+      <div className="p-6 border-t border-primary-800/50">
+        <div className="bg-primary-800/40 backdrop-blur-sm rounded-xl p-4 border border-primary-700/30">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+              CTL
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-white">CTL Plumbing LLC</p>
+              <p className="text-xs text-primary-300 mt-0.5">DFW Metroplex</p>
+              <div className="flex items-center gap-1 mt-2">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-2xs text-primary-300 font-medium">System Online</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
+

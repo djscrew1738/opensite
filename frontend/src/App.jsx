@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from './hooks/useTheme';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import LeadFinder from './pages/LeadFinder';
@@ -20,19 +21,21 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="leads" element={<LeadFinder />} />
-            <Route path="pricing" element={<Pricing />} />
-            <Route path="takeoff" element={<Takeoff />} />
-            <Route path="ai" element={<AIAssistant />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="leads" element={<LeadFinder />} />
+              <Route path="pricing" element={<Pricing />} />
+              <Route path="takeoff" element={<Takeoff />} />
+              <Route path="ai" element={<AIAssistant />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

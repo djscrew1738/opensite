@@ -37,6 +37,7 @@
     "nodemailer": "^6.9.16",
     "p-queue": "^8.0.1",
     "pdf-parse": "^1.1.4",
+    "playwright": "^1.58.2",
     "twilio": "^5.3.0",
     "uuid": "^9.0.1",
     "winston": "^3.19.0",

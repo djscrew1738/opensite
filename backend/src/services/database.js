@@ -345,6 +345,57 @@ class DatabaseService {
       )
     `);
 
+    // Discovery runs table - tracks each pipeline execution
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS discovery_runs (
+        id TEXT PRIMARY KEY,
+        keyword TEXT NOT NULL,
+        city TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        stage TEXT DEFAULT 'queued',
+        progress INTEGER DEFAULT 0,
+        totalFound INTEGER DEFAULT 0,
+        enriched INTEGER DEFAULT 0,
+        scored INTEGER DEFAULT 0,
+        jobId TEXT,
+        error TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Discovery leads table - consolidated with progressive enrichment
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS discovery_leads (
+        id TEXT PRIMARY KEY,
+        runId TEXT NOT NULL,
+        businessName TEXT,
+        address TEXT,
+        website TEXT,
+        phone TEXT,
+        rating REAL,
+        reviewCount INTEGER,
+        category TEXT,
+        placeId TEXT,
+        domainHash TEXT,
+        emails TEXT DEFAULT '[]',
+        extractedPhones TEXT DEFAULT '[]',
+        servicesOffered TEXT DEFAULT '[]',
+        aboutSummary TEXT,
+        enrichmentStatus TEXT DEFAULT 'pending',
+        icpScore INTEGER DEFAULT 0,
+        icpTier TEXT DEFAULT 'unscored',
+        icpReasoning TEXT,
+        plumbingRelevance REAL DEFAULT 0,
+        outreachSubject TEXT,
+        outreachBody TEXT,
+        contactStatus TEXT DEFAULT 'new',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (runId) REFERENCES discovery_runs(id) ON DELETE CASCADE
+      )
+    `);
+
     // Create indexes for performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
@@ -375,6 +426,14 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_builders_relationship ON builders(relationshipStatus);
       CREATE INDEX IF NOT EXISTS idx_permit_notifications_status ON permit_notifications(status);
       CREATE INDEX IF NOT EXISTS idx_permit_notifications_permit ON permit_notifications(permitId);
+
+      -- Discovery indexes
+      CREATE INDEX IF NOT EXISTS idx_discovery_runs_status ON discovery_runs(status);
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_runId ON discovery_leads(runId);
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_icpScore ON discovery_leads(icpScore DESC);
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_icpTier ON discovery_leads(icpTier);
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_contactStatus ON discovery_leads(contactStatus);
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_domainHash ON discovery_leads(domainHash);
     `);
 
     // Seed default plumbing materials if empty
@@ -1713,6 +1772,140 @@ class DatabaseService {
       SET status = ?, externalId = ?, errorMessage = ?, sentAt = ?
       WHERE id = ?
     `).run(status, externalId, errorMessage, sentAt, id);
+  }
+
+  // ==================== Discovery Operations ====================
+
+  createDiscoveryRun(data) {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    this.db.prepare(`
+      INSERT INTO discovery_runs (id, keyword, city, status, stage, progress, jobId, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, data.keyword, data.city, 'pending', 'queued', 0, data.jobId || null, now, now);
+    return this.getDiscoveryRun(id);
+  }
+
+  getDiscoveryRun(id) {
+    return this.db.prepare('SELECT * FROM discovery_runs WHERE id = ?').get(id);
+  }
+
+  getAllDiscoveryRuns() {
+    return this.db.prepare('SELECT * FROM discovery_runs ORDER BY createdAt DESC').all();
+  }
+
+  updateDiscoveryRun(id, data) {
+    const existing = this.getDiscoveryRun(id);
+    if (!existing) return null;
+    const updates = [];
+    const params = [];
+    for (const [key, val] of Object.entries(data)) {
+      if (key !== 'id' && key !== 'createdAt') {
+        updates.push(`${key} = ?`);
+        params.push(val);
+      }
+    }
+    updates.push('updatedAt = ?');
+    params.push(new Date().toISOString());
+    params.push(id);
+    this.db.prepare(`UPDATE discovery_runs SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    return this.getDiscoveryRun(id);
+  }
+
+  deleteDiscoveryRun(id) {
+    this.db.prepare('DELETE FROM discovery_leads WHERE runId = ?').run(id);
+    return this.db.prepare('DELETE FROM discovery_runs WHERE id = ?').run(id).changes > 0;
+  }
+
+  createDiscoveryLead(data) {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    this.db.prepare(`
+      INSERT INTO discovery_leads (
+        id, runId, businessName, address, website, phone, rating, reviewCount,
+        category, placeId, domainHash, emails, extractedPhones, servicesOffered,
+        aboutSummary, enrichmentStatus, icpScore, icpTier, icpReasoning,
+        plumbingRelevance, outreachSubject, outreachBody, contactStatus,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, data.runId, data.businessName || null, data.address || null,
+      data.website || null, data.phone || null, data.rating || null,
+      data.reviewCount || null, data.category || null, data.placeId || null,
+      data.domainHash || null,
+      JSON.stringify(data.emails || []),
+      JSON.stringify(data.extractedPhones || []),
+      JSON.stringify(data.servicesOffered || []),
+      data.aboutSummary || null, data.enrichmentStatus || 'pending',
+      data.icpScore || 0, data.icpTier || 'unscored', data.icpReasoning || null,
+      data.plumbingRelevance || 0, data.outreachSubject || null,
+      data.outreachBody || null, data.contactStatus || 'new', now, now
+    );
+    return this.getDiscoveryLead(id);
+  }
+
+  getDiscoveryLead(id) {
+    const lead = this.db.prepare('SELECT * FROM discovery_leads WHERE id = ?').get(id);
+    if (lead) {
+      lead.emails = JSON.parse(lead.emails || '[]');
+      lead.extractedPhones = JSON.parse(lead.extractedPhones || '[]');
+      lead.servicesOffered = JSON.parse(lead.servicesOffered || '[]');
+    }
+    return lead;
+  }
+
+  getDiscoveryLeadsByRun(runId, filters = {}) {
+    let query = 'SELECT * FROM discovery_leads WHERE runId = ?';
+    const params = [runId];
+    if (filters.tier) {
+      query += ' AND icpTier = ?';
+      params.push(filters.tier);
+    }
+    if (filters.status) {
+      query += ' AND contactStatus = ?';
+      params.push(filters.status);
+    }
+    query += ' ORDER BY icpScore DESC';
+    const leads = this.db.prepare(query).all(...params);
+    return leads.map(lead => {
+      lead.emails = JSON.parse(lead.emails || '[]');
+      lead.extractedPhones = JSON.parse(lead.extractedPhones || '[]');
+      lead.servicesOffered = JSON.parse(lead.servicesOffered || '[]');
+      return lead;
+    });
+  }
+
+  updateDiscoveryLead(id, data) {
+    const existing = this.getDiscoveryLead(id);
+    if (!existing) return null;
+    const updates = [];
+    const params = [];
+    for (const [key, val] of Object.entries(data)) {
+      if (key !== 'id' && key !== 'createdAt' && key !== 'runId') {
+        if (key === 'emails' || key === 'extractedPhones' || key === 'servicesOffered') {
+          updates.push(`${key} = ?`);
+          params.push(JSON.stringify(val));
+        } else {
+          updates.push(`${key} = ?`);
+          params.push(val);
+        }
+      }
+    }
+    updates.push('updatedAt = ?');
+    params.push(new Date().toISOString());
+    params.push(id);
+    this.db.prepare(`UPDATE discovery_leads SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    return this.getDiscoveryLead(id);
+  }
+
+  getDiscoveryLeadByDomainHash(domainHash) {
+    const lead = this.db.prepare('SELECT * FROM discovery_leads WHERE domainHash = ? LIMIT 1').get(domainHash);
+    if (lead) {
+      lead.emails = JSON.parse(lead.emails || '[]');
+      lead.extractedPhones = JSON.parse(lead.extractedPhones || '[]');
+      lead.servicesOffered = JSON.parse(lead.servicesOffered || '[]');
+    }
+    return lead;
   }
 
   // Backup database

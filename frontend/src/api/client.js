@@ -188,6 +188,17 @@ export const api = {
     cancel: (jobId) => apiClient.delete(`/jobs/${jobId}`)
   },
 
+  // Discovery pipeline
+  discovery: {
+    startRun: (keyword, city) => apiClient.post('/discovery/run', { keyword, city }),
+    getRuns: () => apiClient.get('/discovery/runs'),
+    getRun: (runId) => apiClient.get(`/discovery/runs/${runId}`),
+    getRunLeads: (runId, params) => apiClient.get(`/discovery/runs/${runId}/leads`, { params }),
+    getLead: (id) => apiClient.get(`/discovery/leads/${id}`),
+    updateLeadStatus: (id, status) => apiClient.patch(`/discovery/leads/${id}/status`, { status }),
+    deleteRun: (runId) => apiClient.delete(`/discovery/runs/${runId}`)
+  },
+
   // Permits (lead finder)
   permits: {
     getAll: (params) => apiClient.get('/permits', { params }),

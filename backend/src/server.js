@@ -41,6 +41,7 @@ import jobsRoutes from './routes/jobs.js';
 import plumbingRoutes from './routes/plumbing.js';
 import takeoffRoutes from './routes/takeoff.js';
 import permitsRoutes from './routes/permits.js';
+import discoveryRoutes from './routes/discovery.js';
 
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
@@ -85,6 +86,7 @@ app.use('/api/jobs', jobsRoutes); // Job status polling
 app.use('/api/plumbing', plumbingRoutes);
 app.use('/api/takeoff', takeoffRoutes);
 app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
+app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
 
 // Root endpoint
 app.get('/', (req, res) => {

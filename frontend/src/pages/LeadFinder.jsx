@@ -5,6 +5,7 @@ import { Plus, Search, Filter, X } from 'lucide-react';
 import LeadCard from '../components/leads/LeadCard';
 import LeadModal from '../components/leads/LeadModal';
 import PermitLeadCard from '../components/leads/PermitLeadCard';
+import DiscoveryTab from '../components/discovery/DiscoveryTab';
 
 export default function LeadFinder() {
   const [activeTab, setActiveTab] = useState('manual');
@@ -143,10 +144,27 @@ export default function LeadFinder() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent-500 to-accent-600" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('discovery')}
+            className={`relative px-6 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
+              activeTab === 'discovery'
+                ? 'text-accent-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Discovery
+            {activeTab === 'discovery' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent-500 to-accent-600" />
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Search and Filters */}
+      {/* Discovery Tab */}
+      {activeTab === 'discovery' && <DiscoveryTab />}
+
+      {/* Search and Filters (Manual & Permits only) */}
+      {activeTab !== 'discovery' && (<>
       <div className="space-y-3">
         {/* Search Bar */}
         <div className="card">
@@ -350,6 +368,7 @@ export default function LeadFinder() {
           </div>
         )
       )}
+      </>)}
 
       {/* Modal */}
       {showModal && (

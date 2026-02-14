@@ -255,7 +255,8 @@
   }
 
   .pipe-fill {
-    @apply h-full rounded-full animate-pipe-fill;
+    @apply h-full rounded-full;
+    animation: pipeFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     background-image: repeating-linear-gradient(
       -45deg,
       transparent,

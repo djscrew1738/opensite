@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import {
   DollarSign,
@@ -16,11 +16,17 @@ import {
   CheckCircle2,
   Bot,
   FileText,
-  Clock
+  Clock,
+  X,
+  MapPin,
+  Phone,
+  Mail,
+  Edit3
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/dashboard/StatCard';
+import ProjectModal from '../components/projects/ProjectModal';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -29,9 +35,120 @@ function getGreeting() {
   return 'Good evening';
 }
 
+// Quick detail drawer for leads
+function LeadDetailDrawer({ lead, onClose, onNavigate }) {
+  if (!lead) return null;
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white dark:bg-gray-900 h-full shadow-2xl animate-slide-left overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-concrete-200 dark:border-gray-700 p-5 flex items-center justify-between z-10">
+          <h3 className="text-lg font-display font-bold text-gray-900 dark:text-gray-100">Lead Details</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-concrete-100 dark:hover:bg-gray-800 transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        <div className="p-5 space-y-5">
+          <div>
+            <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100">{lead.name}</h2>
+            {lead.company && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{lead.company}</p>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+              lead.status === 'hot' ? 'bg-hot-100 text-hot-700 dark:bg-hot-900/40 dark:text-hot-400' :
+              lead.status === 'warm' ? 'bg-warm-100 text-warm-700 dark:bg-warm-900/40 dark:text-warm-400' :
+              'bg-concrete-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+            }`}>
+              {lead.status || 'new'}
+            </span>
+            {lead.score > 0 && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-400">
+                Score: {lead.score}
+              </span>
+            )}
+          </div>
+
+          {lead.value > 0 && (
+            <div className="p-4 bg-gradient-to-r from-accent-50 to-accent-100/50 dark:from-accent-950/30 dark:to-accent-900/20 rounded-xl border border-accent-200 dark:border-accent-900/50">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Estimated Value</p>
+              <p className="text-3xl font-display font-bold text-accent-700 dark:text-accent-400">${lead.value?.toLocaleString()}</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {lead.email && (
+              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <Mail className="w-4 h-4 text-gray-400" />
+                <span>{lead.email}</span>
+              </div>
+            )}
+            {lead.phone && (
+              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <Phone className="w-4 h-4 text-gray-400" />
+                <span>{lead.phone}</span>
+              </div>
+            )}
+            {lead.location && (
+              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                <span>{lead.location}</span>
+              </div>
+            )}
+          </div>
+
+          {lead.projectType && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Project Type</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">{lead.projectType}</p>
+            </div>
+          )}
+
+          {lead.notes && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{lead.notes}</p>
+            </div>
+          )}
+
+          <div className="text-xs text-gray-400 dark:text-gray-500">
+            Added {new Date(lead.createdAt).toLocaleDateString('en-US', {
+              month: 'long', day: 'numeric', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            })}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => { onClose(); onNavigate('/leads'); }}
+              className="btn-primary flex-1"
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit in Leads
+            </button>
+            <button
+              onClick={() => { onClose(); onNavigate('/pricing'); }}
+              className="btn-secondary flex-1"
+            >
+              <FileText className="w-4 h-4" />
+              Create Estimate
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [selectedLead, setSelectedLead] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -57,8 +174,44 @@ export default function Dashboard() {
 
   const { data: leadsData } = useQuery({
     queryKey: ['recent-leads'],
-    queryFn: () => api.leads.getAll({ limit: 5 })
+    queryFn: () => api.leads.getAll({ limit: 10 })
   });
+
+  const createProjectMutation = useMutation({
+    mutationFn: (data) => api.projects.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      setShowProjectModal(false);
+      setEditingProject(null);
+    }
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: ({ id, data }) => api.projects.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      setShowProjectModal(false);
+      setEditingProject(null);
+    }
+  });
+
+  const handleSaveProject = (data) => {
+    if (editingProject) {
+      updateProjectMutation.mutate({ id: editingProject.id, data });
+    } else {
+      createProjectMutation.mutate(data);
+    }
+  };
+
+  const handleEditProject = (project) => {
+    setEditingProject(project);
+    setShowProjectModal(true);
+  };
+
+  const handleNewProject = () => {
+    setEditingProject(null);
+    setShowProjectModal(true);
+  };
 
   const recentLeads = leadsData?.leads || [];
 
@@ -113,7 +266,6 @@ export default function Dashboard() {
 
       {/* ── 1. COMMAND HEADER ── */}
       <header className="command-header animate-slide-down">
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary-900/80 via-primary-800/60 to-transparent pointer-events-none" />
 
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -159,6 +311,7 @@ export default function Dashboard() {
               trendValue="12.5"
               color="primary"
               edgeBar
+              onClick={() => navigate('/leads')}
             />
           </div>
 
@@ -172,6 +325,7 @@ export default function Dashboard() {
               trendValue="3.2"
               color="blue"
               edgeBar
+              onClick={handleNewProject}
             />
           </div>
 
@@ -185,6 +339,7 @@ export default function Dashboard() {
               trendValue="8.7"
               color="hot"
               edgeBar
+              onClick={() => navigate('/leads')}
             />
           </div>
 
@@ -196,6 +351,7 @@ export default function Dashboard() {
               subtext="All in system"
               color="purple"
               edgeBar
+              onClick={() => navigate('/leads')}
             />
           </div>
         </div>
@@ -204,19 +360,23 @@ export default function Dashboard() {
       {/* ── 3. QUICK ACTIONS STRIP ── */}
       <section className="animate-slide-up stagger-5">
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => navigate('/leads/new')} className="quick-action-primary">
+          <button onClick={handleNewProject} className="quick-action-primary">
             <Plus className="w-4 h-4" />
+            New Project
+          </button>
+          <button onClick={() => navigate('/leads')} className="quick-action-secondary">
+            <Users className="w-4 h-4" />
             New Lead
           </button>
-          <button onClick={() => navigate('/estimates/new')} className="quick-action-secondary">
+          <button onClick={() => navigate('/pricing')} className="quick-action-secondary">
             <FileText className="w-4 h-4" />
             New Estimate
           </button>
-          <button onClick={() => navigate('/ai-assistant')} className="quick-action-secondary">
+          <button onClick={() => navigate('/ai')} className="quick-action-secondary">
             <Bot className="w-4 h-4" />
             AI Assistant
           </button>
-          <button onClick={() => navigate('/permits')} className="quick-action-secondary">
+          <button onClick={() => navigate('/leads')} className="quick-action-secondary">
             <Building2 className="w-4 h-4" />
             View Permits
           </button>
@@ -259,7 +419,10 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Score 50-79</p>
             </div>
 
-            <div className="permit-metric permit-metric-emerald">
+            <div
+              className="permit-metric permit-metric-emerald cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => navigate('/leads')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">New Today</p>
@@ -270,7 +433,10 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Ingested today</p>
             </div>
 
-            <div className="permit-metric permit-metric-blue">
+            <div
+              className="permit-metric permit-metric-blue cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => navigate('/leads')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</p>
@@ -301,11 +467,11 @@ export default function Dashboard() {
                   Active Projects
                 </h2>
                 <button
-                  onClick={() => navigate('/projects')}
+                  onClick={handleNewProject}
                   className="text-sm text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 font-bold flex items-center gap-1 transition-transform hover:translate-x-1"
                 >
-                  View All
-                  <ArrowUpRight className="w-4 h-4" />
+                  <Plus className="w-4 h-4" />
+                  Add New
                 </button>
               </div>
 
@@ -314,6 +480,7 @@ export default function Dashboard() {
                   {stats.activeProjects.map((project) => (
                     <div
                       key={project.id}
+                      onClick={() => handleEditProject(project)}
                       className="p-4 bg-gradient-to-br from-concrete-50 to-white dark:from-gray-800/50 dark:to-gray-900 rounded-xl border-2 border-concrete-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-4 mb-3">
@@ -353,7 +520,11 @@ export default function Dashboard() {
                 <div className="text-center py-12">
                   <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
                   <p className="text-gray-500 dark:text-gray-400 font-medium mb-3">No active projects</p>
-                  <button className="btn-secondary text-sm">
+                  <button
+                    className="btn-secondary text-sm"
+                    onClick={handleNewProject}
+                  >
+                    <Plus className="w-4 h-4" />
                     Create First Project
                   </button>
                 </div>
@@ -385,6 +556,7 @@ export default function Dashboard() {
                   {stats.hotLeads.map((lead) => (
                     <div
                       key={lead.id}
+                      onClick={() => setSelectedLead(lead)}
                       className="flex items-center justify-between p-4 bg-gradient-to-r from-hot-50 via-hot-50/50 to-transparent dark:from-hot-950/20 dark:via-hot-950/10 dark:to-transparent rounded-xl border-2 border-hot-100 dark:border-hot-900/40 hover:border-hot-300 dark:hover:border-hot-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
@@ -444,6 +616,7 @@ export default function Dashboard() {
                   {prospects.slice(0, 5).map((builder) => (
                     <div
                       key={builder.id}
+                      onClick={() => navigate('/leads')}
                       className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent rounded-xl border border-blue-100 dark:border-blue-900/40 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
@@ -486,6 +659,7 @@ export default function Dashboard() {
                     return (
                       <div
                         key={lead.id}
+                        onClick={() => setSelectedLead(lead)}
                         className="timeline-item cursor-pointer group"
                       >
                         <div className={`timeline-dot ${dotColor}`} />
@@ -536,6 +710,25 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      {/* ── PROJECT MODAL ── */}
+      {showProjectModal && (
+        <ProjectModal
+          project={editingProject}
+          onClose={() => { setShowProjectModal(false); setEditingProject(null); }}
+          onSave={handleSaveProject}
+          isSaving={createProjectMutation.isPending || updateProjectMutation.isPending}
+        />
+      )}
+
+      {/* ── LEAD DETAIL DRAWER ── */}
+      {selectedLead && (
+        <LeadDetailDrawer
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onNavigate={navigate}
+        />
+      )}
     </div>
   );
 }

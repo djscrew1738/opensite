@@ -110,6 +110,7 @@ export default {
         'fade-in': 'fadeIn 0.3s ease-out',
         'shimmer': 'shimmer 2s linear infinite',
         'pipe-fill': 'pipeFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'slide-left': 'slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
         slideUp: {
@@ -135,6 +136,10 @@ export default {
         pipeFill: {
           '0%': { width: '0%' },
           '100%': { width: 'var(--pipe-width, 0%)' },
+        },
+        slideLeft: {
+          '0%': { transform: 'translateX(100%)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
         },
       },
       backdropBlur: {

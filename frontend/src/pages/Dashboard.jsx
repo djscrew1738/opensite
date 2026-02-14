@@ -13,11 +13,21 @@ import {
   ArrowUpRight,
   RefreshCw,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Bot,
+  FileText,
+  Clock
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/dashboard/StatCard';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -56,16 +66,16 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
-        <div className="card-body bg-gradient-to-br from-hot-50 to-hot-100 border-2 border-hot-200">
+        <div className="card-body bg-gradient-to-br from-hot-50 to-hot-100 border-2 border-hot-200 dark:from-hot-950/30 dark:to-hot-900/20 dark:border-hot-900/50">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-hot-500 rounded-2xl flex items-center justify-center flex-shrink-0">
               <AlertCircle className="w-6 h-6 text-white" strokeWidth={2.5} />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-display font-bold text-hot-900 mb-2">
+              <h3 className="text-lg font-display font-bold text-hot-900 dark:text-hot-200 mb-2">
                 Failed to Load Dashboard
               </h3>
-              <p className="text-sm text-hot-700 mb-4">{error.message}</p>
+              <p className="text-sm text-hot-700 dark:text-hot-400 mb-4">{error.message}</p>
               <button
                 onClick={() => refetch()}
                 className="btn-primary text-sm"
@@ -84,13 +94,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in">
-        {/* Header Skeleton */}
-        <div className="space-y-3">
-          <div className="skeleton h-10 w-48" />
-          <div className="skeleton h-4 w-64" />
-        </div>
-
-        {/* Stats Skeleton */}
+        <div className="skeleton h-40 w-full rounded-2xl" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card-body">
@@ -106,16 +110,20 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in">
-      {/* Header */}
-      <header className="space-y-2">
-        <div className="flex items-start justify-between gap-4">
+
+      {/* ── 1. COMMAND HEADER ── */}
+      <header className="command-header animate-slide-down">
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-900/80 via-primary-800/60 to-transparent pointer-events-none" />
+
+        <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 tracking-tight mb-2">
-              Dashboard
+            <h1 className="text-3xl md:text-5xl font-display font-bold text-white tracking-tight mb-2">
+              {getGreeting()}, <span className="text-accent-400">Operator</span>
             </h1>
-            <p className="text-sm md:text-base text-gray-600 font-medium flex items-center gap-2 flex-wrap">
-              <Activity className="w-4 h-4 text-accent-500" />
-              <span>
+            <div className="flex items-center gap-4 flex-wrap">
+              <p className="text-sm text-primary-200 font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary-300" />
                 {currentTime.toLocaleString('en-US', {
                   weekday: 'short',
                   month: 'short',
@@ -123,24 +131,25 @@ export default function Dashboard() {
                   hour: '2-digit',
                   minute: '2-digit'
                 })}
-              </span>
-            </p>
+              </p>
+              <div className="pulse-beacon">Live</div>
+            </div>
           </div>
 
           <button
             onClick={() => refetch()}
-            className="btn-ghost shrink-0"
+            className="backdrop-blur-xl bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/20 transition-all duration-200 active:scale-95 shrink-0"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="w-4 h-4" />
             <span className="hidden md:inline">Refresh</span>
           </button>
         </div>
       </header>
 
-      {/* Key Metrics */}
+      {/* ── 2. METRIC GAUGES ROW ── */}
       <section>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <div className="card animate-slide-up" style={{ animationDelay: '50ms' }}>
+          <div className="card animate-slide-up stagger-1">
             <StatCard
               icon={DollarSign}
               label="Pipeline Value"
@@ -149,10 +158,11 @@ export default function Dashboard() {
               trend="up"
               trendValue="12.5"
               color="primary"
+              edgeBar
             />
           </div>
 
-          <div className="card animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <div className="card animate-slide-up stagger-2">
             <StatCard
               icon={Briefcase}
               label="Active Projects"
@@ -161,10 +171,11 @@ export default function Dashboard() {
               trend="down"
               trendValue="3.2"
               color="blue"
+              edgeBar
             />
           </div>
 
-          <div className="card animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <div className="card animate-slide-up stagger-3">
             <StatCard
               icon={TrendingUp}
               label="Hot Leads"
@@ -173,85 +184,117 @@ export default function Dashboard() {
               trend="up"
               trendValue="8.7"
               color="hot"
+              edgeBar
             />
           </div>
 
-          <div className="card animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div className="card animate-slide-up stagger-4">
             <StatCard
               icon={Users}
               label="Total Leads"
               value={leadsData?.total || 0}
               subtext="All in system"
               color="purple"
+              edgeBar
             />
           </div>
         </div>
       </section>
 
-      {/* Permit Lead Tracking */}
+      {/* ── 3. QUICK ACTIONS STRIP ── */}
+      <section className="animate-slide-up stagger-5">
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => navigate('/leads/new')} className="quick-action-primary">
+            <Plus className="w-4 h-4" />
+            New Lead
+          </button>
+          <button onClick={() => navigate('/estimates/new')} className="quick-action-secondary">
+            <FileText className="w-4 h-4" />
+            New Estimate
+          </button>
+          <button onClick={() => navigate('/ai-assistant')} className="quick-action-secondary">
+            <Bot className="w-4 h-4" />
+            AI Assistant
+          </button>
+          <button onClick={() => navigate('/permits')} className="quick-action-secondary">
+            <Building2 className="w-4 h-4" />
+            View Permits
+          </button>
+        </div>
+      </section>
+
+      {/* ── 4. PERMIT PULSE ── */}
       {permitSummary && (
-        <section className="animate-slide-up" style={{ animationDelay: '250ms' }}>
-          <div className="section-header">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Building2 className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </div>
-            <h2 className="section-title">Permit Leads</h2>
+        <section className="animate-slide-up stagger-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Building2 className="w-5 h-5 text-blue-500 dark:text-blue-400" strokeWidth={2.5} />
+            <h2 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100">Permit Pulse</h2>
           </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <div className="card cursor-pointer" onClick={() => navigate('/leads')}>
-              <StatCard
-                icon={Flame}
-                label="Hot Permits"
-                value={permitSummary.hot || 0}
-                subtext="Score ≥80"
-                color="hot"
-                onClick={() => navigate('/leads')}
-              />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              className="permit-metric permit-metric-hot cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => navigate('/leads')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Hot</p>
+                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.hot || 0}</p>
+                </div>
+                <Flame className="w-5 h-5 text-hot-500" strokeWidth={2.5} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Score &ge;80</p>
             </div>
 
-            <div className="card cursor-pointer" onClick={() => navigate('/leads')}>
-              <StatCard
-                icon={Circle}
-                label="Warm Permits"
-                value={permitSummary.warm || 0}
-                subtext="Score 50-79"
-                color="warm"
-                onClick={() => navigate('/leads')}
-              />
+            <div
+              className="permit-metric permit-metric-warm cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => navigate('/leads')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Warm</p>
+                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.warm || 0}</p>
+                </div>
+                <Circle className="w-5 h-5 text-warm-500" strokeWidth={2.5} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Score 50-79</p>
             </div>
 
-            <div className="card">
-              <StatCard
-                icon={Plus}
-                label="New Today"
-                value={permitSummary.newToday || 0}
-                subtext="Ingested today"
-                color="emerald"
-              />
+            <div className="permit-metric permit-metric-emerald">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">New Today</p>
+                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.newToday || 0}</p>
+                </div>
+                <Plus className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Ingested today</p>
             </div>
 
-            <div className="card">
-              <StatCard
-                icon={Building2}
-                label="Total Permits"
-                value={permitSummary.total || 0}
-                subtext="All tracked"
-                color="primary"
-              />
+            <div className="permit-metric permit-metric-blue">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.total || 0}</p>
+                </div>
+                <Building2 className="w-5 h-5 text-blue-500" strokeWidth={2.5} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">All tracked</p>
             </div>
           </div>
         </section>
       )}
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Projects */}
-        <section className="lg:col-span-2 space-y-4 animate-slide-up" style={{ animationDelay: '300ms' }}>
+      {/* ── 5. MAIN CONTENT GRID (7 + 5) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {/* LEFT COLUMN (7) — Active Projects + Hot Leads */}
+        <div className="lg:col-span-7 space-y-6 animate-slide-up stagger-7">
+
+          {/* Active Projects with Pipe-Fill Progress */}
           <div className="card">
             <div className="card-body">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <Briefcase className="w-4 h-4 text-white" strokeWidth={2.5} />
                   </div>
@@ -259,7 +302,7 @@ export default function Dashboard() {
                 </h2>
                 <button
                   onClick={() => navigate('/projects')}
-                  className="text-sm text-accent-600 hover:text-accent-700 font-bold flex items-center gap-1 transition-transform hover:translate-x-1"
+                  className="text-sm text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 font-bold flex items-center gap-1 transition-transform hover:translate-x-1"
                 >
                   View All
                   <ArrowUpRight className="w-4 h-4" />
@@ -268,51 +311,48 @@ export default function Dashboard() {
 
               {stats?.activeProjects && stats.activeProjects.length > 0 ? (
                 <div className="space-y-3">
-                  {stats.activeProjects.map((project, index) => (
+                  {stats.activeProjects.map((project) => (
                     <div
                       key={project.id}
-                      className="p-4 bg-gradient-to-br from-concrete-50 to-white rounded-xl border-2 border-concrete-200 hover:border-primary-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
-                      style={{ animationDelay: `${350 + index * 50}ms` }}
+                      className="p-4 bg-gradient-to-br from-concrete-50 to-white dark:from-gray-800/50 dark:to-gray-900 rounded-xl border-2 border-concrete-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-4 mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
+                          <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
                             {project.name}
                           </h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mt-1">
                             <span className="flex items-center gap-1">
                               <Activity className="w-3.5 h-3.5" />
                               {project.phase}
                             </span>
-                            <span className="font-mono font-bold text-accent-600">
+                            <span className="font-mono font-bold text-accent-600 dark:text-accent-400">
                               ${project.value?.toLocaleString() || 0}
                             </span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-3xl font-display font-bold text-primary-900">
+                          <span className="text-3xl font-display font-bold text-primary-900 dark:text-gray-100 tabular-nums">
                             {project.progress || 0}
                           </span>
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
                         </div>
                       </div>
 
-                      {/* Progress Bar */}
-                      <div className="relative">
-                        <div className="w-full bg-concrete-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-accent-500 to-accent-600 h-2 rounded-full transition-all duration-700 ease-out"
-                            style={{ width: `${project.progress || 0}%` }}
-                          />
-                        </div>
+                      {/* Pipeline Progress Bar */}
+                      <div className="pipe-track">
+                        <div
+                          className="pipe-fill bg-gradient-to-r from-accent-500 to-accent-600"
+                          style={{ '--pipe-width': `${project.progress || 0}%` }}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-400">
-                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300" strokeWidth={1.5} />
-                  <p className="text-gray-500 font-medium mb-3">No active projects</p>
+                <div className="text-center py-12">
+                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
+                  <p className="text-gray-500 dark:text-gray-400 font-medium mb-3">No active projects</p>
                   <button className="btn-secondary text-sm">
                     Create First Project
                   </button>
@@ -325,7 +365,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-body">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-hot-500 to-hot-600 rounded-lg flex items-center justify-center">
                     <Flame className="w-4 h-4 text-white" strokeWidth={2.5} />
                   </div>
@@ -333,7 +373,7 @@ export default function Dashboard() {
                 </h2>
                 <button
                   onClick={() => navigate('/leads')}
-                  className="text-sm text-accent-600 hover:text-accent-700 font-bold flex items-center gap-1 transition-transform hover:translate-x-1"
+                  className="text-sm text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 font-bold flex items-center gap-1 transition-transform hover:translate-x-1"
                 >
                   View All
                   <ArrowUpRight className="w-4 h-4" />
@@ -345,20 +385,20 @@ export default function Dashboard() {
                   {stats.hotLeads.map((lead) => (
                     <div
                       key={lead.id}
-                      className="flex items-center justify-between p-4 bg-gradient-to-r from-hot-50 via-hot-50/50 to-transparent rounded-xl border-2 border-hot-100 hover:border-hot-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                      className="flex items-center justify-between p-4 bg-gradient-to-r from-hot-50 via-hot-50/50 to-transparent dark:from-hot-950/20 dark:via-hot-950/10 dark:to-transparent rounded-xl border-2 border-hot-100 dark:border-hot-900/40 hover:border-hot-300 dark:hover:border-hot-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate group-hover:text-hot-700 transition-colors">
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-hot-700 dark:group-hover:text-hot-400 transition-colors">
                           {lead.name}
                         </h3>
-                        <p className="text-sm text-gray-600 truncate">{lead.company || 'No company'}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{lead.company || 'No company'}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-2xl font-display font-bold text-hot-600">{lead.score}</span>
-                          <CheckCircle2 className="w-5 h-5 text-hot-600" strokeWidth={2.5} />
+                          <span className="text-2xl font-display font-bold text-hot-600 dark:text-hot-400 tabular-nums">{lead.score}</span>
+                          <CheckCircle2 className="w-5 h-5 text-hot-600 dark:text-hot-400" strokeWidth={2.5} />
                         </div>
-                        <p className="text-sm font-mono font-bold text-gray-600">
+                        <p className="text-sm font-mono font-bold text-gray-600 dark:text-gray-400">
                           ${lead.value?.toLocaleString() || 0}
                         </p>
                       </div>
@@ -366,9 +406,9 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-400">
-                  <Flame className="w-16 h-16 mx-auto mb-4 text-concrete-300" strokeWidth={1.5} />
-                  <p className="text-gray-500 font-medium mb-3">No hot leads yet</p>
+                <div className="text-center py-12">
+                  <Flame className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
+                  <p className="text-gray-500 dark:text-gray-400 font-medium mb-3">No hot leads yet</p>
                   <button className="btn-secondary text-sm" onClick={() => navigate('/leads')}>
                     Add First Lead
                   </button>
@@ -376,47 +416,48 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Right Sidebar */}
-        <aside className="space-y-4 animate-slide-up" style={{ animationDelay: '350ms' }}>
+        {/* RIGHT COLUMN (5) — Top Prospects + Activity Timeline */}
+        <aside className="lg:col-span-5 space-y-6 animate-slide-up stagger-8">
+
           {/* Top Prospects */}
           {prospects && prospects.length > 0 && (
             <div className="card">
               <div className="card-body">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-display font-bold text-primary-900 flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-blue-600" strokeWidth={2.5} />
+                  <h3 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
                     Top Prospects
                   </h3>
                   <button
                     onClick={() => navigate('/leads')}
-                    className="text-xs text-accent-600 hover:text-accent-700 font-bold"
+                    className="text-xs text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 font-bold"
                   >
                     View All
                   </button>
                 </div>
-                <p className="text-xs text-gray-600 mb-4 font-medium">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 font-medium">
                   Active builders without plumbers
                 </p>
                 <div className="space-y-2">
                   {prospects.slice(0, 5).map((builder) => (
                     <div
                       key={builder.id}
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-transparent rounded-xl border border-blue-100 hover:border-blue-300 hover:shadow-sm transition-all duration-200 cursor-pointer group"
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent rounded-xl border border-blue-100 dark:border-blue-900/40 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-gray-900 truncate group-hover:text-blue-700 transition-colors">
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                           {builder.name || builder.company}
                         </h4>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {builder.permitsLast30d || 0} permits (30d)
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-3">
                         <div className="flex items-center gap-1">
-                          <Building2 className="w-4 h-4 text-blue-600" />
-                          <span className="text-lg font-display font-bold text-blue-600">
+                          <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-lg font-display font-bold text-blue-600 dark:text-blue-400 tabular-nums">
                             {builder.totalPermits || 0}
                           </span>
                         </div>
@@ -428,40 +469,47 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Recent Activity */}
+          {/* Activity Timeline */}
           <div className="card">
             <div className="card-body">
-              <h3 className="text-lg font-display font-bold text-primary-900 mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary-600" strokeWidth={2.5} />
-                Recent Leads
+              <h3 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100 mb-5 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary-600 dark:text-primary-400" strokeWidth={2.5} />
+                Activity Timeline
               </h3>
               {recentLeads.length > 0 ? (
-                <div className="space-y-2">
-                  {recentLeads.slice(0, 5).map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="flex items-start gap-3 p-3 hover:bg-concrete-50 rounded-xl transition-all duration-200 cursor-pointer group"
-                    >
-                      <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
-                        lead.status === 'hot' ? 'bg-hot-500' :
-                        lead.status === 'warm' ? 'bg-warm-500' :
-                        'bg-cool-500'
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-gray-900 truncate group-hover:text-primary-700 transition-colors">
-                          {lead.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">{lead.company || 'No company'}</p>
-                        <p className="text-2xs text-gray-400 mt-1 font-medium">
-                          {new Date(lead.createdAt).toLocaleDateString()}
-                        </p>
+                <div>
+                  {recentLeads.slice(0, 5).map((lead) => {
+                    const dotColor =
+                      lead.status === 'hot' ? 'timeline-dot-hot' :
+                      lead.status === 'warm' ? 'timeline-dot-warm' :
+                      'timeline-dot-cool';
+                    return (
+                      <div
+                        key={lead.id}
+                        className="timeline-item cursor-pointer group"
+                      >
+                        <div className={`timeline-dot ${dotColor}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
+                            {lead.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.company || 'No company'}</p>
+                          <p className="text-2xs text-gray-400 dark:text-gray-500 mt-1 font-medium">
+                            {new Date(lead.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <p className="text-sm">No recent activity</p>
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400 dark:text-gray-500">No recent activity</p>
                 </div>
               )}
             </div>
@@ -469,30 +517,22 @@ export default function Dashboard() {
         </aside>
       </div>
 
-      {/* System Status */}
-      <footer className="animate-slide-up" style={{ animationDelay: '400ms' }}>
-        <div className="card bg-gradient-to-r from-emerald-50 via-blue-50 to-primary-50 border-2 border-emerald-200">
-          <div className="card-body">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <CheckCircle2 className="w-6 h-6 text-white" strokeWidth={2.5} />
-                </div>
-                <div>
-                  <p className="font-display font-bold text-gray-900">System Operational</p>
-                  <p className="text-sm text-gray-600 font-medium">All services running smoothly</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600 font-medium">
-                <span className="hidden md:inline">
-                  {new Date().toLocaleTimeString()}
-                </span>
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  Live
-                </span>
-              </div>
-            </div>
+      {/* ── 6. SYSTEM STATUS BAR ── */}
+      <footer className="animate-slide-up stagger-8">
+        <div className="status-bar">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-emerald-800 dark:text-emerald-300 font-bold">System Operational</span>
+            <span className="hidden md:inline text-gray-500 dark:text-gray-400">— All services running</span>
+          </div>
+          <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+            <span className="hidden md:inline tabular-nums">
+              {new Date().toLocaleTimeString()}
+            </span>
+            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+              Live
+            </span>
           </div>
         </div>
       </footer>

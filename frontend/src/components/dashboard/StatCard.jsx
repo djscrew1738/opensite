@@ -8,50 +8,58 @@ export default function StatCard({
   trend,
   trendValue,
   color = 'primary',
-  onClick
+  onClick,
+  edgeBar = false
 }) {
   const colorClasses = {
     primary: {
       bg: 'from-primary-50 to-primary-100/50',
       icon: 'bg-gradient-to-br from-primary-500 to-primary-600',
       iconColor: 'text-white',
-      ring: 'ring-primary-200'
+      ring: 'ring-primary-200 dark:ring-primary-800',
+      edge: 'bg-primary-500'
     },
     accent: {
       bg: 'from-accent-50 to-accent-100/50',
       icon: 'bg-gradient-to-br from-accent-500 to-accent-600',
       iconColor: 'text-white',
-      ring: 'ring-accent-200'
+      ring: 'ring-accent-200 dark:ring-accent-800',
+      edge: 'bg-accent-500'
     },
     hot: {
       bg: 'from-hot-50 to-hot-100/50',
       icon: 'bg-gradient-to-br from-hot-500 to-hot-600',
       iconColor: 'text-white',
-      ring: 'ring-hot-200'
+      ring: 'ring-hot-200 dark:ring-hot-900',
+      edge: 'bg-hot-500'
     },
     warm: {
       bg: 'from-warm-50 to-warm-100/50',
       icon: 'bg-gradient-to-br from-warm-500 to-warm-600',
       iconColor: 'text-white',
-      ring: 'ring-warm-200'
+      ring: 'ring-warm-200 dark:ring-warm-900',
+      edge: 'bg-warm-500'
     },
     emerald: {
       bg: 'from-emerald-50 to-emerald-100/50',
       icon: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
       iconColor: 'text-white',
-      ring: 'ring-emerald-200'
+      ring: 'ring-emerald-200 dark:ring-emerald-900',
+      edge: 'bg-emerald-500'
     },
     blue: {
       bg: 'from-blue-50 to-blue-100/50',
       icon: 'bg-gradient-to-br from-blue-500 to-blue-600',
       iconColor: 'text-white',
-      ring: 'ring-blue-200'
+      ring: 'ring-blue-200 dark:ring-blue-900',
+      edge: 'bg-blue-500'
     },
     purple: {
       bg: 'from-purple-50 to-purple-100/50',
       icon: 'bg-gradient-to-br from-purple-500 to-purple-600',
       iconColor: 'text-white',
-      ring: 'ring-purple-200'
+      ring: 'ring-purple-200 dark:ring-purple-900',
+      edge: 'bg-purple-500'
     }
   };
 
@@ -64,6 +72,11 @@ export default function StatCard({
         onClick ? 'cursor-pointer hover:shadow-industrial-lg hover:-translate-y-1' : ''
       }`}
     >
+      {/* Optional left-edge color bar */}
+      {edgeBar && (
+        <div className={`stat-edge-bar ${colors.edge}`} />
+      )}
+
       {/* Decorative background gradient */}
       <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${colors.bg} rounded-full transform translate-x-12 -translate-y-12 opacity-50 transition-all duration-500 group-hover:scale-150 group-hover:opacity-70`} />
 
@@ -77,8 +90,8 @@ export default function StatCard({
           {trend && trendValue && (
             <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${
               trend === 'up'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-hot-100 text-hot-700'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                : 'bg-hot-100 text-hot-700 dark:bg-hot-900/40 dark:text-hot-400'
             }`}>
               {trend === 'up' ? (
                 <TrendingUp className="w-3.5 h-3.5" strokeWidth={3} />
@@ -92,18 +105,18 @@ export default function StatCard({
 
         {/* Label */}
         <div>
-          <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
             {label}
           </p>
         </div>
 
         {/* Value */}
         <div>
-          <p className="text-4xl font-display font-bold text-gray-900 tracking-tight">
+          <p className="text-4xl font-display font-bold text-gray-900 dark:text-gray-100 tracking-tight tabular-nums">
             {value}
           </p>
           {subtext && (
-            <p className="text-sm text-gray-500 mt-1 font-medium">
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 font-medium">
               {subtext}
             </p>
           )}

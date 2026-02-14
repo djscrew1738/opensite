@@ -177,6 +177,143 @@
     background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23374151' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 
+  /* Command Header — Blueprint grid hero section */
+  .command-header {
+    @apply relative overflow-hidden rounded-2xl px-6 py-8 md:px-8 md:py-10;
+    background-color: #1e3a5f;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .dark .command-header {
+    background-color: #0f172a;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+
+  /* Live pulse beacon indicator */
+  .pulse-beacon {
+    @apply relative flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-300;
+  }
+
+  .pulse-beacon::before {
+    content: '';
+    @apply block w-2 h-2 bg-emerald-400 rounded-full;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  .pulse-beacon::after {
+    content: '';
+    @apply absolute left-0 block w-2 h-2 bg-emerald-400 rounded-full;
+  }
+
+  /* Quick Action buttons */
+  .quick-action {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 active:scale-95;
+  }
+
+  .quick-action-primary {
+    @apply quick-action bg-accent-500 text-white shadow-lg shadow-accent-500/30 hover:bg-accent-600 hover:shadow-accent-500/40 hover:-translate-y-0.5;
+  }
+
+  .quick-action-secondary {
+    @apply quick-action bg-white/90 text-primary-800 border border-primary-200 hover:bg-white hover:border-primary-300 shadow-sm dark:bg-gray-800/90 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800 dark:hover:border-gray-600;
+  }
+
+  /* Permit Metric — compact left-edge colored card */
+  .permit-metric {
+    @apply relative bg-white rounded-xl p-4 border border-concrete-200 overflow-hidden dark:bg-gray-900 dark:border-gray-800;
+  }
+
+  .permit-metric::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-xl;
+  }
+
+  .permit-metric-hot::before {
+    @apply bg-hot-500;
+  }
+
+  .permit-metric-warm::before {
+    @apply bg-warm-500;
+  }
+
+  .permit-metric-emerald::before {
+    @apply bg-emerald-500;
+  }
+
+  .permit-metric-blue::before {
+    @apply bg-blue-500;
+  }
+
+  /* Pipeline-style progress bars */
+  .pipe-track {
+    @apply relative w-full h-3 bg-concrete-200 rounded-full overflow-hidden dark:bg-gray-800;
+  }
+
+  .pipe-fill {
+    @apply h-full rounded-full animate-pipe-fill;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(255, 255, 255, 0.15) 6px,
+      rgba(255, 255, 255, 0.15) 12px
+    );
+    background-size: 200% 100%;
+  }
+
+  /* Activity timeline */
+  .timeline-item {
+    @apply relative pl-8 pb-6 last:pb-0;
+  }
+
+  .timeline-item::before {
+    content: '';
+    @apply absolute left-[9px] top-5 bottom-0 w-px bg-concrete-300 dark:bg-gray-700;
+  }
+
+  .timeline-item:last-child::before {
+    @apply hidden;
+  }
+
+  .timeline-dot {
+    @apply absolute left-0 top-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center dark:border-gray-900;
+  }
+
+  .timeline-dot-hot {
+    @apply bg-hot-500;
+  }
+
+  .timeline-dot-warm {
+    @apply bg-warm-500;
+  }
+
+  .timeline-dot-cool {
+    @apply bg-cool-400;
+  }
+
+  .timeline-dot-emerald {
+    @apply bg-emerald-500;
+  }
+
+  .timeline-dot-blue {
+    @apply bg-blue-500;
+  }
+
+  /* System status bar */
+  .status-bar {
+    @apply flex items-center justify-between gap-4 px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm font-medium dark:bg-emerald-950/30 dark:border-emerald-900/50;
+  }
+
+  /* Left-edge color strip for StatCards */
+  .stat-edge-bar {
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl;
+  }
+
   /* Skeleton Loading */
   .skeleton {
     @apply animate-shimmer bg-gradient-to-r from-concrete-200 via-concrete-100 to-concrete-200 rounded dark:from-gray-800 dark:via-gray-700 dark:to-gray-800;
@@ -236,6 +373,21 @@
   /* Gradient text */
   .text-gradient {
     @apply bg-gradient-to-br from-accent-500 to-accent-700 bg-clip-text text-transparent;
+  }
+
+  /* Stagger delay utilities for cascading animations */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+  .stagger-7 { animation-delay: 350ms; }
+  .stagger-8 { animation-delay: 400ms; }
+
+  /* Tabular numbers for monospace digit alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Hide scrollbar but keep functionality */

@@ -21,13 +21,13 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-concrete-200 dark:border-gray-700"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-concrete-200 px-6 py-4 flex items-start justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-concrete-200 dark:border-gray-700 px-6 py-4 flex items-start justify-between rounded-t-2xl">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-display font-bold text-gray-900 truncate">
+            <h2 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 truncate">
               {lead.businessName}
             </h2>
             <div className="flex items-center gap-2 mt-1">
@@ -47,12 +47,12 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
         <div className="p-6 space-y-6">
           {/* Contact Info */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Contact Info</h3>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">Contact Info</h3>
             <div className="space-y-2 text-sm">
               {lead.address && (
                 <div className="flex items-center gap-3">
                   <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span className="text-gray-700">{lead.address}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{lead.address}</span>
                 </div>
               )}
               {lead.phone && (
@@ -85,8 +85,8 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
               {lead.rating && (
                 <div className="flex items-center gap-3">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />
-                  <span className="text-gray-700 font-bold">{lead.rating}</span>
-                  <span className="text-gray-500">({lead.reviewCount || 0} reviews)</span>
+                  <span className="text-gray-700 dark:text-gray-300 font-bold">{lead.rating}</span>
+                  <span className="text-gray-500 dark:text-gray-400">({lead.reviewCount || 0} reviews)</span>
                 </div>
               )}
             </div>
@@ -95,8 +95,8 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
           {/* AI Analysis */}
           {lead.icpReasoning && (
             <section className="space-y-2">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">AI Analysis</h3>
-              <p className="text-sm text-gray-700 bg-concrete-50 rounded-lg p-3">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">AI Analysis</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-300 bg-concrete-50 dark:bg-gray-800 rounded-lg p-3">
                 {lead.icpReasoning}
               </p>
             </section>
@@ -105,18 +105,18 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
           {/* About */}
           {lead.aboutSummary && (
             <section className="space-y-2">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">About</h3>
-              <p className="text-sm text-gray-700">{lead.aboutSummary}</p>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">About</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{lead.aboutSummary}</p>
             </section>
           )}
 
           {/* Services */}
           {lead.servicesOffered?.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Services</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">Services</h3>
               <div className="flex flex-wrap gap-1.5">
                 {lead.servicesOffered.map((svc, i) => (
-                  <span key={i} className="bg-concrete-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span key={i} className="bg-concrete-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium px-2.5 py-1 rounded-full">
                     {svc}
                   </span>
                 ))}
@@ -128,7 +128,7 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
           {lead.outreachSubject && (
             <section className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Generated Outreach</h3>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">Generated Outreach</h3>
                 <button
                   onClick={() => handleCopy(`Subject: ${lead.outreachSubject}\n\n${lead.outreachBody}`, 'outreach')}
                   className="btn-secondary text-xs px-2 py-1"
@@ -140,12 +140,12 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
                   )}
                 </button>
               </div>
-              <div className="bg-concrete-50 rounded-lg p-4 space-y-2 text-sm">
+              <div className="bg-concrete-50 dark:bg-gray-800 rounded-lg p-4 space-y-2 text-sm">
                 <div>
-                  <span className="font-bold text-gray-700">Subject: </span>
-                  <span className="text-gray-900">{lead.outreachSubject}</span>
+                  <span className="font-bold text-gray-700 dark:text-gray-300">Subject: </span>
+                  <span className="text-gray-900 dark:text-gray-100">{lead.outreachSubject}</span>
                 </div>
-                <div className="whitespace-pre-wrap text-gray-700 border-t border-concrete-200 pt-2">
+                <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 border-t border-concrete-200 dark:border-gray-700 pt-2">
                   {lead.outreachBody}
                 </div>
               </div>
@@ -154,7 +154,7 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
 
           {/* Status selector */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Contact Status</h3>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">Contact Status</h3>
             <div className="flex flex-wrap gap-2">
               {['new', 'contacted', 'responded', 'converted', 'dismissed'].map((status) => (
                 <button
@@ -162,8 +162,8 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
                   onClick={() => onStatusUpdate(lead.id, status)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                     lead.contactStatus === status
-                      ? 'bg-accent-50 border-accent-300 text-accent-700'
-                      : 'bg-white border-concrete-200 text-gray-600 hover:border-accent-300'
+                      ? 'bg-accent-50 dark:bg-accent-950/20 border-accent-300 text-accent-700 dark:text-accent-400'
+                      : 'bg-white dark:bg-gray-800 border-concrete-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-accent-300'
                   }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}

@@ -59,8 +59,7 @@ export default function DiscoveryTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discovery-leads', activeRunId] });
       if (selectedLead) {
-        // Refresh the detail view
-        api.discovery.getLead(selectedLead.id).then(setSelectedLead);
+        api.discovery.getLead(selectedLead.id).then(setSelectedLead).catch(() => {});
       }
     },
   });
@@ -127,7 +126,7 @@ export default function DiscoveryTab() {
             <div className="card-body p-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="font-bold text-gray-900">{leads.length} leads</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{leads.length} leads</span>
                   {hotCount > 0 && (
                     <button
                       onClick={() => setTierFilter(tierFilter === 'hot' ? '' : 'hot')}
@@ -211,10 +210,10 @@ export default function DiscoveryTab() {
             <div className="w-20 h-20 bg-gradient-to-br from-accent-100 to-accent-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
               <Search className="w-10 h-10 text-accent-600" strokeWidth={1.5} />
             </div>
-            <h3 className="text-xl font-display font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">
               Discover New Leads
             </h3>
-            <p className="text-gray-600 text-sm max-w-md mx-auto">
+            <p className="text-gray-600 dark:text-gray-400 text-sm max-w-md mx-auto">
               Search Google Maps for businesses, enrich their data, and get AI-scored leads with personalized outreach emails.
             </p>
           </div>

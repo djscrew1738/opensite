@@ -27,16 +27,16 @@ export default function Settings() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Settings</h1>
 
       <div className="space-y-6">
         {/* User Preferences */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">User Preferences</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">User Preferences</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Default AI Model
               </label>
               <ModelSelector
@@ -44,7 +44,7 @@ export default function Settings() {
                 onChange={(e) => setDefaultModel(e.target.value)}
                 showSizes={true}
               />
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 This model will be used by default for AI features
               </p>
             </div>
@@ -53,11 +53,11 @@ export default function Settings() {
 
         {/* Ollama Connection Status */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Ollama AI Status</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Ollama AI Status</h2>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-gray-700">Connection Status</span>
+            <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-gray-700 dark:text-gray-300">Connection Status</span>
               <div className="flex items-center gap-2">
                 {isLoading ? (
                   <span className="text-gray-500">Checking...</span>
@@ -75,20 +75,20 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-gray-700">Model</span>
-              <span className="font-mono text-sm font-medium text-gray-900">{model}</span>
+            <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-gray-700 dark:text-gray-300">Model</span>
+              <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">{model}</span>
             </div>
 
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-gray-700">Model Available</span>
+            <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-gray-700 dark:text-gray-300">Model Available</span>
               <span className={available ? 'text-green-600' : 'text-red-600'}>
                 {available ? 'Yes' : 'No'}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3">
-              <span className="text-gray-700">Last Checked</span>
+              <span className="text-gray-700 dark:text-gray-300">Last Checked</span>
               <button
                 onClick={() => refetch()}
                 className="btn-secondary text-sm flex items-center gap-2"
@@ -112,19 +112,19 @@ export default function Settings() {
         {/* Available Models */}
         {connected && availableModels.length > 0 && (
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Available Models ({availableModels.length})
             </h2>
 
             <div className="space-y-3">
               {availableModels.map((model) => (
-                <div key={model.name} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div key={model.name} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-mono text-sm font-semibold text-gray-900 mb-1">
+                      <h3 className="font-mono text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                         {model.name}
                       </h3>
-                      <div className="flex items-center gap-4 text-xs text-gray-600">
+                      <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
                         <span>
                           Size: {(model.size / (1024 ** 3)).toFixed(2)} GB
                         </span>
@@ -168,30 +168,30 @@ export default function Settings() {
 
         {/* Business Configuration */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Business Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Business Information</h2>
 
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Building2 className="w-5 h-5 text-gray-400 mt-1" />
               <div>
-                <p className="text-sm text-gray-600">Company Name</p>
-                <p className="text-lg font-semibold text-gray-900">CTL Plumbing LLC</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Company Name</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">CTL Plumbing LLC</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-gray-400 mt-1" />
               <div>
-                <p className="text-sm text-gray-600">Service Area</p>
-                <p className="text-lg font-semibold text-gray-900">DFW Metroplex</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Service Area</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">DFW Metroplex</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <DollarSign className="w-5 h-5 text-gray-400 mt-1" />
               <div>
-                <p className="text-sm text-gray-600">Specialization</p>
-                <p className="text-lg font-semibold text-gray-900">Commercial and Multi-family Plumbing</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Specialization</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">Commercial and Multi-family Plumbing</p>
               </div>
             </div>
           </div>
@@ -199,18 +199,18 @@ export default function Settings() {
 
         {/* Pricing Tiers */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing Tiers</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Pricing Tiers</h2>
 
           <div className="space-y-4">
             {tiers.map((tier) => (
-              <div key={tier.id} className="p-4 bg-gray-50 rounded-lg">
+              <div key={tier.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900">{tier.name}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{tier.name}</h3>
                   <span className="text-xl font-bold text-primary-600">
                     ${tier.pricePerUnit?.toLocaleString()}/unit
                   </span>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1">
+                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                   <p>Margin: {tier.marginRange}</p>
                   <p className="text-xs">{tier.description}</p>
                 </div>
@@ -221,19 +221,19 @@ export default function Settings() {
 
         {/* System Information */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">System Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">System Information</h2>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-700">Application Version</span>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-gray-700 dark:text-gray-300">Application Version</span>
               <span className="font-mono text-sm text-gray-900">1.0.0</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-700">Backend API</span>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-gray-700 dark:text-gray-300">Backend API</span>
               <span className="font-mono text-sm text-gray-900">http://localhost:5001</span>
             </div>
             <div className="flex items-center justify-between py-2">
-              <span className="text-gray-700">Frontend Port</span>
+              <span className="text-gray-700 dark:text-gray-300">Frontend Port</span>
               <span className="font-mono text-sm text-gray-900">3000</span>
             </div>
           </div>

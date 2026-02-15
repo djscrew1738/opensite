@@ -21,9 +21,7 @@ export default function LeadModal({ lead, onClose, onSave }) {
       // Only save if name or company has a value
       return data.name?.trim() || data.company?.trim();
     },
-    onRestore: () => {
-      console.log('Lead form data restored from auto-save');
-    }
+    onRestore: () => {}
   });
 
   useEffect(() => {
@@ -50,15 +48,15 @@ export default function LeadModal({ lead, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-concrete-200 dark:border-gray-700 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {lead ? 'Edit Lead' : 'Add New Lead'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <X className="w-6 h-6" />
           </button>

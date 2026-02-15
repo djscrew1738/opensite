@@ -121,7 +121,6 @@ export default function AnalysisDashboard({ estimate, analysis, extractedData, f
       }
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
     }
   };
 
@@ -131,9 +130,9 @@ export default function AnalysisDashboard({ estimate, analysis, extractedData, f
       <div className="card">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Blueprint Analysis</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Blueprint Analysis</h2>
             {fileName && (
-              <p className="text-sm text-gray-600 mt-1">File: {fileName}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">File: {fileName}</p>
             )}
           </div>
           <div className="flex items-center gap-2">

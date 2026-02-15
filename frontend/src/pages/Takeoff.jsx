@@ -221,14 +221,14 @@ export default function Takeoff() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Page Header */}
-      <div className="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+      <div className="px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Material Takeoff</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Material Takeoff</h1>
           {selectedTakeoff && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setSelectedTakeoff(null); setActiveTab(TABS.TAKEOFFS); }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -261,7 +261,7 @@ export default function Takeoff() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="px-6 bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="px-6 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <nav className="flex -mb-px">
           {tabConfig.map(tab => {
             const Icon = tab.icon;
@@ -274,10 +274,10 @@ export default function Takeoff() {
                 className={`
                   flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors
                   ${isActive
-                    ? 'border-primary-500 text-primary-600'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                     : tab.disabled
-                      ? 'border-transparent text-gray-300 cursor-not-allowed'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-transparent text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
                   }
                 `}
               >
@@ -291,10 +291,10 @@ export default function Takeoff() {
 
       {/* Error display */}
       {error && (
-        <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 flex-shrink-0">
-          <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-700 flex-1">{error}</p>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+        <div className="mx-6 mt-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2 flex-shrink-0">
+          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700 dark:text-red-300 flex-1">{error}</p>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 dark:hover:text-red-300">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -321,20 +321,20 @@ export default function Takeoff() {
             <div className="flex-1 flex flex-col">
               {/* Blueprint upload bar */}
               {!blueprintImageUrl && (
-                <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer"
+                    className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer"
                   >
                     {uploading ? (
                       <Loader className="w-8 h-8 mx-auto mb-2 text-primary-600 animate-spin" />
                     ) : (
                       <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                     )}
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium text-primary-600">Click to upload</span> a blueprint image
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium text-primary-600 dark:text-primary-400">Click to upload</span> a blueprint image
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP, BMP</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">JPEG, PNG, WebP, BMP</p>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -376,9 +376,9 @@ export default function Takeoff() {
             </div>
 
             {/* Measurements Sidebar */}
-            <div className="w-72 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
-              <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-700">Measurements</h3>
+            <div className="w-72 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Measurements</h3>
               </div>
               <div className="flex-1 overflow-y-auto">
                 <MeasurementsSidebar
@@ -393,7 +393,7 @@ export default function Takeoff() {
 
               {/* Quick stats */}
               {measurements.length > 0 && (
-                <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 space-y-0.5">
+                <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
                   {[
                     { type: 'length', label: 'Lengths', color: '#2563eb' },
                     { type: 'area', label: 'Polygons', color: '#16a34a' },

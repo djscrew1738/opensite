@@ -35,10 +35,10 @@ export default function LeadCard({ lead, onEdit }) {
         {/* Header with Score */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-display font-bold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
+            <h3 className="text-lg font-display font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
               {lead.name}
             </h3>
-            <p className="text-sm text-gray-600 truncate font-medium">{lead.company || 'No company'}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 truncate font-medium">{lead.company || 'No company'}</p>
           </div>
           {lead.score !== null && (
             <div className="text-right shrink-0">
@@ -54,27 +54,27 @@ export default function LeadCard({ lead, onEdit }) {
 
         {/* Contact Info */}
         {(lead.email || lead.phone || lead.location) && (
-          <div className="space-y-2 py-3 border-y border-concrete-200">
+          <div className="space-y-2 py-3 border-y border-concrete-200 dark:border-gray-700">
             {lead.email && (
-              <div className="flex items-center text-sm text-gray-600 group/item">
-                <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-primary-100 transition-colors">
-                  <Mail className="w-4 h-4 text-primary-600" strokeWidth={2} />
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
+                <div className="w-8 h-8 bg-primary-50 dark:bg-primary-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-primary-100 dark:group-hover/item:bg-primary-900/30 transition-colors">
+                  <Mail className="w-4 h-4 text-primary-600 dark:text-primary-400" strokeWidth={2} />
                 </div>
                 <span className="truncate font-medium">{lead.email}</span>
               </div>
             )}
             {lead.phone && (
-              <div className="flex items-center text-sm text-gray-600 group/item">
-                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-emerald-100 transition-colors">
-                  <Phone className="w-4 h-4 text-emerald-600" strokeWidth={2} />
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
+                <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-emerald-100 dark:group-hover/item:bg-emerald-900/30 transition-colors">
+                  <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
                 </div>
                 <span className="font-medium">{lead.phone}</span>
               </div>
             )}
             {lead.location && (
-              <div className="flex items-center text-sm text-gray-600 group/item">
-                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-blue-100 transition-colors">
-                  <MapPin className="w-4 h-4 text-blue-600" strokeWidth={2} />
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
+                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-blue-100 dark:group-hover/item:bg-blue-900/30 transition-colors">
+                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" strokeWidth={2} />
                 </div>
                 <span className="truncate font-medium">{lead.location}</span>
               </div>
@@ -85,7 +85,7 @@ export default function LeadCard({ lead, onEdit }) {
         {/* Project Type & Value */}
         <div className="flex items-center gap-2 flex-wrap">
           {lead.projectType && (
-            <span className="badge bg-concrete-100 text-gray-700 ring-1 ring-concrete-200">
+            <span className="badge bg-concrete-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 ring-1 ring-concrete-200 dark:ring-gray-600">
               {lead.projectType}
             </span>
           )}

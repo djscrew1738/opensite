@@ -1,7 +1,7 @@
 // Web Enricher - Stage 2 of Discovery Pipeline
-// Scrapes business websites and uses Ollama to extract structured data
+// Scrapes business websites using fetch + cheerio and uses Ollama to extract structured data
 
-import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
 import { ollamaService } from '../ollama.js';
 
 const logger = {
@@ -14,43 +14,52 @@ const logger = {
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const PHONE_REGEX = /(?:\+1\s?)?(?:\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}/g;
 
-/**
- * Scrape a website and extract text content
- */
-async function scrapeWebsite(url, browser) {
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 800 }
-  });
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+};
 
-  const page = await context.newPage();
+/**
+ * Scrape a website and extract text content using fetch + cheerio
+ */
+async function scrapeWebsite(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    await page.waitForTimeout(2000);
-
-    const data = await page.evaluate(() => {
-      // Remove scripts, styles, navs
-      document.querySelectorAll('script, style, nav, footer, iframe, noscript').forEach(el => el.remove());
-
-      const body = document.body;
-      const text = body ? body.innerText.substring(0, 8000) : '';
-      const title = document.title || '';
-
-      // Extract all links
-      const links = Array.from(document.querySelectorAll('a[href]'))
-        .map(a => ({ href: a.href, text: a.textContent.trim() }))
-        .filter(l => l.href.startsWith('http'));
-
-      return { text, title, links };
+    const response = await fetch(url, {
+      headers: HEADERS,
+      redirect: 'follow',
+      signal: controller.signal,
     });
 
-    await context.close();
-    return data;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  } catch (error) {
-    await context.close();
-    throw error;
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+      throw new Error('Not an HTML page');
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // Remove non-content elements
+    $('script, style, nav, footer, iframe, noscript, svg, header').remove();
+
+    const text = $('body').text()
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 8000);
+
+    const title = $('title').text().trim();
+
+    return { text, title };
+
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -58,14 +67,20 @@ async function scrapeWebsite(url, browser) {
  * Extract emails from text content
  */
 function extractEmails(text) {
-  const matches = text.match(EMAIL_REGEX) || [];
-  // Deduplicate and lowercase
+  // Add spaces around common delimiters before extracting to avoid concatenated matches
+  const cleaned = text.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b(www\.)/g, ' $1');
+  const matches = cleaned.match(EMAIL_REGEX) || [];
   const unique = [...new Set(matches.map(e => e.toLowerCase()))];
-  // Filter obvious non-emails
   return unique.filter(e =>
     !e.endsWith('.png') && !e.endsWith('.jpg') && !e.endsWith('.gif') &&
     !e.includes('example.com') && !e.includes('sentry.io') &&
-    !e.includes('wixpress.com') && !e.includes('googleapis.com')
+    !e.includes('wixpress.com') && !e.includes('googleapis.com') &&
+    !e.includes('w3.org') && !e.includes('schema.org') &&
+    // Filter out emails that look like concatenated text (contain www or http)
+    !e.includes('www.') && !e.includes('http') &&
+    // Basic validation: must have reasonable local part and domain
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(e) &&
+    e.length < 60
   );
 }
 
@@ -137,56 +152,42 @@ export async function enrichLeads(leads, onProgress = () => {}) {
     return leads;
   }
 
-  let browser;
-  try {
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
+  for (let i = 0; i < leadsWithWebsites.length; i++) {
+    const lead = leadsWithWebsites[i];
 
-    for (let i = 0; i < leadsWithWebsites.length; i++) {
-      const lead = leadsWithWebsites[i];
+    try {
+      // Scrape the website with fetch + cheerio
+      const { text } = await scrapeWebsite(lead.website);
 
-      try {
-        // Scrape the website
-        const { text, title } = await scrapeWebsite(lead.website, browser);
+      // Extract emails and phones from raw content
+      lead.emails = extractEmails(text);
+      lead.extractedPhones = extractPhones(text);
 
-        // Extract emails and phones from raw content
-        lead.emails = extractEmails(text);
-        lead.extractedPhones = extractPhones(text);
+      // Use AI to extract structured info
+      const aiInfo = await aiExtractBusinessInfo(text, lead.businessName);
 
-        // Use AI to extract structured info
-        const aiInfo = await aiExtractBusinessInfo(text, lead.businessName);
-
-        if (aiInfo) {
-          lead.servicesOffered = aiInfo.servicesOffered || [];
-          lead.aboutSummary = aiInfo.aboutSummary || '';
-          lead.isPropertyManager = aiInfo.isPropertyManager || false;
-          lead.isContractor = aiInfo.isContractor || false;
-          lead.isCommercial = aiInfo.isCommercial || false;
-          lead.serviceArea = aiInfo.serviceArea || '';
-        }
-
-        lead.enrichmentStatus = 'enriched';
-        logger.info(`Enriched: ${lead.businessName} (${lead.emails.length} emails, ${lead.extractedPhones.length} phones)`);
-
-      } catch (error) {
-        lead.enrichmentStatus = 'failed';
-        lead.emails = lead.emails || [];
-        lead.extractedPhones = lead.extractedPhones || [];
-        lead.servicesOffered = lead.servicesOffered || [];
-        logger.warn(`Failed to enrich ${lead.businessName}: ${error.message}`);
+      if (aiInfo) {
+        lead.servicesOffered = aiInfo.servicesOffered || [];
+        lead.aboutSummary = aiInfo.aboutSummary || '';
+        lead.isPropertyManager = aiInfo.isPropertyManager || false;
+        lead.isContractor = aiInfo.isContractor || false;
+        lead.isCommercial = aiInfo.isCommercial || false;
+        lead.serviceArea = aiInfo.serviceArea || '';
       }
 
-      onProgress(Math.round(((i + 1) / leadsWithWebsites.length) * 100));
+      lead.enrichmentStatus = 'enriched';
+      logger.info(`Enriched: ${lead.businessName} (${lead.emails.length} emails, ${lead.extractedPhones.length} phones)`);
+
+    } catch (error) {
+      lead.enrichmentStatus = 'failed';
+      lead.emails = lead.emails || [];
+      lead.extractedPhones = lead.extractedPhones || [];
+      lead.servicesOffered = lead.servicesOffered || [];
+      logger.warn(`Failed to enrich ${lead.businessName}: ${error.message}`);
     }
 
-    return leads;
-
-  } catch (error) {
-    logger.error('Enrichment failed', { error: error.message });
-    throw error;
-  } finally {
-    if (browser) await browser.close();
+    onProgress(Math.round(((i + 1) / leadsWithWebsites.length) * 100));
   }
+
+  return leads;
 }

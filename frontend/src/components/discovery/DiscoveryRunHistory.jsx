@@ -21,7 +21,7 @@ export default function DiscoveryRunHistory({ runs, onSelectRun, activeRunId, on
   return (
     <div className="card">
       <div className="card-body p-4">
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-3">
           Past Runs
         </h3>
         <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -35,16 +35,16 @@ export default function DiscoveryRunHistory({ runs, onSelectRun, activeRunId, on
                 onClick={() => onSelectRun(run.id)}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   isActive
-                    ? 'bg-accent-50 border border-accent-200'
-                    : 'hover:bg-concrete-50 border border-transparent'
+                    ? 'bg-accent-50 dark:bg-accent-950/20 border border-accent-200 dark:border-accent-700'
+                    : 'hover:bg-concrete-50 dark:hover:bg-gray-800 border border-transparent'
                 }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${STATUS_STYLES[run.status]}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-900 truncate">
+                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                     {run.keyword} — {run.city}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {formatRelativeTime(run.createdAt)}
                     {run.totalFound > 0 && ` · ${run.totalFound} found`}
                     {run.scored > 0 && ` · ${run.scored} scored`}

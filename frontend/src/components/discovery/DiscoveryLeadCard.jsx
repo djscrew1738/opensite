@@ -44,11 +44,11 @@ export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }
         {/* Header: Name + Score */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-display font-bold text-gray-900 truncate">
+            <h3 className="font-display font-bold text-gray-900 dark:text-gray-100 truncate">
               {lead.businessName}
             </h3>
             {lead.category && (
-              <p className="text-xs text-gray-500 truncate">{lead.category}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.category}</p>
             )}
           </div>
           <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${tier.bg} ${tier.text}`}>
@@ -58,7 +58,7 @@ export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }
         </div>
 
         {/* Info rows */}
-        <div className="space-y-1.5 text-sm text-gray-600">
+        <div className="space-y-1.5 text-sm text-gray-600 dark:text-gray-400">
           {lead.address && (
             <div className="flex items-center gap-2">
               <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
@@ -110,19 +110,19 @@ export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }
 
         {/* Outreach preview */}
         {lead.outreachSubject && (
-          <div className="bg-concrete-50 rounded-lg px-3 py-2 text-xs text-gray-600">
-            <span className="font-bold text-gray-700">Outreach: </span>
+          <div className="bg-concrete-50 dark:bg-gray-800 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+            <span className="font-bold text-gray-700 dark:text-gray-300">Outreach: </span>
             {lead.outreachSubject}
           </div>
         )}
 
         {/* Footer: Status + Detail arrow */}
-        <div className="flex items-center justify-between pt-1 border-t border-concrete-100">
+        <div className="flex items-center justify-between pt-1 border-t border-concrete-100 dark:border-gray-700">
           <select
             value={lead.contactStatus}
             onChange={handleStatusChange}
             onClick={(e) => e.stopPropagation()}
-            className="text-xs font-bold bg-transparent border border-concrete-200 rounded-md px-2 py-1 focus:ring-1 focus:ring-accent-500"
+            className="text-xs font-bold bg-transparent dark:text-gray-300 border border-concrete-200 dark:border-gray-600 rounded-md px-2 py-1 focus:ring-1 focus:ring-accent-500"
           >
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>

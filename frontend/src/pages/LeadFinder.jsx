@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { Plus, Search, Filter, X, MapPin, DollarSign, Calendar, Hash, Building2, FileText, Phone } from 'lucide-react';
+import { Plus, Search, Filter, X, MapPin, DollarSign, Calendar, Hash, Building2, FileText, Phone, Mail } from 'lucide-react';
 import LeadCard from '../components/leads/LeadCard';
 import LeadModal from '../components/leads/LeadModal';
 import PermitLeadCard from '../components/leads/PermitLeadCard';
@@ -127,7 +127,7 @@ function PermitDetailModal({ permit, onClose, onStatusUpdate }) {
               )}
               {permit.contractorEmail && (
                 <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <FileText className="w-4 h-4 text-gray-400" />
+                  <Mail className="w-4 h-4 text-gray-400" />
                   {permit.contractorEmail}
                 </div>
               )}
@@ -196,7 +196,8 @@ export default function LeadFinder() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       setShowModal(false);
       setEditingLead(null);
-    }
+    },
+    onError: (err) => console.error('Failed to create lead:', err)
   });
 
   const updateMutation = useMutation({
@@ -205,14 +206,16 @@ export default function LeadFinder() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       setShowModal(false);
       setEditingLead(null);
-    }
+    },
+    onError: (err) => console.error('Failed to update lead:', err)
   });
 
   const permitStatusMutation = useMutation({
     mutationFn: ({ id, status }) => api.permits.updateStatus(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['permits'] });
-    }
+    },
+    onError: (err) => console.error('Failed to update permit status:', err)
   });
 
   const handleSaveLead = (data) => {
@@ -252,10 +255,10 @@ export default function LeadFinder() {
       {/* Header */}
       <header className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 tracking-tight">
+          <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 dark:text-gray-100 tracking-tight">
             Lead Finder
           </h1>
-          <p className="text-sm text-gray-600 mt-1 font-medium">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
             Manage and track your leads
           </p>
         </div>
@@ -273,13 +276,13 @@ export default function LeadFinder() {
 
       {/* Tabs */}
       <div className="card">
-        <div className="flex border-b-2 border-concrete-200 overflow-x-auto scrollbar-hide">
+        <div className="flex border-b-2 border-concrete-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveTab('manual')}
             className={`relative px-6 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
               activeTab === 'manual'
-                ? 'text-accent-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-accent-600 dark:text-accent-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             Manual Leads
@@ -291,8 +294,8 @@ export default function LeadFinder() {
             onClick={() => setActiveTab('permits')}
             className={`relative px-6 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
               activeTab === 'permits'
-                ? 'text-accent-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-accent-600 dark:text-accent-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             Permit Leads
@@ -304,8 +307,8 @@ export default function LeadFinder() {
             onClick={() => setActiveTab('discovery')}
             className={`relative px-6 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
               activeTab === 'discovery'
-                ? 'text-accent-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-accent-600 dark:text-accent-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             Discovery
@@ -365,7 +368,7 @@ export default function LeadFinder() {
         >
           <div className="card-body p-4">
             <div className="flex items-center justify-between mb-3 md:hidden">
-              <h3 className="font-bold text-gray-900">Filters</h3>
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Filters</h3>
               <button
                 onClick={() => setShowFilters(false)}
                 className="tap-target text-gray-500"
@@ -453,7 +456,7 @@ export default function LeadFinder() {
         manualLeads.length > 0 ? (
           <>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-600">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 {manualLeads.length} lead{manualLeads.length !== 1 ? 's' : ''} found
               </p>
             </div>
@@ -469,10 +472,10 @@ export default function LeadFinder() {
               <div className="w-20 h-20 bg-gradient-to-br from-concrete-100 to-concrete-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
                 <Search className="w-10 h-10 text-gray-400" strokeWidth={1.5} />
               </div>
-              <h3 className="text-xl font-display font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">
                 No leads found
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {hasActiveFilters
                   ? 'Try adjusting your filters'
                   : 'Get started by adding your first lead'}
@@ -491,7 +494,7 @@ export default function LeadFinder() {
         permits.length > 0 ? (
           <>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-600">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 {permits.length} permit lead{permits.length !== 1 ? 's' : ''} found
               </p>
             </div>
@@ -512,10 +515,10 @@ export default function LeadFinder() {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
                 <Search className="w-10 h-10 text-blue-500" strokeWidth={1.5} />
               </div>
-              <h3 className="text-xl font-display font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {hasActiveFilters ? 'No permits match your filters' : 'No permit leads found'}
               </h3>
-              <p className="text-gray-600 text-sm max-w-md mx-auto">
+              <p className="text-gray-600 dark:text-gray-400 text-sm max-w-md mx-auto">
                 {hasActiveFilters
                   ? 'Try adjusting your search criteria or filters'
                   : 'Permit leads are automatically ingested daily from Fort Worth and other sources.'}

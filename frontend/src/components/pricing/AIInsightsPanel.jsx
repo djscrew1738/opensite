@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 
 const CollapsibleSection = ({ title, icon: Icon, isExpanded, onToggle, children, badge }) => (
-  <div className="border border-gray-200 rounded-lg overflow-hidden">
+  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+      className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
     >
       <div className="flex items-center gap-3">
-        {Icon && <Icon className="w-5 h-5 text-gray-600" />}
-        <h4 className="font-semibold text-gray-900">{title}</h4>
+        {Icon && <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />}
+        <h4 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h4>
         {badge && (
           <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded">
             {badge}
@@ -32,7 +32,7 @@ const CollapsibleSection = ({ title, icon: Icon, isExpanded, onToggle, children,
       )}
     </button>
     {isExpanded && (
-      <div className="p-4 bg-white">
+      <div className="p-4 bg-white dark:bg-gray-900">
         {children}
       </div>
     )}
@@ -79,8 +79,8 @@ export default function AIInsightsPanel({ aiAnalysis, aiAnalysisText }) {
   return (
     <div className="space-y-6">
       <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Analysis & Insights</h3>
-        <p className="text-sm text-gray-600">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">AI Analysis & Insights</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           AI-powered analysis of your blueprint with detailed recommendations
         </p>
       </div>

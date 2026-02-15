@@ -79,7 +79,11 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
       // If status is 'processing' or 'pending', continue polling
     } catch (err) {
       console.error('Error polling job status:', err);
-      // Don't stop polling on network errors, just log them
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      setProcessing(false);
+      setError('Lost connection while checking analysis status. Please try again.');
     }
   };
 
@@ -161,7 +165,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
 
   return (
     <div className="card">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Blueprint Upload & Analysis
       </h3>
 
@@ -170,14 +174,14 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-500 transition-colors cursor-pointer"
+          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-primary-500 transition-colors cursor-pointer"
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-700 mb-2">
-            <span className="font-semibold text-primary-600">Click to upload</span> or drag and drop
+          <p className="text-gray-700 dark:text-gray-300 mb-2">
+            <span className="font-semibold text-primary-600 dark:text-primary-400">Click to upload</span> or drag and drop
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             PDF, JPG, or PNG (Max 50MB)
           </p>
           <input

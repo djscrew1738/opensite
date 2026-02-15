@@ -11,7 +11,7 @@ const router = express.Router();
 // Get dashboard statistics (optimized)
 router.get('/stats', tryCatch(async (req, res) => {
   // Use optimized single-query approach with caching
-  const stats = dbOptimizations.getDashboardStatsOptimized();
+  const stats = await dbOptimizations.getDashboardStatsOptimized();
 
   res.success({
     pipelineValue: stats.pipelineValue,

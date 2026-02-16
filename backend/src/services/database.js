@@ -436,11 +436,23 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_discovery_leads_domainHash ON discovery_leads(domainHash);
     `);
 
+    // Settings table - key-value pairs for app configuration
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
     // Seed default plumbing materials if empty
     this.seedDefaultMaterials();
 
     // Seed default data sources if empty
     this.seedDefaultDataSources();
+
+    // Seed default settings if empty
+    this.seedDefaultSettings();
 
     console.log('Database tables initialized');
   }
@@ -1906,6 +1918,66 @@ class DatabaseService {
       lead.servicesOffered = JSON.parse(lead.servicesOffered || '[]');
     }
     return lead;
+  }
+
+  // ==================== Settings Operations ====================
+
+  seedDefaultSettings() {
+    const count = this.db.prepare('SELECT COUNT(*) as count FROM settings').get();
+    if (count.count > 0) return;
+
+    const now = new Date().toISOString();
+    const defaults = {
+      ollama_url: process.env.OLLAMA_URL || 'http://localhost:11434',
+      ollama_model: process.env.OLLAMA_MODEL || 'llama3.1',
+      ollama_temperature: '0.7',
+      company_name: process.env.COMPANY_NAME || 'CTL Plumbing LLC',
+      service_area: process.env.SERVICE_AREA || 'DFW Metroplex',
+      specialization: 'Commercial and Multi-family Plumbing',
+      serper_api_key: process.env.SERPER_API_KEY || '',
+    };
+
+    const stmt = this.db.prepare('INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)');
+    for (const [key, value] of Object.entries(defaults)) {
+      stmt.run(key, value, now);
+    }
+    console.log('Seeded default settings');
+  }
+
+  getSetting(key) {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+    return row ? row.value : null;
+  }
+
+  getAllSettings() {
+    const rows = this.db.prepare('SELECT key, value FROM settings ORDER BY key').all();
+    const settings = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return settings;
+  }
+
+  setSetting(key, value) {
+    const now = new Date().toISOString();
+    this.db.prepare(`
+      INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt
+    `).run(key, String(value), now);
+  }
+
+  setSettings(obj) {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt
+    `);
+    const updateMany = this.db.transaction((entries) => {
+      for (const [key, value] of entries) {
+        stmt.run(key, String(value), now);
+      }
+    });
+    updateMany(Object.entries(obj));
   }
 
   // Backup database

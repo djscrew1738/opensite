@@ -150,4 +150,45 @@ router.post('/analyze', async (req, res) => {
   }
 });
 
+// Pull a model from Ollama
+router.post('/models/pull', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Model name is required' });
+    }
+
+    // Set up SSE for progress
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const result = await ollamaService.pullModel(name, (progress) => {
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    });
+
+    res.write(`data: ${JSON.stringify({ done: true, ...result })}\n\n`);
+    res.end();
+  } catch (error) {
+    res.write(`data: ${JSON.stringify({ done: true, error: error.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Delete a model from Ollama
+router.delete('/models/:name', async (req, res) => {
+  try {
+    const modelName = req.params.name;
+    const result = await ollamaService.deleteModel(modelName);
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    res.json({ success: true, message: `Model ${modelName} deleted` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

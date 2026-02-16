@@ -42,9 +42,13 @@ import plumbingRoutes from './routes/plumbing.js';
 import takeoffRoutes from './routes/takeoff.js';
 import permitsRoutes from './routes/permits.js';
 import discoveryRoutes from './routes/discovery.js';
+import settingsRoutes from './routes/settings.js';
 
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
+
+// Import Ollama service for runtime config
+import { ollamaService } from './services/ollama.js';
 
 // Load environment variables
 dotenv.config();
@@ -87,6 +91,7 @@ app.use('/api/plumbing', plumbingRoutes);
 app.use('/api/takeoff', takeoffRoutes);
 app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
+app.use('/api/settings', settingsRoutes); // App settings CRUD
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -183,6 +188,21 @@ process.on('SIGINT', () => {
 // Start server on all interfaces
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', { port: PORT });
+
+  // Load saved settings and apply to Ollama service
+  try {
+    const settings = db.getAllSettings();
+    const configUpdate = {};
+    if (settings.ollama_url) configUpdate.baseUrl = settings.ollama_url;
+    if (settings.ollama_model) configUpdate.defaultModel = settings.ollama_model;
+    if (settings.ollama_temperature) configUpdate.temperature = parseFloat(settings.ollama_temperature);
+    if (Object.keys(configUpdate).length > 0) {
+      ollamaService.configure(configUpdate);
+      logger.info('Applied saved settings to Ollama service', configUpdate);
+    }
+  } catch (err) {
+    logger.warn('Could not load saved settings', { error: err.message });
+  }
 
   // Start permit background jobs
   if (process.env.PERMIT_JOBS_ENABLED !== 'false') {

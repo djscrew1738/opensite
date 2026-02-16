@@ -98,7 +98,17 @@ export const api = {
     chat: (message, conversationId, model) =>
       apiClient.post('/ai/chat', { message, conversationId, model }),
     analyze: (text, context, model) =>
-      apiClient.post('/ai/analyze', { text, context, model })
+      apiClient.post('/ai/analyze', { text, context, model }),
+    deleteModel: (name) => apiClient.delete(`/ai/models/${encodeURIComponent(name)}`),
+  },
+
+  // Settings
+  settings: {
+    get: () => apiClient.get('/settings'),
+    update: (data) => apiClient.put('/settings', data),
+    testOllama: (url) => apiClient.post('/settings/test-ollama', { url }),
+    testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
+    getMetrics: () => apiClient.get('/settings/metrics'),
   },
 
   // Upload

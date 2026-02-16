@@ -1,11 +1,24 @@
 // Ollama AI service wrapper for local LLM integration
+// Features: retry with backoff, circuit breaker, keep-alive, runtime config, metrics
 
 import axios from 'axios';
+
+// Circuit breaker states
+const CB_CLOSED = 'closed';       // Normal operation
+const CB_OPEN = 'open';           // Failing, reject requests
+const CB_HALF_OPEN = 'half-open'; // Testing if recovered
 
 class OllamaService {
   constructor() {
     this.baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
     this.defaultModel = process.env.OLLAMA_MODEL || 'llama3.1';
+    this.defaultTemperature = 0.7;
+
+    // Will be replaced with keep-alive instance after construction
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      timeout: 60000,
+    });
 
     // Recommended models for specific tasks
     this.modelRecommendations = {
@@ -16,12 +29,126 @@ class OllamaService {
       scoring: ['llama3.1', 'qwen2.5-coder:7b'],
       analysis: ['qwen2.5-coder:7b', 'llama3.1', 'deepseek-r1:1.5b']
     };
+
+    // Circuit breaker state
+    this._cb = {
+      state: CB_CLOSED,
+      failures: 0,
+      maxFailures: 5,
+      resetTimeout: 30000, // 30s
+      nextRetryAt: 0,
+    };
+
+    // Metrics
+    this._metrics = {
+      totalRequests: 0,
+      successCount: 0,
+      failCount: 0,
+      totalResponseMs: 0,
+      lastError: null,
+      lastErrorAt: null,
+      startedAt: Date.now(),
+    };
   }
 
-  // Get list of available models from Ollama
+  // ── Runtime configuration ──
+
+  configure({ baseUrl, defaultModel, temperature }) {
+    if (baseUrl && baseUrl !== this.baseUrl) {
+      this.baseUrl = baseUrl;
+      this.client = axios.create({
+        baseURL: baseUrl,
+        timeout: 60000,
+      });
+      // Reset circuit breaker on URL change
+      this._cbReset();
+    }
+    if (defaultModel) this.defaultModel = defaultModel;
+    if (temperature !== undefined) this.defaultTemperature = temperature;
+  }
+
+  getConfig() {
+    return {
+      baseUrl: this.baseUrl,
+      defaultModel: this.defaultModel,
+      temperature: this.defaultTemperature,
+    };
+  }
+
+  getMetrics() {
+    const uptime = Date.now() - this._metrics.startedAt;
+    const avgResponseMs = this._metrics.successCount > 0
+      ? Math.round(this._metrics.totalResponseMs / this._metrics.successCount)
+      : 0;
+    return {
+      ...this._metrics,
+      avgResponseMs,
+      uptimeMs: uptime,
+      circuitBreaker: this._cb.state,
+    };
+  }
+
+  // ── Circuit breaker ──
+
+  _cbRecordSuccess() {
+    this._cb.failures = 0;
+    this._cb.state = CB_CLOSED;
+  }
+
+  _cbRecordFailure(error) {
+    this._cb.failures++;
+    this._metrics.lastError = error?.message || String(error);
+    this._metrics.lastErrorAt = new Date().toISOString();
+
+    if (this._cb.failures >= this._cb.maxFailures) {
+      this._cb.state = CB_OPEN;
+      this._cb.nextRetryAt = Date.now() + this._cb.resetTimeout;
+      console.warn(`[ollama] Circuit breaker OPEN after ${this._cb.failures} failures. Cooling down ${this._cb.resetTimeout / 1000}s`);
+    }
+  }
+
+  _cbReset() {
+    this._cb.state = CB_CLOSED;
+    this._cb.failures = 0;
+    this._cb.nextRetryAt = 0;
+  }
+
+  _cbCanRequest() {
+    if (this._cb.state === CB_CLOSED) return true;
+    if (this._cb.state === CB_OPEN) {
+      if (Date.now() >= this._cb.nextRetryAt) {
+        this._cb.state = CB_HALF_OPEN;
+        return true; // Allow one test request
+      }
+      return false;
+    }
+    // half-open: allow
+    return true;
+  }
+
+  // ── Retry with exponential backoff ──
+
+  async _withRetry(fn, { retries = 2, baseDelay = 1000, label = 'request' } = {}) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await fn();
+        return result;
+      } catch (error) {
+        const isLastAttempt = attempt === retries;
+        if (isLastAttempt) throw error;
+
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.warn(`[ollama] ${label} attempt ${attempt + 1} failed: ${error.message}. Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  // ── Core API methods ──
+
   async listAvailableModels() {
     try {
-      const response = await axios.get(`${this.baseUrl}/api/tags`, { timeout: 3000 });
+      const response = await this.client.get('/api/tags', { timeout: 5000 });
       return {
         success: true,
         models: response.data.models || []
@@ -35,12 +162,13 @@ class OllamaService {
     }
   }
 
-  // Check if Ollama is available and get all models
   async healthCheck() {
     try {
-      const response = await axios.get(`${this.baseUrl}/api/tags`, { timeout: 3000 });
+      const response = await this.client.get('/api/tags', { timeout: 5000 });
       const models = response.data.models || [];
       const hasDefaultModel = models.some(m => m.name.includes(this.defaultModel));
+
+      this._cbRecordSuccess();
 
       return {
         connected: true,
@@ -54,6 +182,7 @@ class OllamaService {
         totalModels: models.length
       };
     } catch (error) {
+      this._cbRecordFailure(error);
       return {
         connected: false,
         model: this.defaultModel,
@@ -65,37 +194,60 @@ class OllamaService {
     }
   }
 
-  // Get recommended model for a specific task
   getRecommendedModel(task = 'chat') {
     const recommendations = this.modelRecommendations[task] || [this.defaultModel];
     return recommendations[0];
   }
 
-  // Generate a single response (non-streaming)
+  // Non-streaming generation with retry + circuit breaker
   async generate(prompt, options = {}) {
+    this._metrics.totalRequests++;
+
+    if (!this._cbCanRequest()) {
+      this._metrics.failCount++;
+      return {
+        success: false,
+        error: `Circuit breaker open — Ollama unreachable. Retrying in ${Math.max(0, Math.ceil((this._cb.nextRetryAt - Date.now()) / 1000))}s`
+      };
+    }
+
+    const startTime = Date.now();
+    const modelToUse = options.model || this.defaultModel;
+    const temperature = options.temperature ?? this.defaultTemperature;
+
     try {
-      const modelToUse = options.model || this.defaultModel;
-      const response = await axios.post(`${this.baseUrl}/api/generate`, {
-        model: modelToUse,
-        prompt,
-        stream: false,
-        options: {
-          temperature: options.temperature || 0.7,
-          num_predict: options.num_predict,
-          top_k: options.top_k,
-          top_p: options.top_p
-        }
-      }, {
-        timeout: options.timeout || 60000
-      });
+      const result = await this._withRetry(async () => {
+        const response = await this.client.post('/api/generate', {
+          model: modelToUse,
+          prompt,
+          stream: false,
+          options: {
+            temperature,
+            num_predict: options.num_predict,
+            top_k: options.top_k,
+            top_p: options.top_p
+          }
+        }, {
+          timeout: options.timeout || 60000
+        });
+        return response;
+      }, { retries: 2, label: `generate(${modelToUse})` });
+
+      const elapsed = Date.now() - startTime;
+      this._metrics.successCount++;
+      this._metrics.totalResponseMs += elapsed;
+      this._cbRecordSuccess();
 
       return {
         success: true,
-        response: response.data.response,
-        model: modelToUse
+        response: result.data.response,
+        model: modelToUse,
+        durationMs: elapsed,
       };
     } catch (error) {
-      console.error('Ollama generate error:', error.message);
+      this._metrics.failCount++;
+      this._cbRecordFailure(error);
+      console.error('[ollama] generate error:', error.message);
       return {
         success: false,
         error: error.message
@@ -103,16 +255,27 @@ class OllamaService {
     }
   }
 
-  // Generate streaming response
+  // Streaming generation (no retry — streams can't restart cleanly)
   async *generateStream(prompt, options = {}) {
+    this._metrics.totalRequests++;
+
+    if (!this._cbCanRequest()) {
+      this._metrics.failCount++;
+      yield `Error: Ollama circuit breaker open — service unreachable. Please wait and try again.`;
+      return;
+    }
+
+    const modelToUse = options.model || this.defaultModel;
+    const temperature = options.temperature ?? this.defaultTemperature;
+    const startTime = Date.now();
+
     try {
-      const modelToUse = options.model || this.defaultModel;
-      const response = await axios.post(`${this.baseUrl}/api/generate`, {
+      const response = await this.client.post('/api/generate', {
         model: modelToUse,
         prompt,
         stream: true,
         options: {
-          temperature: options.temperature || 0.7,
+          temperature,
           num_predict: options.num_predict,
           top_k: options.top_k,
           top_p: options.top_p
@@ -131,20 +294,66 @@ class OllamaService {
               yield data.response;
             }
             if (data.done) {
+              const elapsed = Date.now() - startTime;
+              this._metrics.successCount++;
+              this._metrics.totalResponseMs += elapsed;
+              this._cbRecordSuccess();
               return;
             }
-          } catch (e) {
-            // Skip invalid JSON
+          } catch {
+            // Skip invalid JSON lines
           }
         }
       }
     } catch (error) {
-      console.error('Ollama stream error:', error.message);
+      this._metrics.failCount++;
+      this._cbRecordFailure(error);
+      console.error('[ollama] stream error:', error.message);
       yield `Error: ${error.message}`;
     }
   }
 
-  // Prompt template for lead scoring
+  // ── Model management ──
+
+  async pullModel(modelName, onProgress) {
+    try {
+      const response = await this.client.post('/api/pull', {
+        name: modelName,
+        stream: true
+      }, {
+        responseType: 'stream',
+        timeout: 600000 // 10 min for large models
+      });
+
+      let lastStatus = '';
+      for await (const chunk of response.data) {
+        const lines = chunk.toString().split('\n').filter(l => l.trim());
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            lastStatus = data.status || lastStatus;
+            if (onProgress) onProgress(data);
+          } catch { /* skip */ }
+        }
+      }
+
+      return { success: true, status: lastStatus };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async deleteModel(modelName) {
+    try {
+      await this.client.delete('/api/delete', { data: { name: modelName } });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ── Prompt templates ──
+
   getLeadScoringPrompt(lead) {
     return `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
 
@@ -177,7 +386,6 @@ Rules:
 Respond with ONLY the JSON, no other text.`;
   }
 
-  // Prompt template for blueprint/estimate analysis
   getBlueprintAnalysisPrompt(estimateData) {
     return `You are an expert plumbing estimator for CTL Plumbing LLC in the DFW area.
 
@@ -200,7 +408,6 @@ Provide analysis including:
 Respond with detailed, actionable insights in a professional format.`;
   }
 
-  // Prompt template for chat with CTL context
   getChatPrompt(message, conversationHistory = []) {
     const context = `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
 
@@ -248,12 +455,10 @@ You can help with:
     });
 
     if (!result.success) {
-      // Fallback to rule-based scoring
       return this.ruleBasedScoring(lead);
     }
 
     try {
-      // Extract JSON from response
       const jsonMatch = result.response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -265,35 +470,26 @@ You can help with:
         };
       }
     } catch (error) {
-      console.error('Failed to parse AI scoring response:', error);
+      console.error('[ollama] Failed to parse AI scoring response:', error.message);
     }
 
-    // Fallback to rule-based
     return this.ruleBasedScoring(lead);
   }
 
-  // Fallback rule-based scoring
   ruleBasedScoring(lead) {
-    let score = 50; // Start at neutral
+    let score = 50;
 
-    // Value scoring
     if (lead.value > 100000) score += 25;
     else if (lead.value > 50000) score += 15;
     else if (lead.value > 25000) score += 10;
 
-    // Location scoring
     const dfwKeywords = ['dallas', 'fort worth', 'dfw', 'plano', 'frisco', 'arlington', 'irving'];
     const locationLower = (lead.location || '').toLowerCase();
-    if (dfwKeywords.some(kw => locationLower.includes(kw))) {
-      score += 15;
-    }
+    if (dfwKeywords.some(kw => locationLower.includes(kw))) score += 15;
 
-    // Project type scoring
     const commercialKeywords = ['commercial', 'multi-family', 'apartment', 'complex'];
     const typeLower = (lead.projectType || '').toLowerCase();
-    if (commercialKeywords.some(kw => typeLower.includes(kw))) {
-      score += 10;
-    }
+    if (commercialKeywords.some(kw => typeLower.includes(kw))) score += 10;
 
     score = Math.max(0, Math.min(100, score));
 
@@ -301,12 +497,18 @@ You can help with:
     if (score >= 80) status = 'hot';
     else if (score >= 50) status = 'warm';
 
-    return {
-      score,
-      status,
-      reasoning: 'Rule-based scoring (AI unavailable)'
-    };
+    return { score, status, reasoning: 'Rule-based scoring (AI unavailable)' };
   }
 }
 
-export const ollamaService = new OllamaService();
+// Top-level await for the http agent import
+const http = await import('http');
+const ollamaInstance = new OllamaService();
+// Properly set the agent after construction
+ollamaInstance.client = axios.create({
+  baseURL: ollamaInstance.baseUrl,
+  timeout: 60000,
+  httpAgent: new http.Agent({ keepAlive: true, maxSockets: 4 }),
+});
+
+export const ollamaService = ollamaInstance;

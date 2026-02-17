@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock, Wrench, ShieldCheck, TrendingUp, Package, CalendarDays, DollarSign, Gauge } from 'lucide-react';
+import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock, Wrench, ShieldCheck, TrendingUp, Package, CalendarDays, DollarSign, Gauge, ClipboardList, ClipboardCheck, ChevronDown, ChevronUp, Download } from 'lucide-react';
 
 export default function BlueprintUpload({ onAnalysisComplete, tier, selectedModel }) {
   const [file, setFile] = useState(null);
@@ -9,6 +9,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
   const [error, setError] = useState(null);
   const [_jobId, setJobId] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [takeoffFilter, setTakeoffFilter] = useState('All');
+  const [takeoffExpanded, setTakeoffExpanded] = useState(true);
   const fileInputRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
@@ -666,6 +668,168 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                 </div>
               )}
 
+              {/* --- Section 5b: Material Takeoff --- */}
+              {result.aiAnalysis?.materialTakeoff?.length > 0 && typeof result.aiAnalysis === 'object' && (() => {
+                const takeoff = result.aiAnalysis.materialTakeoff;
+                const categories = ['All', ...new Set(takeoff.map(m => m.category).filter(Boolean))];
+                const filtered = takeoffFilter === 'All' ? takeoff : takeoff.filter(m => m.category === takeoffFilter);
+                const grandTotal = filtered.reduce((sum, m) => sum + (m.totalCost || 0), 0);
+                const totalItems = filtered.reduce((sum, m) => sum + (m.quantity || 0), 0);
+
+                return (
+                  <div className="bg-gradient-to-br from-lime-50 to-green-50 dark:from-surface-800 dark:to-surface-900 border border-lime-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-lime-200 dark:border-surface-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-lime-600 dark:bg-lime-700 flex items-center justify-center">
+                            <ClipboardList className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-lime-900 dark:text-gray-100">Material Takeoff</h4>
+                            <p className="text-xs text-lime-600 dark:text-lime-400">{takeoff.length} items &middot; ${grandTotal.toLocaleString()} total</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rows = [['Item', 'Category', 'Description', 'Qty', 'Unit', 'Unit Cost', 'Total Cost']];
+                              takeoff.forEach(m => rows.push([m.item, m.category, m.description, m.quantity, m.unit, m.unitCost, m.totalCost]));
+                              rows.push([]);
+                              rows.push(['', '', '', '', '', 'GRAND TOTAL', takeoff.reduce((s, m) => s + (m.totalCost || 0), 0)]);
+                              const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+                              const blob = new Blob([csv], { type: 'text/csv' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `material-takeoff-${result.fileName || 'export'}.csv`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="text-xs px-2.5 py-1.5 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-300 rounded-lg hover:bg-lime-200 dark:hover:bg-lime-900/50 transition-colors flex items-center gap-1"
+                          >
+                            <Download className="w-3 h-3" /> CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTakeoffExpanded(!takeoffExpanded)}
+                            className="text-lime-600 dark:text-lime-400 hover:text-lime-800 dark:hover:text-lime-200 p-1"
+                          >
+                            {takeoffExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Category filter pills */}
+                      {takeoffExpanded && categories.length > 2 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {categories.map(cat => (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => setTakeoffFilter(cat)}
+                              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                                takeoffFilter === cat
+                                  ? 'bg-lime-600 text-white dark:bg-lime-500'
+                                  : 'bg-white dark:bg-surface-700 text-lime-700 dark:text-gray-300 border border-lime-200 dark:border-surface-600 hover:bg-lime-100 dark:hover:bg-surface-600'
+                              }`}
+                            >
+                              {cat} {cat === 'All' ? `(${takeoff.length})` : `(${takeoff.filter(m => m.category === cat).length})`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {takeoffExpanded && (
+                      <div className="p-5">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-lime-100 dark:border-surface-600 text-center">
+                            <p className="text-[10px] uppercase tracking-wider text-lime-500 dark:text-gray-400 font-semibold">Line Items</p>
+                            <p className="text-lg font-bold text-lime-900 dark:text-gray-100 mt-0.5">{filtered.length}</p>
+                          </div>
+                          <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-lime-100 dark:border-surface-600 text-center">
+                            <p className="text-[10px] uppercase tracking-wider text-lime-500 dark:text-gray-400 font-semibold">Total Qty</p>
+                            <p className="text-lg font-bold text-lime-900 dark:text-gray-100 mt-0.5">{totalItems.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-lime-100 dark:border-surface-600 text-center">
+                            <p className="text-[10px] uppercase tracking-wider text-lime-500 dark:text-gray-400 font-semibold">Material Cost</p>
+                            <p className="text-lg font-bold text-lime-900 dark:text-gray-100 mt-0.5">${grandTotal.toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        {/* Takeoff Table */}
+                        <div className="overflow-x-auto rounded-lg border border-lime-200 dark:border-surface-600">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-lime-100 dark:bg-surface-700">
+                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold">Item</th>
+                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold hidden sm:table-cell">Category</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold">Qty</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold">Unit</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold hidden sm:table-cell">Unit $</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-lime-700 dark:text-gray-300 font-semibold">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-lime-100 dark:divide-surface-600">
+                              {filtered.map((m, i) => (
+                                <tr key={i} className="bg-white dark:bg-surface-800 hover:bg-lime-50 dark:hover:bg-surface-750 transition-colors">
+                                  <td className="px-3 py-2.5">
+                                    <p className="font-medium text-lime-900 dark:text-gray-100">{m.item}</p>
+                                    {m.description && <p className="text-[11px] text-lime-600 dark:text-gray-500 mt-0.5">{m.description}</p>}
+                                  </td>
+                                  <td className="px-3 py-2.5 hidden sm:table-cell">
+                                    <span className="text-xs px-2 py-0.5 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-300 rounded-full">{m.category}</span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right font-semibold text-lime-900 dark:text-gray-100">{m.quantity?.toLocaleString()}</td>
+                                  <td className="px-3 py-2.5 text-right text-lime-600 dark:text-gray-400">{m.unit}</td>
+                                  <td className="px-3 py-2.5 text-right text-lime-700 dark:text-gray-300 hidden sm:table-cell">${m.unitCost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td className="px-3 py-2.5 text-right font-bold text-lime-900 dark:text-gray-100">${m.totalCost?.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="bg-lime-100 dark:bg-surface-700 font-bold">
+                                <td className="px-3 py-3 text-lime-900 dark:text-gray-100" colSpan={2}>Grand Total</td>
+                                <td className="px-3 py-3 text-right text-lime-900 dark:text-gray-100 hidden sm:table-cell" colSpan={1}></td>
+                                <td className="px-3 py-3 text-right text-lime-900 dark:text-gray-100" colSpan={1}></td>
+                                <td className="px-3 py-3 text-right text-lime-900 dark:text-gray-100 hidden sm:table-cell" colSpan={1}></td>
+                                <td className="px-3 py-3 text-right text-xl text-lime-900 dark:text-gray-100">${grandTotal.toLocaleString()}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+
+                        {/* Category breakdown bar */}
+                        {takeoffFilter === 'All' && categories.length > 2 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold text-lime-800 dark:text-gray-300 uppercase tracking-wider mb-2">Cost by Category</p>
+                            <div className="space-y-2">
+                              {categories.filter(c => c !== 'All').map(cat => {
+                                const catTotal = takeoff.filter(m => m.category === cat).reduce((s, m) => s + (m.totalCost || 0), 0);
+                                const pct = grandTotal > 0 ? (catTotal / grandTotal * 100) : 0;
+                                return (
+                                  <div key={cat}>
+                                    <div className="flex items-center justify-between text-xs mb-1">
+                                      <span className="text-lime-800 dark:text-gray-300 font-medium">{cat}</span>
+                                      <span className="text-lime-600 dark:text-lime-400 font-semibold">${catTotal.toLocaleString()} ({pct.toFixed(0)}%)</span>
+                                    </div>
+                                    <div className="w-full bg-lime-100 dark:bg-surface-700 rounded-full h-2">
+                                      <div className="bg-lime-500 dark:bg-lime-600 h-2 rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* --- Section 6: Recommendations & Risks --- */}
               {result.aiAnalysis && typeof result.aiAnalysis === 'object' && (result.aiAnalysis.recommendations?.length > 0 || result.aiAnalysis.risks?.length > 0) && (
                 <div className="bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-surface-800 dark:to-surface-900 border border-cyan-200 dark:border-surface-700 rounded-xl overflow-hidden">
@@ -747,6 +911,192 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                 <div className="bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl p-5">
                   <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-3">AI Analysis</h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.aiAnalysis}</p>
+                </div>
+              )}
+
+              {/* --- Clean Up Summary --- */}
+              {result.aiAnalysis && typeof result.aiAnalysis === 'object' && (
+                <div className="bg-gradient-to-br from-gray-900 to-slate-800 dark:from-gray-950 dark:to-slate-900 border border-gray-700 rounded-xl overflow-hidden text-white">
+                  <div className="px-5 py-4 border-b border-gray-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                      <ClipboardCheck className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">Project Summary</h4>
+                      <p className="text-xs text-gray-400">{result.fileName}</p>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {/* Summary Stats Row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {result.estimate?.total != null && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Total Estimate</p>
+                          <p className="text-xl font-bold text-emerald-400 mt-1">${result.estimate.total.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {result.estimate?.perUnit != null && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Per Unit</p>
+                          <p className="text-xl font-bold text-emerald-400 mt-1">${result.estimate.perUnit.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {result.aiAnalysis.projectComplexity && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Complexity</p>
+                          <p className={`text-xl font-bold mt-1 ${
+                            result.aiAnalysis.projectComplexity === 'complex' ? 'text-red-400' :
+                            result.aiAnalysis.projectComplexity === 'medium' ? 'text-amber-400' :
+                            'text-green-400'
+                          }`}>
+                            {result.aiAnalysis.projectComplexity.charAt(0).toUpperCase() + result.aiAnalysis.projectComplexity.slice(1)}
+                          </p>
+                        </div>
+                      )}
+                      {result.aiAnalysis.timeline?.estimatedDuration && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Duration</p>
+                          <p className="text-xl font-bold text-sky-400 mt-1">{result.aiAnalysis.timeline.estimatedDuration}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Project Specs Line */}
+                    {result.extractedData && Object.keys(result.extractedData).length > 0 && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2">Project Specifications</p>
+                        <div className="flex flex-wrap gap-2">
+                          {result.extractedData.sqft > 0 && (
+                            <span className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                              <span className="text-gray-400">Sqft:</span> <span className="font-semibold">{result.extractedData.sqft.toLocaleString()}</span>
+                            </span>
+                          )}
+                          {result.extractedData.units > 0 && (
+                            <span className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                              <span className="text-gray-400">Units:</span> <span className="font-semibold">{result.extractedData.units}</span>
+                            </span>
+                          )}
+                          {result.extractedData.stories > 0 && (
+                            <span className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                              <span className="text-gray-400">Stories:</span> <span className="font-semibold">{result.extractedData.stories}</span>
+                            </span>
+                          )}
+                          {result.extractedData.bathrooms > 0 && (
+                            <span className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                              <span className="text-gray-400">Bathrooms:</span> <span className="font-semibold">{result.extractedData.bathrooms}</span>
+                            </span>
+                          )}
+                          {(() => {
+                            const fixtureCount = (result.extractedData.toilets || 0) +
+                              (result.extractedData.lavatories || 0) +
+                              (result.extractedData.tubs || 0) +
+                              (result.extractedData.showerBases || 0) +
+                              (result.extractedData.kitchenFaucets || 0) +
+                              (result.extractedData.barSinks || 0) +
+                              (result.extractedData.mudPans || 0) +
+                              (result.extractedData.washingMachines || 0);
+                            return fixtureCount > 0 ? (
+                              <span className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                                <span className="text-gray-400">Total Fixtures:</span> <span className="font-semibold">{fixtureCount}</span>
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Labor Summary */}
+                    {result.aiAnalysis.laborEstimate && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2">Labor Summary</p>
+                        <div className="flex flex-wrap gap-2">
+                          {['roughIn', 'topOut', 'trim'].filter(k => result.aiAnalysis.laborEstimate[k]).map(k => {
+                            const labels = { roughIn: 'Rough-In', topOut: 'Top-Out', trim: 'Trim' };
+                            const phase = result.aiAnalysis.laborEstimate[k];
+                            return (
+                              <span key={k} className="text-xs px-2.5 py-1.5 bg-white/10 rounded-lg text-gray-200">
+                                <span className="text-gray-400">{labels[k]}:</span> <span className="font-semibold">{phase.hours}h</span>
+                                <span className="text-gray-500 ml-1">({phase.duration})</span>
+                              </span>
+                            );
+                          })}
+                          {(() => {
+                            const total = ['roughIn', 'topOut', 'trim'].reduce((sum, k) =>
+                              sum + (result.aiAnalysis.laborEstimate[k]?.hours || 0), 0);
+                            return total > 0 ? (
+                              <span className="text-xs px-2.5 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-300 font-semibold">
+                                Total: {total}h
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Key Highlights */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Top Recommendations */}
+                      {result.aiAnalysis.recommendations?.length > 0 && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-cyan-400 font-semibold mb-2">
+                            Key Recommendations ({result.aiAnalysis.recommendations.length})
+                          </p>
+                          <ul className="space-y-1.5">
+                            {result.aiAnalysis.recommendations.slice(0, 3).map((rec, i) => (
+                              <li key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                                <CheckCircle className="w-3 h-3 text-cyan-400 mt-0.5 flex-shrink-0" />
+                                <span>{typeof rec === 'string' ? rec : rec.text || JSON.stringify(rec)}</span>
+                              </li>
+                            ))}
+                            {result.aiAnalysis.recommendations.length > 3 && (
+                              <li className="text-xs text-gray-500">+{result.aiAnalysis.recommendations.length - 3} more above</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {/* Top Risks */}
+                      {result.aiAnalysis.risks?.length > 0 && (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-red-400 font-semibold mb-2">
+                            Key Risks ({result.aiAnalysis.risks.length})
+                          </p>
+                          <ul className="space-y-1.5">
+                            {result.aiAnalysis.risks.slice(0, 3).map((r, i) => (
+                              <li key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                                <AlertCircle className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+                                <span>{r.risk || r}</span>
+                              </li>
+                            ))}
+                            {result.aiAnalysis.risks.length > 3 && (
+                              <li className="text-xs text-gray-500">+{result.aiAnalysis.risks.length - 3} more above</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Compliance + Pricing Tier */}
+                    <div className="flex flex-wrap gap-2">
+                      {result.aiAnalysis.codeCompliance?.notes?.length > 0 && (
+                        <span className="text-xs px-2.5 py-1.5 bg-rose-500/20 border border-rose-500/30 rounded-lg text-rose-300 flex items-center gap-1.5">
+                          <ShieldCheck className="w-3 h-3" />
+                          {result.aiAnalysis.codeCompliance.notes.length} compliance note{result.aiAnalysis.codeCompliance.notes.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {result.aiAnalysis.pricingRecommendation?.tier && (
+                        <span className="text-xs px-2.5 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-lg text-amber-300 flex items-center gap-1.5">
+                          <DollarSign className="w-3 h-3" />
+                          Recommended: {result.aiAnalysis.pricingRecommendation.tier} tier
+                        </span>
+                      )}
+                      {result.aiAnalysis.complexityFactors?.length > 0 && (
+                        <span className="text-xs px-2.5 py-1.5 bg-violet-500/20 border border-violet-500/30 rounded-lg text-violet-300 flex items-center gap-1.5">
+                          <Gauge className="w-3 h-3" />
+                          {result.aiAnalysis.complexityFactors.length} complexity factor{result.aiAnalysis.complexityFactors.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 

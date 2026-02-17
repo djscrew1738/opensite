@@ -1,4 +1,4 @@
--- 1stein Database Schema
+-- OpenSite Database Schema
 -- PostgreSQL schema for future migration from in-memory storage
 
 -- Leads table

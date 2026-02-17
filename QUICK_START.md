@@ -8,13 +8,13 @@ All code has been implemented and integrated. You just need to install the npm p
 
 ### Method 1: Run the Install Script
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./INSTALL_PACKAGES.sh
 ```
 
 ### Method 2: Manual Installation
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 # All at once (may timeout on slow networks):
 npm install recharts react-markdown remark-gfm html2canvas jspdf
@@ -27,13 +27,13 @@ npm install html2canvas jspdf
 
 ### Method 3: Using Yarn (if npm has issues)
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 yarn add recharts react-markdown remark-gfm html2canvas jspdf
 ```
 
 ## Verify Installation
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm list recharts react-markdown html2canvas jspdf
 ```
 
@@ -44,11 +44,11 @@ You should see these packages listed with their versions.
 ### 1. Start Both Servers
 ```bash
 # Terminal 1 - Backend
-cd /home/djscrew/1stein/backend
+cd /home/djscrew/opensite/backend
 npm run dev
 
 # Terminal 2 - Frontend (already running on port 3003)
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm run dev
 ```
 

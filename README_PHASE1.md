@@ -17,20 +17,20 @@ Your network diagnostics show:
 
 #### 1️⃣ Use Chinese Mirror (Fastest - Try This First)
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./install-with-mirror.sh
 ```
 
 #### 2️⃣ Install with Yarn (More Reliable)
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm install -g yarn  # One-time install
 yarn add recharts react-markdown remark-gfm html2canvas jspdf
 ```
 
 #### 3️⃣ Increase Timeout and Retry
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm config set fetch-timeout 600000
 npm config set fetch-retries 10
 npm install recharts react-markdown remark-gfm html2canvas jspdf
@@ -292,7 +292,7 @@ Once packages are installed:
 ### RIGHT NOW:
 1. **Install packages** using mirror script (90% success rate):
    ```bash
-   cd /home/djscrew/1stein
+   cd /home/djscrew/opensite
    ./install-with-mirror.sh
    ```
 
@@ -331,7 +331,7 @@ Once packages are installed:
 
 ### Network Diagnostics
 ```bash
-/home/djscrew/1stein/test-network.sh
+/home/djscrew/opensite/test-network.sh
 ```
 
 ---

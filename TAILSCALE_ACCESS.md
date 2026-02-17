@@ -1,6 +1,6 @@
-# 1stein Remote Access via Tailscale
+# OpenSite Remote Access via Tailscale
 
-Your 1stein Plumbing Intelligence Platform is now accessible remotely via Tailscale!
+Your OpenSite Plumbing Intelligence Platform is now accessible remotely via Tailscale!
 
 ## 🌐 Access URLs
 
@@ -126,7 +126,7 @@ http://localhost:5001  (backend)
 
 ### On-Site Visits:
 1. Use iPhone/Android at job site
-2. Access 1stein via Tailscale
+2. Access opensite via Tailscale
 3. Upload blueprint photos
 4. Get instant AI analysis
 5. Generate quote on-site
@@ -215,12 +215,12 @@ http://localhost:5001  (backend)
 
 2. Check backend logs:
    ```bash
-   tail -f /home/djscrew/1stein/backend.log
+   tail -f /home/djscrew/opensite/backend.log
    ```
 
 3. Restart backend:
    ```bash
-   cd /home/djscrew/1stein/backend
+   cd /home/djscrew/opensite/backend
    npm run dev
    ```
 
@@ -236,12 +236,12 @@ http://localhost:5001  (backend)
 
 2. Check frontend logs:
    ```bash
-   tail -f /home/djscrew/1stein/frontend.log
+   tail -f /home/djscrew/opensite/frontend.log
    ```
 
 3. Restart frontend:
    ```bash
-   cd /home/djscrew/1stein/frontend
+   cd /home/djscrew/opensite/frontend
    npm run dev
    ```
 
@@ -285,12 +285,12 @@ pkill -f "node.*server.js"
 pkill -f "vite"
 
 # Start servers
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./start.sh
 
 # Or manually:
-cd /home/djscrew/1stein/backend && npm run dev &
-cd /home/djscrew/1stein/frontend && npm run dev &
+cd /home/djscrew/opensite/backend && npm run dev &
+cd /home/djscrew/opensite/frontend && npm run dev &
 ```
 
 ---
@@ -326,6 +326,6 @@ cd /home/djscrew/1stein/frontend && npm run dev &
 
 ---
 
-**Your 1stein platform is now accessible from any device on your Tailscale network! 🎉**
+**Your OpenSite platform is now accessible from any device on your Tailscale network! 🎉**
 
 Access it now: **http://100.115.136.62:3000**

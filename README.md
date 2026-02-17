@@ -1,4 +1,4 @@
-# 1stein - CTL Plumbing Intelligence Platform
+# OpenSite - CTL Plumbing Intelligence Platform
 
 AI-powered business intelligence dashboard for CTL Plumbing LLC, streamlining lead management, blueprint analysis, and pricing calculations.
 
@@ -67,7 +67,7 @@ AI-powered business intelligence dashboard for CTL Plumbing LLC, streamlining le
 
 1. **Clone or navigate to the repository:**
    ```bash
-   cd /home/djscrew/1stein
+   cd /home/djscrew/opensite
    ```
 
 2. **Run the quick start script:**
@@ -158,7 +158,7 @@ docker-compose up -d redis-plumber chromadb-plumber worker-plumber
 ## Architecture
 
 ```
-1stein/
+OpenSite/
 ├── backend/              # Express.js API
 │   ├── src/
 │   │   ├── server.js     # Main server entry
@@ -416,7 +416,7 @@ When ready to persist data:
 1. Set up PostgreSQL database
 2. Run schema:
    ```bash
-   psql -U postgres -d 1stein -f database/schema.sql
+   psql -U postgres -d OpenSite -f database/schema.sql
    ```
 3. Update backend to use PostgreSQL client
 4. Replace `data/store.js` with database queries

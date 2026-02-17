@@ -1,7 +1,7 @@
 # UI/UX Design Improvements - Mobile-First Redesign
 
 ## Overview
-Complete mobile-first redesign of the 1stein platform with an industrial construction aesthetic, touch-optimized interactions, and dramatic visual improvements.
+Complete mobile-first redesign of the OpenSite platform with an industrial construction aesthetic, touch-optimized interactions, and dramatic visual improvements.
 
 ## Design Philosophy: "Industrial Precision"
 

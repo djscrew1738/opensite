@@ -1,6 +1,6 @@
-# Multi-Model Support in 1stein
+# Multi-Model Support in OpenSite
 
-1stein now supports multiple Ollama models, allowing you to choose the best AI model for different tasks!
+OpenSite now supports multiple Ollama models, allowing you to choose the best AI model for different tasks!
 
 ## 🤖 Supported Models
 

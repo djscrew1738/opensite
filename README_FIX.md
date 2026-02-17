@@ -23,8 +23,8 @@ The Vite proxy was configured to point to port **5001** instead of port **3001**
 # Kill all node processes and restart clean
 pkill -f node
 sleep 3
-systemctl --user restart 1stein-backend
-systemctl --user restart 1stein-frontend
+systemctl --user restart opensite-backend
+systemctl --user restart opensite-frontend
 ```
 
 ## Note

@@ -5,12 +5,12 @@ Complete backend overhaul with persistence, caching, security, and professional-
 
 ## 📁 Persistence - Everything in /tool Folder
 
-All data, cache, logs, and uploads are now stored in `/home/djscrew/1stein/tool/`:
+All data, cache, logs, and uploads are now stored in `/home/djscrew/opensite/tool/`:
 
 ```
 tool/
 ├── data/              # SQLite database files
-│   ├── 1stein.db     # Main database (persistent)
+│   ├── opensite.db     # Main database (persistent)
 │   └── backup-*.db   # Auto backups
 ├── cache/             # (Reserved for future file-based cache)
 ├── logs/              # Daily rotating logs

@@ -1,7 +1,7 @@
 # ⚡ Performance Optimizations
 
 ## Overview
-Comprehensive performance improvements to make the 1stein UI/UX load significantly faster with optimized code splitting, lazy loading, and build configuration.
+Comprehensive performance improvements to make the OpenSite UI/UX load significantly faster with optimized code splitting, lazy loading, and build configuration.
 
 ---
 

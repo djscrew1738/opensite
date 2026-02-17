@@ -1,7 +1,7 @@
 # 🌙 Dark Mode Implementation
 
 ## Overview
-Complete dark mode has been added to the 1stein platform with automatic system preference detection and persistent user settings.
+Complete dark mode has been added to the OpenSite platform with automatic system preference detection and persistent user settings.
 
 ---
 

@@ -7,7 +7,7 @@ Your system is experiencing timeouts when connecting to the npm registry. Here a
 ## Solution 1: Increase NPM Timeouts (Try First)
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 # Configure npm with longer timeouts
 npm config set fetch-timeout 600000
@@ -23,7 +23,7 @@ npm install recharts react-markdown remark-gfm html2canvas jspdf
 
 ### Option A: Taobao Mirror (Fast in many regions)
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 npm config set registry https://registry.npmmirror.com
 npm install recharts react-markdown remark-gfm html2canvas jspdf
@@ -34,7 +34,7 @@ npm config set registry https://registry.npmjs.org
 
 ### Option B: Cloudflare Registry
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 npm config set registry https://registry.npmjs.cf
 npm install recharts react-markdown remark-gfm html2canvas jspdf
@@ -46,7 +46,7 @@ npm config set registry https://registry.npmjs.org
 ## Solution 3: Install One Package at a Time with Retries
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 # Install each package separately with a pause between
 npm install recharts && sleep 5 && \
@@ -87,7 +87,7 @@ curl -o- -L https://yarnpkg.com/install.sh | bash
 
 Then install packages:
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 yarn add recharts react-markdown remark-gfm html2canvas jspdf
 ```
 
@@ -96,7 +96,7 @@ yarn add recharts react-markdown remark-gfm html2canvas jspdf
 If all else fails, you can manually download and install packages:
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 # Download packages from a working machine or CDN
 # Then copy them to node_modules and update package.json
@@ -139,7 +139,7 @@ npm install -g pnpm
 # Or
 curl -fsSL https://get.pnpm.io/install.sh | sh -
 
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 pnpm install recharts react-markdown remark-gfm html2canvas jspdf
 ```
 
@@ -148,7 +148,7 @@ pnpm install recharts react-markdown remark-gfm html2canvas jspdf
 After successful installation, verify:
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 
 # Check package.json was updated
 grep recharts package.json

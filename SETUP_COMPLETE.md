@@ -1,6 +1,6 @@
-# 1stein Setup Complete! 🎉
+# OpenSite Setup Complete! 🎉
 
-Your **1stein Plumbing Intelligence Platform** is fully implemented with all enhancements!
+Your **OpenSite Plumbing Intelligence Platform** is fully implemented with all enhancements!
 
 ## ✅ What's Included
 
@@ -30,21 +30,21 @@ The backend package.json has been updated with new dependencies:
 Install them:
 
 ```bash
-cd /home/djscrew/1stein/backend
+cd /home/djscrew/opensite/backend
 npm install
 ```
 
 ### 2. Install Frontend Dependencies (If Needed)
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm install
 ```
 
 ### 3. Start the Application
 
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./start.sh
 ```
 
@@ -52,11 +52,11 @@ cd /home/djscrew/1stein
 
 ```bash
 # Terminal 1 - Backend
-cd /home/djscrew/1stein/backend
+cd /home/djscrew/opensite/backend
 npm run dev
 
 # Terminal 2 - Frontend
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm run dev
 ```
 
@@ -145,7 +145,7 @@ Perfect for different tasks:
 
 ## 📚 Documentation Files
 
-All documentation is in `/home/djscrew/1stein/`:
+All documentation is in `/home/djscrew/opensite/`:
 
 1. **README.md** - Main documentation
 2. **QUICKSTART.md** - Fast setup guide
@@ -181,7 +181,7 @@ All documentation is in `/home/djscrew/1stein/`:
 ## 💾 File Structure
 
 ```
-/home/djscrew/1stein/
+/home/djscrew/opensite/
 ├── backend/
 │   ├── src/
 │   │   ├── routes/
@@ -261,13 +261,13 @@ Error: "Cannot find module 'multer'"
 
 1. **Verify Installation**
    ```bash
-   cd /home/djscrew/1stein/backend
+   cd /home/djscrew/opensite/backend
    npm install
    ```
 
 2. **Start Application**
    ```bash
-   cd /home/djscrew/1stein
+   cd /home/djscrew/opensite
    ./start.sh
    ```
 
@@ -296,7 +296,7 @@ If you encounter issues:
 
 ## 🎊 You're All Set!
 
-The 1stein Platform is ready with:
+The OpenSite Platform is ready with:
 - ✅ Multi-model AI support (4 models)
 - ✅ PDF blueprint upload & analysis
 - ✅ Automatic data extraction

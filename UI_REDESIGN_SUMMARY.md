@@ -2,14 +2,14 @@
 
 ## ✅ What's Been Done
 
-Your 1stein platform has been completely redesigned with a bold, mobile-first aesthetic that's perfect for construction professionals.
+Your OpenSite platform has been completely redesigned with a bold, mobile-first aesthetic that's perfect for construction professionals.
 
 ---
 
 ## 🚀 Quick Start
 
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm run dev
 ```
 

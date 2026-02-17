@@ -1,6 +1,6 @@
 # Blueprint PDF Upload & Analysis
 
-1stein now supports uploading blueprint PDFs for automatic analysis and project estimation!
+OpenSite now supports uploading blueprint PDFs for automatic analysis and project estimation!
 
 ## 🎯 Features
 
@@ -30,7 +30,7 @@ Uses your specialized Ollama models to provide:
 ## 🚀 How to Use
 
 ### 1. Navigate to Pricing Calculator
-Go to **Pricing** page in the 1stein dashboard
+Go to **Pricing** page in the OpenSite dashboard
 
 ### 2. Select AI Model (Optional)
 Choose your preferred model from the dropdown:

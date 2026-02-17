@@ -1,7 +1,7 @@
-# 1stein Lead Finder Integration - Implementation Summary
+# OpenSite Lead Finder Integration - Implementation Summary
 
 ## Overview
-Successfully integrated the 1stein-lead-finder-v2 permit tracking system into the main 1stein application. The system now provides automated permit ingestion, AI-powered lead scoring, builder intelligence tracking, and notification services.
+Successfully integrated the opensite-lead-finder-v2 permit tracking system into the main OpenSite application. The system now provides automated permit ingestion, AI-powered lead scoring, builder intelligence tracking, and notification services.
 
 ## ✅ Completed Tasks (14/15)
 
@@ -455,7 +455,7 @@ INTEGRATION_SUMMARY.md (NEW - this file)
 - [ ] Verify Ollama running on localhost:11434
 - [ ] Run `cd backend && npm install`
 - [ ] Start backend: `npm run dev`
-- [ ] Verify database created: `tool/data/1stein.db`
+- [ ] Verify database created: `tool/data/opensite.db`
 - [ ] Test manual ingestion: `npm run permits:ingest`
 - [ ] Test scoring: `npm run permits:score`
 - [ ] Navigate to frontend `/leads` page
@@ -499,7 +499,7 @@ See `.env.example` for complete list
 
 ## 🏆 ALL TASKS COMPLETE!
 
-The 1stein Lead Finder integration is now **100% complete** with all 15 tasks finished:
+The OpenSite Lead Finder integration is now **100% complete** with all 15 tasks finished:
 - ✅ All backend services implemented
 - ✅ All frontend components created
 - ✅ All API endpoints functional

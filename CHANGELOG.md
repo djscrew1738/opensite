@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the 1stein Plumbing Intelligence Platform will be documented in this file.
+All notable changes to the OpenSite Plumbing Intelligence Platform will be documented in this file.
 
 ## [1.1.2] - 2026-02-12
 

@@ -1,4 +1,4 @@
-# 1stein Quick Start Guide
+# OpenSite Quick Start Guide
 
 ## ✅ Installation Complete
 
@@ -10,7 +10,7 @@ All dependencies have been installed successfully:
 
 ### Option 1: Quick Start Script (Recommended)
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./start.sh
 ```
 
@@ -24,13 +24,13 @@ This will:
 
 **Terminal 1 - Backend:**
 ```bash
-cd /home/djscrew/1stein/backend
+cd /home/djscrew/opensite/backend
 npm run dev
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm run dev
 ```
 
@@ -91,7 +91,7 @@ The backend route `/api/plumbing/extract` will save uploads to `data/uploads` an
 lsof -i :5001
 
 # View backend logs
-tail -f /home/djscrew/1stein/backend.log
+tail -f /home/djscrew/opensite/backend.log
 ```
 
 ### Frontend won't start
@@ -100,7 +100,7 @@ tail -f /home/djscrew/1stein/backend.log
 lsof -i :3000
 
 # View frontend logs
-tail -f /home/djscrew/1stein/frontend.log
+tail -f /home/djscrew/opensite/frontend.log
 ```
 
 ### Ollama not connected
@@ -119,4 +119,4 @@ See `README.md` for comprehensive documentation including:
 
 ## 🎊 You're Ready!
 
-The 1stein Platform is fully implemented and ready for CTL Plumbing LLC operations!
+The OpenSite Platform is fully implemented and ready for CTL Plumbing LLC operations!

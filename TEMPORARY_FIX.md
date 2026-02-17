@@ -8,20 +8,20 @@ The fastest solution is to get the packages installed:
 
 ### Try the Mirror Script (Usually Works)
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 ./install-with-mirror.sh
 ```
 
 ### Or Try Yarn
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm install -g yarn
 yarn add recharts react-markdown remark-gfm html2canvas jspdf
 ```
 
 ### Or Use Alternative Registry
 ```bash
-cd /home/djscrew/1stein/frontend
+cd /home/djscrew/opensite/frontend
 npm config set registry https://registry.npmmirror.com
 npm install recharts react-markdown remark-gfm html2canvas jspdf
 npm config set registry https://registry.npmjs.org
@@ -32,7 +32,7 @@ npm config set registry https://registry.npmjs.org
 If you need the app running immediately while you fix network issues:
 
 ```bash
-cd /home/djscrew/1stein
+cd /home/djscrew/opensite
 
 # Restore old Pricing page temporarily
 git diff HEAD~1 frontend/src/pages/Pricing.jsx > /tmp/pricing-changes.patch

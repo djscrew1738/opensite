@@ -162,7 +162,7 @@ Click the export buttons in the top-right:
 
 ### Charts Not Displaying
 ```bash
-cd ~/1stein/frontend
+cd ~/opensite/frontend
 npm list recharts react-markdown
 ```
 If missing, reinstall:
@@ -172,14 +172,14 @@ npm install recharts react-markdown remark-gfm --legacy-peer-deps
 
 ### API Not Responding
 ```bash
-systemctl --user status 1stein-backend.service
-journalctl --user -u 1stein-backend.service -n 50
+systemctl --user status opensite-backend.service
+journalctl --user -u opensite-backend.service -n 50
 ```
 
 ### Frontend Not Loading
 ```bash
-systemctl --user status 1stein-frontend.service
-journalctl --user -u 1stein-frontend.service -n 50
+systemctl --user status opensite-frontend.service
+journalctl --user -u opensite-frontend.service -n 50
 ```
 
 ### Console Errors

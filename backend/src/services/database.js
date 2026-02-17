@@ -1295,7 +1295,7 @@ class DatabaseService {
     const sources = [
       {
         name: 'fort_worth',
-        displayName: 'City of Fort Worth',
+        displayName: 'City of Fort Worth — Issued Building Permits',
         apiBaseUrl: 'https://data.fortworthtexas.gov/resource',
         datasetId: '9c4v-ngai',
         adapterType: 'socrata',
@@ -1316,6 +1316,14 @@ class DatabaseService {
           longitude: 'longitude',
           status: 'status'
         })
+      },
+      {
+        name: 'fort_worth_accela',
+        displayName: 'City of Fort Worth — Accela Portal (Real-time)',
+        apiBaseUrl: 'https://aca-prod.accela.com/CFW',
+        datasetId: null,
+        adapterType: 'accela',
+        fieldMapping: '{}'
       },
       {
         name: 'tarrant_county',

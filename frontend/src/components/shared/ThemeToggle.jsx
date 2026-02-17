@@ -1,39 +1,55 @@
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 
-export default function ThemeToggle({ className = '' }) {
+export default function ThemeToggle({ compact = false, className = '' }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <button
       onClick={toggleTheme}
-      className={`tap-target relative inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white dark:bg-gray-800 border-2 border-concrete-200 dark:border-gray-700 hover:border-accent-500 dark:hover:border-accent-500 transition-all duration-300 group ${className}`}
+      className={`relative inline-flex items-center justify-center rounded-lg transition-all duration-300 group ${className}`}
+      style={{
+        width: compact ? '40px' : '44px',
+        height: compact ? '40px' : '44px',
+        background: theme === 'dark'
+          ? 'rgba(255, 255, 255, 0.05)'
+          : 'rgba(0, 0, 0, 0.05)',
+        border: `1px solid ${theme === 'dark' ? 'rgba(61, 57, 53, 0.2)' : 'rgba(200, 197, 191, 0.3)'}`,
+      }}
       aria-label="Toggle theme"
     >
-      <div className="relative w-6 h-6">
+      <div className="relative w-5 h-5">
         {/* Sun Icon (visible in dark mode) */}
         <Sun
-          className={`absolute inset-0 w-6 h-6 text-accent-500 transition-all duration-300 ${
+          className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${
             theme === 'dark'
               ? 'opacity-100 rotate-0 scale-100'
               : 'opacity-0 rotate-90 scale-0'
           }`}
-          strokeWidth={2.5}
+          strokeWidth={2}
+          style={{ color: '#e8913a' }}
         />
 
         {/* Moon Icon (visible in light mode) */}
         <Moon
-          className={`absolute inset-0 w-6 h-6 text-primary-700 dark:text-accent-500 transition-all duration-300 ${
+          className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${
             theme === 'light'
               ? 'opacity-100 rotate-0 scale-100'
               : 'opacity-0 -rotate-90 scale-0'
           }`}
-          strokeWidth={2.5}
+          strokeWidth={2}
+          style={{ color: '#5c574f' }}
         />
       </div>
 
-      {/* Glow effect on hover */}
-      <div className="absolute inset-0 rounded-xl bg-accent-500/0 group-hover:bg-accent-500/10 transition-colors duration-300" />
+      {/* Hover glow ring — reduced spread */}
+      <div
+        className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          boxShadow: `0 0 8px rgba(232, 145, 58, 0.1)`,
+          border: '1px solid rgba(232, 145, 58, 0.15)',
+        }}
+      />
     </button>
   );
 }

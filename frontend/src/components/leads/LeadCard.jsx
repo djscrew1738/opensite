@@ -1,13 +1,13 @@
-import { Mail, Phone, MapPin, TrendingUp, Sparkles, Edit2 } from 'lucide-react';
+import { Mail, Phone, MapPin, TrendingUp, Sparkles, Edit2, Trash2 } from 'lucide-react';
 import { useLeadScoring } from '../../hooks/useLeadScoring';
 
-export default function LeadCard({ lead, onEdit }) {
+export default function LeadCard({ lead, onEdit, onDelete }) {
   const scoreLead = useLeadScoring();
 
   const getScoreStyles = (score) => {
     if (!score) return {
-      color: 'text-gray-600',
-      bg: 'from-gray-100 to-gray-200',
+      color: 'text-surface-600',
+      bg: 'from-surface-100 to-surface-200',
       badge: 'badge-cool'
     };
     if (score >= 80) return {
@@ -35,14 +35,14 @@ export default function LeadCard({ lead, onEdit }) {
         {/* Header with Score */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-display font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
+            <h3 className="text-lg font-display font-bold text-surface-900 dark:text-surface-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
               {lead.name}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 truncate font-medium">{lead.company || 'No company'}</p>
+            <p className="text-sm text-surface-600 dark:text-surface-400 truncate font-medium">{lead.company || 'No company'}</p>
           </div>
           {lead.score !== null && (
             <div className="text-right shrink-0">
-              <div className={`text-3xl font-display font-bold ${styles.color}`}>
+              <div className={`text-2xl font-display font-bold ${styles.color}`}>
                 {lead.score}
               </div>
               <span className={`${styles.badge} text-2xs`}>
@@ -54,27 +54,27 @@ export default function LeadCard({ lead, onEdit }) {
 
         {/* Contact Info */}
         {(lead.email || lead.phone || lead.location) && (
-          <div className="space-y-2 py-3 border-y border-concrete-200 dark:border-gray-700">
+          <div className="space-y-2 py-3 border-y border-surface-200 dark:border-surface-700">
             {lead.email && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
-                <div className="w-8 h-8 bg-primary-50 dark:bg-primary-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-primary-100 dark:group-hover/item:bg-primary-900/30 transition-colors">
-                  <Mail className="w-4 h-4 text-primary-600 dark:text-primary-400" strokeWidth={2} />
+              <div className="flex items-center text-sm text-surface-600 dark:text-surface-400 group/item">
+                <div className="w-7 h-7 bg-primary-50 dark:bg-primary-950/30 rounded-md flex items-center justify-center mr-2 group-hover/item:bg-primary-100 dark:group-hover/item:bg-primary-900/30 transition-colors">
+                  <Mail className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" strokeWidth={2} />
                 </div>
                 <span className="truncate font-medium">{lead.email}</span>
               </div>
             )}
             {lead.phone && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
-                <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-emerald-100 dark:group-hover/item:bg-emerald-900/30 transition-colors">
-                  <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
+              <div className="flex items-center text-sm text-surface-600 dark:text-surface-400 group/item">
+                <div className="w-7 h-7 bg-emerald-50 dark:bg-emerald-950/30 rounded-md flex items-center justify-center mr-2 group-hover/item:bg-emerald-100 dark:group-hover/item:bg-emerald-900/30 transition-colors">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
                 </div>
                 <span className="font-medium">{lead.phone}</span>
               </div>
             )}
             {lead.location && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 group/item">
-                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-center mr-2 group-hover/item:bg-blue-100 dark:group-hover/item:bg-blue-900/30 transition-colors">
-                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" strokeWidth={2} />
+              <div className="flex items-center text-sm text-surface-600 dark:text-surface-400 group/item">
+                <div className="w-7 h-7 bg-blue-50 dark:bg-blue-950/30 rounded-md flex items-center justify-center mr-2 group-hover/item:bg-blue-100 dark:group-hover/item:bg-blue-900/30 transition-colors">
+                  <MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" strokeWidth={2} />
                 </div>
                 <span className="truncate font-medium">{lead.location}</span>
               </div>
@@ -85,7 +85,7 @@ export default function LeadCard({ lead, onEdit }) {
         {/* Project Type & Value */}
         <div className="flex items-center gap-2 flex-wrap">
           {lead.projectType && (
-            <span className="badge bg-concrete-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 ring-1 ring-concrete-200 dark:ring-gray-600">
+            <span className="badge bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 ring-1 ring-surface-200 dark:ring-surface-600">
               {lead.projectType}
             </span>
           )}
@@ -97,20 +97,20 @@ export default function LeadCard({ lead, onEdit }) {
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-2 pt-2">
+        <div className="grid grid-cols-3 gap-2 pt-2">
           <button
             onClick={() => scoreLead.mutate(lead.id)}
             disabled={scoreLead.isPending}
-            className="btn-primary text-sm justify-center"
+            className="btn-primary text-xs justify-center"
           >
             {scoreLead.isPending ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 <span>Scoring...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" strokeWidth={2.5} />
+                <Sparkles className="w-3.5 h-3.5" strokeWidth={2.5} />
                 <span>AI Score</span>
               </>
             )}
@@ -118,10 +118,19 @@ export default function LeadCard({ lead, onEdit }) {
           {onEdit && (
             <button
               onClick={() => onEdit(lead)}
-              className="btn-secondary text-sm justify-center"
+              className="btn-secondary text-xs justify-center"
             >
-              <Edit2 className="w-4 h-4" strokeWidth={2.5} />
+              <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
               <span>Edit</span>
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(lead.id)}
+              className="btn-ghost text-xs justify-center text-hot-500 hover:bg-hot-50 dark:hover:bg-hot-950/20"
+            >
+              <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+              <span>Delete</span>
             </button>
           )}
         </div>

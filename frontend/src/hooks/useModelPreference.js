@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 
-const STORAGE_KEY = '1stein_default_model';
+const STORAGE_KEY = 'opensite_default_model';
 
 /**
  * Custom hook for managing user's default AI model preference
@@ -106,7 +106,7 @@ export function useModelPreference() {
         try {
           // Clear some old form data to make space
           const keys = Object.keys(localStorage);
-          const formKeys = keys.filter(key => key.startsWith('1stein_form_'));
+          const formKeys = keys.filter(key => key.startsWith('opensite_form_'));
           if (formKeys.length > 0) {
             localStorage.removeItem(formKeys[0]);
             // Retry save

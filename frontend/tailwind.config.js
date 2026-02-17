@@ -8,8 +8,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Industrial steel blue palette
-        primary: {
+        // Obsidian surface system — with intermediate stops for layered depth
+        surface: {
+          50: '#fafaf9',
+          100: '#f0efed',
+          200: '#e2e0dc',
+          300: '#c8c5bf',
+          400: '#a09b93',
+          500: '#78736b',
+          600: '#5c574f',
+          700: '#3d3935',
+          750: '#302d2a',
+          800: '#252320',
+          850: '#1e1c1a',
+          900: '#1a1816',
+          925: '#141210',
+          950: '#0e0d0c',
+          975: '#0a0908',
+        },
+        // Copper accent — warm, premium
+        copper: {
+          50: '#fdf6ef',
+          100: '#fbe9d4',
+          200: '#f6d0a8',
+          300: '#f0b072',
+          400: '#e8913a',
+          500: '#e37a1f',
+          600: '#d46116',
+          700: '#b04914',
+          800: '#8c3a18',
+          900: '#723216',
+          950: '#3d170a',
+          glow: 'rgba(232,145,58,0.15)',
+        },
+        // Steel blue — industrial secondary
+        steel: {
           50: '#f0f4f8',
           100: '#d9e2ec',
           200: '#bcccdc',
@@ -21,19 +54,6 @@ export default {
           800: '#243b53',
           900: '#1e3a5f',
           950: '#0f172a',
-        },
-        // Safety orange for CTAs
-        accent: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
         },
         // Temperature indicators
         hot: {
@@ -72,7 +92,7 @@ export default {
           800: '#1f2937',
           900: '#111827',
         },
-        // Concrete backgrounds
+        // Concrete backgrounds (legacy compat)
         concrete: {
           50: '#fafaf9',
           100: '#f5f5f4',
@@ -81,10 +101,37 @@ export default {
           400: '#a8a29e',
           500: '#78716c',
         },
+        // Accent alias for backwards compat with pages
+        accent: {
+          50: '#fdf6ef',
+          100: '#fbe9d4',
+          200: '#f6d0a8',
+          300: '#f0b072',
+          400: '#e8913a',
+          500: '#e37a1f',
+          600: '#d46116',
+          700: '#b04914',
+          800: '#8c3a18',
+          900: '#723216',
+        },
+        // Primary alias for backwards compat
+        primary: {
+          50: '#fafaf9',
+          100: '#f0efed',
+          200: '#e2e0dc',
+          300: '#c8c5bf',
+          400: '#a09b93',
+          500: '#78736b',
+          600: '#5c574f',
+          700: '#3d3935',
+          800: '#252320',
+          900: '#1a1816',
+          950: '#0e0d0c',
+        },
       },
       fontFamily: {
-        sans: ['Inter Variable', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Outfit Variable', 'Inter Variable', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Syne', 'Plus Jakarta Sans', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       fontSize: {
@@ -101,28 +148,48 @@ export default {
       boxShadow: {
         'industrial': '0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.08)',
         'industrial-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08)',
+        'glow-copper': '0 0 20px rgba(232, 145, 58, 0.15), 0 0 60px rgba(232, 145, 58, 0.05)',
+        'glow-copper-lg': '0 0 30px rgba(232, 145, 58, 0.25), 0 0 80px rgba(232, 145, 58, 0.1)',
+        'inner-light': 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        'obsidian': '0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.15)',
+        'obsidian-lg': '0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.2)',
         'blueprint': 'inset 0 0 0 1px rgba(59, 130, 246, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.05)',
+        // Premium layered shadows
+        'card-rest-dark': '0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+        'card-hover-dark': '0 2px 8px rgba(0,0,0,0.35), 0 12px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
+        'elevation-1': '0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+        'elevation-2': '0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06)',
+        'elevation-3': '0 4px 8px rgba(0,0,0,0.1), 0 16px 40px rgba(0,0,0,0.08)',
+        'inset-border': 'inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
+      },
+      transitionTimingFunction: {
+        'premium': 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
       animation: {
-        'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'slide-down': 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-down': 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        'scale-in': 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        'fade-in': 'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         'shimmer': 'shimmer 2s linear infinite',
         'pipe-fill': 'pipeFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'slide-left': 'slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        'rail-expand': 'railExpand 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        'grain': 'grain 8s steps(10) infinite',
+        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+        'enter': 'enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'enter-scale': 'enterScale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       keyframes: {
         slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '0%': { transform: 'translateY(12px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
         slideDown: {
-          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '0%': { transform: 'translateY(-12px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
         scaleIn: {
-          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '0%': { transform: 'scale(0.92)', opacity: '0' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
         fadeIn: {
@@ -140,6 +207,34 @@ export default {
         slideLeft: {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        railExpand: {
+          '0%': { width: '72px' },
+          '100%': { width: '260px' },
+        },
+        grain: {
+          '0%, 100%': { transform: 'translate(0, 0)' },
+          '10%': { transform: 'translate(-5%, -10%)' },
+          '20%': { transform: 'translate(-15%, 5%)' },
+          '30%': { transform: 'translate(7%, -25%)' },
+          '40%': { transform: 'translate(-5%, 25%)' },
+          '50%': { transform: 'translate(-15%, 10%)' },
+          '60%': { transform: 'translate(15%, 0%)' },
+          '70%': { transform: 'translate(0%, 15%)' },
+          '80%': { transform: 'translate(3%, 35%)' },
+          '90%': { transform: 'translate(-10%, 10%)' },
+        },
+        pulseGlow: {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '1' },
+        },
+        enter: {
+          '0%': { transform: 'translateY(8px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        enterScale: {
+          '0%': { transform: 'scale(0.96) translateY(4px)', opacity: '0' },
+          '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
         },
       },
       backdropBlur: {

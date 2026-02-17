@@ -26,105 +26,47 @@ router.get('/summary', (req, res) => {
 });
 
 /**
- * GET /api/permits
- * List permits with filters
- * Query params: tier, status, category, zipCode, minScore, startDate, endDate, search, limit
+ * GET /api/permits/cities
+ * City list with permit counts
  */
-router.get('/', (req, res) => {
+router.get('/cities', (req, res) => {
   try {
-    const filters = {
-      tier: req.query.tier,
-      status: req.query.status,
-      category: req.query.category,
-      zipCode: req.query.zipCode,
-      minScore: req.query.minScore ? parseInt(req.query.minScore) : undefined,
-      startDate: req.query.startDate,
-      endDate: req.query.endDate,
-      search: req.query.search,
-      limit: req.query.limit ? parseInt(req.query.limit) : undefined
-    };
-
-    // Remove undefined values
-    Object.keys(filters).forEach(key => {
-      if (filters[key] === undefined) delete filters[key];
-    });
-
-    const permits = db.getAllPermits(filters);
-    res.json({ success: true, data: permits, count: permits.length });
+    const cities = db.getCitiesWithCounts();
+    res.json({ success: true, data: cities });
   } catch (err) {
-    console.error('[permits] List error:', err);
+    console.error('[permits] Cities error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 /**
- * GET /api/permits/:id
- * Get single permit with builder context
+ * GET /api/permits/stats/city/:city
+ * City-level stats
  */
-router.get('/:id', (req, res) => {
+router.get('/stats/city/:city', (req, res) => {
   try {
-    const permit = db.getPermit(req.params.id);
-
-    if (!permit) {
-      return res.status(404).json({ success: false, error: 'Permit not found' });
-    }
-
-    // Get associated builders
-    const builders = db.getPermitBuilders(req.params.id);
-
-    res.json({
-      success: true,
-      data: {
-        ...permit,
-        builders
-      }
-    });
+    const stats = db.getCityStats(decodeURIComponent(req.params.city));
+    res.json({ success: true, data: stats });
   } catch (err) {
-    console.error('[permits] Get error:', err);
+    console.error('[permits] City stats error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 /**
- * PATCH /api/permits/:id/status
- * Update lead status
- * Body: { status: 'new' | 'contacted' | 'quoted' | 'won' | 'lost' | 'dismissed', notes?: string }
+ * GET /api/permits/search
+ * Unified search across permits, leads, builders
  */
-router.patch('/:id/status', (req, res) => {
+router.get('/search', (req, res) => {
   try {
-    const { status, notes } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ success: false, error: 'Status is required' });
+    const { q, type } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.json({ success: true, data: { permits: [], leads: [], builders: [] } });
     }
-
-    const validStatuses = ['new', 'contacted', 'quoted', 'won', 'lost', 'dismissed'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-      });
-    }
-
-    const updateData = { leadStatus: status };
-
-    // Set timestamp fields based on status
-    const now = new Date().toISOString();
-    if (status === 'contacted') updateData.contactedAt = now;
-    if (status === 'quoted') updateData.quotedAt = now;
-    if (status === 'won') updateData.wonAt = now;
-
-    if (notes) updateData.leadNotes = notes;
-
-    const updated = db.updatePermit(req.params.id, updateData);
-
-    if (!updated) {
-      return res.status(404).json({ success: false, error: 'Permit not found' });
-    }
-
-    res.json({ success: true, data: updated });
+    const results = db.unifiedSearch(q.trim(), type || null);
+    res.json({ success: true, data: results });
   } catch (err) {
-    console.error('[permits] Status update error:', err);
+    console.error('[permits] Search error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -234,6 +176,110 @@ router.get('/near', (req, res) => {
     res.json({ success: true, data: permits, count: permits.length });
   } catch (err) {
     console.error('[permits] Near location error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/permits
+ * List permits with filters
+ * Query params: tier, status, category, zipCode, minScore, startDate, endDate, search, limit
+ */
+router.get('/', (req, res) => {
+  try {
+    const filters = {
+      tier: req.query.tier,
+      status: req.query.status,
+      category: req.query.category,
+      zipCode: req.query.zipCode,
+      minScore: req.query.minScore ? parseInt(req.query.minScore) : undefined,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      search: req.query.search,
+      limit: req.query.limit ? parseInt(req.query.limit) : undefined
+    };
+
+    // Remove undefined values
+    Object.keys(filters).forEach(key => {
+      if (filters[key] === undefined) delete filters[key];
+    });
+
+    const permits = db.getAllPermits(filters);
+    res.json({ success: true, data: permits, count: permits.length });
+  } catch (err) {
+    console.error('[permits] List error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/permits/:id
+ * Get single permit with builder context
+ */
+router.get('/:id', (req, res) => {
+  try {
+    const permit = db.getPermit(req.params.id);
+
+    if (!permit) {
+      return res.status(404).json({ success: false, error: 'Permit not found' });
+    }
+
+    // Get associated builders
+    const builders = db.getPermitBuilders(req.params.id);
+
+    res.json({
+      success: true,
+      data: {
+        ...permit,
+        builders
+      }
+    });
+  } catch (err) {
+    console.error('[permits] Get error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * PATCH /api/permits/:id/status
+ * Update lead status
+ * Body: { status: 'new' | 'contacted' | 'quoted' | 'won' | 'lost' | 'dismissed', notes?: string }
+ */
+router.patch('/:id/status', (req, res) => {
+  try {
+    const { status, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
+
+    const validStatuses = ['new', 'contacted', 'quoted', 'won', 'lost', 'dismissed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const updateData = { leadStatus: status };
+
+    // Set timestamp fields based on status
+    const now = new Date().toISOString();
+    if (status === 'contacted') updateData.contactedAt = now;
+    if (status === 'quoted') updateData.quotedAt = now;
+    if (status === 'won') updateData.wonAt = now;
+
+    if (notes) updateData.leadNotes = notes;
+
+    const updated = db.updatePermit(req.params.id, updateData);
+
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Permit not found' });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('[permits] Status update error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

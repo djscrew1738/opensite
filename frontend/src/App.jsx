@@ -16,9 +16,20 @@ const Takeoff = lazy(() => import('./pages/Takeoff'));
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="text-center space-y-5">
+        <div
+          className="w-11 h-11 rounded-full mx-auto animate-spin"
+          style={{
+            border: '3px solid rgba(232, 145, 58, 0.12)',
+            borderTopColor: '#e8913a',
+          }}
+        />
+        <p
+          className="text-[11px] font-semibold uppercase tracking-[0.15em]"
+          style={{ color: 'rgba(160, 155, 147, 0.5)' }}
+        >
+          Loading
+        </p>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 {
-  "name": "1stein-backend",
+  "name": "opensite-backend",
   "version": "1.1.2",
-  "description": "1stein Plumbing Intelligence Platform - Backend API",
+  "description": "Opensite Plumbing Intelligence Platform - Backend API",
   "main": "src/server.js",
   "type": "module",
   "scripts": {

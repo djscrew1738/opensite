@@ -50,11 +50,11 @@ export default function AIAssistant() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
+      <div className="bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">AI Assistant</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-surface-100 tracking-tight">AI Assistant</h1>
+            <p className="text-sm text-surface-600 dark:text-surface-400 mt-1">
               Powered by Ollama - Ask about leads, pricing, materials, and code compliance
             </p>
           </div>
@@ -66,8 +66,8 @@ export default function AIAssistant() {
 
         {/* Model Selector */}
         <div className="flex items-center gap-3">
-          <Bot className="w-4 h-4 text-gray-500" />
-          <label className="text-sm text-gray-600">Model:</label>
+          <Bot className="w-4 h-4 text-surface-500" />
+          <label className="text-sm text-surface-600 dark:text-surface-400">Model:</label>
           <ModelSelector
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
@@ -79,7 +79,7 @@ export default function AIAssistant() {
       </div>
 
       {/* Chat Interface */}
-      <div className="flex-1 overflow-hidden bg-gray-50">
+      <div className="flex-1 overflow-hidden bg-surface-50 dark:bg-surface-925">
         <ChatInterface
           messages={messages}
           streamingMessage={streamingMessage}
@@ -88,7 +88,7 @@ export default function AIAssistant() {
       </div>
 
       {/* Input Form */}
-      <div className="bg-white border-t border-gray-200 p-4">
+      <div className="bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 p-4">
         <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto">
           <div className="flex gap-3">
             <input

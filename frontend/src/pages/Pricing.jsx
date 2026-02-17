@@ -149,11 +149,11 @@ export default function Pricing() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Pricing Calculator</h1>
+        <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-surface-100 tracking-tight">Pricing Calculator</h1>
 
         {/* Model Selector */}
         <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-600 dark:text-gray-400">AI Model:</label>
+          <label className="text-sm text-surface-600 dark:text-surface-400">AI Model:</label>
           <ModelSelector
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
@@ -175,7 +175,7 @@ export default function Pricing() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Input Form */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="text-xl font-display font-semibold text-surface-900 dark:text-surface-100 mb-4 tracking-tight">
             Project Details
           </h2>
           <PricingForm

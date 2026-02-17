@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# 1stein Quick Start Script
+# Opensite Quick Start Script
 # CTL Plumbing Intelligence Platform
 
 set -e
 
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║         1stein - CTL Plumbing Intelligence Platform      ║"
+echo "║         Opensite - CTL Plumbing Intelligence Platform      ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -124,7 +124,7 @@ echo $FRONTEND_PID > .frontend.pid
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║                  🎉 1stein is Running! 🎉                 ║"
+echo "║                  🎉 Opensite is Running! 🎉                 ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 echo "📊 Frontend:  http://localhost:3000"

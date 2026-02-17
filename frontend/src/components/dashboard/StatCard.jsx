@@ -16,49 +16,49 @@ export default function StatCard({
       bg: 'from-primary-50 to-primary-100/50',
       icon: 'bg-gradient-to-br from-primary-500 to-primary-600',
       iconColor: 'text-white',
-      ring: 'ring-primary-200 dark:ring-primary-800',
+      border: 'border-primary-200/50 dark:border-primary-800/30',
       edge: 'bg-primary-500'
     },
     accent: {
       bg: 'from-accent-50 to-accent-100/50',
       icon: 'bg-gradient-to-br from-accent-500 to-accent-600',
       iconColor: 'text-white',
-      ring: 'ring-accent-200 dark:ring-accent-800',
+      border: 'border-accent-200/50 dark:border-accent-800/30',
       edge: 'bg-accent-500'
     },
     hot: {
       bg: 'from-hot-50 to-hot-100/50',
       icon: 'bg-gradient-to-br from-hot-500 to-hot-600',
       iconColor: 'text-white',
-      ring: 'ring-hot-200 dark:ring-hot-900',
+      border: 'border-hot-200/50 dark:border-hot-900/30',
       edge: 'bg-hot-500'
     },
     warm: {
       bg: 'from-warm-50 to-warm-100/50',
       icon: 'bg-gradient-to-br from-warm-500 to-warm-600',
       iconColor: 'text-white',
-      ring: 'ring-warm-200 dark:ring-warm-900',
+      border: 'border-warm-200/50 dark:border-warm-900/30',
       edge: 'bg-warm-500'
     },
     emerald: {
       bg: 'from-emerald-50 to-emerald-100/50',
       icon: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
       iconColor: 'text-white',
-      ring: 'ring-emerald-200 dark:ring-emerald-900',
+      border: 'border-emerald-200/50 dark:border-emerald-900/30',
       edge: 'bg-emerald-500'
     },
     blue: {
       bg: 'from-blue-50 to-blue-100/50',
       icon: 'bg-gradient-to-br from-blue-500 to-blue-600',
       iconColor: 'text-white',
-      ring: 'ring-blue-200 dark:ring-blue-900',
+      border: 'border-blue-200/50 dark:border-blue-900/30',
       edge: 'bg-blue-500'
     },
     purple: {
       bg: 'from-purple-50 to-purple-100/50',
       icon: 'bg-gradient-to-br from-purple-500 to-purple-600',
       iconColor: 'text-white',
-      ring: 'ring-purple-200 dark:ring-purple-900',
+      border: 'border-purple-200/50 dark:border-purple-900/30',
       edge: 'bg-purple-500'
     }
   };
@@ -69,7 +69,7 @@ export default function StatCard({
     <div
       onClick={onClick}
       className={`card-body group relative overflow-hidden transition-all duration-300 ${
-        onClick ? 'cursor-pointer hover:shadow-industrial-lg hover:-translate-y-1' : ''
+        onClick ? 'cursor-pointer hover:shadow-elevation-2 hover:-translate-y-1' : ''
       }`}
     >
       {/* Optional left-edge color bar */}
@@ -77,14 +77,14 @@ export default function StatCard({
         <div className={`stat-edge-bar ${colors.edge}`} />
       )}
 
-      {/* Decorative background gradient */}
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${colors.bg} rounded-full transform translate-x-12 -translate-y-12 opacity-50 transition-all duration-500 group-hover:scale-150 group-hover:opacity-70`} />
+      {/* Decorative background gradient — reduced opacity */}
+      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${colors.bg} rounded-full transform translate-x-12 -translate-y-12 opacity-30 transition-all duration-500 group-hover:scale-150 group-hover:opacity-50`} />
 
       <div className="relative space-y-4">
         {/* Icon and Trend */}
         <div className="flex items-start justify-between">
-          <div className={`w-14 h-14 ${colors.icon} rounded-2xl flex items-center justify-center shadow-lg ring-4 ${colors.ring} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-            <Icon className={`w-7 h-7 ${colors.iconColor}`} strokeWidth={2.5} />
+          <div className={`w-12 h-12 ${colors.icon} rounded-xl flex items-center justify-center shadow-lg border ${colors.border} transition-transform duration-300 group-hover:scale-105`}>
+            <Icon className={`w-6 h-6 ${colors.iconColor}`} strokeWidth={2.5} />
           </div>
 
           {trend && trendValue && (
@@ -105,18 +105,18 @@ export default function StatCard({
 
         {/* Label */}
         <div>
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+          <p className="text-sm font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">
             {label}
           </p>
         </div>
 
         {/* Value */}
         <div>
-          <p className="text-4xl font-display font-bold text-gray-900 dark:text-gray-100 tracking-tight tabular-nums">
+          <p className="text-3xl font-display font-bold text-surface-900 dark:text-surface-100 tracking-tight tabular-nums">
             {value}
           </p>
           {subtext && (
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 font-medium">
+            <p className="text-sm text-surface-500 dark:text-surface-500 mt-1 font-medium">
               {subtext}
             </p>
           )}

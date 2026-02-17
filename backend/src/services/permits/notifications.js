@@ -165,7 +165,7 @@ export async function sendDailyDigest(db, logger) {
     const html = buildDigestHTML(permitsWithBuilders, hot, warm, cold);
 
     await mailer.sendMail({
-      from: `"1stein Lead Finder" <${fromEmail}>`,
+      from: `"Opensite Lead Finder" <${fromEmail}>`,
       to: toEmail,
       subject: `🔍 Daily Leads: ${hot.length} hot, ${warm.length} warm, ${cold.length} cold — ${new Date().toLocaleDateString()}`,
       html: html,
@@ -217,7 +217,7 @@ function buildDigestHTML(all, hot, warm, cold) {
     <html>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f7fafc;">
       <div style="background: #1a202c; color: white; padding: 20px 30px; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 22px;">🔍 1stein Daily Lead Report</h1>
+        <h1 style="margin: 0; font-size: 22px;">🔍 Opensite Daily Lead Report</h1>
         <p style="margin: 5px 0 0; color: #a0aec0;">${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
@@ -275,7 +275,7 @@ function buildDigestHTML(all, hot, warm, cold) {
       ` : ''}
 
       <div style="background: #f7fafc; padding: 15px 30px; border-radius: 0 0 8px 8px; text-align: center; color: #a0aec0; font-size: 12px;">
-        1stein Lead Finder — CTL Plumbing LLC
+        Opensite Lead Finder — CTL Plumbing LLC
       </div>
     </body>
     </html>

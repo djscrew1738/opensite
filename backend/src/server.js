@@ -1,4 +1,4 @@
-// 1stein Backend Server - CTL Plumbing Intelligence Platform
+// Opensite Backend Server - CTL Plumbing Intelligence Platform
 // Enhanced with persistence, caching, logging, and security
 
 import express from 'express';
@@ -96,7 +96,7 @@ app.use('/api/settings', settingsRoutes); // App settings CRUD
 // Root endpoint
 app.get('/', (req, res) => {
   res.success({
-    name: '1stein API',
+    name: 'Opensite API',
     version: '2.0.0',
     description: 'CTL Plumbing Intelligence Platform - Enhanced Edition',
     status: 'running',
@@ -207,7 +207,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
-║      1stein Backend Server v2.0 - Enhanced Edition        ║
+║      Opensite Backend Server v2.0 - Enhanced Edition      ║
 ╚═══════════════════════════════════════════════════════════╝
 
 🚀 Server:    http://localhost:${PORT}
@@ -217,7 +217,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 🏢 Company:   CTL Plumbing LLC
 
 ✨ Enhanced Features:
-   📊 SQLite Database (tool/data/1stein.db)
+   📊 SQLite Database (tool/data/opensite.db)
    💾 Multi-tier Caching
    📝 Daily Rotating Logs (tool/logs/)
    🔒 Security Headers & Rate Limiting

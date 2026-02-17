@@ -49,7 +49,7 @@ export default function ModelSelector({
 
   if (isLoading) {
     return (
-      <select disabled className={`input ${className}`}>
+      <select disabled className={`input select-arrow ${className}`}>
         <option>Loading models...</option>
       </select>
     );
@@ -57,7 +57,7 @@ export default function ModelSelector({
 
   if (error) {
     return (
-      <select disabled className={`input ${className}`}>
+      <select disabled className={`input select-arrow ${className}`}>
         <option>Error loading models</option>
       </select>
     );
@@ -65,7 +65,7 @@ export default function ModelSelector({
 
   if (availableModels.length === 0) {
     return (
-      <select disabled className={`input ${className}`}>
+      <select disabled className={`input select-arrow ${className}`}>
         <option>No models available</option>
       </select>
     );
@@ -76,7 +76,7 @@ export default function ModelSelector({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`input ${className}`}
+      className={`input select-arrow ${className}`}
     >
       {availableModels.map((model) => (
         <option key={model.name} value={model.name}>

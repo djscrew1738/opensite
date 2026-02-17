@@ -30,7 +30,7 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
     onRestore = null
   } = options;
 
-  const storageKey = `1stein_form_${formKey}`;
+  const storageKey = `opensite_form_${formKey}`;
   const debounceTimer = useRef(null);
   const initialLoadDone = useRef(false);
 
@@ -76,7 +76,7 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
   const clearOldFormData = () => {
     try {
       const keys = Object.keys(localStorage);
-      const formKeys = keys.filter(key => key.startsWith('1stein_form_'));
+      const formKeys = keys.filter(key => key.startsWith('opensite_form_'));
 
       // Remove the oldest saved forms (keep only last 5)
       if (formKeys.length > 5) {

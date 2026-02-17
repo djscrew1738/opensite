@@ -18,7 +18,7 @@ function Toast({ message, type = 'success', onClose }) {
   }, [onClose]);
 
   return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-semibold transition-all animate-in slide-in-from-bottom-4 ${
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-semibold backdrop-blur-lg transition-all animate-in slide-in-from-bottom-4 ${
       type === 'success'
         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200'
         : type === 'error'
@@ -39,10 +39,10 @@ function Section({ icon: Icon, title, badge, children }) {
     <div className="card p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-            <Icon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+          <div className="w-8 h-8 rounded-lg bg-copper-50 dark:bg-copper-950/30 flex items-center justify-center">
+            <Icon className="w-4 h-4 text-copper-600 dark:text-copper-400" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">{title}</h2>
+          <h2 className="text-lg font-bold text-surface-900 dark:text-surface-100 tracking-tight">{title}</h2>
         </div>
         {badge}
       </div>
@@ -54,7 +54,7 @@ function Section({ icon: Icon, title, badge, children }) {
 // ── Status pill ──
 function StatusPill({ connected, label }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
       connected
         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
         : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -68,13 +68,13 @@ function StatusPill({ connected, label }) {
 // ── Metric box ──
 function MetricBox({ label, value, sub, icon: Icon }) {
   return (
-    <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-200/60 dark:border-gray-700/60">
+    <div className="bg-surface-50 dark:bg-surface-850/60 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700/60 border-l-2 border-l-copper-400/30 dark:border-l-copper-600/20">
       <div className="flex items-center gap-2 mb-1">
         {Icon && <Icon className="w-3.5 h-3.5 text-gray-400" />}
-        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono tabular-nums">{value}</p>
-      {sub && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-xl font-bold text-surface-900 dark:text-surface-100 font-mono tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{sub}</p>}
     </div>
   );
 }

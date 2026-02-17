@@ -41,26 +41,26 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-white dark:bg-gray-900 h-full shadow-2xl animate-slide-left overflow-y-auto"
+        className="w-full max-w-md bg-white dark:bg-surface-900 h-full shadow-2xl animate-slide-left overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-concrete-200 dark:border-gray-700 p-5 flex items-center justify-between z-10">
-          <h3 className="text-lg font-display font-bold text-gray-900 dark:text-gray-100">Lead Details</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-concrete-100 dark:hover:bg-gray-800 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+        <div className="sticky top-0 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 p-5 flex items-center justify-between z-10">
+          <h3 className="text-lg font-display font-bold text-surface-900 dark:text-surface-100">Lead Details</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+            <X className="w-5 h-5 text-surface-500" />
           </button>
         </div>
         <div className="p-5 space-y-5">
           <div>
-            <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100">{lead.name}</h2>
-            {lead.company && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{lead.company}</p>}
+            <h2 className="text-2xl font-display font-bold text-surface-900 dark:text-surface-100">{lead.name}</h2>
+            {lead.company && <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">{lead.company}</p>}
           </div>
 
           <div className="flex items-center gap-2">
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
               lead.status === 'hot' ? 'bg-hot-100 text-hot-700 dark:bg-hot-900/40 dark:text-hot-400' :
               lead.status === 'warm' ? 'bg-warm-100 text-warm-700 dark:bg-warm-900/40 dark:text-warm-400' :
-              'bg-concrete-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+              'bg-concrete-100 text-gray-700 dark:bg-surface-800 dark:text-surface-400'
             }`}>
               {lead.status || 'new'}
             </span>
@@ -73,7 +73,7 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
 
           {lead.value > 0 && (
             <div className="p-4 bg-gradient-to-r from-accent-50 to-accent-100/50 dark:from-accent-950/30 dark:to-accent-900/20 rounded-xl border border-accent-200 dark:border-accent-900/50">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Estimated Value</p>
+              <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide">Estimated Value</p>
               <p className="text-3xl font-display font-bold text-accent-700 dark:text-accent-400">${lead.value?.toLocaleString()}</p>
             </div>
           )}
@@ -81,19 +81,19 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
           <div className="space-y-3">
             {lead.email && (
               <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                <Mail className="w-4 h-4 text-gray-400" />
+                <Mail className="w-4 h-4 text-surface-400" />
                 <span>{lead.email}</span>
               </div>
             )}
             {lead.phone && (
               <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                <Phone className="w-4 h-4 text-gray-400" />
+                <Phone className="w-4 h-4 text-surface-400" />
                 <span>{lead.phone}</span>
               </div>
             )}
             {lead.location && (
               <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                <MapPin className="w-4 h-4 text-gray-400" />
+                <MapPin className="w-4 h-4 text-surface-400" />
                 <span>{lead.location}</span>
               </div>
             )}
@@ -101,19 +101,19 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
 
           {lead.projectType && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Project Type</p>
-              <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">{lead.projectType}</p>
+              <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">Project Type</p>
+              <p className="text-sm text-surface-900 dark:text-surface-100 font-medium">{lead.projectType}</p>
             </div>
           )}
 
           {lead.notes && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">Notes</p>
               <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
 
-          <div className="text-xs text-gray-400 dark:text-gray-500">
+          <div className="text-xs text-surface-400 dark:text-surface-500">
             Added {new Date(lead.createdAt).toLocaleDateString('en-US', {
               month: 'long', day: 'numeric', year: 'numeric',
               hour: '2-digit', minute: '2-digit'
@@ -270,8 +270,8 @@ export default function Dashboard() {
 
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl md:text-5xl font-display font-bold text-white tracking-tight mb-2">
-              {getGreeting()}, <span className="text-accent-400">Operator</span>
+            <h1 className="text-3xl md:text-4xl font-display font-bold text-white tracking-tight mb-2">
+              {getGreeting()}, <span className="text-gradient">Operator</span>
             </h1>
             <div className="flex items-center gap-4 flex-wrap">
               <p className="text-sm text-primary-200 font-medium flex items-center gap-2">
@@ -290,7 +290,7 @@ export default function Dashboard() {
 
           <button
             onClick={() => refetch()}
-            className="backdrop-blur-xl bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/20 transition-all duration-200 active:scale-95 shrink-0"
+            className="backdrop-blur-xl bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all duration-200 active:scale-95 shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
             <span className="hidden md:inline">Refresh</span>
@@ -300,7 +300,7 @@ export default function Dashboard() {
 
       {/* ── 2. METRIC GAUGES ROW ── */}
       <section>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
           <div className="card animate-slide-up stagger-1">
             <StatCard
               icon={DollarSign}
@@ -388,7 +388,7 @@ export default function Dashboard() {
         <section className="animate-slide-up stagger-6">
           <div className="flex items-center gap-2 mb-3">
             <Building2 className="w-5 h-5 text-blue-500 dark:text-blue-400" strokeWidth={2.5} />
-            <h2 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100">Permit Pulse</h2>
+            <h2 className="text-lg font-display font-bold text-primary-900 dark:text-surface-100">Permit Pulse</h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div
@@ -397,12 +397,12 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Hot</p>
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.hot || 0}</p>
+                  <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide">Hot</p>
+                  <p className="text-2xl font-display font-bold text-surface-900 dark:text-surface-100 tabular-nums">{permitSummary.hot || 0}</p>
                 </div>
                 <Flame className="w-5 h-5 text-hot-500" strokeWidth={2.5} />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Score &ge;80</p>
+              <p className="text-xs text-surface-500 dark:text-surface-500 mt-1">Score &ge;80</p>
             </div>
 
             <div
@@ -411,12 +411,12 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Warm</p>
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.warm || 0}</p>
+                  <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide">Warm</p>
+                  <p className="text-2xl font-display font-bold text-surface-900 dark:text-surface-100 tabular-nums">{permitSummary.warm || 0}</p>
                 </div>
                 <Circle className="w-5 h-5 text-warm-500" strokeWidth={2.5} />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Score 50-79</p>
+              <p className="text-xs text-surface-500 dark:text-surface-500 mt-1">Score 50-79</p>
             </div>
 
             <div
@@ -425,12 +425,12 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">New Today</p>
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.newToday || 0}</p>
+                  <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide">New Today</p>
+                  <p className="text-2xl font-display font-bold text-surface-900 dark:text-surface-100 tabular-nums">{permitSummary.newToday || 0}</p>
                 </div>
                 <Plus className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Ingested today</p>
+              <p className="text-xs text-surface-500 dark:text-surface-500 mt-1">Ingested today</p>
             </div>
 
             <div
@@ -439,12 +439,12 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</p>
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{permitSummary.total || 0}</p>
+                  <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-display font-bold text-surface-900 dark:text-surface-100 tabular-nums">{permitSummary.total || 0}</p>
                 </div>
                 <Building2 className="w-5 h-5 text-blue-500" strokeWidth={2.5} />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">All tracked</p>
+              <p className="text-xs text-surface-500 dark:text-surface-500 mt-1">All tracked</p>
             </div>
           </div>
         </section>
@@ -460,7 +460,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-body">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-surface-100 flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <Briefcase className="w-4 h-4 text-white" strokeWidth={2.5} />
                   </div>
@@ -481,14 +481,14 @@ export default function Dashboard() {
                     <div
                       key={project.id}
                       onClick={() => handleEditProject(project)}
-                      className="p-4 bg-gradient-to-br from-concrete-50 to-white dark:from-gray-800/50 dark:to-gray-900 rounded-xl border-2 border-concrete-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                      className="p-3.5 bg-gradient-to-br from-concrete-50 to-white dark:from-surface-850/50 dark:to-surface-900 rounded-xl border border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-700/50 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-4 mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
+                          <h3 className="font-bold text-surface-900 dark:text-surface-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
                             {project.name}
                           </h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          <div className="flex items-center gap-3 text-sm text-surface-600 dark:text-surface-400 mt-1">
                             <span className="flex items-center gap-1">
                               <Activity className="w-3.5 h-3.5" />
                               {project.phase}
@@ -499,10 +499,10 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-3xl font-display font-bold text-primary-900 dark:text-gray-100 tabular-nums">
+                          <span className="text-3xl font-display font-bold text-primary-900 dark:text-surface-100 tabular-nums">
                             {project.progress || 0}
                           </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
+                          <span className="text-sm text-surface-500 dark:text-surface-400">%</span>
                         </div>
                       </div>
 
@@ -519,7 +519,7 @@ export default function Dashboard() {
               ) : (
                 <div className="text-center py-12">
                   <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
-                  <p className="text-gray-500 dark:text-gray-400 font-medium mb-3">No active projects</p>
+                  <p className="text-surface-500 dark:text-surface-400 font-medium mb-3">No active projects</p>
                   <button
                     className="btn-secondary text-sm"
                     onClick={handleNewProject}
@@ -536,7 +536,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-body">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-display font-bold text-primary-900 dark:text-surface-100 flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-hot-500 to-hot-600 rounded-lg flex items-center justify-center">
                     <Flame className="w-4 h-4 text-white" strokeWidth={2.5} />
                   </div>
@@ -557,20 +557,20 @@ export default function Dashboard() {
                     <div
                       key={lead.id}
                       onClick={() => setSelectedLead(lead)}
-                      className="flex items-center justify-between p-4 bg-gradient-to-r from-hot-50 via-hot-50/50 to-transparent dark:from-hot-950/20 dark:via-hot-950/10 dark:to-transparent rounded-xl border-2 border-hot-100 dark:border-hot-900/40 hover:border-hot-300 dark:hover:border-hot-700 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                      className="flex items-center justify-between p-4 bg-gradient-to-r from-hot-50/50 via-hot-50/30 to-transparent dark:from-hot-950/15 dark:via-hot-950/8 dark:to-transparent rounded-xl border border-hot-100 dark:border-hot-900/30 hover:border-hot-300 dark:hover:border-hot-700/50 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-hot-700 dark:group-hover:text-hot-400 transition-colors">
+                        <h3 className="font-bold text-surface-900 dark:text-surface-100 truncate group-hover:text-hot-700 dark:group-hover:text-hot-400 transition-colors">
                           {lead.name}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{lead.company || 'No company'}</p>
+                        <p className="text-sm text-surface-600 dark:text-surface-400 truncate">{lead.company || 'No company'}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-2xl font-display font-bold text-hot-600 dark:text-hot-400 tabular-nums">{lead.score}</span>
                           <CheckCircle2 className="w-5 h-5 text-hot-600 dark:text-hot-400" strokeWidth={2.5} />
                         </div>
-                        <p className="text-sm font-mono font-bold text-gray-600 dark:text-gray-400">
+                        <p className="text-sm font-mono font-bold text-surface-600 dark:text-surface-400">
                           ${lead.value?.toLocaleString() || 0}
                         </p>
                       </div>
@@ -580,7 +580,7 @@ export default function Dashboard() {
               ) : (
                 <div className="text-center py-12">
                   <Flame className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
-                  <p className="text-gray-500 dark:text-gray-400 font-medium mb-3">No hot leads yet</p>
+                  <p className="text-surface-500 dark:text-surface-400 font-medium mb-3">No hot leads yet</p>
                   <button className="btn-secondary text-sm" onClick={() => navigate('/leads')}>
                     Add First Lead
                   </button>
@@ -598,7 +598,7 @@ export default function Dashboard() {
             <div className="card">
               <div className="card-body">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100 flex items-center gap-2">
+                  <h3 className="text-lg font-display font-bold text-primary-900 dark:text-surface-100 flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
                     Top Prospects
                   </h3>
@@ -609,10 +609,10 @@ export default function Dashboard() {
                     View All
                   </button>
                 </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 font-medium">
+                <p className="text-xs text-surface-600 dark:text-surface-400 mb-4 font-medium">
                   Active builders without plumbers
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {prospects.slice(0, 5).map((builder) => (
                     <div
                       key={builder.id}
@@ -620,10 +620,10 @@ export default function Dashboard() {
                       className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent rounded-xl border border-blue-100 dark:border-blue-900/40 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all duration-200 cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                        <h4 className="font-bold text-sm text-surface-900 dark:text-surface-100 truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                           {builder.name || builder.company}
                         </h4>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className="text-xs text-surface-600 dark:text-surface-400">
                           {builder.permitsLast30d || 0} permits (30d)
                         </p>
                       </div>
@@ -645,7 +645,7 @@ export default function Dashboard() {
           {/* Activity Timeline */}
           <div className="card">
             <div className="card-body">
-              <h3 className="text-lg font-display font-bold text-primary-900 dark:text-gray-100 mb-5 flex items-center gap-2">
+              <h3 className="text-lg font-display font-bold text-primary-900 dark:text-surface-100 mb-5 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary-600 dark:text-primary-400" strokeWidth={2.5} />
                 Activity Timeline
               </h3>
@@ -664,11 +664,11 @@ export default function Dashboard() {
                       >
                         <div className={`timeline-dot ${dotColor}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
+                          <p className="font-bold text-sm text-surface-900 dark:text-surface-100 truncate group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
                             {lead.name}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.company || 'No company'}</p>
-                          <p className="text-2xs text-gray-400 dark:text-gray-500 mt-1 font-medium">
+                          <p className="text-xs text-surface-500 dark:text-surface-400 truncate">{lead.company || 'No company'}</p>
+                          <p className="text-2xs text-surface-400 dark:text-surface-500 mt-1 font-medium">
                             {new Date(lead.createdAt).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
@@ -683,7 +683,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-400 dark:text-gray-500">No recent activity</p>
+                  <p className="text-sm text-surface-400 dark:text-surface-500">No recent activity</p>
                 </div>
               )}
             </div>
@@ -697,9 +697,9 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-emerald-800 dark:text-emerald-300 font-bold">System Operational</span>
-            <span className="hidden md:inline text-gray-500 dark:text-gray-400">— All services running</span>
+            <span className="hidden md:inline text-surface-500 dark:text-surface-400">— All services running</span>
           </div>
-          <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-3 text-surface-500 dark:text-surface-400">
             <span className="hidden md:inline tabular-nums">
               {new Date().toLocaleTimeString()}
             </span>

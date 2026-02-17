@@ -172,10 +172,10 @@ export default function LeadFinder() {
       {/* Header */}
       <header className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 dark:text-gray-100 tracking-tight">
+          <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 dark:text-surface-100 tracking-tight">
             Lead Finder
           </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">
+          <p className="text-sm text-surface-600 dark:text-surface-400 mt-1 font-medium">
             Intelligence hub for permits, builders & leads
           </p>
         </div>
@@ -205,7 +205,7 @@ export default function LeadFinder() {
 
       {/* Tabs */}
       <div className="card">
-        <div className="flex border-b-2 border-concrete-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
+        <div className="flex border-b border-surface-200 dark:border-surface-700 overflow-x-auto scrollbar-hide">
           {tabs.map(tab => {
             const Icon = tab.icon;
             return (
@@ -218,7 +218,7 @@ export default function LeadFinder() {
                 className={`relative flex items-center gap-2 px-5 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
                   activeTab === tab.key
                     ? 'text-accent-600 dark:text-accent-400'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    : 'text-surface-500 dark:text-surface-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
                 <Icon className="w-4 h-4" strokeWidth={activeTab === tab.key ? 2.5 : 2} />
@@ -333,8 +333,8 @@ export default function LeadFinder() {
             <div className={`card transition-all duration-300 ${showFilters ? 'block md:block' : 'hidden md:block'}`}>
               <div className="card-body p-4">
                 <div className="flex items-center justify-between mb-3 md:hidden">
-                  <h3 className="font-bold text-gray-900 dark:text-gray-100">Filters</h3>
-                  <button onClick={() => setShowFilters(false)} className="tap-target text-gray-500">
+                  <h3 className="font-bold text-surface-900 dark:text-surface-100">Filters</h3>
+                  <button onClick={() => setShowFilters(false)} className="tap-target text-surface-500">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -452,7 +452,7 @@ export default function LeadFinder() {
             sortedLeads.length > 0 ? (
               <>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  <p className="text-sm font-semibold text-surface-600 dark:text-surface-400">
                     {sortedLeads.length} lead{sortedLeads.length !== 1 ? 's' : ''} found
                   </p>
                 </div>
@@ -491,10 +491,10 @@ export default function LeadFinder() {
                   <div className="w-20 h-20 bg-gradient-to-br from-concrete-100 to-concrete-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
                     <Search className="w-10 h-10 text-gray-400" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-xl font-display font-bold text-surface-900 dark:text-surface-100 mb-2">
                     No leads found
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  <p className="text-surface-600 dark:text-surface-400 mb-6">
                     {hasActiveFilters ? 'Try adjusting your filters' : 'Get started by adding your first lead'}
                   </p>
                   {!hasActiveFilters && (
@@ -510,7 +510,7 @@ export default function LeadFinder() {
             sortedPermits.length > 0 ? (
               <>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  <p className="text-sm font-semibold text-surface-600 dark:text-surface-400">
                     {sortedPermits.length} permit lead{sortedPermits.length !== 1 ? 's' : ''} found
                     {permitCityFilter && ` in ${permitCityFilter}`}
                   </p>
@@ -533,10 +533,10 @@ export default function LeadFinder() {
                   <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
                     <Search className="w-10 h-10 text-blue-500" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-xl font-display font-bold text-surface-900 dark:text-surface-100 mb-2">
                     {hasActiveFilters ? 'No permits match your filters' : 'No permit leads found'}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm max-w-md mx-auto">
+                  <p className="text-surface-600 dark:text-surface-400 text-sm max-w-md mx-auto">
                     {hasActiveFilters
                       ? 'Try adjusting your search criteria or filters'
                       : 'Permit leads are automatically ingested daily from Fort Worth and other sources.'}

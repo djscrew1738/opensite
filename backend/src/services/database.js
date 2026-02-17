@@ -7,7 +7,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 const TOOL_DIR = path.join(process.cwd(), '../../tool');
-const DB_PATH = path.join(TOOL_DIR, 'data', '1stein.db');
+const DB_PATH = path.join(TOOL_DIR, 'data', 'opensite.db');
 
 // Ensure directories exist
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });

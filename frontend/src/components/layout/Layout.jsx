@@ -6,8 +6,7 @@ import { useState, useEffect } from 'react';
 const pageNames = {
   '/': 'Dashboard',
   '/leads': 'Lead Finder',
-  '/pricing': 'Pricing',
-  '/takeoff': 'Takeoff',
+  '/plans': 'Plans',
   '/ai': 'AI Assistant',
   '/settings': 'Settings',
 };

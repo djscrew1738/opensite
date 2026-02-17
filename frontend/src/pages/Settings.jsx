@@ -88,37 +88,7 @@ export default function Settings() {
   const [toast, setToast] = useState(null);
   const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
 
-  // ── Settings data ──
-  const { data: settingsData, refetch: refetchSettings } = useQuery({
-    queryKey: ['app-settings'],
-    queryFn: () => api.settings.get(),
-  });
-
-  const { data: modelsData, refetch: refetchModels } = useQuery({
-    queryKey: ['ollama-models', activeProvider],
-    queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw',
-    retry: false
-  });
-
-  const { data: metricsData, refetch: refetchMetrics } = useQuery({
-    queryKey: ['ollama-metrics'],
-    queryFn: () => api.settings.getMetrics(),
-    refetchInterval: 15000,
-  });
-
-  const { data: healthData } = useQuery({
-    queryKey: ['health-data'],
-    queryFn: () => api.health(),
-    refetchInterval: 30000,
-  });
-
-  const availableModels = modelsData?.models || [];
-  const settings = settingsData || {};
-  const metrics = metricsData?.metrics || {};
-  const config = metricsData?.config || {};
-
-  // ── Local form state ──
+  // ── Local form state (must be declared before queries that reference them) ──
   const [activeProvider, setActiveProvider] = useState('ollama');
   const [ollamaUrl, setOllamaUrl] = useState('');
   const [temperature, setTemperature] = useState(0.7);
@@ -149,6 +119,36 @@ export default function Settings() {
   const [switchingProvider, setSwitchingProvider] = useState(false);
   const [pullingModel, setPullingModel] = useState(false);
   const [deletingModel, setDeletingModel] = useState(null);
+
+  // ── Settings data ──
+  const { data: settingsData, refetch: refetchSettings } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: () => api.settings.get(),
+  });
+
+  const { data: modelsData, refetch: refetchModels } = useQuery({
+    queryKey: ['ollama-models', activeProvider],
+    queryFn: () => api.ai.getModels(),
+    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw',
+    retry: false
+  });
+
+  const { data: metricsData, refetch: refetchMetrics } = useQuery({
+    queryKey: ['ollama-metrics'],
+    queryFn: () => api.settings.getMetrics(),
+    refetchInterval: 15000,
+  });
+
+  const { data: healthData } = useQuery({
+    queryKey: ['health-data'],
+    queryFn: () => api.health(),
+    refetchInterval: 30000,
+  });
+
+  const availableModels = modelsData?.models || [];
+  const settings = settingsData || {};
+  const metrics = metricsData?.metrics || {};
+  const config = metricsData?.config || {};
 
   // Sync settings data to form
   useEffect(() => {

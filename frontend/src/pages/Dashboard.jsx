@@ -129,7 +129,7 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
               Edit in Leads
             </button>
             <button
-              onClick={() => { onClose(); onNavigate('/pricing'); }}
+              onClick={() => { onClose(); onNavigate('/plans'); }}
               className="btn-secondary flex-1"
             >
               <FileText className="w-4 h-4" />
@@ -368,7 +368,7 @@ export default function Dashboard() {
             <Users className="w-4 h-4" />
             New Lead
           </button>
-          <button onClick={() => navigate('/pricing')} className="quick-action-secondary">
+          <button onClick={() => navigate('/plans')} className="quick-action-secondary">
             <FileText className="w-4 h-4" />
             New Estimate
           </button>

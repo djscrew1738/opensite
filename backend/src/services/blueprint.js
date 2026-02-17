@@ -117,8 +117,8 @@ class BlueprintService {
       }
     }
 
-    // Limit to first 3000 characters for AI processing
-    return sections.join('\n').slice(0, 3000);
+    // Allow up to 12000 characters for thorough AI analysis
+    return sections.join('\n').slice(0, 12000);
   }
 
   // Clean up uploaded file

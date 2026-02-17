@@ -16,8 +16,10 @@ import TimelineVisualizer from './TimelineVisualizer';
 export default function AnalysisDashboard({ estimate, analysis, extractedData, fileName }) {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Handle both structured and text analysis
-  const aiAnalysis = analysis && typeof analysis === 'object' && !analysis.overview ? null : analysis;
+  // Handle both structured and text analysis — accept any object with at least one known field
+  const aiAnalysis = analysis && typeof analysis === 'object'
+    ? (analysis.overview || analysis.recommendations || analysis.risks || analysis.complexity || analysis.codeCompliance || analysis.timeline || analysis.laborEstimate ? analysis : null)
+    : (typeof analysis === 'string' ? null : null);
   const aiAnalysisText = analysis && typeof analysis === 'string' ? analysis : analysis?.aiAnalysisText;
 
   if (!estimate && !analysis && !extractedData) {

@@ -455,11 +455,72 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
 
           {/* AI Analysis - only show when complete */}
           {result.aiAnalysis && !result.partial && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-3">AI Analysis</h4>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap">{result.aiAnalysis}</p>
+            <div className="bg-white dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">AI Analysis</h4>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                {/* Handle both structured object and text responses */}
+                {typeof result.aiAnalysis === 'object' ? (
+                  <div className="space-y-3">
+                    {result.aiAnalysis.overview && (
+                      <p className="text-gray-700 dark:text-gray-300 font-medium">{result.aiAnalysis.overview}</p>
+                    )}
+                    {result.aiAnalysis.projectComplexity && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Complexity:</span>
+                        <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+                          result.aiAnalysis.projectComplexity === 'complex' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                          result.aiAnalysis.projectComplexity === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                        }`}>
+                          {result.aiAnalysis.projectComplexity}
+                          {result.aiAnalysis.complexityScore != null && ` (${result.aiAnalysis.complexityScore}/100)`}
+                        </span>
+                      </div>
+                    )}
+                    {result.aiAnalysis.recommendations?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Recommendations:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                          {result.aiAnalysis.recommendations.map((rec, i) => (
+                            <li key={i}>{typeof rec === 'string' ? rec : rec.text || JSON.stringify(rec)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {result.aiAnalysis.risks?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Risks:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                          {result.aiAnalysis.risks.map((r, i) => (
+                            <li key={i}>
+                              <span className="font-medium">{r.risk || r}</span>
+                              {r.mitigation && <span className="text-gray-500 dark:text-gray-400"> — {r.mitigation}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {result.aiAnalysis.codeCompliance?.notes?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Code Compliance:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                          {result.aiAnalysis.codeCompliance.notes.map((note, i) => (
+                            <li key={i}>{note}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.aiAnalysis}</p>
+                )}
               </div>
+              {/* Fallback: show raw AI text if structured parse had issues */}
+              {result.aiAnalysisText && typeof result.aiAnalysis === 'object' && !result.aiAnalysis.overview && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-surface-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{result.aiAnalysisText}</p>
+                </div>
+              )}
               {result.modelUsed && (
                 <p className="text-xs text-gray-500 mt-3">
                   Model used: {result.modelUsed}
@@ -486,6 +547,18 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {result.warnings?.length > 0 && !result.partial && (
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              {result.warnings.map((w, i) => (
+                <p key={i} className="text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  {w}
+                </p>
+              ))}
             </div>
           )}
 

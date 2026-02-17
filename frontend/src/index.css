@@ -65,7 +65,7 @@
 
   /* Selection color */
   ::selection {
-    background-color: rgba(232, 145, 58, 0.25);
+    background-color: rgba(0, 53, 148, 0.25);
     color: inherit;
   }
 }
@@ -82,12 +82,12 @@
 
   .btn-primary {
     @apply btn text-white shadow-lg;
-    background: linear-gradient(135deg, #f0b072 0%, #e8913a 40%, #d46116 100%);
-    box-shadow: 0 4px 14px rgba(232, 145, 58, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, #4a8ae6 0%, #003594 40%, #002266 100%);
+    box-shadow: 0 4px 14px rgba(0, 53, 148, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(232, 145, 58, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    box-shadow: 0 6px 20px rgba(0, 53, 148, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     transform: translateY(-1px);
   }
 
@@ -106,7 +106,7 @@
   }
 
   .btn-secondary:hover {
-    border-color: rgba(232, 145, 58, 0.5);
+    border-color: rgba(0, 53, 148, 0.5);
   }
 
   .btn-ghost {
@@ -119,8 +119,8 @@
   }
 
   .btn-ghost:hover {
-    background: rgba(232, 145, 58, 0.06);
-    color: #e8913a;
+    background: rgba(0, 53, 148, 0.06);
+    color: #003594;
   }
 
   .btn-danger {
@@ -156,12 +156,12 @@
   .card-hover:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 16px 40px rgba(0, 0, 0, 0.08);
-    border-color: rgba(232, 145, 58, 0.2);
+    border-color: rgba(0, 53, 148, 0.2);
   }
 
   .dark .card-hover:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 12px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
-    border-color: rgba(232, 145, 58, 0.12);
+    border-color: rgba(0, 53, 148, 0.12);
   }
 
   .card-glass {
@@ -192,8 +192,8 @@
   }
 
   .input:focus {
-    border-color: #e8913a;
-    box-shadow: 0 0 0 3px rgba(232, 145, 58, 0.1);
+    border-color: #003594;
+    box-shadow: 0 0 0 3px rgba(0, 53, 148, 0.1);
   }
 
   .dark .input {
@@ -208,7 +208,7 @@
   }
 
   .dark .input:focus {
-    box-shadow: 0 0 0 3px rgba(232, 145, 58, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 0 3px rgba(0, 53, 148, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.15);
   }
 
   .input-error {
@@ -269,7 +269,7 @@
   .stat-card::before {
     content: '';
     @apply absolute top-0 right-0 w-32 h-32 rounded-full transform translate-x-12 -translate-y-12 transition-transform duration-500;
-    background: radial-gradient(circle, rgba(232, 145, 58, 0.06) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(0, 53, 148, 0.06) 0%, transparent 70%);
   }
 
   .stat-card:hover::before {
@@ -308,8 +308,8 @@
   .bg-blueprint {
     background-color: #1a1816;
     background-image:
-      linear-gradient(rgba(232, 145, 58, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(232, 145, 58, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(0, 53, 148, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 53, 148, 0.03) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
@@ -337,8 +337,8 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(232, 145, 58, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(232, 145, 58, 0.02) 1px, transparent 1px);
+      linear-gradient(rgba(0, 53, 148, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 53, 148, 0.02) 1px, transparent 1px);
     background-size: 24px 24px;
     pointer-events: none;
   }
@@ -350,7 +350,7 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(232, 145, 58, 0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 53, 148, 0.2), transparent);
     pointer-events: none;
   }
 
@@ -389,13 +389,13 @@
 
   .quick-action-primary {
     @apply quick-action text-white;
-    background: linear-gradient(135deg, #e8913a, #d46116);
-    box-shadow: 0 4px 12px rgba(232, 145, 58, 0.25);
+    background: linear-gradient(135deg, #003594, #002266);
+    box-shadow: 0 4px 12px rgba(0, 53, 148, 0.25);
   }
 
   .quick-action-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(232, 145, 58, 0.35);
+    box-shadow: 0 6px 16px rgba(0, 53, 148, 0.35);
   }
 
   .quick-action-secondary {
@@ -413,7 +413,7 @@
   }
 
   .quick-action-secondary:hover {
-    border-color: rgba(232, 145, 58, 0.3);
+    border-color: rgba(0, 53, 148, 0.3);
   }
 
   /* ── Permit metrics ───────────────────────────── */
@@ -583,7 +583,7 @@
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #e8913a 0%, #f0b072 100%);
+    background: linear-gradient(135deg, #003594 0%, #4a8ae6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -599,13 +599,13 @@
   /* Section separator */
   .section-sep {
     @apply h-px;
-    background: linear-gradient(90deg, transparent, rgba(232, 145, 58, 0.15), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 53, 148, 0.15), transparent);
   }
 
   /* Focus ring utility */
   .focus-ring:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(232, 145, 58, 0.15);
+    box-shadow: 0 0 0 3px rgba(0, 53, 148, 0.15);
   }
 
   /* Custom select arrow */

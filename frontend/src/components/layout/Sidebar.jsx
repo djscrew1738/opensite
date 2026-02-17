@@ -49,7 +49,7 @@ export default function Sidebar() {
         className="absolute inset-0 pointer-events-none opacity-[0.015]"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(232, 145, 58, 0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232, 145, 58, 0.5) 1px, transparent 1px)',
+            'linear-gradient(rgba(0, 53, 148, 0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 53, 148, 0.5) 1px, transparent 1px)',
           backgroundSize: '24px 24px',
         }}
       />
@@ -58,7 +58,7 @@ export default function Sidebar() {
       <div
         className="absolute top-0 right-0 bottom-0 w-px pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom, rgba(232, 145, 58, 0.08), transparent 30%, transparent 70%, rgba(232, 145, 58, 0.08))',
+          background: 'linear-gradient(to bottom, rgba(0, 53, 148, 0.08), transparent 30%, transparent 70%, rgba(0, 53, 148, 0.08))',
         }}
       />
 
@@ -67,8 +67,8 @@ export default function Sidebar() {
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #e8913a 0%, #d46116 100%)',
-            boxShadow: '0 4px 12px rgba(232, 145, 58, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+            background: 'linear-gradient(135deg, #003594 0%, #002266 100%)',
+            boxShadow: '0 4px 12px rgba(0, 53, 148, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
           }}
         >
           <Hammer className="w-5 h-5 text-white" strokeWidth={2.5} />
@@ -111,9 +111,9 @@ export default function Sidebar() {
                     padding: expanded ? '10px 14px' : '10px 0',
                     justifyContent: expanded ? 'flex-start' : 'center',
                     background: isActive
-                      ? 'rgba(232, 145, 58, 0.08)'
+                      ? 'rgba(0, 53, 148, 0.08)'
                       : 'transparent',
-                    color: isActive ? '#e8913a' : 'rgba(200, 197, 191, 0.5)',
+                    color: isActive ? '#003594' : 'rgba(200, 197, 191, 0.5)',
                   }}
                   onMouseOver={(e) => {
                     if (!isActive) {
@@ -133,7 +133,7 @@ export default function Sidebar() {
                     <div
                       className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full"
                       style={{
-                        background: '#e8913a',
+                        background: '#003594',
                       }}
                     />
                   )}

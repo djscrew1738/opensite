@@ -22,7 +22,7 @@ export default function MobileNav() {
       <div
         className="absolute top-0 left-0 right-0 h-px"
         style={{
-          background: 'linear-gradient(90deg, transparent, rgba(232, 145, 58, 0.2), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(0, 53, 148, 0.2), transparent)',
         }}
       />
 
@@ -42,7 +42,7 @@ export default function MobileNav() {
                     <div
                       className="absolute -inset-1 rounded-full"
                       style={{
-                        background: 'radial-gradient(circle, rgba(232, 145, 58, 0.1), transparent)',
+                        background: 'radial-gradient(circle, rgba(0, 53, 148, 0.1), transparent)',
                       }}
                     />
                   )}
@@ -50,14 +50,14 @@ export default function MobileNav() {
                     className="w-5 h-5 relative transition-all duration-200"
                     strokeWidth={isActive ? 2.5 : 1.8}
                     style={{
-                      color: isActive ? '#e8913a' : 'rgba(160, 155, 147, 0.6)',
+                      color: isActive ? '#003594' : 'rgba(160, 155, 147, 0.6)',
                     }}
                   />
                 </div>
                 <span
                   className="text-[10px] font-semibold transition-all duration-200"
                   style={{
-                    color: isActive ? '#e8913a' : 'rgba(160, 155, 147, 0.5)',
+                    color: isActive ? '#003594' : 'rgba(160, 155, 147, 0.5)',
                   }}
                 >
                   {item.label}
@@ -68,7 +68,7 @@ export default function MobileNav() {
                   <div
                     className="w-0.5 h-0.5 rounded-full -mt-0.5"
                     style={{
-                      background: '#e8913a',
+                      background: '#003594',
                     }}
                   />
                 )}

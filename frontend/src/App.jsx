@@ -19,8 +19,8 @@ function PageLoader() {
         <div
           className="w-11 h-11 rounded-full mx-auto animate-spin"
           style={{
-            border: '3px solid rgba(232, 145, 58, 0.12)',
-            borderTopColor: '#e8913a',
+            border: '3px solid rgba(0, 53, 148, 0.12)',
+            borderTopColor: '#003594',
           }}
         />
         <p

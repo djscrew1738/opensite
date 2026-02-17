@@ -465,8 +465,8 @@ export default function LeadFinder() {
                           onClick={(e) => bulk.toggleSelect(lead.id, idx, e.shiftKey)}
                           className="absolute top-3 left-3 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all"
                           style={{
-                            background: bulk.isSelected(lead.id) ? '#e8913a' : 'rgba(255,255,255,0.8)',
-                            borderColor: bulk.isSelected(lead.id) ? '#e8913a' : 'rgba(200,197,191,0.5)',
+                            background: bulk.isSelected(lead.id) ? '#003594' : 'rgba(255,255,255,0.8)',
+                            borderColor: bulk.isSelected(lead.id) ? '#003594' : 'rgba(200,197,191,0.5)',
                           }}
                         >
                           {bulk.isSelected(lead.id) && (

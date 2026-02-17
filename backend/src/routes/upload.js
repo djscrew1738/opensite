@@ -6,7 +6,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import { blueprintService } from '../services/blueprint.js';
-import { ollamaService } from '../services/ollama.js';
+import { aiProvider } from '../services/ai-provider.js';
 import { pricingService } from '../services/pricing.js';
 import { jobQueue, JOB_TYPES } from '../services/jobQueue.js';
 import { tryCatch } from '../utils/response.js';
@@ -257,12 +257,12 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
     progressCallback(10); // Started
 
     // Generate AI analysis
-    const aiModel = model || ollamaService.getRecommendedModel('analysis');
+    const aiModel = model || aiProvider.getRecommendedModel('analysis');
     const prompt = buildAnalysisPrompt(fileName, extractedData, blueprintText, tier);
 
     progressCallback(20); // Prompt built
 
-    const aiResult = await ollamaService.generate(prompt, { model: aiModel, timeout: 300000 });
+    const aiResult = await aiProvider.generate(prompt, { model: aiModel, timeout: 300000 });
 
     progressCallback(70); // AI analysis complete
 
@@ -417,10 +417,10 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
   // If async mode is explicitly false, do synchronous processing (legacy behavior)
   if (asyncMode === 'false' || asyncMode === false) {
     // Synchronous mode - original behavior
-    const aiModel = model || ollamaService.getRecommendedModel('analysis');
+    const aiModel = model || aiProvider.getRecommendedModel('analysis');
     const prompt = buildAnalysisPrompt(fileName, extractedData, blueprintText, tier);
 
-    const aiResult = await ollamaService.generate(prompt, { model: aiModel, timeout: 300000 });
+    const aiResult = await aiProvider.generate(prompt, { model: aiModel, timeout: 300000 });
 
     // Parse AI response as JSON
     let parsedAnalysis = null;

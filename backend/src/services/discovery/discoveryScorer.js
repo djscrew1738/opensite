@@ -1,7 +1,7 @@
 // Discovery Scorer - Stage 3 of Discovery Pipeline
 // Uses Ollama for ICP scoring (0-100) and outreach email generation
 
-import { ollamaService } from '../ollama.js';
+import { aiProvider } from '../ai-provider.js';
 
 const logger = {
   info: (msg, data) => console.log(`[discovery-scorer] ${msg}`, data || ''),
@@ -52,7 +52,7 @@ Rules:
 Respond with ONLY the JSON, no other text.`;
 
   try {
-    const result = await ollamaService.generate(prompt, {
+    const result = await aiProvider.generate(prompt, {
       temperature: 0.2,
       timeout: 30000
     });
@@ -109,7 +109,7 @@ Respond ONLY with valid JSON:
 Respond with ONLY the JSON, no other text.`;
 
   try {
-    const result = await ollamaService.generate(prompt, {
+    const result = await aiProvider.generate(prompt, {
       temperature: 0.5,
       timeout: 30000
     });

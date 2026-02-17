@@ -1,6 +1,6 @@
 // Lead scoring service wrapper
 
-import { ollamaService } from './ollama.js';
+import { aiProvider } from './ai-provider.js';
 import { db } from './database.js';
 import logger from './logger.js';
 
@@ -14,7 +14,7 @@ class ScoringService {
     logger.info('Scoring lead', { leadId, name: lead.name });
 
     // Use Ollama service to score the lead
-    const scoring = await ollamaService.scoreLead(lead);
+    const scoring = await aiProvider.scoreLead(lead);
 
     // Update lead with score and status
     const updated = db.updateLead(leadId, {

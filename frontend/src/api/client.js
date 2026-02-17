@@ -95,6 +95,8 @@ export const api = {
   // AI
   ai: {
     getModels: () => apiClient.get('/ai/models'),
+    getProviders: () => apiClient.get('/ai/providers'),
+    switchProvider: (provider) => apiClient.post('/ai/providers/switch', { provider }),
     chat: (message, conversationId, model) =>
       apiClient.post('/ai/chat', { message, conversationId, model }),
     analyze: (text, context, model) =>
@@ -107,6 +109,7 @@ export const api = {
     get: () => apiClient.get('/settings'),
     update: (data) => apiClient.put('/settings', data),
     testOllama: (url) => apiClient.post('/settings/test-ollama', { url }),
+    testGroq: (key) => apiClient.post('/settings/test-groq', { key }),
     testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
     getMetrics: () => apiClient.get('/settings/metrics'),
   },

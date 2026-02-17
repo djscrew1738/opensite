@@ -1,15 +1,15 @@
-// AI chat and analysis routes
+// AI chat and analysis routes — supports Ollama (local) and Groq (cloud)
 
 import express from 'express';
-import { ollamaService } from '../services/ollama.js';
+import { aiProvider } from '../services/ai-provider.js';
 import { db } from '../services/database.js';
 
 const router = express.Router();
 
-// Get available models
+// Get available models from active provider
 router.get('/models', async (req, res) => {
   try {
-    const result = await ollamaService.listAvailableModels();
+    const result = await aiProvider.listAvailableModels();
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });
@@ -17,11 +17,44 @@ router.get('/models', async (req, res) => {
 
     res.json({
       models: result.models,
-      defaultModel: ollamaService.defaultModel,
-      recommendations: ollamaService.modelRecommendations
+      defaultModel: aiProvider.defaultModel,
+      recommendations: aiProvider.modelRecommendations,
+      provider: aiProvider.activeProviderName,
+      providers: aiProvider.getAvailableProviders(),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get available providers
+router.get('/providers', async (req, res) => {
+  try {
+    const providers = aiProvider.getAvailableProviders();
+    res.json({ providers, active: aiProvider.activeProviderName });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Switch active provider
+router.post('/providers/switch', async (req, res) => {
+  try {
+    const { provider } = req.body;
+    if (!provider) {
+      return res.status(400).json({ error: 'Provider name is required' });
+    }
+
+    aiProvider.setProvider(provider);
+    db.setSetting('ai_provider', provider);
+
+    const health = await aiProvider.healthCheck();
+    res.json({
+      provider: aiProvider.activeProviderName,
+      health,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -34,38 +67,26 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Get conversation history
     const conversation = conversationId ? db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
+    const prompt = aiProvider.getChatPrompt(message, history);
 
-    // Generate prompt with context
-    const prompt = ollamaService.getChatPrompt(message, history);
-
-    // Get AI response (use specified model or default)
-    const modelToUse = model || ollamaService.getRecommendedModel('chat');
-    const result = await ollamaService.generate(prompt, { model: modelToUse });
+    const modelToUse = model || aiProvider.getRecommendedModel('chat');
+    const result = await aiProvider.generate(prompt, { model: modelToUse });
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
 
-    // Save conversation
     const newConversationId = conversationId || `conv-${Date.now()}`;
-    db.createConversation({
-      conversationId: newConversationId,
-      role: 'user',
-      content: message
-    });
-    db.createConversation({
-      conversationId: newConversationId,
-      role: 'assistant',
-      content: result.response
-    });
+    db.createConversation({ conversationId: newConversationId, role: 'user', content: message });
+    db.createConversation({ conversationId: newConversationId, role: 'assistant', content: result.response });
 
     res.json({
       response: result.response,
       conversationId: newConversationId,
-      modelUsed: result.model
+      modelUsed: result.model,
+      provider: aiProvider.activeProviderName,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -81,43 +102,34 @@ router.post('/chat/stream', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Set up SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Get conversation history
     const conversation = conversationId ? db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
+    const prompt = aiProvider.getChatPrompt(message, history);
 
-    // Generate prompt with context
-    const prompt = ollamaService.getChatPrompt(message, history);
-
-    // Save user message
     const newConversationId = conversationId || `conv-${Date.now()}`;
-    db.createConversation({
-      conversationId: newConversationId,
-      role: 'user',
-      content: message
-    });
+    db.createConversation({ conversationId: newConversationId, role: 'user', content: message });
 
     let fullResponse = '';
+    const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
-    // Stream response (use specified model or default)
-    const modelToUse = model || ollamaService.getRecommendedModel('chat');
-    for await (const chunk of ollamaService.generateStream(prompt, { model: modelToUse })) {
+    for await (const chunk of aiProvider.generateStream(prompt, { model: modelToUse })) {
       fullResponse += chunk;
       res.write(`data: ${JSON.stringify({ chunk, done: false })}\n\n`);
     }
 
-    // Save assistant response
-    db.createConversation({
-      conversationId: newConversationId,
-      role: 'assistant',
-      content: fullResponse
-    });
+    db.createConversation({ conversationId: newConversationId, role: 'assistant', content: fullResponse });
 
-    res.write(`data: ${JSON.stringify({ chunk: '', done: true, conversationId: newConversationId, model: modelToUse })}\n\n`);
+    res.write(`data: ${JSON.stringify({
+      chunk: '',
+      done: true,
+      conversationId: newConversationId,
+      model: modelToUse,
+      provider: aiProvider.activeProviderName,
+    })}\n\n`);
     res.end();
   } catch (error) {
     res.write(`data: ${JSON.stringify({ error: error.message, done: true })}\n\n`);
@@ -128,14 +140,14 @@ router.post('/chat/stream', async (req, res) => {
 // General analysis endpoint
 router.post('/analyze', async (req, res) => {
   try {
-    const { text, context } = req.body;
+    const { text, context, model } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
     const prompt = `${context || 'Analyze the following:'}\n\n${text}`;
-    const result = await ollamaService.generate(prompt);
+    const result = await aiProvider.generate(prompt, { model });
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });
@@ -143,14 +155,15 @@ router.post('/analyze', async (req, res) => {
 
     res.json({
       analysis: result.response,
-      model: result.model
+      model: result.model,
+      provider: aiProvider.activeProviderName,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Pull a model from Ollama
+// Pull a model (Ollama only)
 router.post('/models/pull', async (req, res) => {
   try {
     const { name } = req.body;
@@ -158,12 +171,11 @@ router.post('/models/pull', async (req, res) => {
       return res.status(400).json({ error: 'Model name is required' });
     }
 
-    // Set up SSE for progress
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const result = await ollamaService.pullModel(name, (progress) => {
+    const result = await aiProvider.pullModel(name, (progress) => {
       res.write(`data: ${JSON.stringify(progress)}\n\n`);
     });
 
@@ -175,11 +187,11 @@ router.post('/models/pull', async (req, res) => {
   }
 });
 
-// Delete a model from Ollama
+// Delete a model (Ollama only)
 router.delete('/models/:name', async (req, res) => {
   try {
     const modelName = req.params.name;
-    const result = await ollamaService.deleteModel(modelName);
+    const result = await aiProvider.deleteModel(modelName);
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });

@@ -1,18 +1,19 @@
 // Health check and system status routes
 
 import express from 'express';
-import { ollamaService } from '../services/ollama.js';
+import { aiProvider } from '../services/ai-provider.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const ollamaStatus = await ollamaService.healthCheck();
+    const aiStatus = await aiProvider.healthCheck();
 
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      ollama: ollamaStatus,
+      ai: aiStatus,
+      provider: aiProvider.activeProviderName,
       version: '1.0.0'
     });
   } catch (error) {

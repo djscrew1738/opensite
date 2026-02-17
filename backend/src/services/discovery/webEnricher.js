@@ -2,7 +2,7 @@
 // Scrapes business websites using fetch + cheerio and uses Ollama to extract structured data
 
 import * as cheerio from 'cheerio';
-import { ollamaService } from '../ollama.js';
+import { aiProvider } from '../ai-provider.js';
 
 const logger = {
   info: (msg, data) => console.log(`[web-enricher] ${msg}`, data || ''),
@@ -119,7 +119,7 @@ Extract the following information and respond ONLY with valid JSON:
 Respond with ONLY the JSON, no other text.`;
 
   try {
-    const result = await ollamaService.generate(prompt, {
+    const result = await aiProvider.generate(prompt, {
       temperature: 0.2,
       timeout: 30000
     });

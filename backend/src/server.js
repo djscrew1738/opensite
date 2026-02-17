@@ -47,8 +47,8 @@ import settingsRoutes from './routes/settings.js';
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
 
-// Import Ollama service for runtime config
-import { ollamaService } from './services/ollama.js';
+// Import AI provider manager (Ollama + Groq)
+import { aiProvider } from './services/ai-provider.js';
 
 // Load environment variables
 dotenv.config();
@@ -189,17 +189,13 @@ process.on('SIGINT', () => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', { port: PORT });
 
-  // Load saved settings and apply to Ollama service
+  // Load saved settings and apply to AI providers (Ollama + Groq)
   try {
-    const settings = db.getAllSettings();
-    const configUpdate = {};
-    if (settings.ollama_url) configUpdate.baseUrl = settings.ollama_url;
-    if (settings.ollama_model) configUpdate.defaultModel = settings.ollama_model;
-    if (settings.ollama_temperature) configUpdate.temperature = parseFloat(settings.ollama_temperature);
-    if (Object.keys(configUpdate).length > 0) {
-      ollamaService.configure(configUpdate);
-      logger.info('Applied saved settings to Ollama service', configUpdate);
-    }
+    aiProvider.loadFromSettings();
+    logger.info('Applied saved settings to AI providers', {
+      activeProvider: aiProvider.activeProviderName,
+      config: aiProvider.getConfig()
+    });
   } catch (err) {
     logger.warn('Could not load saved settings', { error: err.message });
   }

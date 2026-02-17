@@ -95,9 +95,9 @@ export default function Settings() {
   });
 
   const { data: modelsData, refetch: refetchModels } = useQuery({
-    queryKey: ['ollama-models'],
+    queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected,
+    enabled: connected || activeProvider === 'groq',
     retry: false
   });
 
@@ -119,8 +119,12 @@ export default function Settings() {
   const config = metricsData?.config || {};
 
   // ── Local form state ──
+  const [activeProvider, setActiveProvider] = useState('ollama');
   const [ollamaUrl, setOllamaUrl] = useState('');
   const [temperature, setTemperature] = useState(0.7);
+  const [groqKey, setGroqKey] = useState('');
+  const [showGroqKey, setShowGroqKey] = useState(false);
+  const [groqTemperature, setGroqTemperature] = useState(0.7);
   const [companyName, setCompanyName] = useState('');
   const [serviceArea, setServiceArea] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -133,17 +137,21 @@ export default function Settings() {
 
   // Loading states
   const [testingOllama, setTestingOllama] = useState(false);
+  const [testingGroq, setTestingGroq] = useState(false);
   const [testingSerper, setTestingSerper] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
+  const [switchingProvider, setSwitchingProvider] = useState(false);
   const [pullingModel, setPullingModel] = useState(false);
   const [deletingModel, setDeletingModel] = useState(null);
 
   // Sync settings data to form
   useEffect(() => {
     if (settingsData) {
+      setActiveProvider(settingsData.ai_provider || 'ollama');
       setOllamaUrl(settingsData.ollama_url || 'http://localhost:11434');
       setTemperature(parseFloat(settingsData.ollama_temperature) || 0.7);
+      setGroqTemperature(parseFloat(settingsData.groq_temperature) || 0.7);
       setCompanyName(settingsData.company_name || '');
       setServiceArea(settingsData.service_area || '');
       setSpecialization(settingsData.specialization || '');
@@ -151,6 +159,50 @@ export default function Settings() {
   }, [settingsData]);
 
   // ── Handlers ──
+
+  const handleSwitchProvider = async (provider) => {
+    setSwitchingProvider(true);
+    try {
+      await api.settings.update({ ai_provider: provider });
+      setActiveProvider(provider);
+      refetchSettings();
+      refetchModels();
+      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
+      refetchOllama();
+      showToast(`Switched to ${provider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}`);
+    } catch (err) {
+      showToast(`Failed to switch: ${err.message}`, 'error');
+    } finally {
+      setSwitchingProvider(false);
+    }
+  };
+
+  const handleTestGroq = async () => {
+    setTestingGroq(true);
+    try {
+      const result = await api.settings.testGroq(groqKey || undefined);
+      if (result.valid) {
+        showToast(`Groq API valid (${result.modelCount} models available)`);
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingGroq(false);
+    }
+  };
+
+  const handleSaveGroqKey = async () => {
+    try {
+      await api.settings.update({ groq_api_key: groqKey });
+      setGroqKey('');
+      refetchSettings();
+      showToast('Groq API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
 
   const handleTestOllama = async () => {
     setTestingOllama(true);
@@ -165,23 +217,6 @@ export default function Settings() {
       showToast(`Connection test failed: ${err.message}`, 'error');
     } finally {
       setTestingOllama(false);
-    }
-  };
-
-  const handleSaveAI = async () => {
-    setSavingAI(true);
-    try {
-      await api.settings.update({
-        ollama_url: ollamaUrl,
-        ollama_temperature: String(temperature),
-      });
-      refetchSettings();
-      refetchOllama();
-      showToast('AI configuration saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingAI(false);
     }
   };
 
@@ -333,92 +368,245 @@ export default function Settings() {
 
       <div className="space-y-6">
 
-        {/* ═══ Section 1: AI Configuration ═══ */}
+        {/* ═══ Section 1: AI Provider ═══ */}
         <Section
           icon={Cpu}
           title="AI Configuration"
           badge={
-            cbState !== 'closed' && (
-              <span className="badge bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                <Shield className="w-3 h-3" />
-                Circuit Breaker: {cbState}
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                activeProvider === 'groq'
+                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${activeProvider === 'groq' ? 'bg-orange-500' : 'bg-blue-500'} animate-pulse`} />
+                {activeProvider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}
               </span>
-            )
+              {cbState !== 'closed' && (
+                <span className="badge bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  <Shield className="w-3 h-3" />
+                  CB: {cbState}
+                </span>
+              )}
+            </div>
           }
         >
           <div className="space-y-5">
-            {/* Ollama URL */}
+            {/* Provider Toggle */}
             <div>
-              <label className="label">Ollama Server URL</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={ollamaUrl}
-                  onChange={(e) => setOllamaUrl(e.target.value)}
-                  className="input flex-1 font-mono text-sm"
-                  placeholder="http://localhost:11434"
-                />
+              <label className="label">AI Provider</label>
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={handleTestOllama}
-                  disabled={testingOllama}
-                  className="btn-secondary text-sm whitespace-nowrap"
+                  onClick={() => handleSwitchProvider('ollama')}
+                  disabled={switchingProvider}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                    activeProvider === 'ollama'
+                      ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
                 >
-                  {testingOllama ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  Test
+                  {activeProvider === 'ollama' && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Server className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="font-bold text-sm text-gray-900 dark:text-gray-100">Ollama</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Local models, private, no API limits</p>
+                </button>
+
+                <button
+                  onClick={() => handleSwitchProvider('groq')}
+                  disabled={switchingProvider}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                    activeProvider === 'groq'
+                      ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  {activeProvider === 'groq' && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="w-5 h-5 text-orange-500" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    <span className="font-bold text-sm text-gray-900 dark:text-gray-100">Groq Cloud</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Ultra-fast cloud inference, Llama 3.3 70B</p>
                 </button>
               </div>
             </div>
 
-            {/* Default Model */}
-            <div>
-              <label className="label">Default Model</label>
-              <select
-                value={defaultModel}
-                onChange={(e) => handleSetDefaultModel(e.target.value)}
-                className="input"
-              >
-                {availableModels.length === 0 && (
-                  <option>{connected ? 'Loading models...' : model || 'No models'}</option>
-                )}
-                {availableModels.map((m) => (
-                  <option key={m.name} value={m.name}>
-                    {m.name} ({(m.size / (1024 ** 3)).toFixed(1)} GB)
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Ollama Settings (shown when Ollama is active) */}
+            {activeProvider === 'ollama' && (
+              <>
+                <div>
+                  <label className="label">Ollama Server URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={ollamaUrl}
+                      onChange={(e) => setOllamaUrl(e.target.value)}
+                      className="input flex-1 font-mono text-sm"
+                      placeholder="http://localhost:11434"
+                    />
+                    <button
+                      onClick={handleTestOllama}
+                      disabled={testingOllama}
+                      className="btn-secondary text-sm whitespace-nowrap"
+                    >
+                      {testingOllama ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      Test
+                    </button>
+                  </div>
+                </div>
 
-            {/* Temperature Slider */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="label mb-0">Temperature</label>
-                <span className="text-sm font-mono font-bold text-gray-900 dark:text-gray-100">
-                  {temperature.toFixed(2)}
-                  <span className="ml-2 text-xs font-sans text-gray-500 dark:text-gray-400">({temperatureLabel})</span>
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-accent-500"
-              />
-              <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-0.5">
-                <span>Precise</span>
-                <span>Balanced</span>
-                <span>Creative</span>
-              </div>
-            </div>
+                <div>
+                  <label className="label">Default Model</label>
+                  <select
+                    value={defaultModel}
+                    onChange={(e) => handleSetDefaultModel(e.target.value)}
+                    className="input"
+                  >
+                    {availableModels.length === 0 && (
+                      <option>{connected ? 'Loading models...' : model || 'No models'}</option>
+                    )}
+                    {availableModels.map((m) => (
+                      <option key={m.name} value={m.name}>
+                        {m.name} {m.size ? `(${(m.size / (1024 ** 3)).toFixed(1)} GB)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Connection info row */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="label mb-0">Temperature</label>
+                    <span className="text-sm font-mono font-bold text-gray-900 dark:text-gray-100">
+                      {temperature.toFixed(2)}
+                      <span className="ml-2 text-xs font-sans text-gray-500 dark:text-gray-400">({temperatureLabel})</span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-accent-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-0.5">
+                    <span>Precise</span>
+                    <span>Balanced</span>
+                    <span>Creative</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Groq Settings (shown when Groq is active) */}
+            {activeProvider === 'groq' && (
+              <>
+                <div>
+                  <label className="label">Groq API Key</label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Get a free API key at console.groq.com
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={showGroqKey ? 'text' : 'password'}
+                        value={groqKey}
+                        onChange={(e) => setGroqKey(e.target.value)}
+                        className="input pr-10 font-mono text-sm"
+                        placeholder={settings.groq_api_key_masked || 'Enter your Groq API key'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowGroqKey(!showGroqKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showGroqKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleTestGroq}
+                      disabled={testingGroq}
+                      className="btn-secondary text-sm whitespace-nowrap"
+                    >
+                      {testingGroq ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      Test
+                    </button>
+                    <button
+                      onClick={handleSaveGroqKey}
+                      disabled={!groqKey.trim()}
+                      className="btn-primary text-sm whitespace-nowrap"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Default Model</label>
+                  <select
+                    value={defaultModel}
+                    onChange={(e) => {
+                      handleSetDefaultModel(e.target.value);
+                      api.settings.update({ groq_model: e.target.value });
+                    }}
+                    className="input"
+                  >
+                    {availableModels.length === 0 && (
+                      <option>Loading Groq models...</option>
+                    )}
+                    {availableModels.map((m) => (
+                      <option key={m.name} value={m.name}>
+                        {m.label || m.name} {m.context ? `(${Math.round(m.context / 1000)}k ctx)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="label mb-0">Temperature</label>
+                    <span className="text-sm font-mono font-bold text-gray-900 dark:text-gray-100">
+                      {groqTemperature.toFixed(2)}
+                      <span className="ml-2 text-xs font-sans text-gray-500 dark:text-gray-400">
+                        ({groqTemperature <= 0.3 ? 'Precise' : groqTemperature <= 0.7 ? 'Balanced' : 'Creative'})
+                      </span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={groqTemperature}
+                    onChange={(e) => setGroqTemperature(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-0.5">
+                    <span>Precise</span>
+                    <span>Balanced</span>
+                    <span>Creative</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Save row */}
             <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                 <span className="flex items-center gap-1.5">
-                  <Server className="w-3.5 h-3.5" />
-                  {config.baseUrl || ollamaUrl}
+                  {activeProvider === 'groq' ? <Zap className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
+                  {activeProvider === 'groq' ? 'Groq Cloud' : (config.baseUrl || ollamaUrl)}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CircuitBoard className="w-3.5 h-3.5" />
@@ -426,7 +614,22 @@ export default function Settings() {
                 </span>
               </div>
               <button
-                onClick={handleSaveAI}
+                onClick={async () => {
+                  setSavingAI(true);
+                  try {
+                    const updates = activeProvider === 'groq'
+                      ? { groq_temperature: String(groqTemperature) }
+                      : { ollama_url: ollamaUrl, ollama_temperature: String(temperature) };
+                    await api.settings.update(updates);
+                    refetchSettings();
+                    refetchOllama();
+                    showToast('AI configuration saved');
+                  } catch (err) {
+                    showToast(`Failed to save: ${err.message}`, 'error');
+                  } finally {
+                    setSavingAI(false);
+                  }
+                }}
                 disabled={savingAI}
                 className="btn-primary text-sm"
               >
@@ -590,50 +793,61 @@ export default function Settings() {
           icon={HardDrive}
           title="Model Library"
           badge={
-            connected && (
+            (connected || activeProvider === 'groq') && (
               <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                {availableModels.length} model{availableModels.length !== 1 ? 's' : ''} installed
+                {availableModels.length} model{availableModels.length !== 1 ? 's' : ''} {activeProvider === 'groq' ? 'available' : 'installed'}
               </span>
             )
           }
         >
-          {/* Pull new model */}
-          <div className="mb-5 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">
-              Pull New Model
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={pullModelName}
-                onChange={(e) => setPullModelName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handlePullModel()}
-                className="input flex-1 font-mono text-sm"
-                placeholder="e.g. llama3.1, qwen2.5-coder:7b, deepseek-r1:1.5b"
-                disabled={pullingModel}
-              />
-              <button
-                onClick={handlePullModel}
-                disabled={pullingModel || !pullModelName.trim()}
-                className="btn-primary text-sm whitespace-nowrap"
-              >
-                {pullingModel ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Pulling...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    Pull
-                  </>
-                )}
-              </button>
+          {/* Pull new model (Ollama only) */}
+          {activeProvider === 'ollama' && (
+            <div className="mb-5 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">
+                Pull New Model
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pullModelName}
+                  onChange={(e) => setPullModelName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePullModel()}
+                  className="input flex-1 font-mono text-sm"
+                  placeholder="e.g. llama3.1, qwen2.5-coder:7b, deepseek-r1:1.5b"
+                  disabled={pullingModel}
+                />
+                <button
+                  onClick={handlePullModel}
+                  disabled={pullingModel || !pullModelName.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  {pullingModel ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Pulling...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Pull
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeProvider === 'groq' && (
+            <div className="mb-5 p-4 bg-orange-50/50 dark:bg-orange-950/10 rounded-xl border border-orange-200/60 dark:border-orange-800/40">
+              <p className="text-sm text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Groq models are cloud-hosted. Select a model from the cards below.
+              </p>
+            </div>
+          )}
 
           {/* Model cards */}
-          {!connected ? (
+          {(!connected && activeProvider === 'ollama') ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <XCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Connect to Ollama to manage models</p>
@@ -641,13 +855,16 @@ export default function Settings() {
           ) : availableModels.length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <HardDrive className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No models installed. Pull one above to get started.</p>
+              <p className="text-sm">
+                {activeProvider === 'groq' ? 'No Groq models found. Check your API key.' : 'No models installed. Pull one above to get started.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               {availableModels.map((m) => {
                 const isDefault = m.name === defaultModel || m.name === config.defaultModel;
                 const isDeleting = deletingModel === m.name;
+                const isGroq = activeProvider === 'groq';
 
                 return (
                   <div
@@ -667,7 +884,7 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {m.name}
+                            {m.label || m.name}
                           </h3>
                           {isDefault && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-100 text-accent-700 dark:bg-accent-900/40 dark:text-accent-300 text-xs font-bold rounded-full">
@@ -677,14 +894,33 @@ export default function Settings() {
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <HardDrive className="w-3 h-3" />
-                            {(m.size / (1024 ** 3)).toFixed(2)} GB
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(m.modified).toLocaleDateString()}
-                          </span>
+                          {isGroq ? (
+                            <>
+                              {m.context && (
+                                <span className="flex items-center gap-1">
+                                  <Zap className="w-3 h-3" />
+                                  {Math.round(m.context / 1000)}k context
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Server className="w-3 h-3" />
+                                Cloud hosted
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="flex items-center gap-1">
+                                <HardDrive className="w-3 h-3" />
+                                {(m.size / (1024 ** 3)).toFixed(2)} GB
+                              </span>
+                              {m.modified && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {new Date(m.modified).toLocaleDateString()}
+                                </span>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -698,29 +934,32 @@ export default function Settings() {
                           </button>
                         )}
 
-                        {deleteConfirm === m.name ? (
-                          <div className="flex items-center gap-1">
+                        {/* Delete button - Ollama only */}
+                        {!isGroq && (
+                          deleteConfirm === m.name ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDeleteModel(m.name)}
+                                disabled={isDeleting}
+                                className="btn-danger text-xs px-3 py-1.5 min-h-0"
+                              >
+                                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="btn-ghost text-xs px-2 py-1.5 min-h-0"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleDeleteModel(m.name)}
-                              disabled={isDeleting}
-                              className="btn-danger text-xs px-3 py-1.5 min-h-0"
+                              onClick={() => setDeleteConfirm(m.name)}
+                              className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"
                             >
-                              {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className="btn-ghost text-xs px-2 py-1.5 min-h-0"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(m.name)}
-                            className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          )
                         )}
                       </div>
                     </div>

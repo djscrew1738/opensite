@@ -2,7 +2,7 @@
 
 import express from 'express';
 import { pricingService } from '../services/pricing.js';
-import { ollamaService } from '../services/ollama.js';
+import { aiProvider } from '../services/ai-provider.js';
 import { db } from '../services/database.js';
 
 const router = express.Router();
@@ -63,11 +63,11 @@ router.post('/analyze', async (req, res) => {
     });
 
     // Generate AI analysis
-    const prompt = ollamaService.getBlueprintAnalysisPrompt({
+    const prompt = aiProvider.getBlueprintAnalysisPrompt({
       sqft, bathrooms, units, stories, tier
     });
 
-    const result = await ollamaService.generate(prompt);
+    const result = await aiProvider.generate(prompt);
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });

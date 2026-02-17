@@ -13,6 +13,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
   const [takeoffExpanded, setTakeoffExpanded] = useState(true);
   const fileInputRef = useRef(null);
   const pollIntervalRef = useRef(null);
+  const pollStartRef = useRef(null);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -52,38 +53,36 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
 
   const pollJobStatus = async (id) => {
     try {
+      // Safety timeout: stop polling after 5 minutes
+      if (pollStartRef.current && Date.now() - pollStartRef.current > 300000) {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setProcessing(false);
+        setError('Analysis timed out after 5 minutes. The AI provider may be unavailable. Please try again.');
+        return;
+      }
+
       const { api } = await import('../../api/client');
       const jobStatus = await api.jobs.getStatus(id);
 
       setProgress(jobStatus.progress || 0);
 
       if (jobStatus.status === 'completed') {
-        // Job completed successfully
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         setProcessing(false);
         setResult(jobStatus.result);
         setProgress(100);
 
-        // Pass extracted data back to parent
         if (onAnalysisComplete && jobStatus.result) {
           onAnalysisComplete(jobStatus.result);
         }
       } else if (jobStatus.status === 'failed') {
-        // Job failed
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         setProcessing(false);
-        setError(jobStatus.error || 'Analysis failed');
+        setError(jobStatus.error || 'Analysis failed. Check AI provider settings and try again.');
       }
-      // If status is 'processing' or 'pending', continue polling
     } catch (err) {
       console.error('Error polling job status:', err);
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setProcessing(false);
       setError('Lost connection while checking analysis status. Please try again.');
     }
@@ -129,7 +128,8 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
           }
         }
 
-        // Start polling for full results
+        // Start polling for full results (with 5 min timeout)
+        pollStartRef.current = Date.now();
         pollIntervalRef.current = setInterval(() => {
           pollJobStatus(response.jobId);
         }, 2000); // Poll every 2 seconds
@@ -281,19 +281,33 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-medium text-red-900">Upload Failed</p>
-            <p className="text-sm text-red-700">{error}</p>
+        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-red-900 dark:text-red-300">Analysis Failed</p>
+              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={clearFile}
-            className="text-sm text-red-600 hover:text-red-800 font-medium"
-          >
-            Try Again
-          </button>
+          <div className="flex gap-2 mt-3">
+            {file && (
+              <button
+                type="button"
+                onClick={() => { setError(null); handleUpload(); }}
+                className="btn-primary text-sm flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Retry Analysis
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearFile}
+              className="btn-secondary text-sm"
+            >
+              Upload Different File
+            </button>
+          </div>
         </div>
       )}
 

@@ -169,7 +169,7 @@ export default {
         'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-down': 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         'scale-in': 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'fade-in': 'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-in': 'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'shimmer': 'shimmer 2s linear infinite',
         'pipe-fill': 'pipeFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'slide-left': 'slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1)',

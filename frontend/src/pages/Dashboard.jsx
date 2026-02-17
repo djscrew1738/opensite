@@ -80,19 +80,19 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
 
           <div className="space-y-3">
             {lead.email && (
-              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
                 <Mail className="w-4 h-4 text-surface-400" />
                 <span>{lead.email}</span>
               </div>
             )}
             {lead.phone && (
-              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
                 <Phone className="w-4 h-4 text-surface-400" />
                 <span>{lead.phone}</span>
               </div>
             )}
             {lead.location && (
-              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
                 <MapPin className="w-4 h-4 text-surface-400" />
                 <span>{lead.location}</span>
               </div>
@@ -109,7 +109,7 @@ function LeadDetailDrawer({ lead, onClose, onNavigate }) {
           {lead.notes && (
             <div>
               <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">Notes</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{lead.notes}</p>
+              <p className="text-sm text-surface-700 dark:text-surface-300 whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
 
@@ -518,7 +518,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
+                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-surface-700" strokeWidth={1.5} />
                   <p className="text-surface-500 dark:text-surface-400 font-medium mb-3">No active projects</p>
                   <button
                     className="btn-secondary text-sm"
@@ -579,7 +579,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Flame className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-gray-700" strokeWidth={1.5} />
+                  <Flame className="w-16 h-16 mx-auto mb-4 text-concrete-300 dark:text-surface-700" strokeWidth={1.5} />
                   <p className="text-surface-500 dark:text-surface-400 font-medium mb-3">No hot leads yet</p>
                   <button className="btn-secondary text-sm" onClick={() => navigate('/leads')}>
                     Add First Lead

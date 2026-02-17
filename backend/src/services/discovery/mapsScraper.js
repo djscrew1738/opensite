@@ -4,6 +4,7 @@
 
 import crypto from 'crypto';
 import * as cheerio from 'cheerio';
+import { db } from '../database.js';
 
 const logger = {
   info: (msg, data) => console.log(`[maps-scraper] ${msg}`, data || ''),
@@ -211,31 +212,147 @@ async function searchSerperMaps(keyword, city) {
   }));
 }
 
+// ==================== Google Places API (Premium) ====================
+
+/**
+ * Search using Google Places API (Nearby Search or Text Search)
+ * Uses Nearby Search when lat/lng provided (zone-based), Text Search otherwise
+ */
+async function searchGooglePlaces(keyword, city, options = {}) {
+  const apiKey = options.apiKey || db.getSetting('google_places_api_key') || process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return null;
+
+  const { lat, lng, radius } = options;
+
+  try {
+    let places = [];
+
+    if (lat && lng) {
+      // Nearby Search (zone-based, like the DFWLeadFinder Python script)
+      logger.info('Using Google Places Nearby Search', { lat, lng, radius });
+      const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
+      url.searchParams.set('location', `${lat},${lng}`);
+      url.searchParams.set('radius', String(radius || 15000));
+      url.searchParams.set('keyword', keyword);
+      url.searchParams.set('key', apiKey);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        logger.warn(`Google Places Nearby returned ${response.status}`);
+        return null;
+      }
+      const data = await response.json();
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        logger.warn(`Google Places API error: ${data.status} - ${data.error_message || ''}`);
+        return null;
+      }
+      places = data.results || [];
+    } else {
+      // Text Search (keyword + city string)
+      logger.info('Using Google Places Text Search', { keyword, city });
+      const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+      url.searchParams.set('query', `${keyword} in ${city}`);
+      url.searchParams.set('key', apiKey);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        logger.warn(`Google Places Text Search returned ${response.status}`);
+        return null;
+      }
+      const data = await response.json();
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        logger.warn(`Google Places API error: ${data.status} - ${data.error_message || ''}`);
+        return null;
+      }
+      places = data.results || [];
+    }
+
+    if (places.length === 0) return null;
+
+    // For each place, fetch details to get phone + website
+    const businesses = [];
+    for (const place of places.slice(0, 20)) {
+      let phone = null;
+      let website = null;
+
+      try {
+        const detailUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+        detailUrl.searchParams.set('place_id', place.place_id);
+        detailUrl.searchParams.set('fields', 'formatted_phone_number,website');
+        detailUrl.searchParams.set('key', apiKey);
+
+        const detailRes = await fetch(detailUrl.toString());
+        if (detailRes.ok) {
+          const detailData = await detailRes.json();
+          if (detailData.result) {
+            phone = detailData.result.formatted_phone_number || null;
+            website = detailData.result.website || null;
+          }
+        }
+      } catch (err) {
+        logger.warn(`Failed to fetch details for ${place.name}: ${err.message}`);
+      }
+
+      businesses.push({
+        businessName: place.name,
+        address: place.vicinity || place.formatted_address || null,
+        website,
+        phone,
+        rating: place.rating || null,
+        reviewCount: place.user_ratings_total || null,
+        category: place.types ? place.types[0] : null,
+        placeId: place.place_id || null,
+        domainHash: domainHash(website),
+        source: 'google_places',
+      });
+    }
+
+    return businesses;
+  } catch (error) {
+    logger.warn(`Google Places search failed: ${error.message}`);
+    return null;
+  }
+}
+
 // ==================== Main Export ====================
 
 /**
  * Scrape for businesses matching keyword + city
- * Tries Serper.dev first (if API key set), falls back to DuckDuckGo HTML
+ * Priority: Serper.dev -> Google Places API -> DuckDuckGo HTML
  * @param {string} keyword - Business type to search
  * @param {string} city - City to search in
  * @param {Function} onProgress - Progress callback (0-100)
+ * @param {object} options - Optional: { lat, lng, radius, apiKey }
  * @returns {Array} Array of business objects
  */
-export async function scrapeGoogleMaps(keyword, city, onProgress = () => {}) {
-  logger.info('Starting business search', { keyword, city });
+export async function scrapeGoogleMaps(keyword, city, onProgress = () => {}, options = {}) {
+  logger.info('Starting business search', { keyword, city, hasZone: !!(options.lat && options.lng) });
   onProgress(10);
 
   try {
-    // Try Serper.dev first (premium, most reliable)
-    const serperResults = await searchSerperMaps(keyword, city);
-    if (serperResults && serperResults.length > 0) {
-      onProgress(90);
-      logger.info(`Serper.dev returned ${serperResults.length} businesses`);
-      onProgress(100);
-      return serperResults;
+    // Try Serper.dev first (premium, most reliable) - skip if zone-based since Serper doesn't support lat/lng
+    if (!options.lat || !options.lng) {
+      const serperResults = await searchSerperMaps(keyword, city);
+      if (serperResults && serperResults.length > 0) {
+        onProgress(90);
+        logger.info(`Serper.dev returned ${serperResults.length} businesses`);
+        onProgress(100);
+        return serperResults;
+      }
     }
 
     onProgress(20);
+
+    // Try Google Places API (supports zone-based lat/lng)
+    const placesResults = await searchGooglePlaces(keyword, city, options);
+    if (placesResults && placesResults.length > 0) {
+      onProgress(90);
+      logger.info(`Google Places returned ${placesResults.length} businesses`);
+      onProgress(100);
+      return placesResults;
+    }
+
+    onProgress(30);
 
     // Fall back to DuckDuckGo HTML search
     logger.info('Using DuckDuckGo HTML search');

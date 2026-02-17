@@ -10,12 +10,18 @@ const router = express.Router();
 // Get all settings
 router.get('/', tryCatch(async (req, res) => {
   const settings = db.getAllSettings();
-  // Mask the serper API key for security
+  // Mask API keys for security
   if (settings.serper_api_key) {
     const key = settings.serper_api_key;
     settings.serper_api_key_masked = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
     settings.serper_api_key_configured = key.length > 0;
     delete settings.serper_api_key;
+  }
+  if (settings.google_places_api_key) {
+    const key = settings.google_places_api_key;
+    settings.google_places_api_key_masked = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
+    settings.google_places_api_key_configured = key.length > 0;
+    delete settings.google_places_api_key;
   }
   res.success(settings);
 }));
@@ -59,12 +65,18 @@ router.put('/', tryCatch(async (req, res) => {
   }
 
   const settings = db.getAllSettings();
-  // Mask the serper key
+  // Mask API keys
   if (settings.serper_api_key) {
     const key = settings.serper_api_key;
     settings.serper_api_key_masked = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
     settings.serper_api_key_configured = key.length > 0;
     delete settings.serper_api_key;
+  }
+  if (settings.google_places_api_key) {
+    const key = settings.google_places_api_key;
+    settings.google_places_api_key_masked = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
+    settings.google_places_api_key_configured = key.length > 0;
+    delete settings.google_places_api_key;
   }
 
   res.success(settings, 'Settings updated');

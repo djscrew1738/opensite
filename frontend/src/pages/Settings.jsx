@@ -126,6 +126,8 @@ export default function Settings() {
   const [specialization, setSpecialization] = useState('');
   const [serperKey, setSerperKey] = useState('');
   const [showSerperKey, setShowSerperKey] = useState(false);
+  const [placesKey, setPlacesKey] = useState('');
+  const [showPlacesKey, setShowPlacesKey] = useState(false);
   const [pullModelName, setPullModelName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -217,6 +219,17 @@ export default function Settings() {
       setSerperKey('');
       refetchSettings();
       showToast('API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleSavePlacesKey = async () => {
+    try {
+      await api.settings.update({ google_places_api_key: placesKey });
+      setPlacesKey('');
+      refetchSettings();
+      showToast('Google Places API key saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     }
@@ -483,13 +496,19 @@ export default function Settings() {
           icon={Key}
           title="API Keys"
           badge={
-            <StatusPill
-              connected={settings.serper_api_key_configured}
-              label={settings.serper_api_key_configured ? 'Configured' : 'Not Set'}
-            />
+            <div className="flex items-center gap-2">
+              <StatusPill
+                connected={settings.serper_api_key_configured}
+                label={settings.serper_api_key_configured ? 'Serper' : 'Serper N/A'}
+              />
+              <StatusPill
+                connected={settings.google_places_api_key_configured}
+                label={settings.google_places_api_key_configured ? 'Places' : 'Places N/A'}
+              />
+            </div>
           }
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label className="label">Serper.dev API Key</label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -523,6 +542,39 @@ export default function Settings() {
                 <button
                   onClick={handleSaveSerperKey}
                   disabled={!serperKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">Google Places API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Used for zone-based gatekeeper discovery with Nearby Search. Get a key at console.cloud.google.com
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showPlacesKey ? 'text' : 'password'}
+                    value={placesKey}
+                    onChange={(e) => setPlacesKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.google_places_api_key_masked || 'Enter your Google Places API key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPlacesKey(!showPlacesKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPlacesKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleSavePlacesKey}
+                  disabled={!placesKey.trim()}
                   className="btn-primary text-sm whitespace-nowrap"
                 >
                   <Save className="w-4 h-4" />

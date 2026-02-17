@@ -13,13 +13,20 @@ const router = express.Router();
  * @route POST /api/discovery/run
  */
 router.post('/run', tryCatch(async (req, res) => {
-  const { keyword, city } = req.body;
+  const { keyword, city, lat, lng, radius, zone, zones } = req.body;
 
-  if (!keyword || !city) {
-    return res.error('Keyword and city are required', 'VALIDATION_ERROR', null, 400);
+  if (!keyword || (!city && (!zones || zones.length === 0))) {
+    return res.error('Keyword and city (or zones) are required', 'VALIDATION_ERROR', null, 400);
   }
 
-  const { runId, jobId } = await startDiscoveryPipeline(keyword, city);
+  const options = {};
+  if (lat) options.lat = parseFloat(lat);
+  if (lng) options.lng = parseFloat(lng);
+  if (radius) options.radius = parseInt(radius, 10);
+  if (zone) options.zone = zone;
+  if (zones && Array.isArray(zones) && zones.length > 0) options.zones = zones;
+
+  const { runId, jobId } = await startDiscoveryPipeline(keyword, city || '', options);
 
   res.success({ runId, jobId }, 'Discovery pipeline started');
 }));

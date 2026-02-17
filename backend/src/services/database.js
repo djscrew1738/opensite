@@ -436,6 +436,12 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_discovery_leads_domainHash ON discovery_leads(domainHash);
     `);
 
+    // Add zone columns to discovery_runs if missing
+    this.safeAddColumn('discovery_runs', 'lat', 'REAL');
+    this.safeAddColumn('discovery_runs', 'lng', 'REAL');
+    this.safeAddColumn('discovery_runs', 'radius', 'INTEGER');
+    this.safeAddColumn('discovery_runs', 'zone', 'TEXT');
+
     // Settings table - key-value pairs for app configuration
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -453,6 +459,11 @@ class DatabaseService {
 
     // Seed default settings if empty
     this.seedDefaultSettings();
+
+    // Ensure google_places_api_key exists for existing DBs
+    if (!this.getSetting('google_places_api_key')) {
+      this.setSetting('google_places_api_key', process.env.GOOGLE_PLACES_API_KEY || '');
+    }
 
     console.log('Database tables initialized');
   }
@@ -1752,6 +1763,99 @@ class DatabaseService {
     `).all(builderId);
   }
 
+  // ==================== City & Search Operations ====================
+
+  getCitiesWithCounts() {
+    return this.db.prepare(`
+      SELECT city, COUNT(*) as permitCount,
+             SUM(CASE WHEN leadTier = 'hot' THEN 1 ELSE 0 END) as hotCount,
+             SUM(CASE WHEN leadTier = 'warm' THEN 1 ELSE 0 END) as warmCount,
+             MAX(issuedDate) as lastPermitDate
+      FROM permits
+      WHERE city IS NOT NULL AND city != ''
+      GROUP BY city
+      ORDER BY permitCount DESC
+    `).all();
+  }
+
+  getCityStats(city) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const totalPermits = this.db.prepare(
+      'SELECT COUNT(*) as count FROM permits WHERE LOWER(city) = LOWER(?)'
+    ).get(city).count;
+
+    const permitsThisWeek = this.db.prepare(
+      'SELECT COUNT(*) as count FROM permits WHERE LOWER(city) = LOWER(?) AND issuedDate >= ?'
+    ).get(city, weekAgo).count;
+
+    const topBuilders = this.db.prepare(`
+      SELECT contractorName, COUNT(*) as permitCount,
+             SUM(estimatedCost) as totalValue
+      FROM permits
+      WHERE LOWER(city) = LOWER(?) AND contractorName IS NOT NULL AND contractorName != ''
+      GROUP BY contractorName
+      ORDER BY permitCount DESC
+      LIMIT 10
+    `).all(city);
+
+    const byTier = this.db.prepare(`
+      SELECT leadTier, COUNT(*) as count
+      FROM permits WHERE LOWER(city) = LOWER(?)
+      GROUP BY leadTier
+    `).all(city);
+
+    const avgCost = this.db.prepare(
+      'SELECT AVG(estimatedCost) as avg FROM permits WHERE LOWER(city) = LOWER(?) AND estimatedCost > 0'
+    ).get(city).avg || 0;
+
+    const recentPermits = this.db.prepare(`
+      SELECT id, permitNumber, contractorName, address, estimatedCost, leadScore, leadTier, issuedDate
+      FROM permits WHERE LOWER(city) = LOWER(?)
+      ORDER BY issuedDate DESC LIMIT 20
+    `).all(city);
+
+    return { city, totalPermits, permitsThisWeek, topBuilders, byTier, avgCost, recentPermits };
+  }
+
+  unifiedSearch(query, type) {
+    const results = { permits: [], leads: [], builders: [] };
+    const s = `%${query}%`;
+
+    if (!type || type === 'permits' || type === 'all') {
+      results.permits = this.db.prepare(`
+        SELECT id, permitNumber, contractorName, address, city, estimatedCost,
+               leadScore, leadTier, leadStatus, issuedDate, permitType,
+               'permit' as resultType
+        FROM permits
+        WHERE contractorName LIKE ? OR address LIKE ? OR city LIKE ? OR description LIKE ? OR permitNumber LIKE ?
+        ORDER BY leadScore DESC LIMIT 25
+      `).all(s, s, s, s, s);
+    }
+
+    if (!type || type === 'leads' || type === 'all') {
+      results.leads = this.db.prepare(`
+        SELECT id, name, company, location, email, phone, score, status,
+               projectType, value, 'lead' as resultType
+        FROM leads
+        WHERE name LIKE ? OR company LIKE ? OR location LIKE ? OR email LIKE ?
+        ORDER BY score DESC LIMIT 25
+      `).all(s, s, s, s);
+    }
+
+    if (!type || type === 'builders' || type === 'all') {
+      results.builders = this.db.prepare(`
+        SELECT id, name, company, totalPermits, permitsLast30d, permitsLast90d,
+               activityTrend, hasPlumber, avgProjectCost, 'builder' as resultType
+        FROM builders
+        WHERE name LIKE ? OR company LIKE ?
+        ORDER BY totalPermits DESC LIMIT 25
+      `).all(s, s);
+    }
+
+    return results;
+  }
+
   // Create notification log entry
   createPermitNotification(data) {
     const now = new Date().toISOString();
@@ -1792,9 +1896,13 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
     this.db.prepare(`
-      INSERT INTO discovery_runs (id, keyword, city, status, stage, progress, jobId, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, data.keyword, data.city, 'pending', 'queued', 0, data.jobId || null, now, now);
+      INSERT INTO discovery_runs (id, keyword, city, status, stage, progress, jobId, lat, lng, radius, zone, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, data.keyword, data.city, 'pending', 'queued', 0, data.jobId || null,
+      data.lat || null, data.lng || null, data.radius || null, data.zone || null,
+      now, now
+    );
     return this.getDiscoveryRun(id);
   }
 
@@ -1935,6 +2043,7 @@ class DatabaseService {
       service_area: process.env.SERVICE_AREA || 'DFW Metroplex',
       specialization: 'Commercial and Multi-family Plumbing',
       serper_api_key: process.env.SERPER_API_KEY || '',
+      google_places_api_key: process.env.GOOGLE_PLACES_API_KEY || '',
     };
 
     const stmt = this.db.prepare('INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)');
@@ -1978,6 +2087,100 @@ class DatabaseService {
       }
     });
     updateMany(Object.entries(obj));
+  }
+
+  // ==================== City & Search Operations ====================
+
+  getCitiesWithCounts() {
+    return this.db.prepare(`
+      SELECT
+        city,
+        COUNT(*) as totalPermits,
+        SUM(CASE WHEN leadTier = 'hot' THEN 1 ELSE 0 END) as hotCount,
+        SUM(CASE WHEN leadTier = 'warm' THEN 1 ELSE 0 END) as warmCount,
+        MAX(issuedDate) as lastPermitDate
+      FROM permits
+      WHERE city IS NOT NULL AND city != ''
+      GROUP BY city
+      ORDER BY totalPermits DESC
+    `).all();
+  }
+
+  getCityStats(city) {
+    const total = this.db.prepare(
+      'SELECT COUNT(*) as count FROM permits WHERE city = ?'
+    ).get(city).count;
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const thisWeek = this.db.prepare(
+      'SELECT COUNT(*) as count FROM permits WHERE city = ? AND issuedDate >= ?'
+    ).get(city, sevenDaysAgo).count;
+
+    const avgCostRow = this.db.prepare(
+      'SELECT AVG(estimatedCost) as avg FROM permits WHERE city = ? AND estimatedCost IS NOT NULL AND estimatedCost > 0'
+    ).get(city);
+    const avgCost = avgCostRow.avg || 0;
+
+    const tierBreakdown = this.db.prepare(`
+      SELECT leadTier, COUNT(*) as count
+      FROM permits WHERE city = ?
+      GROUP BY leadTier
+    `).all(city);
+
+    const topBuilders = this.db.prepare(`
+      SELECT contractorName, COUNT(*) as permitCount, SUM(estimatedCost) as totalValue
+      FROM permits
+      WHERE city = ? AND contractorName IS NOT NULL AND contractorName != ''
+      GROUP BY contractorName
+      ORDER BY permitCount DESC
+      LIMIT 10
+    `).all(city);
+
+    return {
+      city,
+      totalPermits: total,
+      permitsThisWeek: thisWeek,
+      avgCost: Math.round(avgCost),
+      tierBreakdown,
+      topBuilders
+    };
+  }
+
+  unifiedSearch(query, type) {
+    const results = { permits: [], leads: [], builders: [] };
+    const q = `%${query}%`;
+
+    if (!type || type === 'permits') {
+      results.permits = this.db.prepare(`
+        SELECT id, contractorName, address, city, leadScore, leadTier, permitType, 'permit' as resultType
+        FROM permits
+        WHERE contractorName LIKE ? OR address LIKE ? OR city LIKE ? OR description LIKE ?
+        ORDER BY leadScore DESC
+        LIMIT 20
+      `).all(q, q, q, q);
+    }
+
+    if (!type || type === 'leads') {
+      results.leads = this.db.prepare(`
+        SELECT id, name, company, location, score, status, 'lead' as resultType
+        FROM leads
+        WHERE name LIKE ? OR company LIKE ? OR location LIKE ?
+        ORDER BY score DESC NULLS LAST
+        LIMIT 20
+      `).all(q, q, q);
+    }
+
+    if (!type || type === 'builders') {
+      results.builders = this.db.prepare(`
+        SELECT id, name, company, totalPermits, activityTrend, hasPlumber, 'builder' as resultType
+        FROM builders
+        WHERE name LIKE ? OR company LIKE ?
+        ORDER BY totalPermits DESC
+        LIMIT 20
+      `).all(q, q);
+    }
+
+    return results;
   }
 
   // Backup database

@@ -46,7 +46,7 @@ export default function DiscoveryTab() {
 
   // Start run mutation
   const startMutation = useMutation({
-    mutationFn: ({ keyword, city }) => api.discovery.startRun(keyword, city),
+    mutationFn: ({ keyword, city, ...options }) => api.discovery.startRun(keyword, city, options),
     onSuccess: (data) => {
       setActiveRunId(data.runId);
       queryClient.invalidateQueries({ queryKey: ['discovery-runs'] });
@@ -80,8 +80,8 @@ export default function DiscoveryTab() {
     }
   }, [runs, activeRunId]);
 
-  const handleStartRun = useCallback((keyword, city) => {
-    startMutation.mutate({ keyword, city });
+  const handleStartRun = useCallback((keyword, city, options = {}) => {
+    startMutation.mutate({ keyword, city, ...options });
   }, [startMutation]);
 
   const handleStatusUpdate = useCallback((id, status) => {

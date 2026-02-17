@@ -200,7 +200,7 @@ export const api = {
 
   // Discovery pipeline
   discovery: {
-    startRun: (keyword, city) => apiClient.post('/discovery/run', { keyword, city }),
+    startRun: (keyword, city, options = {}) => apiClient.post('/discovery/run', { keyword, city, ...options }),
     getRuns: () => apiClient.get('/discovery/runs'),
     getRun: (runId) => apiClient.get(`/discovery/runs/${runId}`),
     getRunLeads: (runId, params) => apiClient.get(`/discovery/runs/${runId}/leads`, { params }),
@@ -220,7 +220,12 @@ export const api = {
     // Builders
     getBuilders: (params) => apiClient.get('/permits/builders', { params }),
     getProspects: (limit) => apiClient.get('/permits/builders/prospects', { params: { limit } }),
-    getBuilder: (id) => apiClient.get(`/permits/builders/${id}`)
+    getBuilder: (id) => apiClient.get(`/permits/builders/${id}`),
+
+    // City & Search
+    getCities: () => apiClient.get('/permits/cities'),
+    getCityStats: (city) => apiClient.get(`/permits/stats/city/${encodeURIComponent(city)}`),
+    search: (params) => apiClient.get('/permits/search', { params })
   }
 };
 

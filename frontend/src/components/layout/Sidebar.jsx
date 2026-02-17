@@ -3,10 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
-  Calculator,
+  ClipboardList,
   MessageSquare,
   Settings,
-  Ruler,
   Hammer,
   ChevronRight,
   Zap
@@ -16,10 +15,9 @@ import ThemeToggle from '../shared/ThemeToggle';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
   { path: '/leads', icon: Users, label: 'Lead Finder', shortcut: '2' },
-  { path: '/pricing', icon: Calculator, label: 'Pricing', shortcut: '3' },
-  { path: '/takeoff', icon: Ruler, label: 'Takeoff', shortcut: '4' },
-  { path: '/ai', icon: MessageSquare, label: 'AI Assistant', shortcut: '5' },
-  { path: '/settings', icon: Settings, label: 'Settings', shortcut: '6' }
+  { path: '/plans', icon: ClipboardList, label: 'Plans', shortcut: '3' },
+  { path: '/ai', icon: MessageSquare, label: 'AI Assistant', shortcut: '4' },
+  { path: '/settings', icon: Settings, label: 'Settings', shortcut: '5' }
 ];
 
 export default function Sidebar() {

@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, RefreshCw, Building2, MapPin, Wrench,
   Cpu, Shield, Key, Download, Trash2, Star, Activity,
   Server, Thermometer, AlertTriangle, Loader2, Eye, EyeOff,
-  HardDrive, Clock, Zap, CircuitBoard, Save, ExternalLink
+  HardDrive, Clock, Zap, CircuitBoard, Save, ExternalLink, Cog
 } from 'lucide-react';
 
 // ── Toast notification ──
@@ -97,7 +97,7 @@ export default function Settings() {
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq',
+    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw',
     retry: false
   });
 
@@ -125,6 +125,10 @@ export default function Settings() {
   const [groqKey, setGroqKey] = useState('');
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [groqTemperature, setGroqTemperature] = useState(0.7);
+  const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
+  const [openclawToken, setOpenclawToken] = useState('');
+  const [showOpenclawToken, setShowOpenclawToken] = useState(false);
+  const [openclawTemperature, setOpenclawTemperature] = useState(0.7);
   const [companyName, setCompanyName] = useState('');
   const [serviceArea, setServiceArea] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -138,6 +142,7 @@ export default function Settings() {
   // Loading states
   const [testingOllama, setTestingOllama] = useState(false);
   const [testingGroq, setTestingGroq] = useState(false);
+  const [testingOpenClaw, setTestingOpenClaw] = useState(false);
   const [testingSerper, setTestingSerper] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
@@ -152,6 +157,8 @@ export default function Settings() {
       setOllamaUrl(settingsData.ollama_url || 'http://localhost:11434');
       setTemperature(parseFloat(settingsData.ollama_temperature) || 0.7);
       setGroqTemperature(parseFloat(settingsData.groq_temperature) || 0.7);
+      setOpenclawUrl(settingsData.openclaw_url || 'http://localhost:18789');
+      setOpenclawTemperature(parseFloat(settingsData.openclaw_temperature) || 0.7);
       setCompanyName(settingsData.company_name || '');
       setServiceArea(settingsData.service_area || '');
       setSpecialization(settingsData.specialization || '');
@@ -169,7 +176,7 @@ export default function Settings() {
       refetchModels();
       queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
       refetchOllama();
-      showToast(`Switched to ${provider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}`);
+      showToast(`Switched to ${provider === 'openclaw' ? 'OpenClaw' : provider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}`);
     } catch (err) {
       showToast(`Failed to switch: ${err.message}`, 'error');
     } finally {
@@ -199,6 +206,33 @@ export default function Settings() {
       setGroqKey('');
       refetchSettings();
       showToast('Groq API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestOpenClaw = async () => {
+    setTestingOpenClaw(true);
+    try {
+      const result = await api.settings.testOpenClaw(openclawUrl, openclawToken || undefined);
+      if (result.connected) {
+        showToast(`Connected to OpenClaw (${result.model})`);
+      } else {
+        showToast(`Cannot connect: ${result.error}`, 'error');
+      }
+    } catch (err) {
+      showToast(`Connection test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingOpenClaw(false);
+    }
+  };
+
+  const handleSaveOpenclawToken = async () => {
+    try {
+      await api.settings.update({ openclaw_token: openclawToken });
+      setOpenclawToken('');
+      refetchSettings();
+      showToast('OpenClaw token saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     }
@@ -375,12 +409,14 @@ export default function Settings() {
           badge={
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                activeProvider === 'groq'
+                activeProvider === 'openclaw'
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                  : activeProvider === 'groq'
                   ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
                   : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${activeProvider === 'groq' ? 'bg-orange-500' : 'bg-blue-500'} animate-pulse`} />
-                {activeProvider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}
+                <span className={`w-1.5 h-1.5 rounded-full ${activeProvider === 'openclaw' ? 'bg-red-500' : activeProvider === 'groq' ? 'bg-orange-500' : 'bg-blue-500'} animate-pulse`} />
+                {activeProvider === 'openclaw' ? 'OpenClaw' : activeProvider === 'groq' ? 'Groq Cloud' : 'Ollama Local'}
               </span>
               {cbState !== 'closed' && (
                 <span className="badge bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -395,7 +431,7 @@ export default function Settings() {
             {/* Provider Toggle */}
             <div>
               <label className="label">AI Provider</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => handleSwitchProvider('ollama')}
                   disabled={switchingProvider}
@@ -436,6 +472,27 @@ export default function Settings() {
                     <span className="font-bold text-sm text-gray-900 dark:text-gray-100">Groq Cloud</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Ultra-fast cloud inference, Llama 3.3 70B</p>
+                </button>
+
+                <button
+                  onClick={() => handleSwitchProvider('openclaw')}
+                  disabled={switchingProvider}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                    activeProvider === 'openclaw'
+                      ? 'border-red-500 bg-red-50/50 dark:bg-red-950/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  {activeProvider === 'openclaw' && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="w-5 h-5 text-red-500" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cog className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <span className="font-bold text-sm text-gray-900 dark:text-gray-100">OpenClaw</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Local AI gateway, multi-model agent</p>
                 </button>
               </div>
             </div>
@@ -601,12 +658,118 @@ export default function Settings() {
               </>
             )}
 
+            {/* OpenClaw Settings (shown when OpenClaw is active) */}
+            {activeProvider === 'openclaw' && (
+              <>
+                <div>
+                  <label className="label">OpenClaw Gateway URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={openclawUrl}
+                      onChange={(e) => setOpenclawUrl(e.target.value)}
+                      className="input flex-1 font-mono text-sm"
+                      placeholder="http://localhost:18789"
+                    />
+                    <button
+                      onClick={handleTestOpenClaw}
+                      disabled={testingOpenClaw}
+                      className="btn-secondary text-sm whitespace-nowrap"
+                    >
+                      {testingOpenClaw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      Test
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Gateway Token (optional)</label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Set via OPENCLAW_GATEWAY_TOKEN or in openclaw.json
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={showOpenclawToken ? 'text' : 'password'}
+                        value={openclawToken}
+                        onChange={(e) => setOpenclawToken(e.target.value)}
+                        className="input pr-10 font-mono text-sm"
+                        placeholder={settings.openclaw_token_masked || 'Enter gateway token (if configured)'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenclawToken(!showOpenclawToken)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showOpenclawToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleSaveOpenclawToken}
+                      disabled={!openclawToken.trim()}
+                      className="btn-primary text-sm whitespace-nowrap"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Default Model / Agent</label>
+                  <select
+                    value={defaultModel}
+                    onChange={(e) => {
+                      handleSetDefaultModel(e.target.value);
+                      api.settings.update({ openclaw_model: e.target.value });
+                    }}
+                    className="input"
+                  >
+                    {availableModels.length === 0 && (
+                      <option>openclaw:main</option>
+                    )}
+                    {availableModels.map((m) => (
+                      <option key={m.name} value={m.name}>
+                        {m.label || m.name} {m.context ? `(${Math.round(m.context / 1000)}k ctx)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="label mb-0">Temperature</label>
+                    <span className="text-sm font-mono font-bold text-gray-900 dark:text-gray-100">
+                      {openclawTemperature.toFixed(2)}
+                      <span className="ml-2 text-xs font-sans text-gray-500 dark:text-gray-400">
+                        ({openclawTemperature <= 0.3 ? 'Precise' : openclawTemperature <= 0.7 ? 'Balanced' : 'Creative'})
+                      </span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={openclawTemperature}
+                    onChange={(e) => setOpenclawTemperature(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-0.5">
+                    <span>Precise</span>
+                    <span>Balanced</span>
+                    <span>Creative</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Save row */}
             <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                 <span className="flex items-center gap-1.5">
-                  {activeProvider === 'groq' ? <Zap className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
-                  {activeProvider === 'groq' ? 'Groq Cloud' : (config.baseUrl || ollamaUrl)}
+                  {activeProvider === 'openclaw' ? <Cog className="w-3.5 h-3.5" /> : activeProvider === 'groq' ? <Zap className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
+                  {activeProvider === 'openclaw' ? (config.baseUrl || openclawUrl) : activeProvider === 'groq' ? 'Groq Cloud' : (config.baseUrl || ollamaUrl)}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CircuitBoard className="w-3.5 h-3.5" />
@@ -617,7 +780,9 @@ export default function Settings() {
                 onClick={async () => {
                   setSavingAI(true);
                   try {
-                    const updates = activeProvider === 'groq'
+                    const updates = activeProvider === 'openclaw'
+                      ? { openclaw_url: openclawUrl, openclaw_temperature: String(openclawTemperature) }
+                      : activeProvider === 'groq'
                       ? { groq_temperature: String(groqTemperature) }
                       : { ollama_url: ollamaUrl, ollama_temperature: String(temperature) };
                     await api.settings.update(updates);
@@ -793,9 +958,9 @@ export default function Settings() {
           icon={HardDrive}
           title="Model Library"
           badge={
-            (connected || activeProvider === 'groq') && (
+            (connected || activeProvider === 'groq' || activeProvider === 'openclaw') && (
               <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                {availableModels.length} model{availableModels.length !== 1 ? 's' : ''} {activeProvider === 'groq' ? 'available' : 'installed'}
+                {availableModels.length} model{availableModels.length !== 1 ? 's' : ''} {activeProvider === 'groq' || activeProvider === 'openclaw' ? 'available' : 'installed'}
               </span>
             )
           }
@@ -846,6 +1011,15 @@ export default function Settings() {
             </div>
           )}
 
+          {activeProvider === 'openclaw' && (
+            <div className="mb-5 p-4 bg-red-50/50 dark:bg-red-950/10 rounded-xl border border-red-200/60 dark:border-red-800/40">
+              <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+                <Cog className="w-4 h-4" />
+                OpenClaw agents are managed via the OpenClaw CLI. The main agent is shown below.
+              </p>
+            </div>
+          )}
+
           {/* Model cards */}
           {(!connected && activeProvider === 'ollama') ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -856,7 +1030,7 @@ export default function Settings() {
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <HardDrive className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">
-                {activeProvider === 'groq' ? 'No Groq models found. Check your API key.' : 'No models installed. Pull one above to get started.'}
+                {activeProvider === 'openclaw' ? 'No OpenClaw agents found. Make sure the gateway is running.' : activeProvider === 'groq' ? 'No Groq models found. Check your API key.' : 'No models installed. Pull one above to get started.'}
               </p>
             </div>
           ) : (
@@ -865,6 +1039,7 @@ export default function Settings() {
                 const isDefault = m.name === defaultModel || m.name === config.defaultModel;
                 const isDeleting = deletingModel === m.name;
                 const isGroq = activeProvider === 'groq';
+                const isOpenClaw = activeProvider === 'openclaw';
 
                 return (
                   <div
@@ -894,7 +1069,7 @@ export default function Settings() {
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                          {isGroq ? (
+                          {isGroq || isOpenClaw ? (
                             <>
                               {m.context && (
                                 <span className="flex items-center gap-1">
@@ -903,8 +1078,8 @@ export default function Settings() {
                                 </span>
                               )}
                               <span className="flex items-center gap-1">
-                                <Server className="w-3 h-3" />
-                                Cloud hosted
+                                {isOpenClaw ? <Cog className="w-3 h-3" /> : <Server className="w-3 h-3" />}
+                                {isOpenClaw ? 'Local gateway' : 'Cloud hosted'}
                               </span>
                             </>
                           ) : (
@@ -935,7 +1110,7 @@ export default function Settings() {
                         )}
 
                         {/* Delete button - Ollama only */}
-                        {!isGroq && (
+                        {!isGroq && !isOpenClaw && (
                           deleteConfirm === m.name ? (
                             <div className="flex items-center gap-1">
                               <button

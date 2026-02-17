@@ -3,6 +3,7 @@
 
 import { ollamaService } from './ollama.js';
 import { groqService } from './groq.js';
+import { openclawService } from './openclaw.js';
 import { db } from './database.js';
 
 class AIProviderManager {
@@ -10,6 +11,7 @@ class AIProviderManager {
     this.providers = {
       ollama: ollamaService,
       groq: groqService,
+      openclaw: openclawService,
     };
     this._activeProvider = 'ollama';
   }
@@ -41,7 +43,7 @@ class AIProviderManager {
         name,
         active: name === this._activeProvider,
         defaultModel: svc.defaultModel,
-        hasApiKey: name === 'groq' ? !!svc.apiKey : true,
+        hasApiKey: name === 'groq' ? !!svc.apiKey : name === 'openclaw' ? true : true,
       };
     });
   }
@@ -76,6 +78,20 @@ class AIProviderManager {
       if (ollamaTemp) configUpdate.temperature = parseFloat(ollamaTemp);
       if (Object.keys(configUpdate).length > 0) {
         ollamaService.configure(configUpdate);
+      }
+
+      // Apply OpenClaw settings
+      const openclawUrl = db.getSetting('openclaw_url');
+      const openclawToken = db.getSetting('openclaw_token');
+      const openclawModel = db.getSetting('openclaw_model');
+      const openclawTemp = db.getSetting('openclaw_temperature');
+      const openclawConfig = {};
+      if (openclawUrl) openclawConfig.baseUrl = openclawUrl;
+      if (openclawToken) openclawConfig.apiKey = openclawToken;
+      if (openclawModel) openclawConfig.defaultModel = openclawModel;
+      if (openclawTemp) openclawConfig.temperature = parseFloat(openclawTemp);
+      if (Object.keys(openclawConfig).length > 0) {
+        openclawService.configure(openclawConfig);
       }
 
       console.log(`[ai-provider] Loaded settings — active: ${this._activeProvider}`);

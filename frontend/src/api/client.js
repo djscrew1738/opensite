@@ -110,6 +110,7 @@ export const api = {
     update: (data) => apiClient.put('/settings', data),
     testOllama: (url) => apiClient.post('/settings/test-ollama', { url }),
     testGroq: (key) => apiClient.post('/settings/test-groq', { key }),
+    testOpenClaw: (url, token) => apiClient.post('/settings/test-openclaw', { url, token }),
     testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
     getMetrics: () => apiClient.get('/settings/metrics'),
   },

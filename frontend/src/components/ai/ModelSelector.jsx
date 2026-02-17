@@ -34,8 +34,8 @@ export default function ModelSelector({
       parts.push(`(${formatSize(model.size)})`);
     }
 
-    // For Groq models, show context window instead of size
-    if (provider === 'groq' && model.context && !model.size) {
+    // For Groq/OpenClaw models, show context window instead of size
+    if ((provider === 'groq' || provider === 'openclaw') && model.context && !model.size) {
       const ctxK = Math.round(model.context / 1000);
       parts.push(`(${ctxK}k ctx)`);
     }

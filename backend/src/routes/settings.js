@@ -4,6 +4,7 @@ import express from 'express';
 import { db } from '../services/database.js';
 import { ollamaService } from '../services/ollama.js';
 import { groqService } from '../services/groq.js';
+import { openclawService } from '../services/openclaw.js';
 import { aiProvider } from '../services/ai-provider.js';
 import { tryCatch } from '../utils/response.js';
 
@@ -14,7 +15,7 @@ router.get('/', tryCatch(async (req, res) => {
   const settings = db.getAllSettings();
 
   // Mask API keys for security
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -55,6 +56,22 @@ router.put('/', tryCatch(async (req, res) => {
     updates.groq_temperature = String(temp);
   }
 
+  if (updates.openclaw_temperature !== undefined) {
+    const temp = parseFloat(updates.openclaw_temperature);
+    if (isNaN(temp) || temp < 0 || temp > 1) {
+      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
+    }
+    updates.openclaw_temperature = String(temp);
+  }
+
+  if (updates.openclaw_url) {
+    try {
+      new URL(updates.openclaw_url);
+    } catch {
+      return res.error('Invalid OpenClaw URL', 'VALIDATION_ERROR', null, 400);
+    }
+  }
+
   if (updates.ollama_url) {
     try {
       new URL(updates.ollama_url);
@@ -84,6 +101,16 @@ router.put('/', tryCatch(async (req, res) => {
     groqService.configure(groqConfig);
   }
 
+  // Apply OpenClaw settings at runtime
+  const openclawConfig = {};
+  if (updates.openclaw_url) openclawConfig.baseUrl = updates.openclaw_url;
+  if (updates.openclaw_token) openclawConfig.apiKey = updates.openclaw_token;
+  if (updates.openclaw_model) openclawConfig.defaultModel = updates.openclaw_model;
+  if (updates.openclaw_temperature !== undefined) openclawConfig.temperature = parseFloat(updates.openclaw_temperature);
+  if (Object.keys(openclawConfig).length > 0) {
+    openclawService.configure(openclawConfig);
+  }
+
   // Switch provider if requested
   if (updates.ai_provider) {
     try {
@@ -96,7 +123,7 @@ router.put('/', tryCatch(async (req, res) => {
 
   const settings = db.getAllSettings();
   // Mask API keys
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -159,6 +186,41 @@ router.post('/test-groq', tryCatch(async (req, res) => {
     res.success({
       valid: false,
       error: status === 401 ? 'Invalid API key' : error.message,
+    });
+  }
+}));
+
+// Test OpenClaw connection
+router.post('/test-openclaw', tryCatch(async (req, res) => {
+  const { url, token } = req.body;
+  const testUrl = url || openclawService.baseUrl;
+  const testToken = token || db.getSetting('openclaw_token') || openclawService.apiKey;
+
+  try {
+    const { default: axios } = await import('axios');
+    const headers = { 'Content-Type': 'application/json' };
+    if (testToken) headers['Authorization'] = `Bearer ${testToken}`;
+
+    const response = await axios.post(`${testUrl}/v1/chat/completions`, {
+      model: 'openclaw:main',
+      messages: [{ role: 'user', content: 'ping' }],
+      max_tokens: 5,
+    }, {
+      headers,
+      timeout: 15000,
+    });
+
+    const hasResponse = !!response.data?.choices?.[0]?.message?.content;
+    res.success({
+      connected: hasResponse,
+      url: testUrl,
+      model: response.data?.model || 'openclaw:main',
+    });
+  } catch (error) {
+    res.success({
+      connected: false,
+      url: testUrl,
+      error: error.response?.status === 401 ? 'Invalid token' : error.message,
     });
   }
 }));

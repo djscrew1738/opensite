@@ -7,10 +7,9 @@ import Layout from './components/layout/Layout';
 // Lazy load pages for better code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LeadFinder = lazy(() => import('./pages/LeadFinder'));
-const Pricing = lazy(() => import('./pages/Pricing'));
+const Plans = lazy(() => import('./pages/Plans'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Takeoff = lazy(() => import('./pages/Takeoff'));
 
 // Loading component
 function PageLoader() {
@@ -56,8 +55,7 @@ export default function App() {
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="leads" element={<LeadFinder />} />
-                <Route path="pricing" element={<Pricing />} />
-                <Route path="takeoff" element={<Takeoff />} />
+                <Route path="plans" element={<Plans />} />
                 <Route path="ai" element={<AIAssistant />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

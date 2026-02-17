@@ -2,8 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
-  Calculator,
-  Ruler,
+  ClipboardList,
   MessageSquare,
   Settings
 } from 'lucide-react';
@@ -11,8 +10,7 @@ import {
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/leads', icon: Users, label: 'Leads' },
-  { path: '/pricing', icon: Calculator, label: 'Price' },
-  { path: '/takeoff', icon: Ruler, label: 'Takeoff' },
+  { path: '/plans', icon: ClipboardList, label: 'Plans' },
   { path: '/ai', icon: MessageSquare, label: 'AI' },
   { path: '/settings', icon: Settings, label: 'More' }
 ];

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock, Wrench, ShieldCheck, TrendingUp, Package, CalendarDays, DollarSign, Gauge } from 'lucide-react';
 
 export default function BlueprintUpload({ onAnalysisComplete, tier, selectedModel }) {
   const [file, setFile] = useState(null);
@@ -298,6 +298,7 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
       {/* Results */}
       {result && (
         <div className="space-y-4">
+          {/* Status Banner */}
           <div className={`${showPartialResults ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4 flex items-center gap-3`}>
             {showPartialResults ? (
               <>
@@ -318,234 +319,455 @@ export default function BlueprintUpload({ onAnalysisComplete, tier, selectedMode
             )}
           </div>
 
-          {/* Extracted Data */}
-          {result.extractedData && Object.keys(result.extractedData).length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-3">Extracted Information</h4>
+          {/* ===== COMPREHENSIVE ANALYSIS OUTPUT ===== */}
+          {!result.partial && (
+            <div className="space-y-4">
 
-              {/* Basic Info */}
-              <div className="mb-3">
-                <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">
-                  Basic Information
-                </p>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {result.extractedData.sqft && (
-                    <div>
-                      <span className="text-blue-700">Square Footage:</span>
-                      <span className="ml-2 font-semibold text-blue-900">
-                        {result.extractedData.sqft.toLocaleString()} sqft
-                      </span>
-                    </div>
+              {/* --- Section 1: Project Details --- */}
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-surface-800 dark:to-surface-900 border border-slate-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200 dark:border-surface-700 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-700 dark:bg-slate-600 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-gray-100">Project Details</h4>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">{result.fileName}</p>
+                  </div>
+                </div>
+                <div className="p-5 space-y-4">
+                  {/* Overview */}
+                  {result.aiAnalysis?.overview && typeof result.aiAnalysis === 'object' && (
+                    <p className="text-sm text-slate-700 dark:text-gray-300 leading-relaxed">{result.aiAnalysis.overview}</p>
                   )}
-                  {result.extractedData.units && (
-                    <div>
-                      <span className="text-blue-700">Units:</span>
-                      <span className="ml-2 font-semibold text-blue-900">
-                        {result.extractedData.units}
-                      </span>
-                    </div>
-                  )}
-                  {result.extractedData.bathrooms && (
-                    <div>
-                      <span className="text-blue-700">Bathrooms:</span>
-                      <span className="ml-2 font-semibold text-blue-900">
-                        {result.extractedData.bathrooms}
-                      </span>
-                    </div>
-                  )}
-                  {result.extractedData.stories && (
-                    <div>
-                      <span className="text-blue-700">Stories:</span>
-                      <span className="ml-2 font-semibold text-blue-900">
-                        {result.extractedData.stories}
-                      </span>
+
+                  {/* Complexity + Quick Stats Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {result.aiAnalysis?.projectComplexity && (
+                      <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-slate-200 dark:border-surface-600 text-center">
+                        <Gauge className="w-4 h-4 mx-auto mb-1 text-slate-500 dark:text-gray-400" />
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold">Complexity</p>
+                        <p className={`text-sm font-bold mt-0.5 ${
+                          result.aiAnalysis.projectComplexity === 'complex' ? 'text-red-600 dark:text-red-400' :
+                          result.aiAnalysis.projectComplexity === 'medium' ? 'text-amber-600 dark:text-amber-400' :
+                          'text-green-600 dark:text-green-400'
+                        }`}>
+                          {result.aiAnalysis.projectComplexity.charAt(0).toUpperCase() + result.aiAnalysis.projectComplexity.slice(1)}
+                          {result.aiAnalysis.complexityScore != null && ` (${result.aiAnalysis.complexityScore})`}
+                        </p>
+                      </div>
+                    )}
+                    {result.extractedData?.sqft > 0 && (
+                      <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-slate-200 dark:border-surface-600 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold">Sq Footage</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-gray-100 mt-1">{result.extractedData.sqft.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {result.extractedData?.units > 0 && (
+                      <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-slate-200 dark:border-surface-600 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold">Units</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-gray-100 mt-1">{result.extractedData.units}</p>
+                      </div>
+                    )}
+                    {result.extractedData?.stories > 0 && (
+                      <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-slate-200 dark:border-surface-600 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold">Stories</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-gray-100 mt-1">{result.extractedData.stories}</p>
+                      </div>
+                    )}
+                    {result.extractedData?.bathrooms > 0 && (
+                      <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-slate-200 dark:border-surface-600 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold">Bathrooms</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-gray-100 mt-1">{result.extractedData.bathrooms}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Complexity Factors */}
+                  {result.aiAnalysis?.complexityFactors?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.aiAnalysis.complexityFactors.map((f, i) => (
+                        <span key={i} className="text-xs px-2 py-1 bg-slate-200 dark:bg-surface-700 text-slate-700 dark:text-gray-300 rounded-full">{f}</span>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Fixtures */}
-              {(result.extractedData.lavatories || result.extractedData.kitchenFaucets ||
+              {/* --- Section 2: Plumbing Fixtures --- */}
+              {result.extractedData && (result.extractedData.lavatories || result.extractedData.kitchenFaucets ||
                 result.extractedData.barSinks || result.extractedData.toilets ||
                 result.extractedData.tubs || result.extractedData.showerBases ||
                 result.extractedData.mudPans || result.extractedData.washingMachines ||
                 result.extractedData.waterSoftenerPreplumb) && (
-                <div className="border-t border-blue-200 pt-3">
-                  <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">
-                    Plumbing Fixtures
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    {result.extractedData.lavatories > 0 && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-surface-800 dark:to-surface-900 border border-blue-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-blue-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600 dark:bg-blue-700 flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-white" />
+                    </div>
+                    <h4 className="font-bold text-blue-900 dark:text-gray-100">Plumbing Fixtures</h4>
+                  </div>
+                  <div className="p-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { key: 'toilets', label: 'Toilets' },
+                        { key: 'lavatories', label: 'Lavatories' },
+                        { key: 'kitchenFaucets', label: 'Kitchen Faucets' },
+                        { key: 'barSinks', label: 'Bar Sinks' },
+                        { key: 'tubs', label: 'Tubs' },
+                        { key: 'showerBases', label: 'Shower Bases' },
+                        { key: 'mudPans', label: 'Mud Pans' },
+                        { key: 'washingMachines', label: 'Washing Machines' },
+                        { key: 'waterSoftenerPreplumb', label: 'Water Softener Pre-plumb' },
+                      ].filter(f => result.extractedData[f.key] > 0).map(f => (
+                        <div key={f.key} className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-blue-100 dark:border-surface-600 flex items-center justify-between">
+                          <span className="text-xs text-blue-700 dark:text-gray-400">{f.label}</span>
+                          <span className="text-lg font-bold text-blue-900 dark:text-gray-100">{result.extractedData[f.key]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* --- Section 3: Requirements (from AI) --- */}
+              {result.aiAnalysis?.requirements && typeof result.aiAnalysis === 'object' && (
+                Object.keys(result.aiAnalysis.requirements).length > 0 && (
+                <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-surface-800 dark:to-surface-900 border border-violet-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-violet-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-600 dark:bg-violet-700 flex items-center justify-center">
+                      <Package className="w-4 h-4 text-white" />
+                    </div>
+                    <h4 className="font-bold text-violet-900 dark:text-gray-100">Requirements & Specifications</h4>
+                  </div>
+                  <div className="p-5 space-y-4 text-sm">
+                    {/* Pipes */}
+                    {result.aiAnalysis.requirements.pipes?.length > 0 && (
                       <div>
-                        <span className="text-blue-700">Lavatories:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.lavatories}
-                        </span>
+                        <p className="font-semibold text-violet-800 dark:text-gray-200 mb-2">Piping</p>
+                        <div className="space-y-2">
+                          {result.aiAnalysis.requirements.pipes.map((p, i) => (
+                            <div key={i} className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-violet-100 dark:border-surface-600">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-violet-900 dark:text-gray-100">{p.type}</span>
+                                {p.estimatedLength && <span className="text-violet-600 dark:text-violet-400 font-semibold">{p.estimatedLength}</span>}
+                              </div>
+                              <p className="text-violet-600 dark:text-gray-400 text-xs mt-0.5">
+                                {p.material}{p.size ? ` — ${p.size}` : ''}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.kitchenFaucets > 0 && (
+                    {/* Fixtures from AI */}
+                    {result.aiAnalysis.requirements.fixtures?.length > 0 && (
                       <div>
-                        <span className="text-blue-700">Kitchen Faucets:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.kitchenFaucets}
-                        </span>
+                        <p className="font-semibold text-violet-800 dark:text-gray-200 mb-2">Fixture Requirements</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {result.aiAnalysis.requirements.fixtures.map((f, i) => (
+                            <div key={i} className="bg-white dark:bg-surface-800 rounded-lg p-2.5 border border-violet-100 dark:border-surface-600">
+                              <div className="flex justify-between items-center">
+                                <span className="text-violet-800 dark:text-gray-200 font-medium">{f.category}</span>
+                                <span className="text-violet-600 dark:text-violet-400 font-bold">{f.count}</span>
+                              </div>
+                              {f.notes && <p className="text-[11px] text-violet-500 dark:text-gray-500 mt-0.5">{f.notes}</p>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.barSinks > 0 && (
+                    {/* Water Heater */}
+                    {result.aiAnalysis.requirements.waterHeater && (
                       <div>
-                        <span className="text-blue-700">Bar Sinks:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.barSinks}
-                        </span>
+                        <p className="font-semibold text-violet-800 dark:text-gray-200 mb-2">Water Heater</p>
+                        <div className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-violet-100 dark:border-surface-600">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div><span className="text-violet-500 dark:text-gray-400">Type:</span> <span className="font-medium text-violet-900 dark:text-gray-200">{result.aiAnalysis.requirements.waterHeater.type}</span></div>
+                            <div><span className="text-violet-500 dark:text-gray-400">Capacity:</span> <span className="font-medium text-violet-900 dark:text-gray-200">{result.aiAnalysis.requirements.waterHeater.capacity}</span></div>
+                            {result.aiAnalysis.requirements.waterHeater.location && (
+                              <div><span className="text-violet-500 dark:text-gray-400">Location:</span> <span className="font-medium text-violet-900 dark:text-gray-200">{result.aiAnalysis.requirements.waterHeater.location}</span></div>
+                            )}
+                            {result.aiAnalysis.requirements.waterHeater.units > 0 && (
+                              <div><span className="text-violet-500 dark:text-gray-400">Units:</span> <span className="font-medium text-violet-900 dark:text-gray-200">{result.aiAnalysis.requirements.waterHeater.units}</span></div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.toilets > 0 && (
+                    {/* Drainage */}
+                    {result.aiAnalysis.requirements.drainage && (
                       <div>
-                        <span className="text-blue-700">Toilets:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.toilets}
-                        </span>
+                        <p className="font-semibold text-violet-800 dark:text-gray-200 mb-1">Drainage</p>
+                        <p className="text-violet-700 dark:text-gray-300">{result.aiAnalysis.requirements.drainage}</p>
                       </div>
                     )}
-                    {result.extractedData.tubs > 0 && (
+                    {/* Special Features */}
+                    {result.aiAnalysis.requirements.specialFeatures?.length > 0 && (
                       <div>
-                        <span className="text-blue-700">Tubs:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.tubs}
-                        </span>
+                        <p className="font-semibold text-violet-800 dark:text-gray-200 mb-1">Special Features</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.aiAnalysis.requirements.specialFeatures.map((f, i) => (
+                            <span key={i} className="text-xs px-2.5 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded-full">{f}</span>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.showerBases > 0 && (
+                  </div>
+                </div>
+              ))}
+
+              {/* --- Section 4: Timeline & Labor --- */}
+              {result.aiAnalysis && typeof result.aiAnalysis === 'object' && (result.aiAnalysis.timeline || result.aiAnalysis.laborEstimate) && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-surface-800 dark:to-surface-900 border border-emerald-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-emerald-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 dark:bg-emerald-700 flex items-center justify-center">
+                      <CalendarDays className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-emerald-900 dark:text-gray-100">Timeline & Labor</h4>
+                      {result.aiAnalysis.timeline?.estimatedDuration && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Estimated: {result.aiAnalysis.timeline.estimatedDuration}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {/* Labor Estimate */}
+                    {result.aiAnalysis.laborEstimate && (
                       <div>
-                        <span className="text-blue-700">Shower Bases:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.showerBases}
-                        </span>
+                        <p className="text-xs font-semibold text-emerald-800 dark:text-gray-300 uppercase tracking-wider mb-2">Labor Breakdown</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { key: 'roughIn', label: 'Rough-In' },
+                            { key: 'topOut', label: 'Top-Out' },
+                            { key: 'trim', label: 'Trim' },
+                          ].filter(p => result.aiAnalysis.laborEstimate[p.key]).map(p => (
+                            <div key={p.key} className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-emerald-100 dark:border-surface-600 text-center">
+                              <p className="text-[10px] uppercase tracking-wider text-emerald-500 dark:text-gray-400 font-semibold">{p.label}</p>
+                              <p className="text-lg font-bold text-emerald-900 dark:text-gray-100 mt-0.5">{result.aiAnalysis.laborEstimate[p.key].hours}h</p>
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400">{result.aiAnalysis.laborEstimate[p.key].duration}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.mudPans > 0 && (
+                    {/* Timeline Phases */}
+                    {result.aiAnalysis.timeline?.phases?.length > 0 && (
                       <div>
-                        <span className="text-blue-700">Mud Pans:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.mudPans}
-                        </span>
+                        <p className="text-xs font-semibold text-emerald-800 dark:text-gray-300 uppercase tracking-wider mb-2">Phases</p>
+                        <div className="space-y-2">
+                          {result.aiAnalysis.timeline.phases.map((phase, i) => (
+                            <div key={i} className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-emerald-100 dark:border-surface-600">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-semibold text-emerald-900 dark:text-gray-100 text-sm">{phase.name}</span>
+                                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">{phase.duration}</span>
+                              </div>
+                              {phase.tasks?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {phase.tasks.map((t, j) => (
+                                    <span key={j} className="text-[11px] text-emerald-700 dark:text-gray-400 bg-emerald-50 dark:bg-surface-700 px-2 py-0.5 rounded">{t}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {result.extractedData.washingMachines > 0 && (
+                    {/* Critical Path */}
+                    {result.aiAnalysis.timeline?.criticalPath?.length > 0 && (
                       <div>
-                        <span className="text-blue-700">Washing Machines:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.washingMachines}
-                        </span>
-                      </div>
-                    )}
-                    {result.extractedData.waterSoftenerPreplumb > 0 && (
-                      <div className="col-span-2">
-                        <span className="text-blue-700">Water Softener Pre-plumb:</span>
-                        <span className="ml-2 font-semibold text-blue-900">
-                          {result.extractedData.waterSoftenerPreplumb}
-                        </span>
+                        <p className="text-xs font-semibold text-emerald-800 dark:text-gray-300 uppercase tracking-wider mb-1">Critical Path</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.aiAnalysis.timeline.criticalPath.map((cp, i) => (
+                            <span key={i} className="text-xs px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full font-medium">{cp}</span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* AI Analysis - only show when complete */}
-          {result.aiAnalysis && !result.partial && (
-            <div className="bg-white dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">AI Analysis</h4>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {/* Handle both structured object and text responses */}
-                {typeof result.aiAnalysis === 'object' ? (
-                  <div className="space-y-3">
-                    {result.aiAnalysis.overview && (
-                      <p className="text-gray-700 dark:text-gray-300 font-medium">{result.aiAnalysis.overview}</p>
-                    )}
-                    {result.aiAnalysis.projectComplexity && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Complexity:</span>
-                        <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
-                          result.aiAnalysis.projectComplexity === 'complex' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                          result.aiAnalysis.projectComplexity === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                        }`}>
-                          {result.aiAnalysis.projectComplexity}
-                          {result.aiAnalysis.complexityScore != null && ` (${result.aiAnalysis.complexityScore}/100)`}
-                        </span>
+              {/* --- Section 5: Estimated Pricing & Materials --- */}
+              {(result.estimate || (result.aiAnalysis && typeof result.aiAnalysis === 'object' && result.aiAnalysis.materialBreakdown)) && (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-surface-800 dark:to-surface-900 border border-amber-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-amber-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-600 dark:bg-amber-700 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4 text-white" />
+                    </div>
+                    <h4 className="font-bold text-amber-900 dark:text-gray-100">Pricing & Materials</h4>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {/* Total & Per Unit */}
+                    {result.estimate && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-amber-200 dark:border-surface-600 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-amber-500 dark:text-gray-400 font-semibold">Total Estimate</p>
+                          <p className="text-2xl font-bold text-amber-900 dark:text-gray-100 mt-1">${result.estimate.total?.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-amber-200 dark:border-surface-600 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-amber-500 dark:text-gray-400 font-semibold">Per Unit</p>
+                          <p className="text-2xl font-bold text-amber-900 dark:text-gray-100 mt-1">${result.estimate.perUnit?.toLocaleString()}</p>
+                        </div>
                       </div>
                     )}
+                    {/* Labor Cost Breakdown */}
+                    {result.estimate?.labor && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber-800 dark:text-gray-300 uppercase tracking-wider mb-2">Labor Costs</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { key: 'roughIn', label: 'Rough-In' },
+                            { key: 'topOut', label: 'Top-Out' },
+                            { key: 'trim', label: 'Trim' },
+                          ].filter(l => result.estimate.labor[l.key]).map(l => (
+                            <div key={l.key} className="bg-white dark:bg-surface-800 rounded-lg p-2.5 border border-amber-100 dark:border-surface-600 text-center">
+                              <p className="text-[10px] text-amber-500 dark:text-gray-400 font-semibold">{l.label}</p>
+                              <p className="text-sm font-bold text-amber-900 dark:text-gray-100">${result.estimate.labor[l.key]?.toLocaleString()}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Material Breakdown */}
+                    {result.estimate?.materials && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber-800 dark:text-gray-300 uppercase tracking-wider mb-2">Material Costs</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {Object.entries(result.estimate.materials).map(([k, v]) => (
+                            <div key={k} className="bg-white dark:bg-surface-800 rounded-lg p-2.5 border border-amber-100 dark:border-surface-600 text-center">
+                              <p className="text-[10px] text-amber-500 dark:text-gray-400 font-semibold capitalize">{k}</p>
+                              <p className="text-sm font-bold text-amber-900 dark:text-gray-100">${v?.toLocaleString()}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Pricing Recommendation */}
+                    {result.aiAnalysis?.pricingRecommendation && typeof result.aiAnalysis === 'object' && (
+                      <div className="bg-amber-100/50 dark:bg-amber-900/10 rounded-lg p-3 border border-amber-200 dark:border-amber-800/30">
+                        <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">AI Pricing Recommendation</p>
+                        <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
+                          Recommended Tier: {result.aiAnalysis.pricingRecommendation.tier}
+                        </p>
+                        {result.aiAnalysis.pricingRecommendation.factors?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {result.aiAnalysis.pricingRecommendation.factors.map((f, i) => (
+                              <span key={i} className="text-[11px] px-2 py-0.5 bg-amber-200/60 dark:bg-amber-800/30 text-amber-800 dark:text-amber-300 rounded">{f}</span>
+                            ))}
+                          </div>
+                        )}
+                        {result.aiAnalysis.pricingRecommendation.adjustments && (
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">{result.aiAnalysis.pricingRecommendation.adjustments}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* --- Section 6: Recommendations & Risks --- */}
+              {result.aiAnalysis && typeof result.aiAnalysis === 'object' && (result.aiAnalysis.recommendations?.length > 0 || result.aiAnalysis.risks?.length > 0) && (
+                <div className="bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-surface-800 dark:to-surface-900 border border-cyan-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-cyan-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-cyan-600 dark:bg-cyan-700 flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-white" />
+                    </div>
+                    <h4 className="font-bold text-cyan-900 dark:text-gray-100">Recommendations & Risks</h4>
+                  </div>
+                  <div className="p-5 space-y-4">
                     {result.aiAnalysis.recommendations?.length > 0 && (
                       <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Recommendations:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <p className="text-xs font-semibold text-cyan-800 dark:text-gray-300 uppercase tracking-wider mb-2">Recommendations</p>
+                        <div className="space-y-2">
                           {result.aiAnalysis.recommendations.map((rec, i) => (
-                            <li key={i}>{typeof rec === 'string' ? rec : rec.text || JSON.stringify(rec)}</li>
+                            <div key={i} className="flex items-start gap-2.5 bg-white dark:bg-surface-800 rounded-lg p-3 border border-cyan-100 dark:border-surface-600">
+                              <CheckCircle className="w-4 h-4 text-cyan-500 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-cyan-900 dark:text-gray-200">{typeof rec === 'string' ? rec : rec.text || JSON.stringify(rec)}</p>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       </div>
                     )}
                     {result.aiAnalysis.risks?.length > 0 && (
                       <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Risks:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <p className="text-xs font-semibold text-cyan-800 dark:text-gray-300 uppercase tracking-wider mb-2">Potential Risks</p>
+                        <div className="space-y-2">
                           {result.aiAnalysis.risks.map((r, i) => (
-                            <li key={i}>
-                              <span className="font-medium">{r.risk || r}</span>
-                              {r.mitigation && <span className="text-gray-500 dark:text-gray-400"> — {r.mitigation}</span>}
-                            </li>
+                            <div key={i} className="bg-white dark:bg-surface-800 rounded-lg p-3 border border-red-100 dark:border-surface-600">
+                              <div className="flex items-start gap-2.5">
+                                <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-red-800 dark:text-red-300">{r.risk || r}</p>
+                                  {r.mitigation && (
+                                    <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Mitigation: {r.mitigation}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           ))}
-                        </ul>
-                      </div>
-                    )}
-                    {result.aiAnalysis.codeCompliance?.notes?.length > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Code Compliance:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                          {result.aiAnalysis.codeCompliance.notes.map((note, i) => (
-                            <li key={i}>{note}</li>
-                          ))}
-                        </ul>
+                        </div>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.aiAnalysis}</p>
-                )}
-              </div>
-              {/* Fallback: show raw AI text if structured parse had issues */}
-              {result.aiAnalysisText && typeof result.aiAnalysis === 'object' && !result.aiAnalysis.overview && (
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-surface-700">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{result.aiAnalysisText}</p>
                 </div>
               )}
+
+              {/* --- Section 7: Code Compliance --- */}
+              {result.aiAnalysis?.codeCompliance?.notes?.length > 0 && typeof result.aiAnalysis === 'object' && (
+                <div className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-surface-800 dark:to-surface-900 border border-rose-200 dark:border-surface-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-rose-200 dark:border-surface-700 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-rose-600 dark:bg-rose-700 flex items-center justify-center">
+                      <ShieldCheck className="w-4 h-4 text-white" />
+                    </div>
+                    <h4 className="font-bold text-rose-900 dark:text-gray-100">Code Compliance</h4>
+                  </div>
+                  <div className="p-5">
+                    <div className="space-y-2">
+                      {result.aiAnalysis.codeCompliance.notes.map((note, i) => (
+                        <div key={i} className="flex items-start gap-2.5 bg-white dark:bg-surface-800 rounded-lg p-3 border border-rose-100 dark:border-surface-600">
+                          <ShieldCheck className="w-4 h-4 text-rose-500 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-rose-900 dark:text-gray-200">{note}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback: raw AI text if structured parse failed */}
+              {result.aiAnalysisText && typeof result.aiAnalysis === 'object' && !result.aiAnalysis.overview && (
+                <div className="bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl p-5">
+                  <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-3">AI Analysis (Raw)</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.aiAnalysisText}</p>
+                </div>
+              )}
+              {/* String-only AI response fallback */}
+              {result.aiAnalysis && typeof result.aiAnalysis === 'string' && (
+                <div className="bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl p-5">
+                  <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-3">AI Analysis</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.aiAnalysis}</p>
+                </div>
+              )}
+
+              {/* Model attribution */}
               {result.modelUsed && (
-                <p className="text-xs text-gray-500 mt-3">
-                  Model used: {result.modelUsed}
-                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-right">Model: {result.modelUsed}</p>
               )}
             </div>
           )}
 
-          {/* Estimate - only show when complete */}
-          {result.estimate && !result.partial && (
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-              <h4 className="font-semibold text-primary-900 mb-3">Estimated Pricing</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-primary-700">Total Price</p>
-                  <p className="text-2xl font-bold text-primary-900">
-                    ${result.estimate.total?.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-primary-700">Per Unit</p>
-                  <p className="text-2xl font-bold text-primary-900">
-                    ${result.estimate.perUnit?.toLocaleString()}
-                  </p>
-                </div>
+          {/* Partial results — show extracted data while AI processes */}
+          {result.partial && result.extractedData && Object.keys(result.extractedData).length > 0 && (
+            <div className="bg-blue-50 dark:bg-surface-800 border border-blue-200 dark:border-surface-700 rounded-xl p-5">
+              <h4 className="font-semibold text-blue-900 dark:text-gray-100 mb-3">Extracted Information</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {Object.entries(result.extractedData).filter(([, v]) => v > 0).map(([key, val]) => (
+                  <div key={key} className="bg-white dark:bg-surface-700 rounded-lg p-2.5 border border-blue-100 dark:border-surface-600 flex items-center justify-between">
+                    <span className="text-xs text-blue-700 dark:text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    <span className="text-sm font-bold text-blue-900 dark:text-gray-100">{typeof val === 'number' ? val.toLocaleString() : val}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -146,6 +146,62 @@ Please analyze this blueprint and provide a comprehensive response in the follow
     "valves": 1500,
     "other": 2000
   },
+  "materialTakeoff": [
+    {
+      "item": "3/4\" PEX Pipe",
+      "category": "Pipe",
+      "description": "Main supply line",
+      "quantity": 500,
+      "unit": "LF",
+      "unitCost": 2.50,
+      "totalCost": 1250
+    },
+    {
+      "item": "1/2\" PEX Pipe",
+      "category": "Pipe",
+      "description": "Branch supply lines to fixtures",
+      "quantity": 800,
+      "unit": "LF",
+      "unitCost": 1.75,
+      "totalCost": 1400
+    },
+    {
+      "item": "4\" PVC DWV Pipe",
+      "category": "Pipe",
+      "description": "Main drain line",
+      "quantity": 200,
+      "unit": "LF",
+      "unitCost": 8.00,
+      "totalCost": 1600
+    },
+    {
+      "item": "2\" PVC DWV Pipe",
+      "category": "Pipe",
+      "description": "Branch drain lines",
+      "quantity": 400,
+      "unit": "LF",
+      "unitCost": 4.50,
+      "totalCost": 1800
+    },
+    {
+      "item": "Toilet (Standard)",
+      "category": "Fixture",
+      "description": "1.28 GPF water closet",
+      "quantity": 10,
+      "unit": "EA",
+      "unitCost": 250,
+      "totalCost": 2500
+    },
+    {
+      "item": "Lavatory Faucet",
+      "category": "Fixture",
+      "description": "Chrome single-handle",
+      "quantity": 10,
+      "unit": "EA",
+      "unitCost": 85,
+      "totalCost": 850
+    }
+  ],
   "pricingRecommendation": {
     "tier": "Production|Custom|Premium",
     "factors": ["factor 1", "factor 2"],
@@ -153,7 +209,9 @@ Please analyze this blueprint and provide a comprehensive response in the follow
   }
 }
 
-IMPORTANT: Return ONLY valid JSON. Do not include any text before or after the JSON. Ensure all numeric values are numbers, not strings.`;
+IMPORTANT:
+- Return ONLY valid JSON. Do not include any text before or after the JSON. Ensure all numeric values are numbers, not strings.
+- The "materialTakeoff" array is CRITICAL. Include EVERY material needed for the project: all pipe types/sizes, fittings (elbows, tees, couplings, adapters), valves (shut-offs, ball valves, check valves), fixtures (toilets, faucets, tubs, showers), connectors, hangers/supports, sealants, test plugs, cleanouts, P-traps, wax rings, supply lines, water heater components, and any specialty items. Be specific with sizes and materials. Use realistic current pricing. Categories should be: Pipe, Fitting, Valve, Fixture, Support, Connector, Specialty, or Other.`;
 }
 
 // Helper to safely parse JSON from AI response
@@ -339,7 +397,8 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
       },
       codeCompliance: parsedAnalysis.codeCompliance || { notes: [] },
       recommendations: parsedAnalysis.recommendations || [],
-      risks: parsedAnalysis.risks || []
+      risks: parsedAnalysis.risks || [],
+      materialTakeoff: parsedAnalysis.materialTakeoff || []
     } : {
       overview: 'Analysis complete',
       projectComplexity: complexityLevel,
@@ -358,7 +417,8 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
       },
       codeCompliance: { notes: [] },
       recommendations: [],
-      risks: []
+      risks: [],
+      materialTakeoff: []
     };
 
     const result = {
@@ -489,7 +549,8 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
       },
       codeCompliance: parsedAnalysis.codeCompliance || { notes: [] },
       recommendations: parsedAnalysis.recommendations || [],
-      risks: parsedAnalysis.risks || []
+      risks: parsedAnalysis.risks || [],
+      materialTakeoff: parsedAnalysis.materialTakeoff || []
     } : {
       overview: 'Analysis complete',
       projectComplexity: complexityLevel,
@@ -508,7 +569,8 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
       },
       codeCompliance: { notes: [] },
       recommendations: [],
-      risks: []
+      risks: [],
+      materialTakeoff: []
     };
 
     const response = {

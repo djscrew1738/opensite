@@ -6,25 +6,28 @@ import logger from './logger.js';
 
 class CacheService {
   constructor() {
-    // Main cache - 10 minute TTL, check every 2 minutes
+    // Main cache - 15 minute TTL, check every 3 minutes
     this.cache = new NodeCache({
-      stdTTL: 600,
-      checkperiod: 120,
-      useClones: false
+      stdTTL: 900,
+      checkperiod: 180,
+      useClones: false,
+      maxKeys: 5000
     });
 
-    // Short-term cache for API responses - 1 minute TTL
+    // Short-term cache for API responses - 2 minute TTL
     this.apiCache = new NodeCache({
-      stdTTL: 60,
-      checkperiod: 30,
-      useClones: false
+      stdTTL: 120,
+      checkperiod: 60,
+      useClones: false,
+      maxKeys: 2000
     });
 
-    // Long-term cache for static data - 1 hour TTL
+    // Long-term cache for static data - 2 hour TTL
     this.staticCache = new NodeCache({
-      stdTTL: 3600,
-      checkperiod: 600,
-      useClones: false
+      stdTTL: 7200,
+      checkperiod: 900,
+      useClones: false,
+      maxKeys: 1000
     });
 
     // Setup event listeners

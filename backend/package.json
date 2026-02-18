@@ -5,8 +5,8 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
+    "dev": "node --max-old-space-size=512 --watch src/server.js",
+    "start": "node --max-old-space-size=512 src/server.js",
     "permits:ingest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualIngest(7))\"",
     "permits:score": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualScore())\"",
     "permits:digest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualDigest())\"",

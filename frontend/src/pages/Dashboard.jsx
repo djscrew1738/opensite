@@ -30,9 +30,9 @@ import ProjectModal from '../components/projects/ProjectModal';
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Good morning, Cory';
+  if (hour < 17) return 'Good afternoon, Cory';
+  return 'Good evening, Cory';
 }
 
 // Quick detail drawer for leads
@@ -271,7 +271,7 @@ export default function Dashboard() {
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-3xl md:text-4xl font-display font-bold text-white tracking-tight mb-2">
-              {getGreeting()}, <span className="text-gradient">Operator</span>
+              {getGreeting()}
             </h1>
             <div className="flex items-center gap-4 flex-wrap">
               <p className="text-sm text-primary-200 font-medium flex items-center gap-2">

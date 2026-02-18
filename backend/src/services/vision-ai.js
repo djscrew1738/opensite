@@ -2,6 +2,7 @@
 
 import { db } from './database.js';
 import logger from './logger.js';
+import sharp from 'sharp';
 import fs from 'fs';
 
 /**
@@ -27,14 +28,16 @@ class VisionAIService {
 
     if (progressCallback) progressCallback(10);
 
-    // Read image as base64
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = imageBuffer.toString('base64');
-    const ext = imagePath.split('.').pop().toLowerCase();
-    const mediaType = ext === 'png' ? 'image/png' :
-                      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
-                      ext === 'tiff' || ext === 'tif' ? 'image/tiff' :
-                      ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    // Read and resize image for API — Groq has 4MB base64 limit, Anthropic 20MB
+    // Resize to max 2048px on longest side for analysis (keeps detail, reduces size)
+    const maxDim = anthropicKey ? 4096 : 2048;
+    const resizedBuffer = await sharp(imagePath)
+      .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    const base64Image = resizedBuffer.toString('base64');
+    const mediaType = 'image/jpeg';
 
     if (progressCallback) progressCallback(20);
 
@@ -51,7 +54,7 @@ class VisionAIService {
   }
 
   async analyzeWithAnthropic(base64Image, mediaType, apiKey, options = {}) {
-    const model = options.model || 'claude-haiku-4-5-20251001';
+    const model = options.model || 'claude-haiku-4-5';
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -96,7 +99,7 @@ class VisionAIService {
   }
 
   async analyzeWithGroq(base64Image, mediaType, apiKey, options = {}) {
-    const model = options.model || 'llama-3.2-90b-vision-preview';
+    const model = options.model || 'meta-llama/llama-4-scout-17b-16e-instruct';
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -181,22 +184,25 @@ IMPORTANT: All coordinates (x, y, width, height) must be normalized between 0 an
       const parsed = JSON.parse(text);
       return { success: true, data: parsed, model, raw: text };
     } catch (e) {
-      // Try extracting JSON from markdown blocks
-      const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
+      // Try each JSON code block individually (responses often have multiple blocks)
+      const blockRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g;
+      let match;
+      while ((match = blockRegex.exec(text)) !== null) {
         try {
-          const parsed = JSON.parse(jsonMatch[1]);
-          return { success: true, data: parsed, model, raw: text };
-        } catch (e2) { /* fall through */ }
+          const parsed = JSON.parse(match[1]);
+          if (parsed.systems || parsed.overview) {
+            return { success: true, data: parsed, model, raw: text };
+          }
+        } catch (e2) { /* try next block */ }
       }
 
-      // Try to find JSON object
-      const objMatch = text.match(/\{[\s\S]*\}/);
-      if (objMatch) {
+      // Try to find a standalone JSON object with expected keys
+      const objRegex = /\{[^{}]*"(?:systems|overview)"[^{}]*(?:\{[\s\S]*?\}[^{}]*)*\}/g;
+      while ((match = objRegex.exec(text)) !== null) {
         try {
-          const parsed = JSON.parse(objMatch[0]);
+          const parsed = JSON.parse(match[0]);
           return { success: true, data: parsed, model, raw: text };
-        } catch (e3) { /* fall through */ }
+        } catch (e3) { /* try next */ }
       }
 
       logger.warn('Could not parse vision AI response as JSON', { text: text.substring(0, 200) });

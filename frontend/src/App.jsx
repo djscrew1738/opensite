@@ -1,39 +1,102 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './hooks/useTheme';
 import Layout from './components/layout/Layout';
 
-// Lazy load pages for better code splitting
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const LeadFinder = lazy(() => import('./pages/LeadFinder'));
-const Plans = lazy(() => import('./pages/Plans'));
-const AIAssistant = lazy(() => import('./pages/AIAssistant'));
-const History = lazy(() => import('./pages/History'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Vision = lazy(() => import('./pages/Vision'));
+// Lazy load pages — store import functions for prefetching
+const pageImports = {
+  dashboard: () => import('./pages/Dashboard'),
+  leads: () => import('./pages/LeadFinder'),
+  plans: () => import('./pages/Plans'),
+  ai: () => import('./pages/AIAssistant'),
+  history: () => import('./pages/History'),
+  vision: () => import('./pages/Vision'),
+  settings: () => import('./pages/Settings'),
+};
 
-// Loading component
+const Dashboard = lazy(pageImports.dashboard);
+const LeadFinder = lazy(pageImports.leads);
+const Plans = lazy(pageImports.plans);
+const AIAssistant = lazy(pageImports.ai);
+const History = lazy(pageImports.history);
+const Vision = lazy(pageImports.vision);
+const Settings = lazy(pageImports.settings);
+
+// Map routes to prefetch keys
+const routePrefetchMap = {
+  '/': 'dashboard',
+  '/leads': 'leads',
+  '/plans': 'plans',
+  '/ai': 'ai',
+  '/history': 'history',
+  '/vision': 'vision',
+  '/settings': 'settings',
+};
+
+// Track which chunks have been prefetched
+const prefetched = new Set();
+
+/** Prefetch a page chunk by route path */
+export function prefetchRoute(path) {
+  const key = routePrefetchMap[path];
+  if (!key || prefetched.has(key)) return;
+  prefetched.add(key);
+  // Fire-and-forget — just triggers the dynamic import so the browser caches it
+  pageImports[key]?.();
+}
+
+// Lightweight skeleton loader — no full-screen spinner, just a subtle pulse
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center space-y-5">
-        <div
-          className="w-11 h-11 rounded-full mx-auto animate-spin"
-          style={{
-            border: '3px solid rgba(0, 53, 148, 0.12)',
-            borderTopColor: '#003594',
-          }}
-        />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-[0.15em]"
-          style={{ color: 'rgba(160, 155, 147, 0.5)' }}
-        >
-          Loading
-        </p>
+    <div className="p-6 space-y-4 animate-pulse">
+      <div className="h-8 w-48 rounded-lg bg-surface-200/50 dark:bg-gray-800/50" />
+      <div className="h-4 w-72 rounded bg-surface-200/30 dark:bg-gray-800/30" />
+      <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
+        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
+        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
       </div>
     </div>
   );
+}
+
+// Prefetch adjacent routes when a page loads
+function RoutePrefetcher() {
+  const location = useLocation();
+  const prefetchedAdjacent = useRef(new Set());
+
+  useEffect(() => {
+    if (prefetchedAdjacent.current.has(location.pathname)) return;
+    prefetchedAdjacent.current.add(location.pathname);
+
+    // After current page renders, prefetch likely next pages (idle callback)
+    const id = requestIdleCallback?.(() => {
+      const paths = Object.keys(routePrefetchMap);
+      const currentIdx = paths.indexOf(location.pathname);
+
+      // Prefetch neighbors and the most common destinations
+      const toPrefetch = new Set(['/', '/settings']); // always-useful pages
+      if (currentIdx >= 0) {
+        if (paths[currentIdx - 1]) toPrefetch.add(paths[currentIdx - 1]);
+        if (paths[currentIdx + 1]) toPrefetch.add(paths[currentIdx + 1]);
+      }
+
+      toPrefetch.forEach(p => {
+        if (p !== location.pathname) prefetchRoute(p);
+      });
+    }, { timeout: 2000 }) ?? setTimeout(() => {
+      // Fallback for browsers without requestIdleCallback
+      prefetchRoute('/');
+      prefetchRoute('/settings');
+    }, 2000);
+
+    return () => {
+      if (typeof id === 'number' && cancelIdleCallback) cancelIdleCallback(id);
+    };
+  }, [location.pathname]);
+
+  return null;
 }
 
 const queryClient = new QueryClient({
@@ -42,7 +105,7 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       retry: 1,
       staleTime: 30000,
-      gcTime: 300000 // 5 minutes cache
+      gcTime: 300000
     }
   }
 });
@@ -52,19 +115,18 @@ export default function App() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="leads" element={<LeadFinder />} />
-                <Route path="plans" element={<Plans />} />
-                <Route path="ai" element={<AIAssistant />} />
-                <Route path="history" element={<History />} />
-                <Route path="vision" element={<Vision />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
-            </Routes>
-          </Suspense>
+          <RoutePrefetcher />
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+              <Route path="leads" element={<Suspense fallback={<PageLoader />}><LeadFinder /></Suspense>} />
+              <Route path="plans" element={<Suspense fallback={<PageLoader />}><Plans /></Suspense>} />
+              <Route path="ai" element={<Suspense fallback={<PageLoader />}><AIAssistant /></Suspense>} />
+              <Route path="history" element={<Suspense fallback={<PageLoader />}><History /></Suspense>} />
+              <Route path="vision" element={<Suspense fallback={<PageLoader />}><Vision /></Suspense>} />
+              <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+            </Route>
+          </Routes>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>

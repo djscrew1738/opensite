@@ -8,6 +8,8 @@ const pageNames = {
   '/leads': 'Lead Finder',
   '/plans': 'Plans',
   '/ai': 'AI Assistant',
+  '/history': 'History',
+  '/vision': 'Vision',
   '/settings': 'Settings',
 };
 

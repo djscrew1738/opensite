@@ -13,6 +13,7 @@ import {
   Zap
 } from 'lucide-react';
 import ThemeToggle from '../shared/ThemeToggle';
+import { prefetchRoute } from '../../App';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
@@ -120,6 +121,7 @@ export default function Sidebar() {
                     color: isActive ? '#003594' : 'rgba(200, 197, 191, 0.5)',
                   }}
                   onMouseOver={(e) => {
+                    prefetchRoute(item.path);
                     if (!isActive) {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
                       e.currentTarget.style.color = 'rgba(226, 224, 220, 0.85)';

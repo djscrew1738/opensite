@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { prefetchRoute } from '../../App';
 import {
   LayoutDashboard,
   Users,
@@ -12,8 +13,8 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/leads', icon: Users, label: 'Leads' },
   { path: '/plans', icon: ClipboardList, label: 'Plans' },
-  { path: '/ai', icon: MessageSquare, label: 'AI' },
-  { path: '/vision', icon: ScanEye, label: 'Vision' }
+  { path: '/vision', icon: ScanEye, label: 'Vision' },
+  { path: '/settings', icon: Settings, label: 'Settings' }
 ];
 
 export default function MobileNav() {
@@ -33,6 +34,7 @@ export default function MobileNav() {
             key={item.path}
             to={item.path}
             end={item.path === '/'}
+            onTouchStart={() => prefetchRoute(item.path)}
             className="tap-target flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all duration-200"
           >
             {({ isActive }) => (

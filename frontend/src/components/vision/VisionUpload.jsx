@@ -15,19 +15,44 @@ export default function VisionUpload({ onProjectCreated }) {
     if (!files || files.length === 0) return;
     const file = files[0];
 
+    // Validate file size (100MB max)
+    if (file.size > 100 * 1024 * 1024) {
+      setError('File too large. Maximum size is 100MB.');
+      return;
+    }
+
     setUploading(true);
     setProgress(0);
     setError(null);
 
     try {
       const result = await visionApi.upload(file);
+
+      if (!result?.jobId || !result?.projectId) {
+        throw new Error('Upload response missing job or project ID');
+      }
+
       setJobId(result.jobId);
       setProgress(10);
 
-      // Poll for tile generation completion
+      // Poll for tile generation completion (timeout after 5 minutes)
+      let pollCount = 0;
+      const maxPolls = 200; // 200 * 1.5s = 5 minutes
+      let pollErrors = 0;
+
       pollRef.current = setInterval(async () => {
+        pollCount++;
+
+        if (pollCount > maxPolls) {
+          clearInterval(pollRef.current);
+          setUploading(false);
+          setError('Tile generation is taking too long. The project may still be processing — try refreshing.');
+          return;
+        }
+
         try {
           const status = await visionApi.getJobStatus(result.jobId);
+          pollErrors = 0; // Reset on success
           setProgress(status.progress || 0);
 
           if (status.status === 'completed') {
@@ -41,12 +66,17 @@ export default function VisionUpload({ onProjectCreated }) {
             setError(status.error || 'Tile generation failed');
           }
         } catch (err) {
-          // Polling error — keep trying
+          pollErrors++;
+          if (pollErrors >= 5) {
+            clearInterval(pollRef.current);
+            setUploading(false);
+            setError('Lost connection to server. The project may still be processing — try refreshing.');
+          }
         }
       }, 1500);
     } catch (err) {
       setUploading(false);
-      setError(err.message);
+      setError(err.message || 'Upload failed. Please try again.');
     }
   }, [onProjectCreated]);
 

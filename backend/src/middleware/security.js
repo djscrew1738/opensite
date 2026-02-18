@@ -24,7 +24,7 @@ export const securityHeaders = helmet({
 // Rate limiting for general API endpoints
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 500, // Limit each IP to 500 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -67,7 +67,7 @@ export const uploadLimiter = rateLimit({
 export const requestSizeLimiter = (req, res, next) => {
   const contentLength = req.get('content-length');
 
-  if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+  if (contentLength && parseInt(contentLength) > 110 * 1024 * 1024) {
     logger.warn('Request size exceeded', {
       ip: req.ip,
       size: contentLength

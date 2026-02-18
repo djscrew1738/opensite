@@ -15,10 +15,11 @@ export default function VisionToolbar({
   const menuRef = useRef(null);
 
   // Fetch available models
-  const { data: modelsData } = useQuery({
+  const { data: modelsData, isLoading: modelsLoading, error: modelsError } = useQuery({
     queryKey: ['vision-models'],
     queryFn: () => visionApi.getModels(),
     staleTime: 60000,
+    retry: 2,
   });
 
   const models = modelsData?.models || [];
@@ -80,7 +81,18 @@ export default function VisionToolbar({
       <div className="flex-1" />
 
       {/* Model selector */}
-      {models.length > 0 && (
+      {modelsLoading && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-surface-400">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>Loading models...</span>
+        </div>
+      )}
+      {modelsError && (
+        <div className="px-2.5 py-1.5 text-xs text-red-500 dark:text-red-400">
+          Models unavailable
+        </div>
+      )}
+      {!modelsLoading && models.length > 0 && (
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowModelMenu(!showModelMenu)}

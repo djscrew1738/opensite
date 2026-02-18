@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { AlertCircle } from 'lucide-react';
 import VisionToolbar from './VisionToolbar';
 import LayerPanel from './LayerPanel';
 import AnnotationOverlay from './AnnotationOverlay';
@@ -10,6 +11,7 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
   const [maxZoom, setMaxZoom] = useState(1);
   const [showLayers, setShowLayers] = useState(true);
   const [viewerReady, setViewerReady] = useState(false);
+  const [viewerError, setViewerError] = useState(null);
 
   // Initialize OpenSeadragon
   useEffect(() => {
@@ -17,7 +19,10 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
 
     // OpenSeadragon loaded via CDN (window.OpenSeadragon)
     const OSD = window.OpenSeadragon;
-    if (!OSD) return;
+    if (!OSD) {
+      setViewerError('Deep-zoom viewer failed to load. Check your internet connection and refresh.');
+      return;
+    }
 
     const viewer = OSD({
       element: viewerRef.current,
@@ -47,13 +52,23 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
 
     viewer.addHandler('open', () => {
       setViewerReady(true);
+      setViewerError(null);
       setMaxZoom(viewer.viewport.getMaxZoom());
+    });
+
+    viewer.addHandler('open-failed', (e) => {
+      setViewerError(`Failed to load blueprint tiles. ${e.message || 'The DZI file may be missing.'}`);
+    });
+
+    viewer.addHandler('tile-load-failed', (e) => {
+      console.warn('Tile load failed:', e.tile?.url);
     });
 
     return () => {
       viewer.destroy();
       osdRef.current = null;
       setViewerReady(false);
+      setViewerError(null);
     };
   }, [project?.id]);
 
@@ -127,6 +142,16 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
               onLayerUpdate={onLayerUpdate}
               currentZoom={semanticZoom}
             />
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {viewerError && (
+          <div className="absolute inset-0 flex items-center justify-center z-30 bg-surface-950/80">
+            <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-red-950/80 border border-red-800 max-w-md">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <p className="text-sm text-red-200">{viewerError}</p>
+            </div>
           </div>
         )}
 

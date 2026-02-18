@@ -1,6 +1,6 @@
 // Pricing calculation service for CTL Plumbing LLC
 
-import { PRICING_TIERS, PROJECT_PHASES, PRICING_ADJUSTMENTS } from '../config/constants.js';
+import { PRICING_TIERS, PROJECT_PHASES, PRICING_ADJUSTMENTS, FIXTURE_PRICING } from '../config/constants.js';
 
 class PricingService {
   calculateEstimate(params) {
@@ -62,6 +62,32 @@ class PricingService {
         amount: Math.round(total * PROJECT_PHASES.trim.percentage / 100),
         percentage: PROJECT_PHASES.trim.percentage
       }
+    };
+  }
+
+  calculateFixtureBased(fixtures) {
+    const { qualifyingFixtures, pricePerFixture } = FIXTURE_PRICING;
+
+    // Count qualifying fixtures and build per-fixture subtotals
+    const fixtureSubtotals = {};
+    let totalFixtures = 0;
+
+    for (const key of qualifyingFixtures) {
+      const count = Number(fixtures[key]) || 0;
+      fixtureSubtotals[key] = { count, subtotal: count * pricePerFixture };
+      totalFixtures += count;
+    }
+
+    const total = totalFixtures * pricePerFixture;
+    const breakdown = this.calculatePhaseBreakdown(total);
+
+    return {
+      mode: 'fixture-based',
+      pricePerFixture,
+      totalFixtures,
+      total,
+      breakdown,
+      fixtureSubtotals
     };
   }
 

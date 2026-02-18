@@ -10,6 +10,22 @@ const router = express.Router();
 // Calculate estimate
 router.post('/calculate', (req, res) => {
   try {
+    // Fixture-based pricing mode
+    if (req.body.mode === 'fixture-based') {
+      const estimate = pricingService.calculateFixtureBased(req.body.fixtures || req.body);
+
+      const saved = db.createEstimate({
+        ...req.body,
+        ...estimate
+      });
+
+      return res.json({
+        ...estimate,
+        estimateId: saved.id
+      });
+    }
+
+    // Legacy tier-based pricing
     const { sqft, bathrooms, units, stories, tier } = req.body;
 
     // Validate required fields
@@ -45,22 +61,29 @@ router.post('/calculate', (req, res) => {
 // Deep AI analysis of blueprint/estimate
 router.post('/analyze', async (req, res) => {
   try {
-    const { sqft, bathrooms, units, stories, tier } = req.body;
+    let estimate;
 
-    if (!sqft || !bathrooms || !units || !stories || !tier) {
-      return res.status(400).json({
-        error: 'Missing required fields'
+    if (req.body.mode === 'fixture-based') {
+      estimate = pricingService.calculateFixtureBased(req.body.fixtures || req.body);
+    } else {
+      const { sqft, bathrooms, units, stories, tier } = req.body;
+
+      if (!sqft || !bathrooms || !units || !stories || !tier) {
+        return res.status(400).json({
+          error: 'Missing required fields'
+        });
+      }
+
+      estimate = pricingService.calculateEstimate({
+        sqft: Number(sqft),
+        bathrooms: Number(bathrooms),
+        units: Number(units),
+        stories: Number(stories),
+        tier: tier.toLowerCase()
       });
     }
 
-    // Get pricing calculation first
-    const estimate = pricingService.calculateEstimate({
-      sqft: Number(sqft),
-      bathrooms: Number(bathrooms),
-      units: Number(units),
-      stories: Number(stories),
-      tier: tier.toLowerCase()
-    });
+    const { sqft, bathrooms, units, stories, tier } = req.body;
 
     // Generate AI analysis
     const prompt = aiProvider.getBlueprintAnalysisPrompt({

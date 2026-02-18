@@ -153,7 +153,7 @@ export default function Vision() {
             <button
               key={p.id}
               onClick={() => { setSelectedId(p.id); setShowUpload(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+              className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
                 ${selectedId === p.id && !showUpload
                   ? 'bg-primary-50 dark:bg-primary-900/10 border-r-2 border-primary-500'
                   : 'hover:bg-surface-50 dark:hover:bg-gray-800/50'

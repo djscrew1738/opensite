@@ -15,7 +15,7 @@ router.get('/', tryCatch(async (req, res) => {
   const settings = db.getAllSettings();
 
   // Mask API keys for security
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -123,7 +123,7 @@ router.put('/', tryCatch(async (req, res) => {
 
   const settings = db.getAllSettings();
   // Mask API keys
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -265,23 +265,33 @@ router.post('/test-anthropic', tryCatch(async (req, res) => {
 
   try {
     const { default: axios } = await import('axios');
+    // Use a minimal message with the smallest model to validate the key
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 5,
-      messages: [{ role: 'user', content: 'ping' }],
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
     }, {
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      timeout: 10000,
+      timeout: 15000,
     });
     res.success({ valid: true, model: response.data?.model || 'claude' });
   } catch (error) {
     const status = error.response?.status;
+    // 401/403 = bad key; 429 = rate limited (key is valid); 400 = model issue (key may be valid)
+    if (status === 429) {
+      return res.success({ valid: true, error: 'Rate limited — key is valid but temporarily throttled' });
+    }
+    if (status === 400) {
+      // Bad request often means the key authenticated but the request was malformed or model unavailable
+      const errMsg = error.response?.data?.error?.message || error.message;
+      return res.success({ valid: true, error: `Key accepted — ${errMsg}` });
+    }
     res.success({
-      valid: status !== 401 && status !== 403 ? false : false,
+      valid: false,
       error: status === 401 || status === 403 ? 'Invalid API key' : error.message,
     });
   }
@@ -309,6 +319,9 @@ router.post('/test-openai', tryCatch(async (req, res) => {
     });
   } catch (error) {
     const status = error.response?.status;
+    if (status === 429) {
+      return res.success({ valid: true, error: 'Rate limited — key is valid but temporarily throttled' });
+    }
     res.success({
       valid: false,
       error: status === 401 ? 'Invalid API key' : error.message,
@@ -369,6 +382,69 @@ router.post('/test-sendgrid', tryCatch(async (req, res) => {
     res.success({
       valid: false,
       error: status === 401 || status === 403 ? 'Invalid API key' : error.message,
+    });
+  }
+}));
+
+// Test Stripe API key
+router.post('/test-stripe', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || db.getSetting('stripe_api_key');
+
+  if (!apiKey) {
+    return res.success({ valid: false, error: 'No API key provided' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.get('https://api.stripe.com/v1/balance', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 10000,
+    });
+    const balance = response.data?.available?.[0];
+    res.success({
+      valid: true,
+      currency: balance?.currency?.toUpperCase() || 'USD',
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    if (status === 429) {
+      return res.success({ valid: true, error: 'Rate limited — key is valid' });
+    }
+    res.success({
+      valid: false,
+      error: status === 401 ? 'Invalid API key' : error.message,
+    });
+  }
+}));
+
+// Test Google Maps API key
+router.post('/test-google-maps', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || db.getSetting('google_maps_api_key');
+
+  if (!apiKey) {
+    return res.success({ valid: false, error: 'No API key provided' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    // Use Geocoding API with a known address to validate the key
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: { address: 'Dallas, TX', key: apiKey },
+      timeout: 10000,
+    });
+    if (response.data?.status === 'OK') {
+      res.success({ valid: true });
+    } else if (response.data?.status === 'REQUEST_DENIED') {
+      res.success({ valid: false, error: response.data?.error_message || 'Invalid or restricted API key' });
+    } else {
+      res.success({ valid: true, status: response.data?.status });
+    }
+  } catch (error) {
+    res.success({
+      valid: false,
+      error: error.message,
     });
   }
 }));

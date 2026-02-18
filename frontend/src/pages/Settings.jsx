@@ -116,6 +116,10 @@ export default function Settings() {
   const [twilioPhone, setTwilioPhone] = useState('');
   const [sendgridKey, setSendgridKey] = useState('');
   const [showSendgridKey, setShowSendgridKey] = useState(false);
+  const [stripeKey, setStripeKey] = useState('');
+  const [showStripeKey, setShowStripeKey] = useState(false);
+  const [googleMapsKey, setGoogleMapsKey] = useState('');
+  const [showGoogleMapsKey, setShowGoogleMapsKey] = useState(false);
   const [pullModelName, setPullModelName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -128,6 +132,8 @@ export default function Settings() {
   const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
   const [testingSendgrid, setTestingSendgrid] = useState(false);
+  const [testingStripe, setTestingStripe] = useState(false);
+  const [testingGoogleMaps, setTestingGoogleMaps] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [switchingProvider, setSwitchingProvider] = useState(false);
@@ -445,6 +451,60 @@ export default function Settings() {
       showToast(`Test failed: ${err.message}`, 'error');
     } finally {
       setTestingSendgrid(false);
+    }
+  };
+
+  const handleSaveStripeKey = async () => {
+    try {
+      await api.settings.update({ stripe_api_key: stripeKey });
+      setStripeKey('');
+      refetchSettings();
+      showToast('Stripe API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestStripe = async () => {
+    setTestingStripe(true);
+    try {
+      const result = await api.settings.testStripe(stripeKey || undefined);
+      if (result.valid) {
+        showToast(`Stripe API key is valid (${result.currency || 'USD'})`);
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingStripe(false);
+    }
+  };
+
+  const handleSaveGoogleMapsKey = async () => {
+    try {
+      await api.settings.update({ google_maps_api_key: googleMapsKey });
+      setGoogleMapsKey('');
+      refetchSettings();
+      showToast('Google Maps API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestGoogleMaps = async () => {
+    setTestingGoogleMaps(true);
+    try {
+      const result = await api.settings.testGoogleMaps(googleMapsKey || undefined);
+      if (result.valid) {
+        showToast('Google Maps API key is valid');
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingGoogleMaps(false);
     }
   };
 
@@ -1017,6 +1077,14 @@ export default function Settings() {
                 connected={settings.sendgrid_api_key_configured}
                 label={settings.sendgrid_api_key_configured ? 'SendGrid' : 'SendGrid N/A'}
               />
+              <StatusPill
+                connected={settings.stripe_api_key_configured}
+                label={settings.stripe_api_key_configured ? 'Stripe' : 'Stripe N/A'}
+              />
+              <StatusPill
+                connected={settings.google_maps_api_key_configured}
+                label={settings.google_maps_api_key_configured ? 'Maps' : 'Maps N/A'}
+              />
             </div>
           }
         >
@@ -1290,6 +1358,94 @@ export default function Settings() {
                 <button
                   onClick={handleSaveSendgridKey}
                   disabled={!sendgridKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+            {/* ── Payments & Mapping ── */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">Stripe API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Invoicing and payment processing for clients. Get a key at{' '}
+                <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  dashboard.stripe.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showStripeKey ? 'text' : 'password'}
+                    value={stripeKey}
+                    onChange={(e) => setStripeKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.stripe_api_key_masked || 'Enter your Stripe secret key (sk_...)'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowStripeKey(!showStripeKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showStripeKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleTestStripe}
+                  disabled={testingStripe}
+                  className="btn-secondary text-sm whitespace-nowrap"
+                >
+                  {testingStripe ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Test
+                </button>
+                <button
+                  onClick={handleSaveStripeKey}
+                  disabled={!stripeKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">Google Maps API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Job site mapping, geocoding, and route planning. Get a key at{' '}
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  console.cloud.google.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showGoogleMapsKey ? 'text' : 'password'}
+                    value={googleMapsKey}
+                    onChange={(e) => setGoogleMapsKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.google_maps_api_key_masked || 'Enter your Google Maps API key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGoogleMapsKey(!showGoogleMapsKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showGoogleMapsKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleTestGoogleMaps}
+                  disabled={testingGoogleMaps}
+                  className="btn-secondary text-sm whitespace-nowrap"
+                >
+                  {testingGoogleMaps ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Test
+                </button>
+                <button
+                  onClick={handleSaveGoogleMapsKey}
+                  disabled={!googleMapsKey.trim()}
                   className="btn-primary text-sm whitespace-nowrap"
                 >
                   <Save className="w-4 h-4" />

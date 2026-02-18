@@ -60,6 +60,14 @@ export const LEAD_STATUSES = {
   }
 };
 
+export const FIXTURE_PRICING = {
+  pricePerFixture: 995,
+  qualifyingFixtures: [
+    'lavatories', 'kitchenFaucets', 'barSinks', 'waterSoftenerPreplumb',
+    'toilets', 'showerBases', 'tubs', 'washingMachines', 'waterHeaters'
+  ]
+};
+
 export const PRICING_ADJUSTMENTS = {
   storyMultiplier: 0.15, // +15% per story over 2
   bathroomDensityThreshold: 0.004, // 1 bathroom per 250 sqft

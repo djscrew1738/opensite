@@ -15,7 +15,7 @@ router.get('/', tryCatch(async (req, res) => {
   const settings = db.getAllSettings();
 
   // Mask API keys for security
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -123,7 +123,7 @@ router.put('/', tryCatch(async (req, res) => {
 
   const settings = db.getAllSettings();
   // Mask API keys
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -250,6 +250,125 @@ router.post('/test-serper', tryCatch(async (req, res) => {
     res.success({
       valid: false,
       error: error.response?.status === 403 ? 'Invalid API key' : error.message
+    });
+  }
+}));
+
+// Test Anthropic API key
+router.post('/test-anthropic', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || db.getSetting('anthropic_api_key');
+
+  if (!apiKey) {
+    return res.success({ valid: false, error: 'No API key provided' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 5,
+      messages: [{ role: 'user', content: 'ping' }],
+    }, {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    res.success({ valid: true, model: response.data?.model || 'claude' });
+  } catch (error) {
+    const status = error.response?.status;
+    res.success({
+      valid: status !== 401 && status !== 403 ? false : false,
+      error: status === 401 || status === 403 ? 'Invalid API key' : error.message,
+    });
+  }
+}));
+
+// Test OpenAI API key
+router.post('/test-openai', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || db.getSetting('openai_api_key');
+
+  if (!apiKey) {
+    return res.success({ valid: false, error: 'No API key provided' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.get('https://api.openai.com/v1/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 10000,
+    });
+    const models = response.data?.data || [];
+    res.success({
+      valid: true,
+      modelCount: models.length,
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    res.success({
+      valid: false,
+      error: status === 401 ? 'Invalid API key' : error.message,
+    });
+  }
+}));
+
+// Test Twilio credentials
+router.post('/test-twilio', tryCatch(async (req, res) => {
+  const { sid, token } = req.body;
+  const accountSid = sid || db.getSetting('twilio_account_sid');
+  const authToken = token || db.getSetting('twilio_auth_token');
+
+  if (!accountSid || !authToken) {
+    return res.success({ valid: false, error: 'Account SID and Auth Token are both required' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.get(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`, {
+      auth: { username: accountSid, password: authToken },
+      timeout: 10000,
+    });
+    res.success({
+      valid: true,
+      friendlyName: response.data?.friendly_name || accountSid,
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    res.success({
+      valid: false,
+      error: status === 401 ? 'Invalid credentials' : error.message,
+    });
+  }
+}));
+
+// Test SendGrid API key
+router.post('/test-sendgrid', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || db.getSetting('sendgrid_api_key');
+
+  if (!apiKey) {
+    return res.success({ valid: false, error: 'No API key provided' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.get('https://api.sendgrid.com/v3/user/profile', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 10000,
+    });
+    res.success({
+      valid: true,
+      username: response.data?.username || 'unknown',
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    res.success({
+      valid: false,
+      error: status === 401 || status === 403 ? 'Invalid API key' : error.message,
     });
   }
 }));

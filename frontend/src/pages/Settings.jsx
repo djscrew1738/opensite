@@ -106,6 +106,16 @@ export default function Settings() {
   const [showSerperKey, setShowSerperKey] = useState(false);
   const [placesKey, setPlacesKey] = useState('');
   const [showPlacesKey, setShowPlacesKey] = useState(false);
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [twilioSid, setTwilioSid] = useState('');
+  const [twilioToken, setTwilioToken] = useState('');
+  const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [twilioPhone, setTwilioPhone] = useState('');
+  const [sendgridKey, setSendgridKey] = useState('');
+  const [showSendgridKey, setShowSendgridKey] = useState(false);
   const [pullModelName, setPullModelName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -114,6 +124,10 @@ export default function Settings() {
   const [testingGroq, setTestingGroq] = useState(false);
   const [testingOpenClaw, setTestingOpenClaw] = useState(false);
   const [testingSerper, setTestingSerper] = useState(false);
+  const [testingAnthropic, setTestingAnthropic] = useState(false);
+  const [testingOpenai, setTestingOpenai] = useState(false);
+  const [testingTwilio, setTestingTwilio] = useState(false);
+  const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [switchingProvider, setSwitchingProvider] = useState(false);
@@ -317,6 +331,120 @@ export default function Settings() {
       showToast(`Test failed: ${err.message}`, 'error');
     } finally {
       setTestingSerper(false);
+    }
+  };
+
+  const handleSaveAnthropicKey = async () => {
+    try {
+      await api.settings.update({ anthropic_api_key: anthropicKey });
+      setAnthropicKey('');
+      refetchSettings();
+      showToast('Anthropic API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestAnthropic = async () => {
+    setTestingAnthropic(true);
+    try {
+      const result = await api.settings.testAnthropic(anthropicKey || undefined);
+      if (result.valid) {
+        showToast('Anthropic API key is valid');
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingAnthropic(false);
+    }
+  };
+
+  const handleSaveOpenaiKey = async () => {
+    try {
+      await api.settings.update({ openai_api_key: openaiKey });
+      setOpenaiKey('');
+      refetchSettings();
+      showToast('OpenAI API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestOpenai = async () => {
+    setTestingOpenai(true);
+    try {
+      const result = await api.settings.testOpenai(openaiKey || undefined);
+      if (result.valid) {
+        showToast(`OpenAI API key is valid (${result.modelCount} models)`);
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingOpenai(false);
+    }
+  };
+
+  const handleSaveTwilio = async () => {
+    try {
+      const updates = {};
+      if (twilioSid) updates.twilio_account_sid = twilioSid;
+      if (twilioToken) updates.twilio_auth_token = twilioToken;
+      if (twilioPhone) updates.twilio_from_phone = twilioPhone;
+      await api.settings.update(updates);
+      setTwilioSid('');
+      setTwilioToken('');
+      setTwilioPhone('');
+      refetchSettings();
+      showToast('Twilio credentials saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestTwilio = async () => {
+    setTestingTwilio(true);
+    try {
+      const result = await api.settings.testTwilio(twilioSid || undefined, twilioToken || undefined);
+      if (result.valid) {
+        showToast(`Twilio connected (${result.friendlyName})`);
+      } else {
+        showToast(result.error || 'Invalid credentials', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingTwilio(false);
+    }
+  };
+
+  const handleSaveSendgridKey = async () => {
+    try {
+      await api.settings.update({ sendgrid_api_key: sendgridKey });
+      setSendgridKey('');
+      refetchSettings();
+      showToast('SendGrid API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleTestSendgrid = async () => {
+    setTestingSendgrid(true);
+    try {
+      const result = await api.settings.testSendgrid(sendgridKey || undefined);
+      if (result.valid) {
+        showToast('SendGrid API key is valid');
+      } else {
+        showToast(result.error || 'Invalid API key', 'error');
+      }
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingSendgrid(false);
     }
   };
 
@@ -864,7 +992,7 @@ export default function Settings() {
           icon={Key}
           title="API Keys"
           badge={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <StatusPill
                 connected={settings.serper_api_key_configured}
                 label={settings.serper_api_key_configured ? 'Serper' : 'Serper N/A'}
@@ -872,6 +1000,22 @@ export default function Settings() {
               <StatusPill
                 connected={settings.google_places_api_key_configured}
                 label={settings.google_places_api_key_configured ? 'Places' : 'Places N/A'}
+              />
+              <StatusPill
+                connected={settings.anthropic_api_key_configured}
+                label={settings.anthropic_api_key_configured ? 'Anthropic' : 'Anthropic N/A'}
+              />
+              <StatusPill
+                connected={settings.openai_api_key_configured}
+                label={settings.openai_api_key_configured ? 'OpenAI' : 'OpenAI N/A'}
+              />
+              <StatusPill
+                connected={settings.twilio_account_sid_configured}
+                label={settings.twilio_account_sid_configured ? 'Twilio' : 'Twilio N/A'}
+              />
+              <StatusPill
+                connected={settings.sendgrid_api_key_configured}
+                label={settings.sendgrid_api_key_configured ? 'SendGrid' : 'SendGrid N/A'}
               />
             </div>
           }
@@ -943,6 +1087,209 @@ export default function Settings() {
                 <button
                   onClick={handleSavePlacesKey}
                   disabled={!placesKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+
+            {/* ── Premium AI Providers ── */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">Anthropic API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Claude AI for premium analysis. Get a key at{' '}
+                <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  console.anthropic.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showAnthropicKey ? 'text' : 'password'}
+                    value={anthropicKey}
+                    onChange={(e) => setAnthropicKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.anthropic_api_key_masked || 'Enter your Anthropic API key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showAnthropicKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleTestAnthropic}
+                  disabled={testingAnthropic}
+                  className="btn-secondary text-sm whitespace-nowrap"
+                >
+                  {testingAnthropic ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Test
+                </button>
+                <button
+                  onClick={handleSaveAnthropicKey}
+                  disabled={!anthropicKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">OpenAI API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                GPT models for alternative AI. Get a key at{' '}
+                <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  platform.openai.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showOpenaiKey ? 'text' : 'password'}
+                    value={openaiKey}
+                    onChange={(e) => setOpenaiKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.openai_api_key_masked || 'Enter your OpenAI API key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleTestOpenai}
+                  disabled={testingOpenai}
+                  className="btn-secondary text-sm whitespace-nowrap"
+                >
+                  {testingOpenai ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Test
+                </button>
+                <button
+                  onClick={handleSaveOpenaiKey}
+                  disabled={!openaiKey.trim()}
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+            </div>
+
+            {/* ── Communications ── */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">Twilio (SMS Notifications)</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                SMS notifications and alerts. Get credentials at{' '}
+                <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  console.twilio.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Account SID</label>
+                  <input
+                    type="text"
+                    value={twilioSid}
+                    onChange={(e) => setTwilioSid(e.target.value)}
+                    className="input font-mono text-sm"
+                    placeholder={settings.twilio_account_sid_masked || 'Enter your Twilio Account SID'}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Auth Token</label>
+                  <div className="relative">
+                    <input
+                      type={showTwilioToken ? 'text' : 'password'}
+                      value={twilioToken}
+                      onChange={(e) => setTwilioToken(e.target.value)}
+                      className="input pr-10 font-mono text-sm"
+                      placeholder={settings.twilio_auth_token_masked || 'Enter your Twilio Auth Token'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTwilioToken(!showTwilioToken)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showTwilioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">From Phone Number</label>
+                  <input
+                    type="text"
+                    value={twilioPhone}
+                    onChange={(e) => setTwilioPhone(e.target.value)}
+                    className="input font-mono text-sm"
+                    placeholder={settings.twilio_from_phone || '+1234567890'}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleTestTwilio}
+                    disabled={testingTwilio}
+                    className="btn-secondary text-sm whitespace-nowrap"
+                  >
+                    {testingTwilio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    Test
+                  </button>
+                  <button
+                    onClick={handleSaveTwilio}
+                    disabled={!twilioSid.trim() && !twilioToken.trim() && !twilioPhone.trim()}
+                    className="btn-primary text-sm whitespace-nowrap"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <label className="label">SendGrid API Key</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Email outreach and notifications. Get a key at{' '}
+                <a href="https://app.sendgrid.com" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+                  app.sendgrid.com <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showSendgridKey ? 'text' : 'password'}
+                    value={sendgridKey}
+                    onChange={(e) => setSendgridKey(e.target.value)}
+                    className="input pr-10 font-mono text-sm"
+                    placeholder={settings.sendgrid_api_key_masked || 'Enter your SendGrid API key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSendgridKey(!showSendgridKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showSendgridKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleTestSendgrid}
+                  disabled={testingSendgrid}
+                  className="btn-secondary text-sm whitespace-nowrap"
+                >
+                  {testingSendgrid ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Test
+                </button>
+                <button
+                  onClick={handleSaveSendgridKey}
+                  disabled={!sendgridKey.trim()}
                   className="btn-primary text-sm whitespace-nowrap"
                 >
                   <Save className="w-4 h-4" />

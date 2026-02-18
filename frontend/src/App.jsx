@@ -11,6 +11,7 @@ const Plans = lazy(() => import('./pages/Plans'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const History = lazy(() => import('./pages/History'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Vision = lazy(() => import('./pages/Vision'));
 
 // Loading component
 function PageLoader() {
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="plans" element={<Plans />} />
                 <Route path="ai" element={<AIAssistant />} />
                 <Route path="history" element={<History />} />
+                <Route path="vision" element={<Vision />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>

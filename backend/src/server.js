@@ -44,6 +44,7 @@ import permitsRoutes from './routes/permits.js';
 import discoveryRoutes from './routes/discovery.js';
 import settingsRoutes from './routes/settings.js';
 import historyRoutes from './routes/history.js';
+import visionRoutes from './routes/vision.js';
 
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
@@ -94,6 +95,7 @@ app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
 app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
+app.use('/api/vision', uploadLimiter, visionRoutes); // Vision deep-zoom viewer
 
 // Root endpoint
 app.get('/', (req, res) => {

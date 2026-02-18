@@ -116,6 +116,8 @@ export const api = {
     testOpenai: (key) => apiClient.post('/settings/test-openai', { key }),
     testTwilio: (sid, token) => apiClient.post('/settings/test-twilio', { sid, token }),
     testSendgrid: (key) => apiClient.post('/settings/test-sendgrid', { key }),
+    testStripe: (key) => apiClient.post('/settings/test-stripe', { key }),
+    testGoogleMaps: (key) => apiClient.post('/settings/test-google-maps', { key }),
     getMetrics: () => apiClient.get('/settings/metrics'),
   },
 
@@ -225,6 +227,30 @@ export const api = {
     getEstimates: (params) => apiClient.get('/history/estimates', { params }),
     getEstimate: (id) => apiClient.get(`/history/estimates/${id}`),
     deleteEstimate: (id) => apiClient.delete(`/history/estimates/${id}`),
+  },
+
+  // Vision (deep-zoom blueprint viewer)
+  vision: {
+    upload: (file, name) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (name) formData.append('name', name);
+      return axios.post('/api/vision/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
+      }).then(res => {
+        const data = res.data;
+        if (data && typeof data === 'object' && 'success' in data) return data.data;
+        return data;
+      });
+    },
+    getProjects: () => apiClient.get('/vision/projects'),
+    getProject: (id) => apiClient.get(`/vision/projects/${id}`),
+    deleteProject: (id) => apiClient.delete(`/vision/projects/${id}`),
+    analyze: (projectId, model) => apiClient.post(`/vision/projects/${projectId}/analyze`, { model }),
+    createLayer: (projectId, data) => apiClient.post(`/vision/projects/${projectId}/layers`, data),
+    updateLayer: (projectId, layerId, data) => apiClient.put(`/vision/projects/${projectId}/layers/${layerId}`, data),
+    deleteLayer: (projectId, layerId) => apiClient.delete(`/vision/projects/${projectId}/layers/${layerId}`),
   },
 
   // Permits (lead finder)

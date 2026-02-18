@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Settings,
   Clock,
+  ScanEye,
   Hammer,
   ChevronRight,
   Zap
@@ -19,7 +20,8 @@ const navItems = [
   { path: '/plans', icon: ClipboardList, label: 'Plans', shortcut: '3' },
   { path: '/ai', icon: MessageSquare, label: 'AI Assistant', shortcut: '4' },
   { path: '/history', icon: Clock, label: 'History', shortcut: '5' },
-  { path: '/settings', icon: Settings, label: 'Settings', shortcut: '6' }
+  { path: '/vision', icon: ScanEye, label: 'Vision', shortcut: '6' },
+  { path: '/settings', icon: Settings, label: 'Settings', shortcut: '7' }
 ];
 
 export default function Sidebar() {

@@ -4,6 +4,7 @@ import {
   Users,
   ClipboardList,
   MessageSquare,
+  ScanEye,
   Settings
 } from 'lucide-react';
 
@@ -12,7 +13,7 @@ const navItems = [
   { path: '/leads', icon: Users, label: 'Leads' },
   { path: '/plans', icon: ClipboardList, label: 'Plans' },
   { path: '/ai', icon: MessageSquare, label: 'AI' },
-  { path: '/settings', icon: Settings, label: 'More' }
+  { path: '/vision', icon: ScanEye, label: 'Vision' }
 ];
 
 export default function MobileNav() {

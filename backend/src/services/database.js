@@ -457,6 +457,62 @@ class DatabaseService {
       )
     `);
 
+    // Vision projects table — blueprint deep-zoom viewer
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        originalFile TEXT,
+        fileType TEXT,
+        width INTEGER,
+        height INTEGER,
+        tileDir TEXT,
+        dziPath TEXT,
+        pageCount INTEGER DEFAULT 1,
+        currentPage INTEGER DEFAULT 1,
+        metadata TEXT DEFAULT '{}',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Vision annotation layers
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_layers (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT DEFAULT 'annotation',
+        visible INTEGER DEFAULT 1,
+        minZoom REAL DEFAULT 0,
+        maxZoom REAL DEFAULT 20,
+        data TEXT DEFAULT '[]',
+        style TEXT DEFAULT '{}',
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES vision_projects(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Vision AI analyses
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_analyses (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        passType TEXT,
+        model TEXT,
+        result TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'pending',
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES vision_projects(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Vision indexes
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_vision_layers_project ON vision_layers(projectId);
+      CREATE INDEX IF NOT EXISTS idx_vision_analyses_project ON vision_analyses(projectId);
+    `);
+
     // Seed default plumbing materials if empty
     this.seedDefaultMaterials();
 

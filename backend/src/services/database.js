@@ -709,6 +709,51 @@ class DatabaseService {
     return conv;
   }
 
+  // History operations
+  getAllConversations(search) {
+    let query = 'SELECT * FROM conversations';
+    const params = [];
+    if (search) {
+      query += ' WHERE messages LIKE ?';
+      params.push(`%${search}%`);
+    }
+    query += ' ORDER BY updatedAt DESC';
+    const rows = this.db.prepare(query).all(...params);
+    return rows.map(row => {
+      row.messages = JSON.parse(row.messages);
+      return row;
+    });
+  }
+
+  deleteConversation(id) {
+    return this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id).changes > 0;
+  }
+
+  getAllEstimates(search) {
+    let query = `
+      SELECT e.*, GROUP_CONCAT(b.fileName) as blueprintFileNames
+      FROM estimates e
+      LEFT JOIN blueprints b ON b.estimateId = e.id
+    `;
+    const params = [];
+    if (search) {
+      query += ' WHERE e.breakdown LIKE ? OR e.analysis LIKE ? OR b.fileName LIKE ?';
+      const s = `%${search}%`;
+      params.push(s, s, s);
+    }
+    query += ' GROUP BY e.id ORDER BY e.createdAt DESC';
+    const rows = this.db.prepare(query).all(...params);
+    return rows.map(row => {
+      if (row.breakdown) row.breakdown = JSON.parse(row.breakdown);
+      return row;
+    });
+  }
+
+  deleteEstimate(id) {
+    this.db.prepare('UPDATE blueprints SET estimateId = NULL WHERE estimateId = ?').run(id);
+    return this.db.prepare('DELETE FROM estimates WHERE id = ?').run(id).changes > 0;
+  }
+
   // Dashboard stats
   getDashboardStats() {
     const hotLeads = this.db.prepare(`

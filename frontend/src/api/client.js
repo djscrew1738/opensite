@@ -213,6 +213,16 @@ export const api = {
     deleteRun: (runId) => apiClient.delete(`/discovery/runs/${runId}`)
   },
 
+  // History
+  history: {
+    getConversations: (params) => apiClient.get('/history/conversations', { params }),
+    getConversation: (id) => apiClient.get(`/history/conversations/${id}`),
+    deleteConversation: (id) => apiClient.delete(`/history/conversations/${id}`),
+    getEstimates: (params) => apiClient.get('/history/estimates', { params }),
+    getEstimate: (id) => apiClient.get(`/history/estimates/${id}`),
+    deleteEstimate: (id) => apiClient.delete(`/history/estimates/${id}`),
+  },
+
   // Permits (lead finder)
   permits: {
     getAll: (params) => apiClient.get('/permits', { params }),

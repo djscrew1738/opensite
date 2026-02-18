@@ -43,6 +43,7 @@ import takeoffRoutes from './routes/takeoff.js';
 import permitsRoutes from './routes/permits.js';
 import discoveryRoutes from './routes/discovery.js';
 import settingsRoutes from './routes/settings.js';
+import historyRoutes from './routes/history.js';
 
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
@@ -92,6 +93,7 @@ app.use('/api/takeoff', takeoffRoutes);
 app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
 app.use('/api/settings', settingsRoutes); // App settings CRUD
+app.use('/api/history', historyRoutes); // History browsing
 
 // Root endpoint
 app.get('/', (req, res) => {

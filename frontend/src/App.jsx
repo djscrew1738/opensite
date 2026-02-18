@@ -9,6 +9,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LeadFinder = lazy(() => import('./pages/LeadFinder'));
 const Plans = lazy(() => import('./pages/Plans'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
+const History = lazy(() => import('./pages/History'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 // Loading component
@@ -57,6 +58,7 @@ export default function App() {
                 <Route path="leads" element={<LeadFinder />} />
                 <Route path="plans" element={<Plans />} />
                 <Route path="ai" element={<AIAssistant />} />
+                <Route path="history" element={<History />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>

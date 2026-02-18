@@ -15,12 +15,12 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 class DatabaseService {
   constructor() {
     this.db = new Database(DB_PATH);
-    // Performance pragmas
+    // Performance pragmas — tuned for low memory
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('cache_size = -64000');    // 64MB page cache
-    this.db.pragma('mmap_size = 268435456');  // 256MB memory-mapped I/O
-    this.db.pragma('temp_store = MEMORY');    // Keep temp tables in RAM
+    this.db.pragma('cache_size = -8000');     // 8MB page cache (was 64MB)
+    this.db.pragma('mmap_size = 67108864');   // 64MB mmap (was 256MB)
+    this.db.pragma('temp_store = MEMORY');
     this.db.pragma('wal_autocheckpoint = 1000');
     this.initializeTables();
   }

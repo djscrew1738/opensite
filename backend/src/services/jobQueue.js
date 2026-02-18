@@ -1,25 +1,25 @@
 // Background Job Queue Service
 // Handles long-running tasks without blocking API responses
+// Memory-optimized: auto-evicts completed jobs, nulls handler refs
 
 import { EventEmitter } from 'events';
 import logger from './logger.js';
-import { cache } from './cache.js';
+
+const MAX_COMPLETED_JOBS = 50;    // Max completed jobs to keep in memory
+const COMPLETED_TTL_MS = 600000;  // 10 minutes — then evict
+const CLEANUP_INTERVAL = 120000;  // Check every 2 minutes
 
 class JobQueue extends EventEmitter {
   constructor() {
     super();
     this.jobs = new Map();
     this.processing = new Set();
-    this.maxConcurrent = 3; // Max concurrent jobs
+    this.maxConcurrent = 3;
     this.jobId = 0;
   }
 
   /**
    * Add job to queue
-   * @param {string} type - Job type
-   * @param {object} data - Job data
-   * @param {Function} handler - Job handler function
-   * @returns {string} Job ID
    */
   async addJob(type, data, handler) {
     const jobId = `job-${++this.jobId}-${Date.now()}`;
@@ -40,12 +40,8 @@ class JobQueue extends EventEmitter {
 
     this.jobs.set(jobId, job);
 
-    // Store in cache for retrieval
-    cache.set(`job:${jobId}`, job, 3600); // 1 hour TTL
-
     logger.info('Job added to queue', { jobId, type });
 
-    // Start processing
     this.processNext();
 
     return jobId;
@@ -55,43 +51,29 @@ class JobQueue extends EventEmitter {
    * Process next job in queue
    */
   async processNext() {
-    // Check if we can process more
-    if (this.processing.size >= this.maxConcurrent) {
-      return;
-    }
+    if (this.processing.size >= this.maxConcurrent) return;
 
-    // Find next pending job
     const nextJob = Array.from(this.jobs.values())
       .find(job => job.status === 'pending');
 
-    if (!nextJob) {
-      return;
-    }
+    if (!nextJob) return;
 
-    // Mark as processing
     nextJob.status = 'processing';
     nextJob.startedAt = new Date();
     this.processing.add(nextJob.id);
 
-    cache.set(`job:${nextJob.id}`, nextJob, 3600);
-
     logger.info('Job started', { jobId: nextJob.id, type: nextJob.type });
 
     try {
-      // Execute handler
       const result = await nextJob.handler(nextJob.data, (progress) => {
         nextJob.progress = progress;
-        cache.set(`job:${nextJob.id}`, nextJob, 3600);
         this.emit('progress', nextJob.id, progress);
       });
 
-      // Mark as completed
       nextJob.status = 'completed';
       nextJob.result = result;
       nextJob.progress = 100;
       nextJob.completedAt = new Date();
-
-      cache.set(`job:${nextJob.id}`, nextJob, 3600);
 
       logger.info('Job completed', {
         jobId: nextJob.id,
@@ -101,45 +83,34 @@ class JobQueue extends EventEmitter {
       this.emit('completed', nextJob.id, result);
 
     } catch (error) {
-      // Mark as failed
       nextJob.status = 'failed';
       nextJob.error = error.message;
       nextJob.completedAt = new Date();
 
-      cache.set(`job:${nextJob.id}`, nextJob, 3600);
-
-      logger.error('Job failed', {
-        jobId: nextJob.id,
-        error: error.message
-      });
+      logger.error('Job failed', { jobId: nextJob.id, error: error.message });
 
       this.emit('failed', nextJob.id, error);
     } finally {
-      // Remove from processing
       this.processing.delete(nextJob.id);
 
-      // Process next job
+      // Release handler reference — this is the main memory leak fix.
+      // Handlers often close over large buffers (file data, base64 images).
+      nextJob.handler = null;
+      nextJob.data = null;
+
+      // Trim completed jobs if too many
+      this._trimCompleted();
+
       setImmediate(() => this.processNext());
     }
   }
 
   /**
-   * Get job status
-   * @param {string} jobId - Job ID
-   * @returns {object} Job status
+   * Get job status (lightweight — no handler/data)
    */
   getJobStatus(jobId) {
-    // Try memory first
-    let job = this.jobs.get(jobId);
-
-    // Fall back to cache
-    if (!job) {
-      job = cache.get(`job:${jobId}`);
-    }
-
-    if (!job) {
-      return null;
-    }
+    const job = this.jobs.get(jobId);
+    if (!job) return null;
 
     return {
       id: job.id,
@@ -156,9 +127,6 @@ class JobQueue extends EventEmitter {
 
   /**
    * Wait for job completion
-   * @param {string} jobId - Job ID
-   * @param {number} timeout - Timeout in ms
-   * @returns {Promise<object>} Job result
    */
   async waitForJob(jobId, timeout = 300000) {
     return new Promise((resolve, reject) => {
@@ -168,17 +136,11 @@ class JobQueue extends EventEmitter {
       }, timeout);
 
       const onCompleted = (completedJobId, result) => {
-        if (completedJobId === jobId) {
-          cleanup();
-          resolve(result);
-        }
+        if (completedJobId === jobId) { cleanup(); resolve(result); }
       };
 
       const onFailed = (failedJobId, error) => {
-        if (failedJobId === jobId) {
-          cleanup();
-          reject(error);
-        }
+        if (failedJobId === jobId) { cleanup(); reject(error); }
       };
 
       const cleanup = () => {
@@ -190,30 +152,25 @@ class JobQueue extends EventEmitter {
       this.on('completed', onCompleted);
       this.on('failed', onFailed);
 
-      // Check if already completed
+      // Check if already done
       const job = this.getJobStatus(jobId);
       if (job) {
-        if (job.status === 'completed') {
-          cleanup();
-          resolve(job.result);
-        } else if (job.status === 'failed') {
-          cleanup();
-          reject(new Error(job.error));
-        }
+        if (job.status === 'completed') { cleanup(); resolve(job.result); }
+        else if (job.status === 'failed') { cleanup(); reject(new Error(job.error)); }
       }
     });
   }
 
   /**
    * Cancel job
-   * @param {string} jobId - Job ID
    */
   cancelJob(jobId) {
     const job = this.jobs.get(jobId);
     if (job && job.status === 'pending') {
       job.status = 'cancelled';
       job.completedAt = new Date();
-      cache.set(`job:${jobId}`, job, 3600);
+      job.handler = null;
+      job.data = null;
       logger.info('Job cancelled', { jobId });
       return true;
     }
@@ -221,21 +178,44 @@ class JobQueue extends EventEmitter {
   }
 
   /**
-   * Clean up old completed jobs
+   * Trim completed/failed/cancelled jobs to keep memory bounded
    */
-  cleanup() {
-    const cutoff = new Date(Date.now() - 3600000); // 1 hour ago
-    let cleaned = 0;
+  _trimCompleted() {
+    const now = Date.now();
+    const done = [];
 
-    for (const [jobId, job] of this.jobs.entries()) {
-      if (job.completedAt && job.completedAt < cutoff) {
-        this.jobs.delete(jobId);
-        cleaned++;
+    for (const [id, job] of this.jobs.entries()) {
+      if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+        done.push({ id, completedAt: job.completedAt ? job.completedAt.getTime() : 0 });
       }
     }
 
-    if (cleaned > 0) {
-      logger.info('Cleaned up old jobs', { count: cleaned });
+    // Evict jobs older than TTL
+    for (const { id, completedAt } of done) {
+      if (now - completedAt > COMPLETED_TTL_MS) {
+        this.jobs.delete(id);
+      }
+    }
+
+    // If still over limit, evict oldest first
+    if (done.length > MAX_COMPLETED_JOBS) {
+      done.sort((a, b) => a.completedAt - b.completedAt);
+      const toEvict = done.length - MAX_COMPLETED_JOBS;
+      for (let i = 0; i < toEvict; i++) {
+        this.jobs.delete(done[i].id);
+      }
+    }
+  }
+
+  /**
+   * Full cleanup pass
+   */
+  cleanup() {
+    const before = this.jobs.size;
+    this._trimCompleted();
+    const after = this.jobs.size;
+    if (before !== after) {
+      logger.info('Job cleanup', { before, after, freed: before - after });
     }
   }
 
@@ -244,7 +224,6 @@ class JobQueue extends EventEmitter {
    */
   getStats() {
     const jobs = Array.from(this.jobs.values());
-
     return {
       total: jobs.length,
       pending: jobs.filter(j => j.status === 'pending').length,
@@ -257,13 +236,12 @@ class JobQueue extends EventEmitter {
   }
 }
 
-// Singleton instance
+// Singleton
 export const jobQueue = new JobQueue();
 
-// Cleanup old jobs every hour
-setInterval(() => jobQueue.cleanup(), 3600000);
+// Cleanup every 2 minutes instead of every hour
+setInterval(() => jobQueue.cleanup(), CLEANUP_INTERVAL);
 
-// Export job types
 export const JOB_TYPES = {
   BLUEPRINT_ANALYSIS: 'blueprint_analysis',
   LEAD_SCORING: 'lead_scoring',

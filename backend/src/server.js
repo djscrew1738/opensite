@@ -123,6 +123,20 @@ app.get('/api/cache/stats', (req, res) => {
   res.success(cache.getStats());
 });
 
+// Memory stats endpoint
+app.get('/api/admin/memory', (req, res) => {
+  const mem = process.memoryUsage();
+  res.success({
+    rss: `${Math.round(mem.rss / 1048576)}MB`,
+    heapTotal: `${Math.round(mem.heapTotal / 1048576)}MB`,
+    heapUsed: `${Math.round(mem.heapUsed / 1048576)}MB`,
+    external: `${Math.round(mem.external / 1048576)}MB`,
+    arrayBuffers: `${Math.round(mem.arrayBuffers / 1048576)}MB`,
+    uptime: `${Math.round(process.uptime())}s`,
+    cache: cache.getStats()
+  });
+});
+
 // Database backup endpoint
 app.post('/api/admin/backup', (req, res) => {
   try {
@@ -188,6 +202,21 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 });
+
+// Periodic heap monitoring — log if usage exceeds 80% of limit
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const heapUsedMB = Math.round(mem.heapUsed / 1048576);
+  const heapTotalMB = Math.round(mem.heapTotal / 1048576);
+  const rssMB = Math.round(mem.rss / 1048576);
+
+  // Warn if heap is over 180MB (of 256MB limit)
+  if (heapUsedMB > 180) {
+    logger.warn('High memory usage', { heapUsedMB, heapTotalMB, rssMB });
+    // Force garbage collection hint
+    if (global.gc) global.gc();
+  }
+}, 60000); // Check every minute
 
 // Start server on all interfaces
 const server = app.listen(PORT, '0.0.0.0', () => {

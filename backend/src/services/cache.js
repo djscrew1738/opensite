@@ -1,75 +1,52 @@
 // Cache Service using node-cache
-// In-memory caching with TTL and automatic cleanup
+// In-memory caching with TTL — memory-bounded
 
 import NodeCache from 'node-cache';
 import logger from './logger.js';
 
 class CacheService {
   constructor() {
-    // Main cache - 15 minute TTL, check every 3 minutes
+    // Main cache — 10 min TTL, 500 max keys (was 5000)
     this.cache = new NodeCache({
-      stdTTL: 900,
-      checkperiod: 180,
+      stdTTL: 600,
+      checkperiod: 120,
       useClones: false,
-      maxKeys: 5000
+      maxKeys: 500
     });
 
-    // Short-term cache for API responses - 2 minute TTL
+    // API response cache — 1 min TTL, 200 max keys (was 2000)
     this.apiCache = new NodeCache({
-      stdTTL: 120,
-      checkperiod: 60,
+      stdTTL: 60,
+      checkperiod: 30,
       useClones: false,
-      maxKeys: 2000
+      maxKeys: 200
     });
 
-    // Long-term cache for static data - 2 hour TTL
+    // Static cache — 1 hour TTL, 200 max keys (was 1000)
     this.staticCache = new NodeCache({
-      stdTTL: 7200,
-      checkperiod: 900,
+      stdTTL: 3600,
+      checkperiod: 300,
       useClones: false,
-      maxKeys: 1000
+      maxKeys: 200
     });
 
-    // Setup event listeners
-    this.cache.on('expired', (key, value) => {
-      logger.debug(`Cache key expired: ${key}`);
-    });
-
-    this.cache.on('del', (key, value) => {
-      logger.debug(`Cache key deleted: ${key}`);
-    });
-
-    logger.info('✅ Cache service initialized');
+    logger.info('Cache service initialized (low-memory mode)');
   }
 
   // Main cache operations
   get(key) {
-    const value = this.cache.get(key);
-    if (value !== undefined) {
-      logger.debug(`Cache hit: ${key}`);
-    } else {
-      logger.debug(`Cache miss: ${key}`);
-    }
-    return value;
+    return this.cache.get(key);
   }
 
   set(key, value, ttl = null) {
-    const success = ttl ? this.cache.set(key, value, ttl) : this.cache.set(key, value);
-    if (success) {
-      logger.debug(`Cache set: ${key}`);
-    }
-    return success;
+    return ttl ? this.cache.set(key, value, ttl) : this.cache.set(key, value);
   }
 
   del(key) {
-    const count = this.cache.del(key);
-    if (count > 0) {
-      logger.debug(`Cache deleted: ${key}`);
-    }
-    return count;
+    return this.cache.del(key);
   }
 
-  // API cache operations (short TTL)
+  // API cache operations
   getApi(key) {
     return this.apiCache.get(key);
   }
@@ -82,7 +59,7 @@ class CacheService {
     return this.apiCache.del(key);
   }
 
-  // Static cache operations (long TTL)
+  // Static cache operations
   getStatic(key) {
     return this.staticCache.get(key);
   }
@@ -95,7 +72,7 @@ class CacheService {
     return this.staticCache.del(key);
   }
 
-  // Flush operations
+  // Flush
   flush() {
     this.cache.flushAll();
     this.apiCache.flushAll();
@@ -103,48 +80,29 @@ class CacheService {
     logger.info('All caches flushed');
   }
 
-  flushMain() {
-    this.cache.flushAll();
-    logger.info('Main cache flushed');
-  }
-
-  flushApi() {
-    this.apiCache.flushAll();
-    logger.info('API cache flushed');
-  }
-
-  flushStatic() {
-    this.staticCache.flushAll();
-    logger.info('Static cache flushed');
-  }
+  flushMain() { this.cache.flushAll(); }
+  flushApi() { this.apiCache.flushAll(); }
+  flushStatic() { this.staticCache.flushAll(); }
 
   // Pattern-based deletion
   delPattern(pattern) {
     const regex = new RegExp(pattern);
-    const keys = this.cache.keys();
     let deleted = 0;
-
-    keys.forEach(key => {
-      if (regex.test(key)) {
-        this.cache.del(key);
-        deleted++;
-      }
-    });
-
-    logger.info(`Deleted ${deleted} keys matching pattern: ${pattern}`);
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) { this.cache.del(key); deleted++; }
+    }
     return deleted;
   }
 
-  // Get cache statistics
+  // Stats
   getStats() {
     return {
-      main: this.cache.getStats(),
-      api: this.apiCache.getStats(),
-      static: this.staticCache.getStats()
+      main: { ...this.cache.getStats(), keys: this.cache.keys().length },
+      api: { ...this.apiCache.getStats(), keys: this.apiCache.keys().length },
+      static: { ...this.staticCache.getStats(), keys: this.staticCache.keys().length }
     };
   }
 
-  // Get all keys
   getKeys() {
     return {
       main: this.cache.keys(),
@@ -156,23 +114,16 @@ class CacheService {
   // Cache middleware for Express
   middleware(ttl = 60) {
     return (req, res, next) => {
-      // Only cache GET requests
-      if (req.method !== 'GET') {
-        return next();
-      }
+      if (req.method !== 'GET') return next();
 
       const key = `api:${req.originalUrl || req.url}`;
-      const cachedResponse = this.getApi(key);
+      const cached = this.getApi(key);
 
-      if (cachedResponse) {
-        logger.debug(`Serving cached response for: ${key}`);
-        return res.json(cachedResponse);
+      if (cached) {
+        return res.json(cached);
       }
 
-      // Store original json method
       const originalJson = res.json.bind(res);
-
-      // Override json method to cache response
       res.json = (body) => {
         this.setApi(key, body, ttl);
         return originalJson(body);
@@ -183,6 +134,5 @@ class CacheService {
   }
 }
 
-// Singleton instance
 export const cache = new CacheService();
 export default cache;

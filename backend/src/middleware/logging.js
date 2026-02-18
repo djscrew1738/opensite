@@ -1,32 +1,38 @@
-// Logging Middleware
+// Unified Logging Middleware
+// Replaces 3 separate middlewares (requestLogger + slowRequestLogger + performanceLogger)
+// with a single middleware that handles all logging — fewer closures per request.
 
 import logger from '../services/logger.js';
 
-// Request logging middleware
+const SLOW_THRESHOLD_MS = 2000;
+
+/**
+ * Single request logging middleware — replaces requestLogger, slowRequestLogger, performanceLogger.
+ * Only allocates one 'finish' listener per request instead of three.
+ */
 export const requestLogger = (req, res, next) => {
   const startTime = Date.now();
 
-  // Log request
-  logger.info('Incoming request', {
-    method: req.method,
-    url: req.originalUrl || req.url,
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-    requestId: req.id
-  });
-
-  // Log response when finished
   res.on('finish', () => {
     const duration = Date.now() - startTime;
     const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
 
-    logger[logLevel]('Request completed', {
+    logger[logLevel]('Request', {
       method: req.method,
       url: req.originalUrl || req.url,
       status: res.statusCode,
       duration: `${duration}ms`,
       requestId: req.id
     });
+
+    if (duration > SLOW_THRESHOLD_MS) {
+      logger.warn('Slow request', {
+        method: req.method,
+        url: req.originalUrl || req.url,
+        duration: `${duration}ms`,
+        requestId: req.id
+      });
+    }
   });
 
   next();
@@ -39,54 +45,11 @@ export const errorLogger = (err, req, res, next) => {
     stack: err.stack,
     method: req.method,
     url: req.originalUrl || req.url,
-    ip: req.ip,
     requestId: req.id
   });
-
   next(err);
 };
 
-// Slow request logger
-export const slowRequestLogger = (threshold = 1000) => {
-  return (req, res, next) => {
-    const startTime = Date.now();
-
-    res.on('finish', () => {
-      const duration = Date.now() - startTime;
-
-      if (duration > threshold) {
-        logger.warn('Slow request detected', {
-          method: req.method,
-          url: req.originalUrl || req.url,
-          duration: `${duration}ms`,
-          threshold: `${threshold}ms`,
-          requestId: req.id
-        });
-      }
-    });
-
-    next();
-  };
-};
-
-// Performance logger
-export const performanceLogger = (req, res, next) => {
-  const startTime = process.hrtime.bigint();
-
-  res.on('finish', () => {
-    const endTime = process.hrtime.bigint();
-    const durationNs = endTime - startTime;
-    const durationMs = Number(durationNs) / 1000000;
-
-    if (durationMs > 100) {
-      logger.debug('Request performance', {
-        method: req.method,
-        url: req.originalUrl || req.url,
-        duration: `${durationMs.toFixed(2)}ms`,
-        requestId: req.id
-      });
-    }
-  });
-
-  next();
-};
+// Kept for backward compat but now a no-op — the unified requestLogger handles slow requests
+export const slowRequestLogger = () => (req, res, next) => next();
+export const performanceLogger = (req, res, next) => next();

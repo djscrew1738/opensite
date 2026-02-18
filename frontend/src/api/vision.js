@@ -61,9 +61,9 @@ export const visionApi = {
   // Job polling
   getJobStatus: (jobId) => apiClient.get(`/jobs/${jobId}`),
 
-  // Tile URL helpers
-  getDziUrl: (projectId) => `/api/vision/tiles/${projectId}/info.dzi`,
-  getTileUrl: (projectId) => `/api/vision/tiles/${projectId}/`,
+  // Tile URL helpers (served as static files from tiles directory)
+  getDziUrl: (projectId) => `/api/vision/tiles/${projectId}/${projectId}.dzi`,
+  getTileUrl: (projectId) => `/api/vision/tiles/${projectId}/${projectId}_files/`,
   getThumbnailUrl: (projectId) => `/api/vision/tiles/${projectId}/thumbnail.jpeg`,
 };
 

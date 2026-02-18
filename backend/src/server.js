@@ -23,9 +23,7 @@ import {
 import { sanitizeInput } from './middleware/validation.js';
 import {
   requestLogger,
-  errorLogger,
-  slowRequestLogger,
-  performanceLogger
+  errorLogger
 } from './middleware/logging.js';
 import { responseWrapper } from './utils/response.js';
 
@@ -45,6 +43,7 @@ import discoveryRoutes from './routes/discovery.js';
 import settingsRoutes from './routes/settings.js';
 import historyRoutes from './routes/history.js';
 import visionRoutes from './routes/vision.js';
+import { visionService } from './services/vision.js';
 
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
@@ -72,10 +71,8 @@ app.use(sanitizeInput); // Sanitize inputs
 app.use(requestSizeLimiter); // Limit request size
 app.use(responseWrapper); // Standardized response format
 
-// Logging middleware
-app.use(requestLogger); // Log all requests
-app.use(slowRequestLogger(2000)); // Log slow requests (>2s)
-app.use(performanceLogger); // Log performance metrics
+// Logging middleware (unified — handles request + slow + performance logging)
+app.use(requestLogger);
 
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
@@ -95,7 +92,8 @@ app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
 app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
-app.use('/api/vision', uploadLimiter, visionRoutes); // Vision deep-zoom viewer
+app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
+app.use('/api/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' })); // Serve DZI tiles as static files
 
 // Root endpoint
 app.get('/', (req, res) => {

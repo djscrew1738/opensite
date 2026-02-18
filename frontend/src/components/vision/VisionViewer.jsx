@@ -21,7 +21,7 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
 
     const viewer = OSD({
       element: viewerRef.current,
-      tileSources: `/api/vision/tiles/${project.id}/info.dzi`,
+      tileSources: `/api/vision/tiles/${project.id}/${project.id}.dzi`,
       prefixUrl: '',
       showNavigator: true,
       navigatorPosition: 'BOTTOM_RIGHT',

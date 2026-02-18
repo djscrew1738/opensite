@@ -10,6 +10,7 @@ import { visionService } from '../services/vision.js';
 import { visionAIService } from '../services/vision-ai.js';
 import { jobQueue } from '../services/jobQueue.js';
 import { tryCatch } from '../utils/response.js';
+import { uploadLimiter } from '../middleware/security.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -43,7 +44,7 @@ const upload = multer({
  * Upload blueprint and generate DZI tiles
  * POST /api/vision/upload
  */
-router.post('/upload', upload.single('file'), tryCatch(async (req, res) => {
+router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req, res) => {
   if (!req.file) {
     return res.error('No file uploaded', 'MISSING_FILE', null, 400);
   }
@@ -181,58 +182,8 @@ router.get('/projects/:id', tryCatch(async (req, res) => {
   res.success({ ...project, layers, analyses });
 }));
 
-/**
- * Serve DZI descriptor
- * GET /api/vision/tiles/:projectId/info.dzi
- */
-router.get('/tiles/:projectId/info.dzi', tryCatch(async (req, res) => {
-  const { projectId } = req.params;
-  const project = db.db.prepare('SELECT dziPath FROM vision_projects WHERE id = ?').get(projectId);
-  if (!project || !project.dziPath) {
-    return res.error('DZI not found', 'NOT_FOUND', null, 404);
-  }
-
-  if (!fs.existsSync(project.dziPath)) {
-    return res.error('DZI file missing', 'FILE_MISSING', null, 404);
-  }
-
-  res.set('Content-Type', 'application/xml');
-  res.sendFile(project.dziPath);
-}));
-
-/**
- * Serve individual tiles
- * GET /api/vision/tiles/:projectId/:level/:col_row.jpeg
- */
-router.get('/tiles/:projectId/:level/:colRow.jpeg', (req, res) => {
-  const { projectId, level, colRow } = req.params;
-  const tilePath = path.join(visionService.tilesDir, projectId, `${projectId}_files`, level, `${colRow}.jpeg`);
-
-  if (!fs.existsSync(tilePath)) {
-    return res.status(404).send('Tile not found');
-  }
-
-  res.set('Content-Type', 'image/jpeg');
-  res.set('Cache-Control', 'public, max-age=86400'); // Cache tiles for 24h
-  res.sendFile(tilePath);
-});
-
-/**
- * Serve thumbnail
- * GET /api/vision/tiles/:projectId/thumbnail.jpeg
- */
-router.get('/tiles/:projectId/thumbnail.jpeg', (req, res) => {
-  const { projectId } = req.params;
-  const thumbPath = path.join(visionService.tilesDir, projectId, 'thumbnail.jpeg');
-
-  if (!fs.existsSync(thumbPath)) {
-    return res.status(404).send('Thumbnail not found');
-  }
-
-  res.set('Content-Type', 'image/jpeg');
-  res.set('Cache-Control', 'public, max-age=3600');
-  res.sendFile(thumbPath);
-});
+// DZI tiles, individual tiles, and thumbnails are served as static files
+// via express.static(visionService.tilesDir) in server.js
 
 /**
  * Trigger AI vision analysis

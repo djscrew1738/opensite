@@ -29,6 +29,7 @@ export default function Vision() {
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeJobId, setAnalyzeJobId] = useState(null);
+  const [selectedModel, setSelectedModel] = useState(null);
 
   // Fetch projects
   const { data: projects = [], isLoading } = useQuery({
@@ -65,12 +66,12 @@ export default function Vision() {
   }, [selectedId, queryClient]);
 
   // AI Analysis
-  const handleAnalyze = useCallback(async () => {
+  const handleAnalyze = useCallback(async (model) => {
     if (!selectedId || analyzing) return;
     setAnalyzing(true);
 
     try {
-      const result = await visionApi.analyze(selectedId);
+      const result = await visionApi.analyze(selectedId, model || selectedModel);
       setAnalyzeJobId(result.jobId);
 
       // Poll for completion
@@ -88,7 +89,7 @@ export default function Vision() {
     } catch (err) {
       setAnalyzing(false);
     }
-  }, [selectedId, analyzing, refetchProject]);
+  }, [selectedId, analyzing, selectedModel, refetchProject]);
 
   // Layer updates
   const handleLayerUpdate = useCallback(async (layerId, updates) => {
@@ -207,6 +208,8 @@ export default function Vision() {
             onLayerUpdate={handleLayerUpdate}
             onAnalyze={handleAnalyze}
             analyzing={analyzing}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">

@@ -41,8 +41,17 @@ class VisionAIService {
 
     if (progressCallback) progressCallback(20);
 
+    // Route to correct provider based on selected model
+    const selectedModel = options.model;
+    const isAnthropicModel = selectedModel && (selectedModel.startsWith('claude-') || selectedModel.startsWith('claude_'));
+    const isGroqModel = selectedModel && (selectedModel.includes('llama') || selectedModel.includes('meta-'));
+
     let result;
-    if (anthropicKey) {
+    if (isAnthropicModel && anthropicKey) {
+      result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
+    } else if (isGroqModel && groqKey) {
+      result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);
+    } else if (anthropicKey) {
       result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
     } else {
       result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);

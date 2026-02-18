@@ -51,6 +51,7 @@ export const visionApi = {
   deleteProject: (id) => apiClient.delete(`/vision/projects/${id}`),
 
   // AI Analysis
+  getModels: () => apiClient.get('/vision/models'),
   analyze: (projectId, model) => apiClient.post(`/vision/projects/${projectId}/analyze`, { model }),
 
   // Layers

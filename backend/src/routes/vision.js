@@ -41,6 +41,31 @@ const upload = multer({
 });
 
 /**
+ * Get available AI vision models based on configured API keys
+ * GET /api/vision/models
+ */
+router.get('/models', tryCatch(async (req, res) => {
+  const anthropicKey = db.getSetting('anthropic_api_key');
+  const groqKey = db.getSetting('groq_api_key');
+  const models = [];
+
+  if (anthropicKey) {
+    models.push(
+      { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', speed: 'fast', quality: 'good' },
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic', speed: 'medium', quality: 'excellent' },
+    );
+  }
+  if (groqKey) {
+    models.push(
+      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', provider: 'groq', speed: 'fast', quality: 'good' },
+      { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: 'groq', speed: 'medium', quality: 'excellent' },
+    );
+  }
+
+  res.success({ models, hasKeys: !!(anthropicKey || groqKey) });
+}));
+
+/**
  * Upload blueprint and generate DZI tiles
  * POST /api/vision/upload
  */
@@ -81,8 +106,9 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
     // Generate tiles
     const tileResult = await visionService.generateTiles(imagePath, projectId, progressCallback);
 
-    // Create thumbnail
+    // Create thumbnail and analysis image
     await visionService.createThumbnail(imagePath, projectId);
+    await visionService.saveAnalysisImage(imagePath, projectId);
 
     progressCallback(95);
 
@@ -204,31 +230,14 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
     'INSERT INTO vision_analyses (id, projectId, passType, model, result, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(analysisId, req.params.id, 'global', model || 'auto', '{}', 'pending', now);
 
-  // Find the original image — we need to reconstruct or use the thumbnail for analysis
-  // For AI analysis, we'll use the thumbnail since original is deleted after tile gen
-  const thumbPath = path.join(visionService.tilesDir, req.params.id, 'thumbnail.jpeg');
-
-  // Actually, let's use a mid-level tile to get decent resolution
-  // Find the highest-level tiles directory
-  const filesDir = path.join(visionService.tilesDir, req.params.id, `${req.params.id}_files`);
-  let analysisImagePath = thumbPath;
-
-  if (fs.existsSync(filesDir)) {
-    const levels = fs.readdirSync(filesDir).filter(d => /^\d+$/.test(d)).sort((a, b) => Number(b) - Number(a));
-    if (levels.length > 0) {
-      // Use a mid-high level for analysis (not highest to keep file size reasonable)
-      const analyzeLevel = levels[Math.min(1, levels.length - 1)];
-      const levelDir = path.join(filesDir, analyzeLevel);
-      const tiles = fs.readdirSync(levelDir).filter(f => f.endsWith('.jpeg'));
-      if (tiles.length === 1) {
-        // Single tile at this level — use it directly
-        analysisImagePath = path.join(levelDir, tiles[0]);
-      }
-    }
-  }
-
+  // Use the saved analysis image (resized copy saved during upload)
+  // Falls back to thumbnail if analysis image doesn't exist (older projects)
+  let analysisImagePath = visionService.getAnalysisImagePath(req.params.id);
   if (!fs.existsSync(analysisImagePath)) {
-    return res.error('No image available for analysis', 'NO_IMAGE', null, 400);
+    analysisImagePath = path.join(visionService.tilesDir, req.params.id, 'thumbnail.jpeg');
+  }
+  if (!fs.existsSync(analysisImagePath)) {
+    return res.error('No image available for analysis. Try re-uploading the blueprint.', 'NO_IMAGE', null, 400);
   }
 
   // Queue analysis job

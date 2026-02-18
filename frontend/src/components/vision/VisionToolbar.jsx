@@ -1,12 +1,48 @@
+import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCw, Fullscreen,
-  Layers, Sparkles, Loader2
+  Layers, Sparkles, Loader2, ChevronDown, Cpu
 } from 'lucide-react';
+import { visionApi } from '../../api/vision';
 
 export default function VisionToolbar({
   zoom, maxZoom, onZoomIn, onZoomOut, onFit, onRotate, onFullscreen,
-  onToggleLayers, showLayers, onAnalyze, analyzing, hasLayers
+  onToggleLayers, showLayers, onAnalyze, analyzing, hasLayers,
+  selectedModel, onModelChange
 }) {
+  const [showModelMenu, setShowModelMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Fetch available models
+  const { data: modelsData } = useQuery({
+    queryKey: ['vision-models'],
+    queryFn: () => visionApi.getModels(),
+    staleTime: 60000,
+  });
+
+  const models = modelsData?.models || [];
+  const hasKeys = modelsData?.hasKeys ?? false;
+
+  // Auto-select first model if none selected
+  useEffect(() => {
+    if (!selectedModel && models.length > 0) {
+      onModelChange?.(models[0].id);
+    }
+  }, [models, selectedModel, onModelChange]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showModelMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowModelMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModelMenu]);
+
+  const currentModel = models.find(m => m.id === selectedModel);
+
   const tools = [
     { icon: ZoomIn, onClick: onZoomIn, label: 'Zoom in', key: '+' },
     { icon: ZoomOut, onClick: onZoomOut, label: 'Zoom out', key: '-' },
@@ -43,16 +79,85 @@ export default function VisionToolbar({
 
       <div className="flex-1" />
 
+      {/* Model selector */}
+      {models.length > 0 && (
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowModelMenu(!showModelMenu)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                       border border-surface-200 dark:border-gray-700
+                       text-surface-600 dark:text-surface-300
+                       hover:bg-surface-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span className="max-w-[100px] truncate">{currentModel?.name || 'Model'}</span>
+            <ChevronDown className="w-3 h-3" />
+          </button>
+
+          {showModelMenu && (
+            <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-surface-200 dark:border-gray-700
+                            bg-white dark:bg-gray-900 shadow-xl z-50 py-1 overflow-hidden">
+              {models.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { onModelChange?.(m.id); setShowModelMenu(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                    ${selectedModel === m.id
+                      ? 'bg-primary-50 dark:bg-primary-900/20'
+                      : 'hover:bg-surface-50 dark:hover:bg-gray-800/50'
+                    }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold truncate ${
+                      selectedModel === m.id
+                        ? 'text-primary-700 dark:text-primary-300'
+                        : 'text-surface-800 dark:text-surface-200'
+                    }`}>
+                      {m.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] uppercase font-medium text-surface-400 dark:text-surface-500">
+                        {m.provider}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        m.speed === 'fast'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {m.speed}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        m.quality === 'excellent'
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      }`}>
+                        {m.quality}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedModel === m.id && (
+                    <div className="w-2 h-2 rounded-full bg-primary-500 flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* AI Analysis button */}
       <button
-        onClick={onAnalyze}
-        disabled={analyzing}
+        onClick={() => onAnalyze(selectedModel)}
+        disabled={analyzing || !hasKeys}
+        title={!hasKeys ? 'Add an API key in Settings first' : ''}
         className={`
           inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-          transition-all
+          transition-all ml-1.5
           ${analyzing
             ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-wait'
-            : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
+            : !hasKeys
+              ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-not-allowed'
+              : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
           }
         `}
       >

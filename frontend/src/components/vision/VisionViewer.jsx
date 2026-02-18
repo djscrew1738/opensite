@@ -3,7 +3,7 @@ import VisionToolbar from './VisionToolbar';
 import LayerPanel from './LayerPanel';
 import AnnotationOverlay from './AnnotationOverlay';
 
-export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze, analyzing }) {
+export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze, analyzing, selectedModel, onModelChange }) {
   const viewerRef = useRef(null);
   const osdRef = useRef(null);
   const [zoom, setZoom] = useState(1);
@@ -98,6 +98,8 @@ export default function VisionViewer({ project, layers, onLayerUpdate, onAnalyze
         onAnalyze={onAnalyze}
         analyzing={analyzing}
         hasLayers={layers?.length > 0}
+        selectedModel={selectedModel}
+        onModelChange={onModelChange}
       />
 
       <div className="relative flex-1 overflow-hidden">

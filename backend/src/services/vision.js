@@ -139,35 +139,78 @@ class VisionService {
   }
 
   /**
-   * Convert PDF pages to images (first page only for MVP)
-   * Sharp doesn't natively handle PDFs, so we convert page 1 to PNG
-   * For multi-page PDF support, the user can upload individual page images
+   * Convert PDF first page to image using pdf.js
+   * Strategy: extract embedded images (most blueprint PDFs are scans),
+   * fall back to rendering text/vector content as SVG
    */
   async convertPdfToImage(pdfPath, outputDir) {
-    // Sharp can handle PDFs with libvips built-in poppler support
-    // If not available, we return an error suggesting image upload
-    try {
-      const outputPath = path.join(outputDir, `page-1.png`);
-      await sharp(pdfPath, { page: 0, density: 200 })
-        .png()
-        .toFile(outputPath);
+    const outputPath = path.join(outputDir, `page-${randomUUID()}.png`);
 
+    try {
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const pdfData = new Uint8Array(fs.readFileSync(pdfPath));
+      const doc = await pdfjs.getDocument({ data: pdfData, useSystemFonts: true }).promise;
+      const page = await doc.getPage(1);
+      const pageCount = doc.numPages;
+
+      // Try to extract the largest embedded image (blueprint PDFs are usually scans)
+      const ops = await page.getOperatorList();
+      let largestImage = null;
+      let largestSize = 0;
+
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        // OPS.paintImageXObject = 85
+        if (ops.fnArray[i] === 85) {
+          const imgName = ops.argsArray[i][0];
+          try {
+            const img = await page.objs.get(imgName);
+            if (img && img.data && img.width && img.height) {
+              const size = img.width * img.height;
+              if (size > largestSize) {
+                largestSize = size;
+                largestImage = img;
+              }
+            }
+          } catch (e) { /* skip this image */ }
+        }
+      }
+
+      if (largestImage && largestImage.width > 100 && largestImage.height > 100) {
+        // Convert embedded image to PNG via sharp
+        const { data, width, height, kind } = largestImage;
+        const channels = kind === 2 ? 4 : kind === 1 ? 3 : data.length / (width * height);
+        await sharp(Buffer.from(data), { raw: { width, height, channels: Math.round(channels) } })
+          .png()
+          .toFile(outputPath);
+      } else {
+        // No useful embedded images — render page content as white image with text overlay
+        const scale = 200 / 72;
+        const viewport = page.getViewport({ scale });
+        const w = Math.floor(viewport.width);
+        const h = Math.floor(viewport.height);
+        const textContent = await page.getTextContent();
+
+        let svgText = '';
+        for (const item of textContent.items) {
+          if (!item.str || !item.str.trim()) continue;
+          const tx = item.transform;
+          const x = tx[4] * scale;
+          const y = h - (tx[5] * scale);
+          const fontSize = Math.max(8, Math.abs(tx[0]) * scale);
+          const escaped = item.str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          svgText += `<text x="${x}" y="${y}" font-size="${fontSize}" font-family="sans-serif" fill="black">${escaped}</text>\n`;
+        }
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="white"/>${svgText}</svg>`;
+        await sharp(Buffer.from(svg)).png().toFile(outputPath);
+      }
+
+      doc.destroy();
       const metadata = await sharp(outputPath).metadata();
-      return {
-        success: true,
-        pages: [outputPath],
-        pageCount: 1,
-        width: metadata.width,
-        height: metadata.height
-      };
+      return { success: true, pages: [outputPath], pageCount, width: metadata.width, height: metadata.height };
     } catch (err) {
-      logger.warn('PDF to image conversion failed (libvips poppler may not be available)', {
-        error: err.message
-      });
-      return {
-        success: false,
-        error: 'PDF conversion not supported. Please upload images (PNG/JPG/TIFF) directly.'
-      };
+      logger.warn('PDF conversion failed', { error: err.message, stack: err.stack?.substring(0, 300) });
+      return { success: false, error: 'PDF conversion failed. Please upload as PNG or JPG image instead.' };
     }
   }
 
@@ -185,6 +228,30 @@ class VisionService {
       .toFile(thumbPath);
 
     return thumbPath;
+  }
+
+  /**
+   * Save a resized copy of the image for AI analysis (kept alongside tiles)
+   * This avoids needing to reconstruct from tiles after original is deleted
+   */
+  async saveAnalysisImage(imagePath, projectId) {
+    const projectDir = path.join(TILES_DIR, projectId);
+    fs.mkdirSync(projectDir, { recursive: true });
+    const analysisPath = path.join(projectDir, 'analysis.jpeg');
+
+    await sharp(imagePath)
+      .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toFile(analysisPath);
+
+    return analysisPath;
+  }
+
+  /**
+   * Get the analysis image path for a project
+   */
+  getAnalysisImagePath(projectId) {
+    return path.join(TILES_DIR, projectId, 'analysis.jpeg');
   }
 
   /**

@@ -38,6 +38,7 @@
     "nodemailer": "^6.9.16",
     "p-queue": "^8.0.1",
     "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^5.4.624",
     "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "twilio": "^5.3.0",

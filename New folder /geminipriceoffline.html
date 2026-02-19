@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plumbing Bid Calculator (Offline)</title>
+    <style>
+        :root {
+            --primary: #2563eb; /* Blue-600 */
+            --primary-dark: #1d4ed8; /* Blue-700 */
+            --bg-gradient-start: #eff6ff; /* Blue-50 */
+            --bg-gradient-end: #f8fafc; /* Slate-50 */
+            --card-bg: #ffffff;
+            --text-main: #1f2937; /* Gray-800 */
+            --text-muted: #4b5563; /* Gray-600 */
+            --border: #e2e8f0; /* Slate-200 */
+            --success: #16a34a; /* Green-600 */
+            --danger: #dc2626; /* Red-600 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(to bottom right, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-main);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .header svg {
+            color: var(--primary);
+            width: 32px;
+            height: 32px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Sections */
+        .card {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+        }
+
+        .card-blue { background-color: #eff6ff; border-color: #dbeafe; }
+        .card-slate { background-color: #f8fafc; border-color: #e2e8f0; }
+        .card-green { background-color: #f0fdf4; border-color: #dcfce7; }
+        .card-amber { background-color: #fffbeb; border-color: #fef3c7; }
+        .card-total { background: linear-gradient(to bottom right, var(--primary), var(--primary-dark)); color: white; }
+        .card-white { background-color: white; border-color: var(--border); border-width: 2px; }
+
+        h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--success);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Results */
+        .total-display {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        .breakdown-row:last-child {
+            border-bottom: none;
+            border-top: 2px solid #cbd5e1;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .text-red { color: var(--danger); }
+        .text-green { color: var(--success); }
+        .text-blue { color: var(--primary); }
+
+        ul {
+            padding-left: 20px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        li { margin-bottom: 4px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="16" height="20" x="4" y="2" rx="2"/>
+            <line x1="8" x2="16" y1="6" y2="6"/>
+            <line x1="16" x2="16" y1="14" y2="18"/>
+            <path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>
+            <path d="M8 14h.01"/><path d="M12 14h.01"/>
+            <path d="M8 18h.01"/><path d="M12 18h.01"/>
+        </svg>
+        <h1>Plumbing Bid Calculator</h1>
+    </div>
+
+    <div class="grid">
+        <!-- Left Column: Inputs -->
+        <div>
+            <!-- Project Details -->
+            <div class="card card-blue">
+                <h2 style="color: #1e3a8a;">Project Details</h2>
+                
+                <div class="form-group">
+                    <label>Story Type</label>
+                    <select id="storyType" onchange="calculate()">
+                        <option value="single">Single Story</option>
+                        <option value="twoStory">Two Story</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Number of Bathrooms</label>
+                    <input type="number" id="bathCount" value="2" min="1" max="10" oninput="calculate()">
+                </div>
+
+                <div class="form-group">
+                    <label>City Requirements Fee</label>
+                    <input type="number" id="cityRequirements" value="125" oninput="calculate()">
+                </div>
+            </div>
+
+            <!-- Fixtures -->
+            <div class="card card-slate">
+                <h2 style="color: #0f172a;">Fixtures</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Total Tubs</label>
+                        <input type="number" id="totalTubs" value="1" min="0" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Lavs (Sinks)</label>
+                        <input type="number" id="totalLavs" value="2" min="0" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Toilets</label>
+                        <input type="number" id="toilets" value="2" min="1" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Shower Units</label>
+                        <input type="number" id="showerUnits" value="0" min="0" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Kitchen Sinks</label>
+                        <input type="number" id="kitchenSinks" value="1" min="1" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Gas Drops</label>
+                        <input type="number" id="gasDrops" value="3" min="3" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Water Heaters</label>
+                        <input type="number" id="waterHeaters" value="1" min="1" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Hose Bibs</label>
+                        <input type="number" id="hoseBibs" value="2" min="2" oninput="calculate()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div class="card card-green">
+                <h2 style="color: #14532d;">Options & Upgrades</h2>
+                
+                <label class="checkbox-group">
+                    <input type="checkbox" id="tubUpgrade" onchange="calculate()">
+                    <span>Premium Tub Upgrade (+$865/tub)</span>
+                </label>
+
+                <label class="checkbox-group">
+                    <input type="checkbox" id="freezerLine" onchange="calculate()">
+                    <span>Water Line to Freezer (+$250)</span>
+                </label>
+
+                <label class="checkbox-group">
+                    <input type="checkbox" id="patioGas" onchange="calculate()">
+                    <span>Gas Stub at Patio (+$235)</span>
+                </label>
+
+                <label class="checkbox-group">
+                    <input type="checkbox" id="fireplace" onchange="calculate()">
+                    <span>Fireplace Gas Line (+$235)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Right Column: Results -->
+        <div>
+            <!-- Total Badge -->
+            <div class="card card-total">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span style="font-weight: 600;">Total Bid Estimate</span>
+                </div>
+                <div id="displayTotal" class="total-display">$0.00</div>
+                <div style="font-size: 0.875rem; opacity: 0.9;">Complete project estimate</div>
+            </div>
+
+            <!-- Breakdown -->
+            <div class="card card-white">
+                <h2 style="color: #334155;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                    Bid Breakdown
+                </h2>
+                
+                <div class="breakdown-row">
+                    <span style="color: var(--text-muted);">Fixtures & Materials Base</span>
+                    <span id="dispFixtures" style="font-weight: 600;">$0.00</span>
+                </div>
+
+                <div class="breakdown-row">
+                    <span style="color: var(--text-muted);">Turnkey Fixtures Base</span>
+                    <span id="dispTurnkey" style="font-weight: 600;">$0.00</span>
+                </div>
+
+                <div class="breakdown-row">
+                    <span style="color: var(--text-muted);">City Requirements</span>
+                    <span id="dispCity" style="font-weight: 600;">$0.00</span>
+                </div>
+
+                <div class="breakdown-row" id="rowLabor" style="display: none;">
+                    <span style="color: var(--text-muted);">Two-Story Labor Premium</span>
+                    <span id="dispLabor" class="text-red" style="font-weight: 600;">+$0.00</span>
+                </div>
+
+                <div class="breakdown-row" id="rowOptions" style="display: none;">
+                    <span style="color: var(--text-muted);">Optional Upgrades</span>
+                    <span id="dispOptions" class="text-green" style="font-weight: 600;">+$0.00</span>
+                </div>
+
+                <div class="breakdown-row">
+                    <span>Total</span>
+                    <span id="dispTotalBreakdown" class="text-blue">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card card-amber">
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #78350f; margin-bottom: 8px;">Included in Base:</h3>
+                <ul>
+                    <li>50-gal gas water heater (AO Smith)</li>
+                    <li>Standard faucets, commodes, disposals</li>
+                    <li>First 3 gas drops (furnace, water heater, range)</li>
+                    <li>2 frost-proof hose bibs</li>
+                    <li>All standard rough-in materials</li>
+                </ul>
+            </div>
+
+            <div class="card card-slate">
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Notes:</h3>
+                <ul>
+                    <li id="noteStory">Pricing based on single-story configuration.</li>
+                    <li>Permit and city inspection fees included.</li>
+                    <li>Quote valid for 30 days.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const pricing = {
+        single: { base: 2730, perBath: 1400, turnkey: 1165 },
+        twoStory: { base: 3088, perBath: 1029, turnkey: 1165 },
+        fixtures: {
+            lavatory: 120,
+            toilet: 180,
+            tub: 320,
+            tubUpgrade: 865,
+            showerUnit: 450,
+            additionalGasDrop: 85
+        },
+        labor: {
+            singleStoryMultiplier: 1.0,
+            twoStoryMultiplier: 1.15
+        },
+        options: {
+            freezerLine: 250,
+            patioGas: 235,
+            fireplace: 235
+        }
+    };
+
+    // --- Core Logic ---
+    function calculate() {
+        // 1. Get Values from DOM
+        const storyType = document.getElementById('storyType').value;
+        const bathCount = parseInt(document.getElementById('bathCount').value) || 0;
+        const cityFees = parseInt(document.getElementById('cityRequirements').value) || 0;
+        
+        // Fixtures
+        const totalTubs = parseInt(document.getElementById('totalTubs').value) || 0;
+        const totalLavs = parseInt(document.getElementById('totalLavs').value) || 0;
+        const toilets = parseInt(document.getElementById('toilets').value) || 0;
+        const showerUnits = parseInt(document.getElementById('showerUnits').value) || 0;
+        const gasDrops = parseInt(document.getElementById('gasDrops').value) || 0;
+
+        // Checkboxes
+        const isTubUpgrade = document.getElementById('tubUpgrade').checked;
+        const isFreezer = document.getElementById('freezerLine').checked;
+        const isPatio = document.getElementById('patioGas').checked;
+        const isFireplace = document.getElementById('fireplace').checked;
+
+        // 2. Calculations
+        const storyData = storyType === 'single' ? pricing.single : pricing.twoStory;
+        let fixtureTotal = storyData.base;
+
+        // Additions beyond 2 baths
+        if (bathCount > 2) {
+            fixtureTotal += storyData.perBath * (bathCount - 2);
+        }
+
+        // Fixture overages
+        if (totalLavs > bathCount) fixtureTotal += (totalLavs - bathCount) * pricing.fixtures.lavatory;
+        if (totalTubs > bathCount) fixtureTotal += (totalTubs - bathCount) * pricing.fixtures.tub;
+        if (toilets > bathCount) fixtureTotal += (toilets - bathCount) * pricing.fixtures.toilet;
+        
+        // Upgrades
+        if (isTubUpgrade && totalTubs > 0) fixtureTotal += totalTubs * pricing.fixtures.tubUpgrade;
+        fixtureTotal += showerUnits * pricing.fixtures.showerUnit;
+        if (gasDrops > 3) fixtureTotal += (gasDrops - 3) * pricing.fixtures.additionalGasDrop;
+
+        // Labor Premium
+        const laborMultiplier = storyType === 'single' ? 
+            pricing.labor.singleStoryMultiplier : 
+            pricing.labor.twoStoryMultiplier;
+        const laborPremium = (laborMultiplier - 1.0) * fixtureTotal;
+
+        // Options Total
+        let optionsTotal = 0;
+        if (isFreezer) optionsTotal += pricing.options.freezerLine;
+        if (isPatio) optionsTotal += pricing.options.patioGas;
+        if (isFireplace) optionsTotal += pricing.options.fireplace;
+
+        // Final Total
+        const total = fixtureTotal + laborPremium + storyData.turnkey + cityFees + optionsTotal;
+
+        // 3. Update UI
+        const fmt = (num) => '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        document.getElementById('displayTotal').innerText = fmt(total);
+        document.getElementById('dispTotalBreakdown').innerText = fmt(total);
+        document.getElementById('dispFixtures').innerText = fmt(fixtureTotal);
+        document.getElementById('dispTurnkey').innerText = fmt(storyData.turnkey);
+        document.getElementById('dispCity').innerText = fmt(cityFees);
+
+        // Show/Hide Labor Row
+        const laborRow = document.getElementById('rowLabor');
+        if (laborPremium > 0) {
+            laborRow.style.display = 'flex';
+            document.getElementById('dispLabor').innerText = '+ ' + fmt(laborPremium);
+        } else {
+            laborRow.style.display = 'none';
+        }
+
+        // Show/Hide Options Row
+        const optionsRow = document.getElementById('rowOptions');
+        if (optionsTotal > 0) {
+            optionsRow.style.display = 'flex';
+            document.getElementById('dispOptions').innerText = '+ ' + fmt(optionsTotal);
+        } else {
+            optionsRow.style.display = 'none';
+        }
+
+        // Update Notes
+        const noteText = storyType === 'single' 
+            ? "Pricing based on single-story configuration." 
+            : "Pricing based on two-story configuration (includes 15% labor premium).";
+        document.getElementById('noteStory').innerText = noteText;
+    }
+
+    // Initial Calculation
+    calculate();
+</script>
+
+</body>
+</html>
+

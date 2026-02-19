@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plumbing Bid Calculator (Modern)</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg-start: #eff6ff;
+      --bg-end: #f8fafc;
+      --text-main: #1f2937;
+      --text-muted: #4b5563;
+      --border: #e2e8f0;
+      --success: #16a34a;
+      --danger: #dc2626;
+    }
+    body {
+      font-family: system-ui, sans-serif;
+      background: linear-gradient(to bottom right, var(--bg-start), var(--bg-end));
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 { font-size: 1.5rem; margin: 0; }
+    .grid { display: grid; gap: 20px; padding: 20px; }
+    @media(min-width:768px){ .grid { grid-template-columns: 1fr 1fr; } }
+    .card { padding: 20px; border-radius: 8px; border: 1px solid var(--border); }
+    .card-total { background: linear-gradient(to bottom right, var(--primary), var(--primary-dark)); color: white; }
+    .form-group { margin-bottom: 15px; }
+    input[type="number"], select {
+      width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border);
+    }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .total-display { font-size: 2.4rem; font-weight: 700; margin: 10px 0; }
+    .breakdown-row { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 8px 0; }
+    .breakdown-row:last-child { border-top: 2px solid var(--border); border-bottom: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Plumbing Bid Calculator</h1>
+    </div>
+
+    <div class="grid">
+      <!-- Left Column -->
+      <div>
+        <div class="card">
+          <h2>Project Details</h2>
+          <div class="form-group">
+            <label>Story Type</label>
+            <select id="storyType">
+              <option value="single">Single Story</option>
+              <option value="twoStory">Two Story</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Bathrooms</label>
+            <input type="number" id="bathCount" value="2" min="1">
+          </div>
+          <div class="form-group">
+            <label>City Requirements Fee</label>
+            <input type="number" id="cityRequirements" value="125" min="0">
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Fixtures</h2>
+          <div class="form-group"><label>Tubs</label><input type="number" id="totalTubs" value="1" min="0"></div>
+          <div class="form-group"><label>Lavatories (Sinks)</label><input type="number" id="totalLavs" value="2" min="0"></div>
+          <div class="form-group"><label>Toilets</label><input type="number" id="toilets" value="2" min="1"></div>
+          <div class="form-group"><label>Shower Units</label><input type="number" id="showerUnits" value="0" min="0"></div>
+          <div class="form-group"><label>Kitchen Sinks</label><input type="number" id="kitchenSinks" value="1" min="0"></div>
+          <div class="form-group"><label>Water Heaters</label><input type="number" id="waterHeaters" value="1" min="1"></div>
+          <div class="form-group"><label>Hose Bibs</label><input type="number" id="hoseBibs" value="2" min="0"></div>
+          <div class="form-group"><label>Gas Drops</label><input type="number" id="gasDrops" value="3" min="3"></div>
+        </div>
+
+        <div class="card">
+          <h2>Upgrades</h2>
+          <label class="checkbox-group"><input type="checkbox" id="tubUpgrade"> Premium Tub Upgrade (+$865/tub)</label>
+          <label class="checkbox-group"><input type="checkbox" id="freezerLine"> Water Line to Freezer (+$250)</label>
+          <label class="checkbox-group"><input type="checkbox" id="patioGas"> Patio Gas Stub (+$235)</label>
+          <label class="checkbox-group"><input type="checkbox" id="fireplace"> Fireplace Gas Line (+$235)</label>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="card card-total">
+          <h2>Total Bid Estimate</h2>
+          <div id="displayTotal" class="total-display">$0.00</div>
+          <div>Complete project estimate</div>
+        </div>
+
+        <div class="card">
+          <h2>Breakdown</h2>
+          <div class="breakdown-row"><span>Fixtures & Materials</span><span id="dispFixtures">$0.00</span></div>
+          <div class="breakdown-row"><span>Turnkey Base</span><span id="dispTurnkey">$0.00</span></div>
+          <div class="breakdown-row"><span>City Requirements</span><span id="dispCity">$0.00</span></div>
+          <div class="breakdown-row" id="rowLabor"><span>Two-Story Labor Premium</span><span id="dispLabor">$0.00</span></div>
+          <div class="breakdown-row" id="rowOptions"><span>Upgrades</span><span id="dispOptions">$0.00</span></div>
+          <div class="breakdown-row"><span>Total</span><span id="dispTotalBreakdown">$0.00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const pricing = {
+      single: { base: 2730, perBath: 1400, turnkey: 1165 },
+      twoStory: { base: 3088, perBath: 1029, turnkey: 1165 },
+      fixtures: {
+        lavatory: 120, toilet: 180, tub: 320, showerUnit: 450,
+        kitchenSink: 250, waterHeater: 700, hoseBib: 65,
+        tubUpgrade: 865, additionalGasDrop: 85
+      },
+      labor: { singleStoryMultiplier: 1.0, twoStoryMultiplier: 1.15 },
+      options: { freezerLine: 250, patioGas: 235, fireplace: 235 }
+    };
+
+    const fmt = num => '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+    const calculate = () => {
+      const val = id => Number(document.getElementById(id).value) || 0;
+      const chk = id => document.getElementById(id).checked;
+      const storyType = document.getElementById('storyType').value;
+      const storyData = pricing[storyType];
+
+      const bathCount = val('bathCount');
+      const cityFees = val('cityRequirements');
+      const totalTubs = val('totalTubs');
+      const totalLavs = val('totalLavs');
+      const toilets = val('toilets');
+      const showerUnits = val('showerUnits');
+      const kitchenSinks = val('kitchenSinks');
+      const waterHeaters = val('waterHeaters');
+      const hoseBibs = val('hoseBibs');
+      const gasDrops = val('gasDrops');
+
+      let fixtureTotal = storyData.base;
+      if (bathCount > 2) fixtureTotal += storyData.perBath * (bathCount - 2);
+      fixtureTotal += Math.max(0, totalLavs - bathCount) * pricing.fixtures.lavatory;
+      fixtureTotal += Math.max(0, totalTubs - bathCount) * pricing.fixtures.tub;
+      fixtureTotal += Math.max(0, toilets - bathCount) * pricing.fixtures.toilet;
+      fixtureTotal += showerUnits * pricing.fixtures.showerUnit;
+      fixtureTotal += kitchenSinks * pricing.fixtures.kitchenSink;
+      fixtureTotal += waterHeaters * pricing.fixtures.waterHeater;
+      fixtureTotal += hoseBibs * pricing.fixtures.hoseBib;
+      fixtureTotal += Math.max(0, gasDrops - 3) * pricing.fixtures.additionalGasDrop;
+
+      if (chk('tubUpgrade') && totalTubs > 0)
+        fixtureTotal += totalTubs * pricing.fixtures.tubUpgrade;
+
+      const laborMult = pricing.labor[storyType + 'StoryMultiplier'];
+      const laborPremium = (laborMult - 1) * fixtureTotal;
+
+      let optionsTotal = 0;
+      if (chk('freezerLine')) optionsTotal += pricing.options.freezerLine;
+      if (chk('patioGas')) optionsTotal += pricing.options.patioGas;
+      if (chk('fireplace')) optionsTotal += pricing.options.fireplace;
+
+      const total = fixtureTotal + laborPremium + storyData.turnkey + cityFees + optionsTotal;
+
+      document.getElementById('displayTotal').innerText = fmt(total);
+      document.getElementById('dispFixtures').innerText = fmt(fixtureTotal);
+      document.getElementById('dispTurnkey').innerText = fmt(storyData.turnkey);
+      document.getElementById('dispCity').innerText = fmt(cityFees);
+      document.getElementById('dispLabor').innerText = fmt(laborPremium);
+      document.getElementById('dispOptions').innerText = fmt(optionsTotal);
+      document.getElementById('dispTotalBreakdown').innerText = fmt(total);
+
+      document.getElementById('rowLabor').style.display = laborPremium > 0 ? 'flex' : 'none';
+      document.getElementById('rowOptions').style.display = optionsTotal > 0 ? 'flex' : 'none';
+    };
+
+    const debounce = (fn, delay = 150) => {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    document.querySelectorAll('input, select').forEach(el => {
+      el.addEventListener('input', debounce(calculate));
+      el.addEventListener('change', debounce(calculate));
+    });
+
+    calculate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+import { useState, useEffect } from 'react';
+import { Calculator, FileText, DollarSign } from 'lucide-react';
+
+export default function PlumbingBidCalculator() {
+  const [formData, setFormData] = useState({
+    storyType: 'single',
+    bathCount: 2,
+    kitchenSinks: 1,
+    totalTubs: 1,
+    totalLavs: 2,
+    toilets: 2,
+    showerUnits: 0,
+    disposal: 1,
+    waterHeaters: 1,
+    gasDrops: 3,
+    hoseBibs: 2,
+    cityRequirements: 125,
+    tubUpgrade: false,
+    freezerLine: false,
+    patioGas: false,
+    fireplace: false
+  });
+
+  const [bid, setBid] = useState({
+    fixtures: 0,
+    laborPremium: 0,
+    cityFees: 0,
+    options: 0,
+    turnkeyBase: 1165,
+    total: 0
+  });
+
+  const pricing = {
+    single: { base: 2730, perBath: 1400, turnkey: 1165 },
+    twoStory: { base: 3088, perBath: 1029, turnkey: 1165 },
+    fixtures: {
+      kitchenSink: 0,
+      kitchenFaucet: 95,
+      lavatory: 120,
+      toilet: 180,
+      tub: 320,
+      tubUpgrade: 865,
+      showerUnit: 450,
+      disposal: 0,
+      waterHeater: 0,
+      gasDrop: 0,
+      additionalGasDrop: 85,
+      hoseBib: 0
+    },
+    labor: {
+      singleStoryMultiplier: 1.0,
+      twoStoryMultiplier: 1.15
+    },
+    options: {
+      freezerLine: 250,
+      patioGas: 235,
+      fireplace: 235
+    }
+  };
+
+  useEffect(() => {
+    calculateBid();
+  }, [formData]);
+
+  const calculateBid = () => {
+    const story = formData.storyType === 'single' ? pricing.single : pricing.twoStory;
+    let fixtureTotal = story.base;
+
+    if (formData.bathCount > 2) {
+      fixtureTotal += story.perBath * (formData.bathCount - 2);
+    }
+    if (formData.totalLavs > formData.bathCount) {
+      fixtureTotal += (formData.totalLavs - formData.bathCount) * pricing.fixtures.lavatory;
+    }
+    if (formData.totalTubs > formData.bathCount) {
+      fixtureTotal += (formData.totalTubs - formData.bathCount) * pricing.fixtures.tub;
+    }
+    if (formData.tubUpgrade && formData.totalTubs > 0) {
+      fixtureTotal += formData.totalTubs * pricing.fixtures.tubUpgrade;
+    }
+    fixtureTotal += formData.showerUnits * pricing.fixtures.showerUnit;
+    if (formData.toilets > formData.bathCount) {
+      fixtureTotal += (formData.toilets - formData.bathCount) * pricing.fixtures.toilet;
+    }
+    if (formData.gasDrops > 3) {
+      fixtureTotal += (formData.gasDrops - 3) * pricing.fixtures.additionalGasDrop;
+    }
+
+    const laborMultiplier = formData.storyType === 'single' ?
+      pricing.labor.singleStoryMultiplier :
+      pricing.labor.twoStoryMultiplier;
+    const laborPremium = (laborMultiplier - 1.0) * fixtureTotal;
+
+    let optionsTotal = 0;
+    if (formData.freezerLine) optionsTotal += pricing.options.freezerLine;
+    if (formData.patioGas) optionsTotal += pricing.options.patioGas;
+    if (formData.fireplace) optionsTotal += pricing.options.fireplace;
+
+    const cityFees = formData.cityRequirements;
+    const total = fixtureTotal + laborPremium + story.turnkey + cityFees + optionsTotal;
+
+    setBid({
+      fixtures: fixtureTotal,
+      laborPremium: laborPremium,
+      cityFees: cityFees,
+      options: optionsTotal,
+      turnkeyBase: story.turnkey,
+      total: total
+    });
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseInt(value, 10) || 0 : value)
+    }));
+  };
+
+  const formatCurrency = (amount) => {
+    return amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  return (
+    <div className="w-full max-w-6xl mx-auto p-4 md:p-6 font-sans">
+      <div className="bg-white rounded-lg shadow-xl overflow-hidden p-6 md:p-8">
+        <div className="flex items-center gap-3 mb-6 border-b border-gray-200 pb-4">
+          <Calculator className="w-8 h-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-gray-800">Plumbing Bid Calculator</h1>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+          {/* Input Section */}
+          <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded-lg shadow-inner">
+              <h2 className="text-lg font-semibold mb-4 text-blue-900">Project Details</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Story Type</label>
+                  <select
+                    name="storyType"
+                    value={formData.storyType}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="single">Single Story</option>
+                    <option value="twoStory">Two Story</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Number of Bathrooms</label>
+                  <input
+                    type="number"
+                    name="bathCount"
+                    value={formData.bathCount}
+                    onChange={handleChange}
+                    min="1"
+                    max="5"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">City Requirements Fee</label>
+                  <input
+                    type="number"
+                    name="cityRequirements"
+                    value={formData.cityRequirements}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-lg shadow-inner">
+              <h2 className="text-lg font-semibold mb-4 text-slate-900">Fixtures</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Total Tubs</label>
+                  <input
+                    type="number"
+                    name="totalTubs"
+                    value={formData.totalTubs}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Total Lavs (Sinks)</label>
+                  <input
+                    type="number"
+                    name="totalLavs"
+                    value={formData.totalLavs}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Toilets</label>
+                  <input
+                    type="number"
+                    name="toilets"
+                    value={formData.toilets}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Shower Units</label>
+                  <input
+                    type="number"
+                    name="showerUnits"
+                    value={formData.showerUnits}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Kitchen Sinks</label>
+                  <input
+                    type="number"
+                    name="kitchenSinks"
+                    value={formData.kitchenSinks}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Gas Drops</label>
+                  <input
+                    type="number"
+                    name="gasDrops"
+                    value={formData.gasDrops}
+                    onChange={handleChange}
+                    min="3"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Water Heaters</label>
+                  <input
+                    type="number"
+                    name="waterHeaters"
+                    value={formData.waterHeaters}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Hose Bibs</label>
+                  <input
+                    type="number"
+                    name="hoseBibs"
+                    value={formData.hoseBibs}
+                    onChange={handleChange}
+                    min="2"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg shadow-inner">
+              <h2 className="text-lg font-semibold mb-4 text-green-900">Options & Upgrades</h2>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="tubUpgrade"
+                    checked={formData.tubUpgrade}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Premium Tub Upgrade (+$865/tub)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="freezerLine"
+                    checked={formData.freezerLine}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Water Line to Freezer (+$250)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="patioGas"
+                    checked={formData.patioGas}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Gas Stub at Patio (+$235)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="fireplace"
+                    checked={formData.fireplace}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Fireplace Gas Line (+$235)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Section */}
+          <div className="space-y-6">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-6 rounded-lg shadow-lg">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-6 h-6" />
+                <h2 className="text-xl font-semibold">Total Bid Estimate</h2>
+              </div>
+              <div className="text-5xl font-bold mb-2">
+                ${formatCurrency(bid.total)}
+              </div>
+              <p className="text-blue-100 text-sm">Complete project estimate</p>
+            </div>
+            <div className="bg-white border-2 border-slate-200 rounded-lg p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="w-5 h-5 text-slate-600" />
+                <h2 className="text-lg font-semibold text-slate-800">Bid Breakdown</h2>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-slate-600">Fixtures & Materials Base</span>
+                  <span className="font-semibold">${formatCurrency(bid.fixtures)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-slate-600">Turnkey Fixtures Base</span>
+                  <span className="font-semibold">${formatCurrency(bid.turnkeyBase)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-slate-600">City Requirements</span>
+                  <span className="font-semibold">${formatCurrency(bid.cityFees)}</span>
+                </div>
+                {bid.laborPremium > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-slate-600">Two-Story Labor Premium</span>
+                    <span className="font-semibold text-red-600">+ ${formatCurrency(bid.laborPremium)}</span>
+                  </div>
+                )}
+                {bid.options > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-slate-600">Optional Upgrades</span>
+                    <span className="font-semibold text-green-600">+ ${formatCurrency(bid.options)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-3 border-t-2 border-slate-300 mt-2">
+                  <span className="text-lg font-bold text-slate-800">Total</span>
+                  <span className="text-lg font-bold text-blue-600">${formatCurrency(bid.total)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="font-semibold text-amber-900 mb-2">Included in Base:</h3>
+              <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                <li>50-gal gas water heater (AO Smith)</li>
+                <li>Standard faucets, commodes, disposals</li>
+                <li>First 3 gas drops (furnace, water heater, range)</li>
+                <li>2 frost-proof hose bibs</li>
+                <li>All standard rough-in materials</li>
+              </ul>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <h3 className="font-semibold text-slate-900 mb-2">Notes:</h3>
+              <ul className="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                <li>Pricing based on {formData.storyType === 'single' ? 'single-story' : 'two-story'} configuration.</li>
+                {formData.storyType === 'twoStory' && <li>Two-story adds a 15% labor premium to the fixture base.</li>}
+                <li>Permit and city inspection fees included.</li>
+                <li>Quote valid for 30 days.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

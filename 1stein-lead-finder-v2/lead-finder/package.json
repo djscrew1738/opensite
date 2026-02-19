@@ -1,0 +1,34 @@
+{
+  "name": "opensite-lead-finder",
+  "version": "2.0.0",
+  "description": "Intelligent lead finder for CTL Plumbing - multi-source permit ingestion, AI scoring, builder intelligence",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "ingest": "node src/index.js --run-now",
+    "score": "node src/jobs/score-permits.js",
+    "rollup": "node src/jobs/builder-rollup.js",
+    "digest": "node src/jobs/daily-digest.js",
+    "api": "node src/api/server.js",
+    "db:init": "psql -f db/schema.sql",
+    "test:adapters": "node src/test-adapters.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0",
+    "node-cron": "^3.0.3",
+    "axios": "^1.7.0",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "twilio": "^5.3.0",
+    "nodemailer": "^6.9.0",
+    "winston": "^3.14.0",
+    "pdfkit": "^0.15.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

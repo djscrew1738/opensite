@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#003366">
+    <title>CTL Plumbing Ultimate Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* --- PREVIOUS CSS (Preserved & Completed) --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        :root {
+            --primary: #003366; /* Cowboys Blue */
+            --secondary: #869397; /* Cowboys Silver */
+            --accent: #041E42;
+            --success: #28a745;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --gradient: linear-gradient(135deg, #003366 0%, #041E42 100%);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gradient); min-height: 100vh; padding-bottom: 80px; }
+        
+        /* Header */
+        .header { background: var(--glass); backdrop-filter: blur(10px); padding: 15px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .brand { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .brand span { color: var(--secondary); }
+        
+        /* Navigation */
+        .smart-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 1000; }
+        .nav-item { text-align: center; color: #aaa; transition: 0.3s; flex: 1; }
+        .nav-item.active { color: var(--primary); transform: translateY(-2px); }
+        .nav-icon { font-size: 20px; margin-bottom: 4px; }
+        .nav-label { font-size: 10px; font-weight: 600; }
+
+        /* Layout */
+        .content { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: var(--shadow); }
+        .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Form Elements */
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+        .form-input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-size: 16px; font-weight: 600; color: var(--primary); transition: 0.3s; }
+        .form-input:focus { border-color: var(--primary); outline: none; }
+        
+        /* Calculator Results */
+        .result-box { background: var(--primary); color: white; padding: 20px; border-radius: 12px; margin-top: 20px; text-align: center; }
+        .result-label { font-size: 12px; text-transform: uppercase; opacity: 0.8; }
+        .result-value { font-size: 32px; font-weight: 800; margin: 5px 0; }
+        .result-breakdown { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); }
+        .mini-stat { font-size: 12px; }
+        .mini-stat span { display: block; font-size: 16px; font-weight: 700; }
+
+        /* Service List */
+        .service-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .service-name { font-weight: 600; font-size: 14px; }
+        .service-price { font-weight: 800; color: var(--success); }
+
+        /* Buttons */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(0,51,102,0.3); }
+        .btn-primary:active { transform: scale(0.98); }
+        
+        /* Voice Button */
+        .voice-btn { position: fixed; bottom: 90px; right: 20px; width: 56px; height: 56px; background: linear-gradient(135deg, #ff4b1f, #ff9068); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 99; cursor: pointer; }
+        .voice-btn i { font-size: 24px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-top">
+            <div class="brand">CTL <span>PLUMBING</span></div>
+            <div style="font-size: 12px; background: #e3f2fd; color: var(--primary); padding: 4px 8px; border-radius: 20px;">
+                <i class="fas fa-map-marker-alt"></i> DFW Metro
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard" class="content active">
+        <div class="card">
+            <div class="card-title">Weekly Performance</div>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex:1; background:#f8f9fa; padding:15px; border-radius:10px; text-align:center;">
+                    <div style="color:#666; font-size:11px;">TOTAL BIDS</div>
+                    <div style="font-size:20px; font-weight:800; color:var(--primary);">3</div>
+                </div>
+                <div style="flex:1; background:#f8f9fa; padding:15px; border-radius:10px; text-align:center;">
+                    <div style="color:#666; font-size:11px;">PENDING</div>
+                    <div style="font-size:20px; font-weight:800; color:var(--secondary);">$12.4k</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:flex-end; height:100px; gap:8px; padding-top:10px;">
+                <div style="flex:1; background:#eee; height:40%; border-radius:4px;"></div>
+                <div style="flex:1; background:#eee; height:60%; border-radius:4px;"></div>
+                <div style="flex:1; background:var(--primary); height:85%; border-radius:4px;"></div>
+                <div style="flex:1; background:#eee; height:50%; border-radius:4px;"></div>
+                <div style="flex:1; background:#eee; height:30%; border-radius:4px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Quick Tools</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <button onclick="switchTab('pricing')" style="padding:20px; background:#e3f2fd; border:none; border-radius:10px; color:var(--primary); font-weight:600;">
+                    <i class="fas fa-calculator" style="display:block; font-size:20px; margin-bottom:5px;"></i>
+                    New Bid
+                </button>
+                <button onclick="switchTab('service')" style="padding:20px; background:#e8f5e9; border:none; border-radius:10px; color:var(--success); font-weight:600;">
+                    <i class="fas fa-wrench" style="display:block; font-size:20px; margin-bottom:5px;"></i>
+                    Service
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pricing" class="content">
+        <div class="card">
+            <div class="card-title">
+                <span>Project Estimator</span>
+                <i class="fas fa-hard-hat" style="color: #ddd;"></i>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Slab Square Footage</label>
+                <input type="number" id="sqft" class="form-input" placeholder="e.g. 2500">
+            </div>
+
+            <div class="card-title" style="font-size:14px; margin-top:20px;">Fixture Counts</div>
+            <div class="input-grid">
+                <div class="form-group">
+                    <label class="form-label">Toilets (WC)</label>
+                    <input type="number" id="cnt-wc" class="form-input" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Lav Sinks</label>
+                    <input type="number" id="cnt-lav" class="form-input" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tub/Shower</label>
+                    <input type="number" id="cnt-tub" class="form-input" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Kitchen Sink</label>
+                    <input type="number" id="cnt-ks" class="form-input" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Water Heater</label>
+                    <input type="number" id="cnt-wh" class="form-input" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hose Bibbs</label>
+                    <input type="number" id="cnt-hb" class="form-input" value="0">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="calculateBid()">CALCULATE BID</button>
+
+            <div id="bid-result" style="display:none;">
+                <div class="result-box">
+                    <div class="result-label">Total Estimated Bid</div>
+                    <div class="result-value" id="total-bid">$0.00</div>
+                    <div class="result-breakdown">
+                        <div class="mini-stat">
+                            Est. Material
+                            <span id="est-mat">$0</span>
+                        </div>
+                        <div class="mini-stat">
+                            Est. Labor
+                            <span id="est-lab">$0</span>
+                        </div>
+                        <div class="mini-stat" style="color: #81d4fa;">
+                            Est. Profit
+                            <span id="est-prof">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="service" class="content">
+        <div class="card">
+            <div class="card-title">DFW Flat Rate Menu</div>
+            <input type="text" class="form-input" placeholder="Search repairs..." style="margin-bottom: 15px; padding: 8px;">
+            
+            <div class="service-item">
+                <span class="service-name">Service Call / Dispatch</span>
+                <span class="service-price">$79</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">Toilet Rebuild (Pro)</span>
+                <span class="service-price">$225</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">Faucet Install (Cust. Supplied)</span>
+                <span class="service-price">$350</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">Garbage Disposal (1/2 HP)</span>
+                <span class="service-price">$475</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">Main Line Stoppage (Cleanout)</span>
+                <span class="service-price">$350</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">PRV Replacement</span>
+                <span class="service-price">$550</span>
+            </div>
+            <div class="service-item">
+                <span class="service-name">Gas Test (Permit Req)</span>
+                <span class="service-price">$650</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="smart-nav">
+        <div class="nav-item active" onclick="switchTab('dashboard')">
+            <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>
+            <div class="nav-label">Overview</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('pricing')">
+            <div class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="nav-label">Bids</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('service')">
+            <div class="nav-icon"><i class="fas fa-tools"></i></div>
+            <div class="nav-label">Service</div>
+        </div>
+        <div class="nav-item">
+            <div class="nav-icon"><i class="fas fa-user-circle"></i></div>
+            <div class="nav-label">Admin</div>
+        </div>
+    </div>
+
+    <div class="voice-btn" onclick="alert('Listening for voice notes...')">
+        <i class="fas fa-microphone"></i>
+    </div>
+
+    <script>
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            // Hide all content
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById(tabId).classList.add('active');
+            
+            // Highlight nav (Simple logic for demo)
+            if(tabId === 'dashboard') document.querySelectorAll('.nav-item')[0].classList.add('active');
+            if(tabId === 'pricing') document.querySelectorAll('.nav-item')[1].classList.add('active');
+            if(tabId === 'service') document.querySelectorAll('.nav-item')[2].classList.add('active');
+        }
+
+        // Bid Calculator Logic (Based on DFW Rates)
+        function calculateBid() {
+            // Input Values
+            const sqft = parseFloat(document.getElementById('sqft').value) || 0;
+            const wc = parseFloat(document.getElementById('cnt-wc').value) || 0;
+            const lav = parseFloat(document.getElementById('cnt-lav').value) || 0;
+            const tub = parseFloat(document.getElementById('cnt-tub').value) || 0;
+            const ks = parseFloat(document.getElementById('cnt-ks').value) || 0;
+            const wh = parseFloat(document.getElementById('cnt-wh').value) || 0;
+            const hb = parseFloat(document.getElementById('cnt-hb').value) || 0;
+
+            // Pricing Logic (DFW Averages)
+            // Base rough-in cost per sq ft + Fixture Top-Out costs
+            const roughInRate = 4.50; // Per sqft for ground/top rough
+            const roughTotal = sqft * roughInRate;
+
+            // Fixture Trim & Finish Rates (Labor + Material Allowance)
+            let fixtureTotal = 0;
+            fixtureTotal += wc * 450;
+            fixtureTotal += lav * 400;
+            fixtureTotal += tub * 600;
+            fixtureTotal += ks * 450;
+            fixtureTotal += wh * 1500;
+            fixtureTotal += hb * 200;
+
+            const grandTotal = roughTotal + fixtureTotal;
+
+            // Estimations for breakdown (Rule of Thumb: 40% Mat, 30% Lab, 30% O&P)
+            const material = grandTotal * 0.35;
+            const labor = grandTotal * 0.35;
+            const profit = grandTotal * 0.30;
+
+            // Update UI
+            document.getElementById('total-bid').innerText = '$' + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('est-mat').innerText = '$' + material.toLocaleString(undefined, {maximumFractionDigits: 0});
+            document.getElementById('est-lab').innerText = '$' + labor.toLocaleString(undefined, {maximumFractionDigits: 0});
+            document.getElementById('est-prof').innerText = '$' + profit.toLocaleString(undefined, {maximumFractionDigits: 0});
+
+            document.getElementById('bid-result').style.display = 'block';
+            
+            // Scroll to result
+            document.getElementById('bid-result').scrollIntoView({behavior: 'smooth'});
+        }
+    </script>
+</body>
+</html>

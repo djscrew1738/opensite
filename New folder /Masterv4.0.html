@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#003366">
+    <title>CTL Plumbing Ultimate Pro V4</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* --- CORE STYLES --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        
+        :root {
+            --primary: #003366; /* Cowboys Blue */
+            --secondary: #869397; /* Cowboys Silver */
+            --success: #28a745;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --gradient: linear-gradient(135deg, #003366 0%, #041E42 100%);
+        }
+
+        body { background: var(--gradient); min-height: 100vh; padding-bottom: 90px; }
+        
+        /* Header */
+        .header { background: var(--glass); backdrop-filter: blur(10px); padding: 15px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .brand { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .brand span { color: var(--secondary); }
+        
+        /* Navigation */
+        .smart-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 1000; }
+        .nav-item { text-align: center; color: #aaa; transition: 0.3s; flex: 1; }
+        .nav-item.active { color: var(--primary); transform: translateY(-2px); }
+        .nav-icon { font-size: 18px; margin-bottom: 3px; }
+        .nav-label { font-size: 9px; font-weight: 600; }
+
+        /* Layout */
+        .content { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* UI Elements */
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: var(--shadow); position: relative; }
+        .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+        .form-input, .form-textarea { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-size: 16px; font-weight: 600; color: var(--primary); }
+        
+        /* Buttons */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-sm { padding: 8px 12px; font-size: 12px; width: auto; margin: 0; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(0,51,102,0.3); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); margin-top: 10px; }
+        .btn-danger { background: #ffebee; color: var(--danger); border: 1px solid var(--danger); }
+
+        /* --- MATERIALS TAB STYLES --- */
+        .mat-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .mat-info { flex: 1; }
+        .mat-name { font-weight: 600; font-size: 14px; color: #333; display: block;}
+        .mat-price-edit { font-size: 12px; color: #888; border-bottom: 1px dashed #ccc; cursor: pointer; }
+        .qty-control { display: flex; align-items: center; gap: 10px; background: #f1f3f5; padding: 4px; border-radius: 20px; }
+        .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: white; color: var(--primary); font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .qty-val { font-weight: 700; width: 20px; text-align: center; font-size: 14px; }
+        .cat-header { font-size: 11px; font-weight: 800; color: var(--primary); background: #e3f2fd; padding: 8px 12px; border-radius: 6px; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Invoice/Sticky Bar */
+        #bottom-bar { position: fixed; bottom: 70px; left: 0; right: 0; background: white; padding: 15px; border-top: 1px solid #ddd; display: none; z-index: 950; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
+        .bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+
+        /* PDF Hidden */
+        .pdf-header, .pdf-footer { display: none; text-align: center; }
+        .generating-pdf .pdf-header, .generating-pdf .pdf-footer { display: block; }
+        .generating-pdf .card { box-shadow: none; border: 1px solid #ccc; }
+        .generating-pdf #mat-list-print { display: block; }
+        
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        .modal { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 16px; animation: popIn 0.3s; }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-top">
+            <div class="brand">CTL <span>PLUMBING</span></div>
+            <div style="font-size: 12px; background: #e3f2fd; color: var(--primary); padding: 4px 8px; border-radius: 20px;">
+                <i class="fas fa-cubes"></i> SUPPLY PRO v4
+            </div>
+        </div>
+    </div>
+
+    <div id="materials" class="content active">
+        <div class="card" style="padding-bottom: 80px;">
+            <div class="card-title">
+                <span>Material Takeoff</span>
+                <button class="btn btn-sm btn-outline" onclick="resetMaterials()">Clear All</button>
+            </div>
+
+            <div style="position: relative; margin-bottom: 15px;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 14px; color: #aaa;"></i>
+                <input type="text" id="matSearch" onkeyup="renderMaterials()" placeholder="Search Parts..." 
+                       style="width: 100%; padding: 12px 12px 12px 40px; border: 2px solid #eee; border-radius: 10px;">
+            </div>
+
+            <div id="material-container"></div>
+        </div>
+    </div>
+
+    <div id="service" class="content">
+        <div class="card" style="padding-bottom: 80px;">
+            <div class="card-title">Repair Price Book</div>
+            <div id="service-container"></div>
+        </div>
+    </div>
+
+    <div id="pricing" class="content">
+        <div class="card">
+            <div class="card-title">Rough-In Calculator</div>
+            <div class="form-group"><label class="form-label">Slab Sq. Ft.</label><input type="number" id="nc-sqft" class="form-input" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">Total Fixture Count</label><input type="number" id="nc-fix" class="form-input" placeholder="0"></div>
+            <button class="btn btn-primary" onclick="calcNC()">Calculate Bid</button>
+            <div id="nc-result" style="margin-top:15px; display:none; text-align:center; font-weight:800; font-size:24px; color:var(--primary);"></div>
+        </div>
+    </div>
+
+    <div id="dashboard" class="content">
+        <div class="card">
+            <div class="card-title">App Configuration</div>
+            <div class="form-group"><label class="form-label">Tax Rate (%)</label><input type="number" id="set-tax" class="form-input" onchange="saveSettings()"></div>
+            <div class="form-group"><label class="form-label">Company Info</label><input type="text" id="set-phone" class="form-input" onchange="saveSettings()"></div>
+        </div>
+    </div>
+
+    <div id="preview" class="content">
+        <div class="card" id="print-area">
+            <div class="pdf-header">
+                <h1>CTL PLUMBING LLC</h1>
+                <h3 id="print-title">Order Sheet</h3>
+                <p id="print-subtitle">Material List</p>
+                <hr style="margin:10px 0; border:0; border-top:1px solid #ccc;">
+            </div>
+            <div id="print-list"></div>
+            <div style="border-top: 2px solid #eee; padding-top: 10px; margin-top: 20px;">
+                <div class="bar-row" style="font-size: 20px; font-weight: 800; color: var(--primary);">
+                    <span>TOTAL</span> <span id="print-total">$0.00</span>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
+    </div>
+
+    <div id="bottom-bar">
+        <div class="bar-row">
+            <div style="font-weight:bold; color:var(--primary);">Total Estimated Cost</div>
+            <div style="font-weight:800; font-size:18px;" id="bar-total">$0.00</div>
+        </div>
+        <div class="input-grid">
+            <button class="btn btn-primary btn-sm" onclick="goToPreview()">Review & Export</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="priceModal">
+        <div class="modal">
+            <div class="card-title">Edit Market Price</div>
+            <p id="edit-item-name" style="margin-bottom:10px; font-size:14px;"></p>
+            <input type="number" id="edit-item-price" class="form-input" placeholder="0.00">
+            <input type="hidden" id="edit-item-id">
+            <div class="input-grid">
+                <button class="btn btn-danger" onclick="closePriceModal()" style="margin:0;">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewPrice()" style="margin:0;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="smart-nav">
+        <div class="nav-item active" onclick="switchTab('materials')"><div class="nav-icon"><i class="fas fa-cubes"></i></div><div class="nav-label">Materials</div></div>
+        <div class="nav-item" onclick="switchTab('service')"><div class="nav-icon"><i class="fas fa-wrench"></i></div><div class="nav-label">Service</div></div>
+        <div class="nav-item" onclick="switchTab('pricing')"><div class="nav-icon"><i class="fas fa-hard-hat"></i></div><div class="nav-label">Bids</div></div>
+        <div class="nav-item" onclick="switchTab('dashboard')"><div class="nav-icon"><i class="fas fa-cog"></i></div><div class="nav-label">Settings</div></div>
+    </div>
+
+    <script>
+        // --- 1. DATABASE (PRE-LOADED PRICES) ---
+        const defaultMaterials = [
+            // PVC
+            { id: 'pvc3', name: '3" PVC Pipe (Sch 40) - 10ft', price: 28.50, cat: 'PVC DWV' },
+            { id: 'pvc4', name: '4" PVC Pipe (Sch 40) - 10ft', price: 42.00, cat: 'PVC DWV' },
+            { id: 'pvc2', name: '2" PVC Pipe (Sch 40) - 10ft', price: 16.75, cat: 'PVC DWV' },
+            { id: 'pvc3ell', name: '3" PVC 90° Elbow', price: 4.50, cat: 'PVC DWV' },
+            { id: 'pvc4ell', name: '4" PVC 90° Elbow', price: 8.25, cat: 'PVC DWV' },
+            { id: 'pvc3tee', name: '3" PVC Tee (Sanitary)', price: 6.50, cat: 'PVC DWV' },
+            { id: 'pvcglue', name: 'PVC Glue (Clear) - Quart', price: 14.00, cat: 'PVC DWV' },
+            { id: 'pvcprim', name: 'Primer (Purple) - Quart', price: 14.00, cat: 'PVC DWV' },
+            // PEX / WATER
+            { id: 'pexa12', name: 'PEX-A 1/2" Pipe (100ft)', price: 45.00, cat: 'Water Supply' },
+            { id: 'pexa34', name: 'PEX-A 3/4" Pipe (100ft)', price: 78.00, cat: 'Water Supply' },
+            { id: 'cring12', name: '1/2" Crimp Rings (Bag 50)', price: 12.00, cat: 'Water Supply' },
+            { id: 'pexell12', name: '1/2" PEX 90° Elbow (Brass)', price: 1.85, cat: 'Water Supply' },
+            // VALVES & TRIM
+            { id: 'anglestop', name: 'Angle Stop (Comp 1/4 Turn)', price: 9.50, cat: 'Valves/Trim' },
+            { id: 'supplyline', name: 'Supply Line (Braided 20")', price: 6.25, cat: 'Valves/Trim' },
+            { id: 'waxring', name: 'Wax Ring (Jumbo w/ Horn)', price: 4.50, cat: 'Valves/Trim' },
+            { id: 'ballvalve34', name: '3/4" Ball Valve (PEX)', price: 14.50, cat: 'Valves/Trim' },
+            // GAS
+            { id: 'gas1', name: '1" Black Iron Pipe (10ft)', price: 38.00, cat: 'Gas' },
+            { id: 'gasflex', name: 'Gas Flex Line (24")', price: 22.00, cat: 'Gas' },
+        ];
+
+        // --- 2. STATE MANAGEMENT ---
+        let materialDB = JSON.parse(localStorage.getItem('ctl_mat_db')) || defaultMaterials;
+        let cart = {}; // stores { id: quantity }
+        let activeTab = 'materials';
+        let settings = JSON.parse(localStorage.getItem('ctl_settings')) || { tax: 8.25, phone: "555-123-4567" };
+
+        // --- 3. INIT ---
+        window.onload = function() {
+            renderMaterials();
+            document.getElementById('set-tax').value = settings.tax;
+            document.getElementById('set-phone').value = settings.phone;
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            activeTab = tabId;
+            
+            // Highlight nav
+            const navs = ['materials','service','pricing','dashboard'];
+            document.querySelectorAll('.nav-item')[navs.indexOf(tabId)]?.classList.add('active');
+
+            // Toggle Sticky Bar
+            updateBottomBar();
+        }
+
+        // --- 4. MATERIAL LOGIC ---
+        function renderMaterials() {
+            const container = document.getElementById('material-container');
+            const search = document.getElementById('matSearch').value.toLowerCase();
+            container.innerHTML = '';
+
+            // Group by Category
+            const groups = {};
+            materialDB.forEach(item => {
+                if(item.name.toLowerCase().includes(search)) {
+                    if(!groups[item.cat]) groups[item.cat] = [];
+                    groups[item.cat].push(item);
+                }
+            });
+
+            for(const [cat, items] of Object.entries(groups)) {
+                container.innerHTML += `<div class="cat-header">${cat}</div>`;
+                items.forEach(item => {
+                    const qty = cart[item.id] || 0;
+                    container.innerHTML += `
+                        <div class="mat-item">
+                            <div class="mat-info">
+                                <span class="mat-name">${item.name}</span>
+                                <span class="mat-price-edit" onclick="openPriceModal('${item.id}')">Avg: $${item.price.toFixed(2)}</span>
+                            </div>
+                            <div class="qty-control">
+                                <button class="qty-btn" onclick="updateCart('${item.id}', -1)">-</button>
+                                <span class="qty-val">${qty}</span>
+                                <button class="qty-btn" onclick="updateCart('${item.id}', 1)">+</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function updateCart(id, change) {
+            if(!cart[id]) cart[id] = 0;
+            cart[id] += change;
+            if(cart[id] < 0) cart[id] = 0;
+            renderMaterials();
+            updateBottomBar();
+        }
+
+        function resetMaterials() {
+            cart = {};
+            renderMaterials();
+            updateBottomBar();
+        }
+
+        function updateBottomBar() {
+            const bar = document.getElementById('bottom-bar');
+            let total = 0;
+            let count = 0;
+
+            // Calculate based on current tab logic? 
+            // For now, let's make the bar specifically for Materials since that's the new feature.
+            // If we wanted Service, we'd need conditional logic. 
+            // Let's keep it simple: Bar shows Material Total when in Materials tab.
+            
+            if(activeTab === 'materials') {
+                for(const [id, qty] of Object.entries(cart)) {
+                    if(qty > 0) {
+                        const item = materialDB.find(i => i.id === id);
+                        if(item) total += (item.price * qty);
+                        count++;
+                    }
+                }
+            }
+
+            if(count > 0 && activeTab === 'materials') {
+                bar.style.display = 'block';
+                document.getElementById('bar-total').innerText = '$' + total.toLocaleString(undefined, {minimumFractionDigits:2});
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        // --- 5. PRICE EDITING ---
+        function openPriceModal(id) {
+            const item = materialDB.find(i => i.id === id);
+            document.getElementById('edit-item-id').value = id;
+            document.getElementById('edit-item-name').innerText = item.name;
+            document.getElementById('edit-item-price').value = item.price;
+            document.getElementById('priceModal').style.display = 'flex';
+        }
+
+        function closePriceModal() {
+            document.getElementById('priceModal').style.display = 'none';
+        }
+
+        function saveNewPrice() {
+            const id = document.getElementById('edit-item-id').value;
+            const newPrice = parseFloat(document.getElementById('edit-item-price').value);
+            
+            const idx = materialDB.findIndex(i => i.id === id);
+            if(idx > -1 && newPrice >= 0) {
+                materialDB[idx].price = newPrice;
+                localStorage.setItem('ctl_mat_db', JSON.stringify(materialDB)); // Save to phone
+                closePriceModal();
+                renderMaterials();
+                updateBottomBar();
+            }
+        }
+
+        // --- 6. PREVIEW & EXPORT ---
+        function goToPreview() {
+            switchTab('preview');
+            const list = document.getElementById('print-list');
+            list.innerHTML = '';
+            let total = 0;
+
+            document.getElementById('print-title').innerText = "Material Order Sheet";
+            document.getElementById('print-subtitle').innerText = "Project Takeoff";
+
+            // Render cart
+            for(const [id, qty] of Object.entries(cart)) {
+                if(qty > 0) {
+                    const item = materialDB.find(i => i.id === id);
+                    const rowTotal = item.price * qty;
+                    total += rowTotal;
+                    list.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #eee; font-size:13px;">
+                            <span>(${qty}) ${item.name}</span>
+                            <span>$${rowTotal.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            const tax = total * (settings.tax / 100);
+            document.getElementById('print-total').innerText = '$' + (total + tax).toFixed(2);
+            
+            // Add tax note
+            list.innerHTML += `<div style="text-align:right; font-size:11px; color:#888; margin-top:10px;">Subtotal: $${total.toFixed(2)} + Tax (${settings.tax}%)</div>`;
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('print-area');
+            element.classList.add('generating-pdf');
+            const opt = { margin: 0.5, filename: `CTL_Materials_${Date.now()}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
+            html2pdf().set(opt).from(element).save().then(() => element.classList.remove('generating-pdf'));
+        }
+
+        // --- 7. SETTINGS & MISC ---
+        function saveSettings() {
+            settings.tax = parseFloat(document.getElementById('set-tax').value) || 0;
+            settings.phone = document.getElementById('set-phone').value;
+            localStorage.setItem('ctl_settings', JSON.stringify(settings));
+        }
+        
+        function calcNC() {
+            const sq = parseFloat(document.getElementById('nc-sqft').value)||0;
+            const fix = parseFloat(document.getElementById('nc-fix').value)||0;
+            const tot = (sq * 4.5) + (fix * 600);
+            const res = document.getElementById('nc-result');
+            res.style.display = 'block';
+            res.innerText = '$' + tot.toLocaleString();
+        }
+    </script>
+</body>
+</html>

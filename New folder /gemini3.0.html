@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#003366">
+    <title>CTL Plumbing Ultimate Pro</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- CORE STYLES --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        
+        :root {
+            --primary: #003366; /* Cowboys Blue */
+            --secondary: #869397; /* Cowboys Silver */
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --gradient: linear-gradient(135deg, #003366 0%, #041E42 100%);
+        }
+
+        body { background: var(--gradient); min-height: 100vh; padding-bottom: 90px; }
+        
+        /* Header */
+        .header { background: var(--glass); backdrop-filter: blur(10px); padding: 15px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .brand { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .brand span { color: var(--secondary); }
+        
+        /* Navigation */
+        .smart-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 12px 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 1000; }
+        .nav-item { text-align: center; color: #aaa; transition: 0.3s; flex: 1; }
+        .nav-item.active { color: var(--primary); transform: translateY(-2px); }
+        .nav-icon { font-size: 20px; margin-bottom: 4px; }
+        .nav-label { font-size: 10px; font-weight: 600; }
+
+        /* Layout */
+        .content { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards & Inputs */
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: var(--shadow); }
+        .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+        .form-input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-size: 16px; font-weight: 600; color: var(--primary); }
+        
+        /* Buttons */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(0,51,102,0.3); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); margin-top: 10px; }
+        .btn-danger { background: #ffebee; color: var(--danger); border: 1px solid var(--danger); margin-top:5px;}
+
+        /* Dashboard Widgets */
+        .stat-grid { display: flex; gap: 10px; margin-bottom: 15px; }
+        .stat-box { flex: 1; background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: var(--shadow); }
+        .stat-label { font-size: 11px; color: #666; font-weight: 600; }
+        .stat-val { font-size: 22px; font-weight: 800; color: var(--primary); margin-top: 5px; }
+
+        /* History Items */
+        .history-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); }
+        .hist-info h4 { font-size: 14px; font-weight: 700; color: #333; }
+        .hist-info p { font-size: 11px; color: #888; }
+        .hist-price { font-weight: 800; font-size: 16px; color: var(--success); }
+
+        /* Service Menu */
+        .group-header { background: #f1f3f5; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 8px 10px; margin-top: 15px; margin-bottom: 5px; border-radius: 6px; text-transform: uppercase; }
+        .service-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .service-price { font-weight: 800; color: var(--success); }
+
+        /* PDF Styles */
+        .pdf-only { display: none; }
+        .generating-pdf .pdf-only { display: block; text-align: center; margin-bottom: 20px; }
+        .generating-pdf .result-box { background: white !important; color: black !important; border: 2px solid var(--primary); }
+        
+        /* Material List */
+        .mat-list-item { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed #eee; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-top">
+            <div class="brand">CTL <span>PLUMBING</span></div>
+            <div style="font-size: 12px; background: #e3f2fd; color: var(--primary); padding: 4px 8px; border-radius: 20px;">
+                <i class="fas fa-star"></i> PRO V2.0
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard" class="content active">
+        <div class="stat-grid">
+            <div class="stat-box">
+                <div class="stat-label">ACTIVE BIDS</div>
+                <div class="stat-val" id="dash-count">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">PIPELINE VALUE</div>
+                <div class="stat-val" id="dash-total" style="color: var(--success);">$0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Quick Actions</div>
+            <div class="input-grid">
+                <button class="btn btn-primary" onclick="switchTab('pricing')" style="margin:0;">+ New Bid</button>
+                <button class="btn btn-outline" onclick="switchTab('history')" style="margin:0;">View History</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Recent Activity</div>
+            <div id="recent-activity-list" style="font-size: 12px; color: #666; font-style: italic;">
+                No recent bids saved.
+            </div>
+        </div>
+    </div>
+
+    <div id="pricing" class="content">
+        <div class="card">
+            <div class="card-title">New Construction Bid</div>
+            <div class="form-group">
+                <label class="form-label">Client / Lot Number</label>
+                <input type="text" id="project-name" class="form-input" placeholder="e.g. DR Horton Lot 45">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Slab Sq. Ft.</label>
+                <input type="number" id="sqft" class="form-input" placeholder="0">
+            </div>
+            <div class="card-title" style="font-size:14px; margin-top:20px;">Fixture Counts</div>
+            <div class="input-grid">
+                <div class="form-group"><label class="form-label">Toilets</label><input type="number" id="cnt-wc" class="form-input" value="0"></div>
+                <div class="form-group"><label class="form-label">Lav Sinks</label><input type="number" id="cnt-lav" class="form-input" value="0"></div>
+                <div class="form-group"><label class="form-label">Tub/Shower</label><input type="number" id="cnt-tub" class="form-input" value="0"></div>
+                <div class="form-group"><label class="form-label">Kitchen Sink</label><input type="number" id="cnt-ks" class="form-input" value="0"></div>
+                <div class="form-group"><label class="form-label">Water Heater</label><input type="number" id="cnt-wh" class="form-input" value="0"></div>
+                <div class="form-group"><label class="form-label">Hose Bibbs</label><input type="number" id="cnt-hb" class="form-input" value="0"></div>
+            </div>
+            <button class="btn btn-primary" onclick="calculateBid()">CALCULATE</button>
+        </div>
+
+        <div id="bid-result" class="card" style="display:none;">
+            <div id="bid-content-area">
+                <div class="pdf-only">
+                    <h1>CTL PLUMBING LLC</h1>
+                    <p>New Construction • Service • Repair</p>
+                    <p>DFW Metroplex | (555) 123-4567</p>
+                    <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
+                    <h3 id="pdf-project-title" style="margin: 10px 0; color: #555;">Estimate</h3>
+                </div>
+
+                <div style="background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center;" class="result-box">
+                    <div style="font-size: 12px; opacity: 0.8;">TOTAL ESTIMATE</div>
+                    <div style="font-size: 36px; font-weight: 800; margin: 5px 0;" id="total-bid">$0.00</div>
+                    <div style="display:flex; justify-content:space-between; margin-top:15px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
+                        <div style="font-size:11px;">MAT: <span id="est-mat">$0</span></div>
+                        <div style="font-size:11px;">LAB: <span id="est-lab">$0</span></div>
+                        <div style="font-size:11px;">PRO: <span id="est-prof">$0</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div class="card-title" style="font-size:14px;">Auto-Generated Material List</div>
+                    <div id="material-list-container"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="saveBid()"><i class="fas fa-save"></i> Save to History</button>
+            <button class="btn btn-outline" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
+        </div>
+    </div>
+
+    <div id="history" class="content">
+        <div class="card">
+            <div class="card-title">
+                <span>Saved Bids</span>
+                <button onclick="clearHistory()" style="font-size:10px; color:red; background:none; border:none;">CLEAR ALL</button>
+            </div>
+            <div id="history-list">
+                <div style="text-align:center; padding:20px; color:#aaa;">No saved bids yet.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="service" class="content">
+        <div class="card">
+            <div class="card-title">DFW Price Book</div>
+            <div style="position: relative; margin-bottom: 20px;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 14px; color: #aaa;"></i>
+                <input type="text" id="serviceSearch" onkeyup="filterService()" placeholder="Search repairs..." 
+                       style="width: 100%; padding: 12px 12px 12px 40px; border: 2px solid #eee; border-radius: 10px; font-size: 16px;">
+            </div>
+            <div id="service-list">
+                <div class="service-group">
+                    <div class="group-header">Common Repairs</div>
+                    <div class="service-item" data-name="service call dispatch"><span class="service-name">Service Call</span> <span class="service-price">$79</span></div>
+                    <div class="service-item" data-name="toilet rebuild"><span class="service-name">Toilet Rebuild</span> <span class="service-price">$225</span></div>
+                    <div class="service-item" data-name="garbage disposal"><span class="service-name">Garbage Disposal</span> <span class="service-price">$475</span></div>
+                    <div class="service-item" data-name="water heater 50 gal"><span class="service-name">50 Gal Heater (Attic)</span> <span class="service-price">$2,250</span></div>
+                    <div class="service-item" data-name="prv valve"><span class="service-name">PRV Replacement</span> <span class="service-price">$650</span></div>
+                    <div class="service-item" data-name="leak detection"><span class="service-name">Leak Detection</span> <span class="service-price">$350</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="smart-nav">
+        <div class="nav-item active" onclick="switchTab('dashboard')"><div class="nav-icon"><i class="fas fa-chart-pie"></i></div><div class="nav-label">Overview</div></div>
+        <div class="nav-item" onclick="switchTab('pricing')"><div class="nav-icon"><i class="fas fa-calculator"></i></div><div class="nav-label">Calculator</div></div>
+        <div class="nav-item" onclick="switchTab('history')"><div class="nav-icon"><i class="fas fa-history"></i></div><div class="nav-label">History</div></div>
+        <div class="nav-item" onclick="switchTab('service')"><div class="nav-icon"><i class="fas fa-book"></i></div><div class="nav-label">Price Book</div></div>
+    </div>
+
+    <script>
+        // --- 1. CORE DATA & INIT ---
+        let currentBidData = null;
+
+        window.onload = function() {
+            loadHistory();
+            updateDashboard();
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Nav Highlight Logic
+            const navs = document.querySelectorAll('.nav-item');
+            if(tabId === 'dashboard') navs[0].classList.add('active');
+            if(tabId === 'pricing') navs[1].classList.add('active');
+            if(tabId === 'history') navs[2].classList.add('active');
+            if(tabId === 'service') navs[3].classList.add('active');
+
+            if(tabId === 'history') loadHistory();
+            if(tabId === 'dashboard') updateDashboard();
+        }
+
+        // --- 2. CALCULATOR LOGIC ---
+        function calculateBid() {
+            const inputs = {
+                sqft: parseFloat(document.getElementById('sqft').value) || 0,
+                wc: parseFloat(document.getElementById('cnt-wc').value) || 0,
+                lav: parseFloat(document.getElementById('cnt-lav').value) || 0,
+                tub: parseFloat(document.getElementById('cnt-tub').value) || 0,
+                ks: parseFloat(document.getElementById('cnt-ks').value) || 0,
+                wh: parseFloat(document.getElementById('cnt-wh').value) || 0,
+                hb: parseFloat(document.getElementById('cnt-hb').value) || 0,
+                name: document.getElementById('project-name').value || "Untitled Project"
+            };
+
+            const roughTotal = inputs.sqft * 4.50;
+            const fixtureTotal = (inputs.wc * 450) + (inputs.lav * 400) + (inputs.tub * 600) + (inputs.ks * 450) + (inputs.wh * 1500) + (inputs.hb * 200);
+            const grandTotal = roughTotal + fixtureTotal;
+
+            // Store current calculation in global var
+            currentBidData = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                ...inputs,
+                total: grandTotal,
+                mat: grandTotal * 0.35,
+                lab: grandTotal * 0.35,
+                prof: grandTotal * 0.30
+            };
+
+            // Update UI
+            document.getElementById('total-bid').innerText = '$' + grandTotal.toLocaleString();
+            document.getElementById('est-mat').innerText = '$' + currentBidData.mat.toLocaleString(undefined, {maximumFractionDigits:0});
+            document.getElementById('est-lab').innerText = '$' + currentBidData.lab.toLocaleString(undefined, {maximumFractionDigits:0});
+            document.getElementById('est-prof').innerText = '$' + currentBidData.prof.toLocaleString(undefined, {maximumFractionDigits:0});
+
+            // Generate Material List
+            generateMaterialList(inputs);
+
+            document.getElementById('bid-result').style.display = 'block';
+            document.getElementById('bid-result').scrollIntoView({behavior: 'smooth'});
+        }
+
+        function generateMaterialList(inputs) {
+            let html = '';
+            
+            // Helper to add row
+            const addRow = (qty, item) => {
+                if(qty > 0) html += `<div class="mat-list-item"><span>${item}</span> <b>x${qty}</b></div>`;
+            };
+
+            if(inputs.wc > 0) {
+                addRow(inputs.wc, "Wax Rings (Jumbo)");
+                addRow(inputs.wc, "12\" Supply Lines");
+                addRow(inputs.wc, "Angle Stops (Compression)");
+                addRow(inputs.wc, "Closet Bolts");
+            }
+            if(inputs.lav > 0) {
+                addRow(inputs.lav * 2, "Lav Supply Lines");
+                addRow(inputs.lav, "P-Trap Kits (1-1/4\")");
+            }
+            if(inputs.ks > 0) {
+                addRow(inputs.ks * 2, "Kitchen Supply Lines");
+                addRow(inputs.ks, "Disposal Kits");
+            }
+            if(inputs.wh > 0) {
+                addRow(inputs.wh, "Gas Flex Lines");
+                addRow(inputs.wh, "Expansion Tanks");
+                addRow(inputs.wh, "Ball Valves (3/4\")");
+            }
+
+            document.getElementById('material-list-container').innerHTML = html || "<div style='text-align:center; color:#aaa;'>No fixtures selected</div>";
+        }
+
+        // --- 3. SAVING & HISTORY SYSTEM (LocalStorage) ---
+        function saveBid() {
+            if(!currentBidData) return;
+            
+            let history = JSON.parse(localStorage.getItem('ctl_bids')) || [];
+            history.unshift(currentBidData); // Add to top
+            localStorage.setItem('ctl_bids', JSON.stringify(history));
+            
+            alert("Bid Saved Successfully!");
+            switchTab('history');
+        }
+
+        function loadHistory() {
+            let history = JSON.parse(localStorage.getItem('ctl_bids')) || [];
+            const container = document.getElementById('history-list');
+            
+            if(history.length === 0) {
+                container.innerHTML = "<div style='text-align:center; padding:20px; color:#aaa;'>No saved bids found.</div>";
+                return;
+            }
+
+            let html = '';
+            history.forEach((bid, index) => {
+                html += `
+                    <div class="history-item">
+                        <div class="hist-info">
+                            <h4>${bid.name}</h4>
+                            <p>${bid.date} • ${bid.sqft} sqft • ${bid.wc + bid.lav + bid.tub} Fixtures</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="hist-price">$${bid.total.toLocaleString()}</div>
+                            <button onclick="deleteBid(${index})" class="btn-danger" style="padding:5px 10px; font-size:10px; width:auto; margin-top:5px;">DELETE</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function deleteBid(index) {
+            if(!confirm("Delete this bid?")) return;
+            let history = JSON.parse(localStorage.getItem('ctl_bids')) || [];
+            history.splice(index, 1);
+            localStorage.setItem('ctl_bids', JSON.stringify(history));
+            loadHistory();
+            updateDashboard();
+        }
+
+        function clearHistory() {
+            if(confirm("Clear ALL saved history? This cannot be undone.")) {
+                localStorage.removeItem('ctl_bids');
+                loadHistory();
+                updateDashboard();
+            }
+        }
+
+        // --- 4. DASHBOARD ANALYTICS ---
+        function updateDashboard() {
+            let history = JSON.parse(localStorage.getItem('ctl_bids')) || [];
+            let count = history.length;
+            let totalVal = history.reduce((sum, item) => sum + item.total, 0);
+
+            document.getElementById('dash-count').innerText = count;
+            document.getElementById('dash-total').innerText = '$' + (totalVal / 1000).toFixed(1) + 'k';
+
+            // Recent Activity
+            const recentDiv = document.getElementById('recent-activity-list');
+            if(count > 0) {
+                let html = '';
+                history.slice(0, 3).forEach(bid => {
+                    html += `<div style="padding:8px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                        <span>${bid.name}</span> <b>$${bid.total.toLocaleString()}</b>
+                    </div>`;
+                });
+                recentDiv.innerHTML = html;
+            } else {
+                recentDiv.innerHTML = "No recent activity.";
+            }
+        }
+
+        // --- 5. PDF & UTILS ---
+        function downloadPDF() {
+            const element = document.getElementById('bid-content-area');
+            element.classList.add('generating-pdf');
+            document.getElementById('pdf-project-title').innerText = "Project: " + (currentBidData ? currentBidData.name : "Estimate");
+
+            const opt = {
+                margin: 0.5,
+                filename: `CTL_Bid_${Date.now()}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(function(){
+                element.classList.remove('generating-pdf');
+            });
+        }
+
+        function filterService() {
+            let input = document.getElementById('serviceSearch').value.toLowerCase();
+            let items = document.querySelectorAll('.service-item');
+            items.forEach(item => {
+                let txt = item.getAttribute('data-name');
+                item.style.display = txt.includes(input) ? "flex" : "none";
+            });
+        }
+    </script>
+</body>
+</html>

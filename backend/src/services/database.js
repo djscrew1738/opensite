@@ -733,7 +733,10 @@ class DatabaseService {
     const now = new Date().toISOString();
 
     if (existing) {
-      const messages = JSON.parse(existing.messages);
+      // existing.messages is already a parsed array (getConversation deserializes it)
+      const messages = Array.isArray(existing.messages)
+        ? existing.messages
+        : JSON.parse(existing.messages || '[]');
       messages.push({
         role: data.role,
         content: data.content,

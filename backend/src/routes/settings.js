@@ -5,6 +5,7 @@ import { db } from '../services/database.js';
 import { ollamaService } from '../services/ollama.js';
 import { groqService } from '../services/groq.js';
 import { openclawService } from '../services/openclaw.js';
+import { anthropicService } from '../services/anthropic.js';
 import { aiProvider } from '../services/ai-provider.js';
 import { tryCatch } from '../utils/response.js';
 
@@ -64,6 +65,14 @@ router.put('/', tryCatch(async (req, res) => {
     updates.openclaw_temperature = String(temp);
   }
 
+  if (updates.anthropic_temperature !== undefined) {
+    const temp = parseFloat(updates.anthropic_temperature);
+    if (isNaN(temp) || temp < 0 || temp > 1) {
+      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
+    }
+    updates.anthropic_temperature = String(temp);
+  }
+
   if (updates.openclaw_url) {
     try {
       new URL(updates.openclaw_url);
@@ -99,6 +108,15 @@ router.put('/', tryCatch(async (req, res) => {
   if (updates.groq_temperature !== undefined) groqConfig.temperature = parseFloat(updates.groq_temperature);
   if (Object.keys(groqConfig).length > 0) {
     groqService.configure(groqConfig);
+  }
+
+  // Apply Anthropic settings at runtime
+  const anthropicConfig = {};
+  if (updates.anthropic_api_key) anthropicConfig.apiKey = updates.anthropic_api_key;
+  if (updates.anthropic_model) anthropicConfig.defaultModel = updates.anthropic_model;
+  if (updates.anthropic_temperature !== undefined) anthropicConfig.temperature = parseFloat(updates.anthropic_temperature);
+  if (Object.keys(anthropicConfig).length > 0) {
+    anthropicService.configure(anthropicConfig);
   }
 
   // Apply OpenClaw settings at runtime
@@ -267,8 +285,8 @@ router.post('/test-anthropic', tryCatch(async (req, res) => {
     const { default: axios } = await import('axios');
     // Use a minimal message with the smallest model to validate the key
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1,
+      model: 'claude-haiku-4-5',
+      max_tokens: 5,
       messages: [{ role: 'user', content: 'hi' }],
     }, {
       headers: {

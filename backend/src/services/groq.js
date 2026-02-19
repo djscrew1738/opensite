@@ -22,23 +22,24 @@ class GroqService {
       },
     });
 
-    // Available Groq models (updated periodically)
+    // Available Groq models (updated 2025 — Llama 4 era)
     this.knownModels = [
-      { name: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', context: 128000, speed: 'fast' },
-      { name: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', context: 128000, speed: 'fastest' },
-      { name: 'llama-3.2-90b-vision-preview', label: 'Llama 3.2 90B Vision', context: 8192, speed: 'fast' },
-      { name: 'llama-3.2-11b-vision-preview', label: 'Llama 3.2 11B Vision', context: 8192, speed: 'fast' },
-      { name: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', context: 32768, speed: 'fast' },
-      { name: 'gemma2-9b-it', label: 'Gemma 2 9B', context: 8192, speed: 'fast' },
+      { name: 'meta-llama/llama-4-scout-17b-16e-instruct',    label: 'Llama 4 Scout 17B',   context: 131072, speed: 'fast',    owned_by: 'Meta' },
+      { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B', context: 131072, speed: 'fast',    owned_by: 'Meta' },
+      { name: 'llama-3.3-70b-versatile',                       label: 'Llama 3.3 70B',        context: 128000, speed: 'fast',    owned_by: 'Meta' },
+      { name: 'llama-3.1-8b-instant',                          label: 'Llama 3.1 8B Instant', context: 128000, speed: 'fastest', owned_by: 'Meta' },
+      { name: 'gemma2-9b-it',                                  label: 'Gemma 2 9B',           context: 8192,   speed: 'fast',    owned_by: 'Google' },
+      { name: 'moonshotai/kimi-k2-instruct',                   label: 'Kimi K2',              context: 131072, speed: 'fast',    owned_by: 'Moonshot AI' },
+      { name: 'qwen/qwen3-32b',                                label: 'Qwen 3 32B',           context: 131072, speed: 'fast',    owned_by: 'Alibaba' },
     ];
 
     this.modelRecommendations = {
-      chat: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
-      coding: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
-      reasoning: ['llama-3.3-70b-versatile'],
-      fast: ['llama-3.1-8b-instant', 'gemma2-9b-it'],
-      scoring: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
-      analysis: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+      chat:     ['meta-llama/llama-4-maverick-17b-128e-instruct', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+      coding:   ['meta-llama/llama-4-maverick-17b-128e-instruct', 'llama-3.3-70b-versatile'],
+      reasoning: ['meta-llama/llama-4-maverick-17b-128e-instruct', 'llama-3.3-70b-versatile'],
+      fast:     ['llama-3.1-8b-instant', 'meta-llama/llama-4-scout-17b-16e-instruct'],
+      scoring:  ['meta-llama/llama-4-scout-17b-16e-instruct', 'llama-3.1-8b-instant'],
+      analysis: ['meta-llama/llama-4-maverick-17b-128e-instruct', 'llama-3.3-70b-versatile'],
     };
 
     this._cb = {
@@ -217,7 +218,7 @@ class GroqService {
 
     if (!this.apiKey) {
       this._metrics.failCount++;
-      return { success: false, error: 'Groq API key not configured' };
+      return { success: false, error: 'Groq API key not configured. Add it in Settings.' };
     }
 
     if (!this._cbCanRequest()) {
@@ -232,11 +233,18 @@ class GroqService {
     const modelToUse = options.model || this.defaultModel;
     const temperature = options.temperature ?? this.defaultTemperature;
 
+    // Build messages: prefer structured messages if provided, else wrap prompt
+    const messages = options.messages || [{ role: 'user', content: prompt }];
+    // Prepend system message if provided and not already in messages array
+    const finalMessages = options.system
+      ? [{ role: 'system', content: options.system }, ...messages]
+      : messages;
+
     try {
       const result = await this._withRetry(async () => {
         return this.client.post('/chat/completions', {
           model: modelToUse,
-          messages: [{ role: 'user', content: prompt }],
+          messages: finalMessages,
           temperature,
           max_tokens: options.num_predict || 4096,
           top_p: options.top_p,
@@ -289,10 +297,15 @@ class GroqService {
     const temperature = options.temperature ?? this.defaultTemperature;
     const startTime = Date.now();
 
+    const messages = options.messages || [{ role: 'user', content: prompt }];
+    const finalMessages = options.system
+      ? [{ role: 'system', content: options.system }, ...messages]
+      : messages;
+
     try {
       const response = await this.client.post('/chat/completions', {
         model: modelToUse,
-        messages: [{ role: 'user', content: prompt }],
+        messages: finalMessages,
         temperature,
         max_tokens: options.num_predict || 4096,
         top_p: options.top_p,
@@ -339,6 +352,26 @@ class GroqService {
 
   async deleteModel() {
     return { success: false, error: 'Groq models are cloud-hosted and cannot be deleted' };
+  }
+
+  // Structured messages format for multi-turn chat (preferred over getChatPrompt)
+  getChatMessages(message, history = []) {
+    const systemMsg = `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
+
+Company: CTL Plumbing LLC | Service area: Dallas-Fort Worth | Owner: Cory
+Pricing: Production $5,600/unit • Custom $7,200/unit • Premium $10,200/unit
+Phases: Rough-in (50%) • Top-out (30%) • Trim (20%)
+
+Help with: lead qualification, pricing, material recommendations, labor estimates, code compliance (Texas/DFW), project planning.`;
+
+    const messages = [];
+    for (const msg of history) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+    messages.push({ role: 'user', content: message });
+    return { system: systemMsg, messages };
   }
 
   // Prompt templates (identical to OllamaService)

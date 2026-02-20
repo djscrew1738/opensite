@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import JobPulseHome from "../components/dashboard/JobPulseHome";
 
 /* ================================================================
-   JOB PULSE v5 · CTL Plumbing · Mobile-First Command Center
+   JOB PULSE v6 · CTL Plumbing · Mobile-First Command Center
    - Real weather from NWS via backend
    - Dashboard stats from backend API
    - Smooth tab transitions
    - Enhanced KPI cards
+   - Smart alerts & notifications
    ================================================================ */
 
 /* -- THEME -- */
@@ -377,183 +379,7 @@ const KpiCard = ({ label, value, sub, color, glow, trend, sparkData, delay = 0 }
   </div>
 );
 
-/* ================================================================
-   DASHBOARD (PULSE) TAB
-   ================================================================ */
-const DashTab = ({ jobs, messages, weather, weatherLoading, dashStats, onJobSelect, onNavChange }) => {
-  const today = new Date().toISOString().split("T")[0];
-  const todayJobs = jobs.filter(j => j.sched === today);
-  const pipeline = dashStats?.pipelineValue || jobs.reduce((s, j) => s + j.est, 0);
-  const flagged = jobs.filter(j => j.flag);
-  const unread = messages.filter(m => !m.read);
-  const billed = REV.reduce((s, r) => s + r.b, 0);
 
-  // Compute trends from revenue data
-  const lastWeekBilled = REV[REV.length - 1]?.b || 0;
-  const prevWeekBilled = REV[REV.length - 2]?.b || 1;
-  const pipelineTrend = prevWeekBilled > 0
-    ? { dir: lastWeekBilled >= prevWeekBilled ? "up" : "down", pct: Math.abs(Math.round(((lastWeekBilled - prevWeekBilled) / prevWeekBilled) * 100)) }
-    : null;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 14px 24px" }}>
-      {/* KPI Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <KpiCard
-          label="Today's Jobs" value={todayJobs.length}
-          sub={`${fmt$(todayJobs.reduce((s, j) => s + j.est, 0))} est`}
-          color={C.accent} glow={C.accent} delay={0}
-          sparkData={[3, 4, 2, 5, 3, 4, todayJobs.length]}
-        />
-        <KpiCard
-          label="Pipeline" value={fmt$(pipeline)}
-          sub={`${dashStats?.activeProjectsCount || jobs.length} active`}
-          color={C.green} glow={C.green} delay={60}
-          trend={pipelineTrend}
-          sparkData={REV.map(r => r.b)}
-        />
-        <KpiCard
-          label="Unread" value={unread.length}
-          sub={unread.length ? `${unread.filter(m => m.type === "sms").length} SMS \u00B7 ${unread.filter(m => m.type === "email").length} Email` : "All caught up"}
-          color={unread.length ? C.blue : C.green} delay={120}
-        />
-        <KpiCard
-          label="Flagged" value={flagged.length}
-          sub={flagged.length ? flagged.map(j => FLAGS[j.flag].icon).join(" ") : "Clear"}
-          color={flagged.length ? C.orange : C.green} delay={180}
-        />
-      </div>
-
-      {/* Weather Strip */}
-      <div className="jp-fade-up" style={{ animationDelay: "240ms" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>
-            {weather !== WEATHER_FALLBACK ? "\uD83C\uDF24\uFE0F DFW Forecast" : "\uD83C\uDF24\uFE0F Weather"}
-          </span>
-          {weather !== WEATHER_FALLBACK && (
-            <span style={{ fontFamily: FN, fontSize: 8, color: C.greenMute }}>LIVE</span>
-          )}
-        </div>
-        <WeatherStrip weather={weather} isLoading={weatherLoading} />
-      </div>
-
-      {/* Today's Schedule */}
-      <div className="jp-fade-up" style={{ animationDelay: "320ms" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\u26A1"} Today's Schedule</span>
-          <button onClick={() => onNavChange("jobs")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`See all \u2192`}</button>
-        </div>
-        {todayJobs.length > 0 ? todayJobs.map((j) => {
-          const ph = phaseMeta(j.phase); const cr = crewMeta(j.crew); const fl = j.flag ? FLAGS[j.flag] : null;
-          return (
-            <div key={j.id} className="jp-touch" onClick={() => onJobSelect(j)} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "12px 14px", marginBottom: 8,
-              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10,
-              borderLeft: `3px solid ${ph.color}`, cursor: "pointer",
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: FS, fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.addr}</span>
-                  {fl && <span style={{ fontSize: 12 }} title={fl.label}>{fl.icon}</span>}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Badge text={ph.sh} color={ph.color} icon={ph.icon} />
-                  <span style={{ fontFamily: FN, fontSize: 9, color: cr.color }}>{cr.lead}</span>
-                  <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{fmt$(j.est)}</span>
-                </div>
-              </div>
-              <div style={{ width: 48, textAlign: "right" }}>
-                <div style={{ fontFamily: FN, fontSize: 14, fontWeight: 700, color: ph.color }}>{j.progress}%</div>
-                <ProgressBar value={j.progress} color={ph.color} h={3} />
-              </div>
-            </div>
-          );
-        }) : (
-          <div style={{ textAlign: "center", padding: 24, fontFamily: FN, fontSize: 11, color: C.dim, background: C.bgCard, borderRadius: 10, border: `1px solid ${C.border}` }}>No jobs scheduled today</div>
-        )}
-      </div>
-
-      {/* Recent Messages Preview */}
-      <div className="jp-fade-up" style={{ animationDelay: "400ms" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\uD83D\uDCAC"} Recent Messages</span>
-          <button onClick={() => onNavChange("msgs")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`Inbox \u2192`}</button>
-        </div>
-        {unread.length > 0 ? unread.slice(0, 3).map(m => (
-          <div key={m.id} className="jp-touch" style={{
-            display: "flex", alignItems: "flex-start", gap: 10,
-            padding: "10px 12px", marginBottom: 6,
-            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10,
-            borderLeft: `3px solid ${m.type === "sms" ? C.green : C.blue}`,
-          }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-              background: m.type === "sms" ? C.green + "15" : C.blue + "15",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, border: `1px solid ${m.type === "sms" ? C.green + "30" : C.blue + "30"}`,
-            }}>{m.type === "sms" ? "\uD83D\uDCF1" : "\u2709\uFE0F"}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: C.text }}>{m.from}</span>
-                <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>{m.time}</span>
-              </div>
-              {m.subject && <div style={{ fontFamily: FS, fontSize: 11, fontWeight: 600, color: C.sub, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>}
-              <div style={{ fontFamily: FS, fontSize: 11, color: C.mid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.preview}</div>
-            </div>
-          </div>
-        )) : (
-          <div style={{ textAlign: "center", padding: 24, fontFamily: FN, fontSize: 11, color: C.dim, background: C.bgCard, borderRadius: 10, border: `1px solid ${C.border}` }}>All caught up</div>
-        )}
-      </div>
-
-      {/* Revenue Snapshot */}
-      <div className="jp-fade-up" style={{
-        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-        animationDelay: "460ms",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\uD83D\uDCB0"} Revenue</span>
-          <button onClick={() => onNavChange("money")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`Details \u2192`}</button>
-        </div>
-        <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
-          <div>
-            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Billed</span>
-            <div style={{ fontFamily: FN, fontSize: 18, fontWeight: 800, color: C.accent }}>{fmt$(billed)}</div>
-          </div>
-          <div>
-            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Collected</span>
-            <div style={{ fontFamily: FN, fontSize: 18, fontWeight: 800, color: C.green }}>{fmt$(REV.reduce((s, r) => s + r.c, 0))}</div>
-          </div>
-        </div>
-        <Spark data={REV.map(r => r.b)} w={280} h={32} color={C.accent} />
-      </div>
-
-      {/* Phase Pipeline */}
-      <div className="jp-fade-up" style={{
-        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-        animationDelay: "540ms",
-      }}>
-        <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "block" }}>{"\uD83D\uDD04"} Pipeline</span>
-        <div style={{ display: "flex", gap: 6 }}>
-          {PHASES.map(p => {
-            const count = jobs.filter(j => j.phase === p.id).length;
-            const maxC = Math.max(...PHASES.map(ph => jobs.filter(j => j.phase === ph.id).length), 1);
-            return (
-              <div key={p.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <span style={{ fontFamily: FN, fontSize: 14, fontWeight: 800, color: p.color }}>{count}</span>
-                <div style={{ width: "100%", height: 32, borderRadius: 4, position: "relative", overflow: "hidden", background: C.faint }}>
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${(count / maxC) * 100}%`, background: `linear-gradient(180deg,${p.color},${p.color}44)`, borderRadius: 4, transition: "height .5s ease", minHeight: count > 0 ? 4 : 0 }} />
-                </div>
-                <span style={{ fontFamily: FN, fontSize: 7, color: C.dim, textTransform: "uppercase" }}>{p.sh}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 /* ================================================================
    JOBS TAB
@@ -1006,7 +832,7 @@ export default function Dashboard() {
       <div style={{ flex: 1, overflow: "auto" }}>
         <div key={tab} className={slideClass}>
           {tab === "dash" && (
-            <DashTab
+            <JobPulseHome
               jobs={jobs}
               messages={messages}
               weather={weather}

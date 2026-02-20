@@ -210,35 +210,21 @@ router.post('/test-groq', tryCatch(async (req, res) => {
 
 // Test OpenClaw connection
 router.post('/test-openclaw', tryCatch(async (req, res) => {
-  const { url, token } = req.body;
-  const testUrl = url || openclawService.baseUrl;
-  const testToken = token || db.getSetting('openclaw_token') || openclawService.apiKey;
-
   try {
-    const { default: axios } = await import('axios');
-    const headers = { 'Content-Type': 'application/json' };
-    if (testToken) headers['Authorization'] = `Bearer ${testToken}`;
-
-    const response = await axios.post(`${testUrl}/v1/chat/completions`, {
-      model: 'openclaw:main',
-      messages: [{ role: 'user', content: 'ping' }],
-      max_tokens: 5,
-    }, {
-      headers,
-      timeout: 15000,
-    });
-
-    const hasResponse = !!response.data?.choices?.[0]?.message?.content;
+    const health = await openclawService.healthCheck();
     res.success({
-      connected: hasResponse,
-      url: testUrl,
-      model: response.data?.model || 'openclaw:main',
+      connected: health.connected,
+      url: openclawService.baseUrl,
+      model: health.model,
+      models: health.availableModels,
+      details: health.details,
+      error: health.error,
     });
   } catch (error) {
     res.success({
       connected: false,
-      url: testUrl,
-      error: error.response?.status === 401 ? 'Invalid token' : error.message,
+      url: openclawService.baseUrl,
+      error: error.message,
     });
   }
 }));

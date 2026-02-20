@@ -1,33 +1,42 @@
-// OpenClaw AI service — local AI gateway with OpenAI-compatible Chat Completions API
-// Connects to OpenClaw Gateway running at localhost:18789
-// Provides the same interface as OllamaService/GroqService for seamless provider switching
+// OpenClaw AI service — routes through the local Ollama backend using the model
+// configured in OpenClaw's gateway. Health checks verify the OpenClaw gateway is
+// running; actual inference goes through Ollama's API for reliable chat without
+// the agent tool layer.
 
 import axios from 'axios';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const CB_CLOSED = 'closed';
 const CB_OPEN = 'open';
 const CB_HALF_OPEN = 'half-open';
 
+const OPENCLAW_BIN = process.env.OPENCLAW_BIN || '/home/djscrew/.npm-global/bin/openclaw';
+
 class OpenClawService {
   constructor() {
     this.baseUrl = process.env.OPENCLAW_URL || 'http://localhost:18789';
+    this.ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
     this.apiKey = process.env.OPENCLAW_TOKEN || '';
-    this.defaultModel = process.env.OPENCLAW_MODEL || 'openclaw:main';
+    this.defaultModel = process.env.OPENCLAW_MODEL || 'qwen2.5-coder:7b';
     this.defaultTemperature = 0.7;
 
+    // Ollama client for actual inference
     this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 120000, // OpenClaw agent tasks can take longer
+      baseURL: this.ollamaUrl,
+      timeout: 120000,
       headers: { 'Content-Type': 'application/json' },
     });
 
     this.modelRecommendations = {
-      chat: ['openclaw:main'],
-      coding: ['openclaw:main'],
-      reasoning: ['openclaw:main'],
-      fast: ['openclaw:main'],
-      scoring: ['openclaw:main'],
-      analysis: ['openclaw:main'],
+      chat: ['qwen2.5-coder:7b'],
+      coding: ['qwen2.5-coder:7b'],
+      reasoning: ['qwen2.5-coder:7b'],
+      fast: ['qwen2.5-coder:7b'],
+      scoring: ['qwen2.5-coder:7b'],
+      analysis: ['qwen2.5-coder:7b'],
     };
 
     this._cb = {
@@ -50,18 +59,11 @@ class OpenClawService {
   }
 
   configure({ baseUrl, apiKey, defaultModel, temperature }) {
-    if (baseUrl && baseUrl !== this.baseUrl) {
-      this.baseUrl = baseUrl;
-      this.client = axios.create({
-        baseURL: baseUrl,
-        timeout: 120000,
-        headers: { 'Content-Type': 'application/json' },
-      });
-      this._cbReset();
-    }
+    if (baseUrl) this.baseUrl = baseUrl;
     if (apiKey !== undefined) this.apiKey = apiKey;
     if (defaultModel) this.defaultModel = defaultModel;
     if (temperature !== undefined) this.defaultTemperature = temperature;
+    this._cbReset();
   }
 
   getConfig() {
@@ -70,7 +72,7 @@ class OpenClawService {
       defaultModel: this.defaultModel,
       temperature: this.defaultTemperature,
       provider: 'openclaw',
-      hasApiKey: !!this.apiKey,
+      hasApiKey: true, // No key needed for local gateway
     };
   }
 
@@ -115,61 +117,53 @@ class OpenClawService {
     return true;
   }
 
-  async _withRetry(fn, { retries = 2, baseDelay = 1000, label = 'request' } = {}) {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        return await fn();
-      } catch (error) {
-        if (attempt === retries) throw error;
-        const delay = baseDelay * Math.pow(2, attempt);
-        console.warn(`[openclaw] ${label} attempt ${attempt + 1} failed: ${error.message}. Retrying in ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
-      }
+  /**
+   * Query the OpenClaw gateway for status info via CLI.
+   */
+  async _gatewayStatus() {
+    try {
+      const { stdout } = await execFileAsync(OPENCLAW_BIN, ['gateway', 'call', 'status', '--json'], {
+        timeout: 15000,
+        env: { ...process.env, NO_COLOR: '1' },
+      });
+      const idx = stdout.indexOf('{');
+      return idx >= 0 ? JSON.parse(stdout.slice(idx)) : {};
+    } catch {
+      return null;
     }
-  }
-
-  _getAuthHeaders() {
-    const headers = { 'Content-Type': 'application/json' };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
-    return headers;
   }
 
   async listAvailableModels() {
     try {
-      // OpenClaw exposes OpenAI-compatible /v1/models when available
-      const response = await this.client.get('/v1/models', {
-        headers: this._getAuthHeaders(),
-        timeout: 10000,
-      });
+      // Get models from Ollama (the actual inference backend)
+      const response = await this.client.get('/api/tags', { timeout: 10000 });
+      const ollamaModels = response.data?.models || [];
 
-      const models = (response.data?.data || []).map(m => ({
-        name: m.id,
-        label: m.id.replace('openclaw:', 'OpenClaw ').replace('agent:', 'Agent '),
-        context: m.context_window || 200000,
+      const models = ollamaModels.map(m => ({
+        name: m.name,
+        label: `OpenClaw — ${m.name}`,
+        size: m.size,
+        context: 128000,
         speed: 'fast',
       }));
 
       if (models.length === 0) {
-        // Fallback: always show the default agent
         models.push({
           name: this.defaultModel,
-          label: 'OpenClaw Main Agent',
-          context: 200000,
+          label: `OpenClaw — ${this.defaultModel}`,
+          context: 128000,
           speed: 'fast',
         });
       }
 
       return { success: true, models };
-    } catch (error) {
-      // If /v1/models isn't available, return the default agent
+    } catch {
       return {
         success: true,
         models: [{
           name: this.defaultModel,
-          label: 'OpenClaw Main Agent',
-          context: 200000,
+          label: `OpenClaw — ${this.defaultModel}`,
+          context: 128000,
           speed: 'fast',
         }],
       };
@@ -178,15 +172,14 @@ class OpenClawService {
 
   async healthCheck() {
     try {
-      // Try a lightweight request to the gateway
-      const response = await this.client.post('/v1/chat/completions', {
-        model: this.defaultModel,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 5,
-      }, {
-        headers: this._getAuthHeaders(),
+      // Check the OpenClaw gateway via CLI
+      const { stdout } = await execFileAsync(OPENCLAW_BIN, ['health'], {
         timeout: 15000,
+        env: { ...process.env, NO_COLOR: '1' },
       });
+
+      // Also verify Ollama is reachable (the inference backend)
+      await this.client.get('/api/tags', { timeout: 5000 });
 
       this._cbRecordSuccess();
       const result = await this.listAvailableModels();
@@ -197,6 +190,7 @@ class OpenClawService {
         available: true,
         availableModels: result.models,
         totalModels: result.models.length,
+        details: stdout.trim(),
       };
     } catch (error) {
       this._cbRecordFailure(error);
@@ -216,22 +210,29 @@ class OpenClawService {
     return recommendations[0];
   }
 
-  // Build messages array from prompt or structured messages
-  _buildMessages(prompt, options = {}) {
+  /**
+   * Build a prompt string from flat prompt or structured messages.
+   */
+  _buildPrompt(prompt, options = {}) {
     if (options.messages && Array.isArray(options.messages)) {
-      // Structured chat: system message + conversation messages
-      const msgs = [];
+      let out = '';
       if (options.system) {
-        msgs.push({ role: 'system', content: options.system });
+        out += options.system + '\n\n';
       }
-      msgs.push(...options.messages);
-      return msgs;
+      for (const msg of options.messages) {
+        if (msg.role === 'system') {
+          out += msg.content + '\n\n';
+        } else {
+          out += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+        }
+      }
+      out += 'Assistant:';
+      return out.trim();
     }
-    // Flat prompt fallback
-    return [{ role: 'user', content: prompt }];
+    return prompt;
   }
 
-  // Non-streaming generation via OpenAI Chat Completions
+  // Non-streaming generation via Ollama /api/generate
   async generate(prompt, options = {}) {
     this._metrics.totalRequests++;
 
@@ -246,45 +247,47 @@ class OpenClawService {
     const startTime = Date.now();
     const modelToUse = options.model || this.defaultModel;
     const temperature = options.temperature ?? this.defaultTemperature;
-    const messages = this._buildMessages(prompt, options);
+    const message = this._buildPrompt(prompt, options);
 
     try {
-      const result = await this._withRetry(async () => {
-        return this.client.post('/v1/chat/completions', {
-          model: modelToUse,
-          messages,
+      const response = await this.client.post('/api/generate', {
+        model: modelToUse,
+        prompt: message,
+        stream: false,
+        options: {
           temperature,
-          max_tokens: options.num_predict || 4096,
-          stream: false,
-        }, {
-          headers: this._getAuthHeaders(),
-          timeout: options.timeout || 120000,
-        });
-      }, { retries: 2, label: `generate(${modelToUse})` });
+          num_predict: options.num_predict || 4096,
+        },
+      }, {
+        timeout: options.timeout || 120000,
+      });
 
       const elapsed = Date.now() - startTime;
       this._metrics.successCount++;
       this._metrics.totalResponseMs += elapsed;
       this._cbRecordSuccess();
 
-      const responseText = result.data?.choices?.[0]?.message?.content || '';
       return {
         success: true,
-        response: responseText,
+        response: response.data?.response || '',
         model: modelToUse,
         durationMs: elapsed,
-        usage: result.data?.usage,
+        usage: {
+          prompt_tokens: response.data?.prompt_eval_count || 0,
+          completion_tokens: response.data?.eval_count || 0,
+          total_tokens: (response.data?.prompt_eval_count || 0) + (response.data?.eval_count || 0),
+        },
       };
     } catch (error) {
       this._metrics.failCount++;
       this._cbRecordFailure(error);
-      const msg = error.response?.data?.error?.message || error.message;
+      const msg = error.response?.data?.error || error.message;
       console.error('[openclaw] generate error:', msg);
       return { success: false, error: msg };
     }
   }
 
-  // Streaming generation via SSE
+  // Streaming generation via Ollama /api/generate with stream=true
   async *generateStream(prompt, options = {}) {
     this._metrics.totalRequests++;
 
@@ -296,38 +299,37 @@ class OpenClawService {
 
     const modelToUse = options.model || this.defaultModel;
     const temperature = options.temperature ?? this.defaultTemperature;
-    const messages = this._buildMessages(prompt, options);
+    const message = this._buildPrompt(prompt, options);
     const startTime = Date.now();
 
     try {
-      const response = await this.client.post('/v1/chat/completions', {
+      const response = await this.client.post('/api/generate', {
         model: modelToUse,
-        messages,
-        temperature,
-        max_tokens: options.num_predict || 4096,
+        prompt: message,
         stream: true,
+        options: {
+          temperature,
+          num_predict: options.num_predict || 4096,
+        },
       }, {
-        headers: this._getAuthHeaders(),
         responseType: 'stream',
         timeout: options.timeout || 120000,
       });
 
       for await (const chunk of response.data) {
-        const lines = chunk.toString().split('\n').filter(line => line.trim().startsWith('data:'));
+        const lines = chunk.toString().split('\n').filter(Boolean);
         for (const line of lines) {
-          const jsonStr = line.replace(/^data:\s*/, '');
-          if (jsonStr === '[DONE]') {
-            const elapsed = Date.now() - startTime;
-            this._metrics.successCount++;
-            this._metrics.totalResponseMs += elapsed;
-            this._cbRecordSuccess();
-            return;
-          }
           try {
-            const data = JSON.parse(jsonStr);
-            const content = data.choices?.[0]?.delta?.content;
-            if (content) {
-              yield content;
+            const data = JSON.parse(line);
+            if (data.done) {
+              const elapsed = Date.now() - startTime;
+              this._metrics.successCount++;
+              this._metrics.totalResponseMs += elapsed;
+              this._cbRecordSuccess();
+              return;
+            }
+            if (data.response) {
+              yield data.response;
             }
           } catch { /* skip invalid lines */ }
         }
@@ -335,7 +337,7 @@ class OpenClawService {
     } catch (error) {
       this._metrics.failCount++;
       this._cbRecordFailure(error);
-      const msg = error.response?.data?.error?.message || error.message;
+      const msg = error.response?.data?.error || error.message;
       console.error('[openclaw] stream error:', msg);
       yield `Error: ${msg}`;
     }
@@ -350,7 +352,7 @@ class OpenClawService {
     return { success: false, error: 'OpenClaw agents are managed via the OpenClaw CLI' };
   }
 
-  // Prompt templates (identical to other providers)
+  // Prompt templates
   getLeadScoringPrompt(lead) {
     return `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
 

@@ -216,6 +216,21 @@ class OpenClawService {
     return recommendations[0];
   }
 
+  // Build messages array from prompt or structured messages
+  _buildMessages(prompt, options = {}) {
+    if (options.messages && Array.isArray(options.messages)) {
+      // Structured chat: system message + conversation messages
+      const msgs = [];
+      if (options.system) {
+        msgs.push({ role: 'system', content: options.system });
+      }
+      msgs.push(...options.messages);
+      return msgs;
+    }
+    // Flat prompt fallback
+    return [{ role: 'user', content: prompt }];
+  }
+
   // Non-streaming generation via OpenAI Chat Completions
   async generate(prompt, options = {}) {
     this._metrics.totalRequests++;
@@ -231,12 +246,13 @@ class OpenClawService {
     const startTime = Date.now();
     const modelToUse = options.model || this.defaultModel;
     const temperature = options.temperature ?? this.defaultTemperature;
+    const messages = this._buildMessages(prompt, options);
 
     try {
       const result = await this._withRetry(async () => {
         return this.client.post('/v1/chat/completions', {
           model: modelToUse,
-          messages: [{ role: 'user', content: prompt }],
+          messages,
           temperature,
           max_tokens: options.num_predict || 4096,
           stream: false,
@@ -280,12 +296,13 @@ class OpenClawService {
 
     const modelToUse = options.model || this.defaultModel;
     const temperature = options.temperature ?? this.defaultTemperature;
+    const messages = this._buildMessages(prompt, options);
     const startTime = Date.now();
 
     try {
       const response = await this.client.post('/v1/chat/completions', {
         model: modelToUse,
-        messages: [{ role: 'user', content: prompt }],
+        messages,
         temperature,
         max_tokens: options.num_predict || 4096,
         stream: true,
@@ -389,7 +406,22 @@ Respond with detailed, actionable insights in a professional format.`;
   }
 
   getChatPrompt(message, conversationHistory = []) {
-    const context = `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
+    const { system, messages } = this.getChatMessages(message, conversationHistory);
+    let prompt = system + '\n\n';
+
+    if (conversationHistory.length > 0) {
+      prompt += 'Conversation History:\n';
+      conversationHistory.forEach(msg => {
+        prompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+      });
+    }
+
+    prompt += `\nUser: ${message}\nAssistant:`;
+    return prompt;
+  }
+
+  getChatMessages(message, conversationHistory = []) {
+    const system = `You are an AI assistant for CTL Plumbing LLC, a commercial and multi-family plumbing contractor in the DFW Metroplex.
 
 Company Information:
 - Specialization: Commercial and multi-family plumbing
@@ -407,21 +439,17 @@ You can help with:
 - Labor estimates
 - Timeline projections
 - Code compliance (Texas/DFW)
-- Project planning
+- Project planning`;
 
-`;
-
-    let prompt = context;
-
+    const messages = [];
     if (conversationHistory.length > 0) {
-      prompt += '\nConversation History:\n';
-      conversationHistory.forEach(msg => {
-        prompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
-      });
+      for (const msg of conversationHistory) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
     }
+    messages.push({ role: 'user', content: message });
 
-    prompt += `\nUser: ${message}\nAssistant:`;
-    return prompt;
+    return { system, messages };
   }
 
   async scoreLead(lead, modelOverride = null) {

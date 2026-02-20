@@ -48,7 +48,7 @@ import { visionService } from './services/vision.js';
 // Import permit jobs
 import { startPermitJobs, stopPermitJobs } from './jobs/permit-jobs.js';
 
-// Import AI provider manager (Ollama + Groq)
+// Import AI provider manager (Ollama, Groq, Anthropic, OpenClaw)
 import { aiProvider } from './services/ai-provider.js';
 
 // Load environment variables
@@ -220,7 +220,7 @@ setInterval(() => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', { port: PORT });
 
-  // Load saved settings and apply to AI providers (Ollama + Groq)
+  // Load saved settings and apply to all AI providers
   try {
     aiProvider.loadFromSettings();
     logger.info('Applied saved settings to AI providers', {
@@ -236,28 +236,35 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     startPermitJobs();
   }
 
+  const providerLabel = {
+    groq: 'Groq Cloud',
+    anthropic: 'Anthropic Claude',
+    ollama: 'Ollama Local',
+    openclaw: 'OpenClaw Gateway',
+  }[aiProvider.activeProviderName] || aiProvider.activeProviderName;
+
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║      Opensite Backend Server v2.0 - Enhanced Edition      ║
 ╚═══════════════════════════════════════════════════════════╝
 
-🚀 Server:    http://localhost:${PORT}
-🌐 Network:   http://100.115.136.62:${PORT}
-📚 API Docs:  http://100.115.136.62:${PORT}/api/health
-🤖 AI Model:  ${process.env.OLLAMA_MODEL || 'llama3.1'}
-🏢 Company:   CTL Plumbing LLC
+  Server:    http://localhost:${PORT}
+  Network:   http://100.83.120.32:${PORT}
+  API Docs:  http://100.83.120.32:${PORT}/api/health
+  AI:        ${providerLabel} (${aiProvider.defaultModel})
+  Company:   CTL Plumbing LLC
 
-✨ Enhanced Features:
-   📊 SQLite Database (tool/data/opensite.db)
-   💾 Multi-tier Caching
-   📝 Daily Rotating Logs (tool/logs/)
-   🔒 Security Headers & Rate Limiting
-   ✅ Request Validation
-   ⚡ Performance Monitoring
-   🏗️  Permit Lead Tracking & Scoring
-   🔔 Automated Notifications
+  Features:
+   - SQLite Database (tool/data/opensite.db)
+   - Multi-tier Caching
+   - Daily Rotating Logs (tool/logs/)
+   - Security Headers & Rate Limiting
+   - Request Validation
+   - Performance Monitoring
+   - Permit Lead Tracking & Scoring
+   - Automated Notifications
 
-🔒 Accessible via Tailscale network
-Press Ctrl+C to stop
+  Accessible via Tailscale network
+  Press Ctrl+C to stop
   `);
 });

@@ -19,12 +19,20 @@ export default function AIAssistant() {
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;
 
-  // Fetch available models
-  useQuery({
+  // Fetch available models and active provider
+  const { data: modelsData } = useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
     retry: false
   });
+
+  const activeProvider = modelsData?.provider || 'ollama';
+  const providerLabel = {
+    groq: 'Groq Cloud',
+    anthropic: 'Anthropic Claude',
+    ollama: 'Ollama Local',
+    openclaw: 'OpenClaw Gateway',
+  }[activeProvider] || activeProvider;
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -55,7 +63,7 @@ export default function AIAssistant() {
           <div>
             <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-surface-100 tracking-tight">AI Assistant</h1>
             <p className="text-sm text-surface-600 dark:text-surface-400 mt-1">
-              Powered by Ollama - Ask about leads, pricing, materials, and code compliance
+              Powered by {providerLabel} — Ask about leads, pricing, materials, and code compliance
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-green-600">

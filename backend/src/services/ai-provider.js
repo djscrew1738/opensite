@@ -1,4 +1,4 @@
-// AI Provider Manager — switches between Ollama (local), Groq, and Anthropic
+// AI Provider Manager — switches between Ollama, Groq, Anthropic, and OpenClaw
 // Exposes a unified interface regardless of active provider
 
 import { ollamaService } from './ollama.js';
@@ -65,11 +65,11 @@ class AIProviderManager {
       },
       {
         name: 'openclaw',
-        label: 'OpenClaw',
+        label: 'OpenClaw Gateway',
         active: this._activeProvider === 'openclaw',
         defaultModel: openclawService.defaultModel,
         hasApiKey: true,
-        description: 'Local AI gateway',
+        description: 'Local AI gateway — OpenAI-compatible, 200k context, no API cost',
       },
     ];
   }
@@ -90,7 +90,7 @@ class AIProviderManager {
         const anthropicKey = db.getSetting('anthropic_api_key');
         if (groqKey) this._activeProvider = 'groq';
         else if (anthropicKey) this._activeProvider = 'anthropic';
-        // otherwise stay with default (groq)
+        else this._activeProvider = 'openclaw';
       }
 
       // Groq

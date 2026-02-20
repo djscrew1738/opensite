@@ -3,6 +3,7 @@
 
 import * as cheerio from 'cheerio';
 import { aiProvider } from '../ai-provider.js';
+import { verifyEmails, filterBestEmails } from './emailVerifier.js';
 
 const logger = {
   info: (msg, data) => console.log(`[web-enricher] ${msg}`, data || ''),
@@ -141,9 +142,11 @@ Respond with ONLY the JSON, no other text.`;
  * Enrich a batch of leads with website data
  * @param {Array} leads - Array of lead objects from Stage 1
  * @param {Function} onProgress - Progress callback (0-100)
+ * @param {object} options - Enrichment options
  * @returns {Array} Enriched leads
  */
-export async function enrichLeads(leads, onProgress = () => {}) {
+export async function enrichLeads(leads, onProgress = () => {}, options = {}) {
+  const { verifyEmails: shouldVerifyEmails = true, minEmailScore = 60 } = options;
   const leadsWithWebsites = leads.filter(l => l.website);
   logger.info(`Enriching ${leadsWithWebsites.length} of ${leads.length} leads (have websites)`);
 
@@ -160,8 +163,31 @@ export async function enrichLeads(leads, onProgress = () => {}) {
       const { text } = await scrapeWebsite(lead.website);
 
       // Extract emails and phones from raw content
-      lead.emails = extractEmails(text);
+      const extractedEmails = extractEmails(text);
       lead.extractedPhones = extractPhones(text);
+
+      // Verify emails if enabled
+      if (shouldVerifyEmails && extractedEmails.length > 0) {
+        const verifications = await verifyEmails(extractedEmails, { checkMx: true });
+        const bestEmails = filterBestEmails(verifications, minEmailScore);
+
+        lead.emails = bestEmails.map(v => v.email);
+        lead.verifiedEmails = verifications.map(v => ({
+          email: v.email,
+          score: v.score,
+          isValid: v.isValid,
+          isDeliverable: v.isDeliverable,
+          isDisposable: v.isDisposable,
+          isRoleBased: v.isRoleBased,
+          reason: v.reason,
+        }));
+        lead.bestEmail = bestEmails[0]?.email || null;
+        lead.bestEmailScore = bestEmails[0]?.score || 0;
+        lead.emailVerificationStatus = bestEmails.length > 0 ? 'verified' : 'failed';
+      } else {
+        lead.emails = extractedEmails;
+        lead.emailVerificationStatus = 'not_verified';
+      }
 
       // Use AI to extract structured info
       const aiInfo = await aiExtractBusinessInfo(text, lead.businessName);
@@ -176,13 +202,14 @@ export async function enrichLeads(leads, onProgress = () => {}) {
       }
 
       lead.enrichmentStatus = 'enriched';
-      logger.info(`Enriched: ${lead.businessName} (${lead.emails.length} emails, ${lead.extractedPhones.length} phones)`);
+      logger.info(`Enriched: ${lead.businessName} (${lead.emails.length} verified emails, ${lead.extractedPhones.length} phones)`);
 
     } catch (error) {
       lead.enrichmentStatus = 'failed';
       lead.emails = lead.emails || [];
       lead.extractedPhones = lead.extractedPhones || [];
       lead.servicesOffered = lead.servicesOffered || [];
+      lead.emailVerificationStatus = 'failed';
       logger.warn(`Failed to enrich ${lead.businessName}: ${error.message}`);
     }
 

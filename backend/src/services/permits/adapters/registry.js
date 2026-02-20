@@ -1,8 +1,7 @@
 import { FortWorthAdapter } from './fortworth.js';
 import { FortWorthAccelaAdapter } from './fortworth-accela.js';
-// Template adapters for future implementation
-// import { TarrantCountyAdapter } from './tarrant.js';
-// import { ArlingtonAdapter } from './arlington.js';
+import { DallasAdapter } from './dallas.js';
+import { ArlingtonAdapter } from './arlington.js';
 
 /**
  * Adapter Registry
@@ -13,8 +12,8 @@ import { FortWorthAccelaAdapter } from './fortworth-accela.js';
 const ADAPTERS = {
   fort_worth: FortWorthAdapter,
   fort_worth_accela: FortWorthAccelaAdapter,
-  // tarrant_county: TarrantCountyAdapter,  // TODO: Implement
-  // arlington: ArlingtonAdapter,           // TODO: Implement
+  dallas: DallasAdapter,
+  arlington: ArlingtonAdapter,
 };
 
 /**

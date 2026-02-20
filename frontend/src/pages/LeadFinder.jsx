@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import {
   Plus, Search, Filter, X, Command, Trash2,
   ArrowUpDown, CheckSquare, Square, Building2,
-  MapPin, Users, Compass, FileText
+  MapPin, Users, Compass, FileText, Download, Sparkles
 } from 'lucide-react';
 import LeadCard from '../components/leads/LeadCard';
 import LeadModal from '../components/leads/LeadModal';

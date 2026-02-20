@@ -2146,6 +2146,147 @@ class DatabaseService {
     return lead;
   }
 
+  // Add fingerprint column if missing and get by fingerprint
+  getDiscoveryLeadByFingerprint(fingerprint) {
+    // First ensure column exists
+    this.safeAddColumn('discovery_leads', 'fingerprint', 'TEXT');
+
+    const lead = this.db.prepare('SELECT * FROM discovery_leads WHERE fingerprint = ? LIMIT 1').get(fingerprint);
+    if (lead) {
+      lead.emails = JSON.parse(lead.emails || '[]');
+      lead.extractedPhones = JSON.parse(lead.extractedPhones || '[]');
+      lead.servicesOffered = JSON.parse(lead.servicesOffered || '[]');
+    }
+    return lead;
+  }
+
+  // ==================== Follow-up Schedule Operations ====================
+
+  createFollowUpSchedule(data) {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS follow_up_schedules (
+        id TEXT PRIMARY KEY,
+        leadId TEXT NOT NULL,
+        leadType TEXT DEFAULT 'discovery',
+        status TEXT DEFAULT 'active',
+        startDate TEXT NOT NULL,
+        completedAt TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS follow_up_touchpoints (
+        id TEXT PRIMARY KEY,
+        scheduleId TEXT NOT NULL,
+        sequenceOrder INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        template TEXT,
+        priority TEXT DEFAULT 'medium',
+        scheduledFor TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        completedAt TEXT,
+        completedBy TEXT,
+        notes TEXT,
+        autoSend INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (scheduleId) REFERENCES follow_up_schedules(id) ON DELETE CASCADE
+      )
+    `);
+
+    const now = new Date().toISOString();
+
+    this.db.prepare(`
+      INSERT INTO follow_up_schedules (id, leadId, leadType, status, startDate, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(data.id, data.leadId, data.leadType || 'discovery', data.status, data.startDate, now, now);
+
+    const stmt = this.db.prepare(`
+      INSERT INTO follow_up_touchpoints
+      (id, scheduleId, sequenceOrder, type, template, priority, scheduledFor, status, autoSend, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const tp of data.touchpoints) {
+      stmt.run(tp.id, data.id, tp.sequenceOrder, tp.type, tp.template, tp.priority, tp.scheduledFor, tp.status, tp.autoSend ? 1 : 0, now);
+    }
+
+    return this.getFollowUpSchedule(data.id);
+  }
+
+  getFollowUpSchedule(id) {
+    const schedule = this.db.prepare('SELECT * FROM follow_up_schedules WHERE id = ?').get(id);
+    if (!schedule) return null;
+
+    schedule.touchpoints = this.db.prepare(
+      'SELECT * FROM follow_up_touchpoints WHERE scheduleId = ? ORDER BY sequenceOrder'
+    ).all(id);
+
+    return schedule;
+  }
+
+  getFollowUpSchedules(filters = {}) {
+    let query = 'SELECT * FROM follow_up_schedules WHERE 1=1';
+    const params = [];
+
+    if (filters.status) {
+      query += ' AND status = ?';
+      params.push(filters.status);
+    }
+    if (filters.leadId) {
+      query += ' AND leadId = ?';
+      params.push(filters.leadId);
+    }
+
+    query += ' ORDER BY createdAt DESC';
+
+    const schedules = this.db.prepare(query).all(...params);
+    for (const schedule of schedules) {
+      schedule.touchpoints = this.db.prepare(
+        'SELECT * FROM follow_up_touchpoints WHERE scheduleId = ? ORDER BY sequenceOrder'
+      ).all(schedule.id);
+    }
+    return schedules;
+  }
+
+  updateFollowUpTouchpoint(id, data) {
+    const updates = [];
+    const params = [];
+
+    for (const [key, val] of Object.entries(data)) {
+      if (key !== 'id' && key !== 'createdAt') {
+        updates.push(`${key} = ?`);
+        params.push(val);
+      }
+    }
+
+    if (updates.length === 0) return null;
+
+    params.push(id);
+    this.db.prepare(`UPDATE follow_up_touchpoints SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    return this.db.prepare('SELECT * FROM follow_up_touchpoints WHERE id = ?').get(id);
+  }
+
+  updateFollowUpSchedule(id, data) {
+    const updates = [];
+    const params = [];
+
+    for (const [key, val] of Object.entries(data)) {
+      if (key !== 'id' && key !== 'createdAt') {
+        updates.push(`${key} = ?`);
+        params.push(val);
+      }
+    }
+
+    updates.push('updatedAt = ?');
+    params.push(new Date().toISOString());
+    params.push(id);
+
+    this.db.prepare(`UPDATE follow_up_schedules SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    return this.getFollowUpSchedule(id);
+  }
+
   // ==================== Settings Operations ====================
 
   seedDefaultSettings() {

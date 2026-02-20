@@ -8,17 +8,17 @@ Your OpenSite Plumbing Intelligence Platform is now accessible remotely via Tail
 
 **Main Application:**
 ```
-http://100.115.136.62:3000
+http://100.83.120.32:3000
 ```
 
 **Backend API:**
 ```
-http://100.115.136.62:5001
+http://100.83.120.32:5001
 ```
 
 **API Health Check:**
 ```
-http://100.115.136.62:5001/api/health
+http://100.83.120.32:5001/api/health
 ```
 
 ### From Local Machine:
@@ -37,7 +37,8 @@ http://localhost:5001  (backend)
 3. No additional firewall configuration needed!
 
 ### Your Tailscale Network:
-- **acer-ai** (this server) - 100.115.136.62 - ✅ ONLINE
+- **acer-ai** (this server) - 100.83.120.32 - ✅ ONLINE
+- desktop/remote device - 100.115.136.62
 - desktop-o26idtv - 100.127.118.111 - Offline
 - home-server - 100.109.158.92 - Offline
 - iphone-12-pro - 100.109.100.60 - Offline
@@ -51,22 +52,22 @@ http://localhost:5001  (backend)
 1. Install Tailscale from App Store
 2. Sign in with your account
 3. Connect to network
-4. Open Safari: `http://100.115.136.62:3000`
+4. Open Safari: `http://100.83.120.32:3000`
 
 ### On Android:
 1. Install Tailscale from Play Store
 2. Sign in with your account
 3. Connect to network
-4. Open Chrome: `http://100.115.136.62:3000`
+4. Open Chrome: `http://100.83.120.32:3000`
 
 ### On Windows (desktop-o26idtv):
 1. Start Tailscale client
 2. Ensure connected
-3. Open browser: `http://100.115.136.62:3000`
+3. Open browser: `http://100.83.120.32:3000`
 
 ### On Another Linux Machine (home-server):
 1. Start Tailscale: `sudo tailscale up`
-2. Open browser: `http://100.115.136.62:3000`
+2. Open browser: `http://100.83.120.32:3000`
 
 ---
 
@@ -176,11 +177,11 @@ http://localhost:5001  (backend)
    tailscale status
    ```
 
-2. Verify you're using Tailscale IP (100.115.136.62) not localhost
+2. Verify you're using Tailscale IP (100.83.120.32) not localhost
 
 3. Check servers are running on acer-ai:
    ```bash
-   curl http://100.115.136.62:5001/api/health
+   curl http://100.83.120.32:5001/api/health
    ```
 
 4. Restart Tailscale on client device
@@ -268,10 +269,10 @@ http://localhost:5001  (backend)
 ### For Mobile Devices:
 Save these bookmarks for quick access:
 
-1. **Dashboard**: `http://100.115.136.62:3000`
-2. **Lead Finder**: `http://100.115.136.62:3000/leads`
-3. **Pricing**: `http://100.115.136.62:3000/pricing`
-4. **AI Chat**: `http://100.115.136.62:3000/ai`
+1. **Dashboard**: `http://100.83.120.32:3000`
+2. **Lead Finder**: `http://100.83.120.32:3000/leads`
+3. **Pricing**: `http://100.83.120.32:3000/pricing`
+4. **AI Chat**: `http://100.83.120.32:3000/ai`
 
 ---
 
@@ -298,7 +299,7 @@ cd /home/djscrew/opensite/frontend && npm run dev &
 ## 📞 Support Info
 
 **Server**: acer-ai
-**Tailscale IP**: 100.115.136.62
+**Tailscale IP**: 100.83.120.32 (server) / 100.115.136.62 (remote device)
 **Network**: cory.nich@ Tailscale network
 **OS**: Linux
 **Services**:
@@ -328,4 +329,4 @@ cd /home/djscrew/opensite/frontend && npm run dev &
 
 **Your OpenSite platform is now accessible from any device on your Tailscale network! 🎉**
 
-Access it now: **http://100.115.136.62:3000**
+Access it now: **http://100.83.120.32:3000**

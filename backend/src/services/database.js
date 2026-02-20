@@ -513,6 +513,28 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_vision_analyses_project ON vision_analyses(projectId);
     `);
 
+    // Email alerts table — tracks keyword-matched emails that triggered SMS
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS email_alerts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        messageId TEXT UNIQUE,
+        fromAddress TEXT,
+        fromName TEXT,
+        subject TEXT,
+        matchedKeywords TEXT,
+        snippet TEXT,
+        smsSent INTEGER DEFAULT 0,
+        smsExternalId TEXT,
+        receivedAt TEXT,
+        processedAt TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    `);
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_email_alerts_date ON email_alerts(processedAt);
+      CREATE INDEX IF NOT EXISTS idx_email_alerts_msgid ON email_alerts(messageId);
+    `);
+
     // Seed default plumbing materials if empty
     this.seedDefaultMaterials();
 
@@ -2006,6 +2028,54 @@ class DatabaseService {
       SET status = ?, externalId = ?, errorMessage = ?, sentAt = ?
       WHERE id = ?
     `).run(status, externalId, errorMessage, sentAt, id);
+  }
+
+  // ==================== Email Alert Operations ====================
+
+  createEmailAlert(data) {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO email_alerts (
+        messageId, fromAddress, fromName, subject, matchedKeywords, snippet,
+        smsSent, smsExternalId, receivedAt, processedAt, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      data.messageId,
+      data.fromAddress || null,
+      data.fromName || null,
+      data.subject || null,
+      data.matchedKeywords || null,
+      data.snippet || null,
+      data.smsSent ? 1 : 0,
+      data.smsExternalId || null,
+      data.receivedAt || null,
+      data.processedAt || now,
+      now
+    );
+    return result.lastInsertRowid;
+  }
+
+  emailAlertExists(messageId) {
+    const row = this.db.prepare('SELECT 1 FROM email_alerts WHERE messageId = ?').get(messageId);
+    return !!row;
+  }
+
+  getRecentEmailAlerts(limit = 20, offset = 0) {
+    return this.db.prepare(`
+      SELECT * FROM email_alerts ORDER BY processedAt DESC LIMIT ? OFFSET ?
+    `).all(limit, offset);
+  }
+
+  getEmailAlertStats() {
+    const row = this.db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN smsSent = 1 THEN 1 ELSE 0 END) as smsSentCount,
+        MAX(processedAt) as lastCheck
+      FROM email_alerts
+    `).get();
+    return row || { total: 0, smsSentCount: 0, lastCheck: null };
   }
 
   // ==================== Discovery Operations ====================

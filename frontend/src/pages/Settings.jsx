@@ -270,6 +270,19 @@ export default function Settings() {
   const [notifyDigestDay, setNotifyDigestDay] = useState('Monday');
   const [notifyDigestTime, setNotifyDigestTime] = useState('08:00');
 
+  /* ── Email Monitor ── */
+  const [emEnabled, setEmEnabled] = useState(false);
+  const [emHost, setEmHost] = useState('outlook.office365.com');
+  const [emPort, setEmPort] = useState('993');
+  const [emUser, setEmUser] = useState('');
+  const [emPass, setEmPass] = useState('');
+  const [emKeywords, setEmKeywords] = useState('');
+  const [emTesting, setEmTesting] = useState(false);
+  const [emChecking, setEmChecking] = useState(false);
+  const [emSaving, setEmSaving] = useState(false);
+  const [emStatus, setEmStatus] = useState(null);
+  const [emAlerts, setEmAlerts] = useState([]);
+
   /* ── API keys ── */
   const [serperKey, setSerperKey] = useState('');
   const [showSerperKey, setShowSerperKey] = useState(false);
@@ -448,6 +461,19 @@ export default function Settings() {
     setNotifyDigestEnabled(bool(s.notify_digest_enabled, false));
     setNotifyDigestDay(s.notify_digest_day || 'Monday');
     setNotifyDigestTime(s.notify_digest_time || '08:00');
+
+    // Email Monitor — load from dedicated endpoint
+    api.emailMonitor.getSettings().then(emData => {
+      if (emData) {
+        setEmEnabled(emData.enabled || false);
+        setEmHost(emData.host || 'outlook.office365.com');
+        setEmPort(String(emData.port || 993));
+        setEmUser(emData.user || '');
+        setEmKeywords(emData.keywords || '');
+      }
+    }).catch(() => {});
+    api.emailMonitor.getStatus().then(st => setEmStatus(st)).catch(() => {});
+    api.emailMonitor.getAlerts({ limit: 10 }).then(d => setEmAlerts(d?.alerts || [])).catch(() => {});
 
     // Performance
     setPerfCacheTtl(num(s.perf_cache_ttl, 5));
@@ -735,6 +761,66 @@ export default function Settings() {
       showToast(`Failed to save: ${err.message}`, 'error');
     } finally {
       setSavingNotifications(false);
+    }
+  };
+
+  const handleSaveEmailMonitor = async () => {
+    setEmSaving(true);
+    try {
+      await api.emailMonitor.saveSettings({
+        enabled: emEnabled,
+        host: emHost,
+        port: parseInt(emPort),
+        user: emUser,
+        ...(emPass ? { pass: emPass } : {}),
+        keywords: emKeywords,
+      });
+      setEmPass('');
+      showToast('Email monitor settings saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    } finally {
+      setEmSaving(false);
+    }
+  };
+
+  const handleTestEmailMonitor = async () => {
+    if (!emUser) { showToast('Enter email address first', 'error'); return; }
+    setEmTesting(true);
+    try {
+      const result = await api.emailMonitor.testConnection({
+        host: emHost,
+        port: parseInt(emPort),
+        user: emUser,
+        pass: emPass || undefined,
+      });
+      showToast(`Connected! ${result.messages} messages in inbox, ${result.unseen} unseen`);
+    } catch (err) {
+      showToast(`Connection failed: ${err.message}`, 'error');
+    } finally {
+      setEmTesting(false);
+    }
+  };
+
+  const handleCheckNow = async () => {
+    setEmChecking(true);
+    try {
+      const result = await api.emailMonitor.checkNow();
+      if (result.disabled) {
+        showToast('Email monitor is disabled — enable it first', 'warning');
+      } else if (result.error) {
+        showToast(`Check failed: ${result.error}`, 'error');
+      } else {
+        showToast(`Checked: ${result.processed} emails, ${result.matched} matches, ${result.smsSent} SMS sent`);
+      }
+      const alerts = await api.emailMonitor.getAlerts({ limit: 10 });
+      setEmAlerts(alerts?.alerts || []);
+      const st = await api.emailMonitor.getStatus();
+      setEmStatus(st);
+    } catch (err) {
+      showToast(`Check failed: ${err.message}`, 'error');
+    } finally {
+      setEmChecking(false);
     }
   };
 
@@ -1452,6 +1538,117 @@ export default function Settings() {
           {savingNotifications ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Notifications
         </button>
       </div>
+
+      {/* Email Monitor Section */}
+      <Section icon={Mail} title="Email Monitor (Outlook)"
+        badge={emStatus?.enabled ? (
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">Active</span>
+        ) : (
+          <span className="text-xs font-semibold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">Off</span>
+        )}
+      >
+        <div className="space-y-4">
+          <SettingsRow label="Enable Email Monitor" description="Scans your Outlook inbox every 10 min for plumbing/permit keywords and sends SMS alerts via Twilio">
+            <Toggle enabled={emEnabled} onChange={setEmEnabled} />
+          </SettingsRow>
+
+          {emEnabled && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="email" value={emUser} onChange={e => setEmUser(e.target.value)} className="input pl-10 text-sm" placeholder="you@outlook.com" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Password / App Password</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="password" value={emPass} onChange={e => setEmPass(e.target.value)} className="input pl-10 text-sm" placeholder="Enter password (leave blank to keep current)" />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">If MFA is on, use an app password from your Microsoft account security settings</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">IMAP Server</label>
+                  <input type="text" value={emHost} onChange={e => setEmHost(e.target.value)} className="input text-sm font-mono" placeholder="outlook.office365.com" />
+                </div>
+                <div>
+                  <label className="label">IMAP Port</label>
+                  <input type="number" value={emPort} onChange={e => setEmPort(e.target.value)} className="input text-sm font-mono" placeholder="993" />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Alert Keywords</label>
+                <textarea value={emKeywords} onChange={e => setEmKeywords(e.target.value)} className="input text-sm font-mono" rows={3}
+                  placeholder="permit, inspection, plumbing, rough-in, schedule change, urgent, failed, approved..." />
+                <p className="text-xs text-gray-500 mt-1">Comma-separated. Emails matching any keyword in subject or body trigger an SMS alert.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button onClick={handleTestEmailMonitor} disabled={emTesting} className="btn-secondary text-sm whitespace-nowrap">
+                  {emTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test Connection
+                </button>
+                <button onClick={handleCheckNow} disabled={emChecking} className="btn-secondary text-sm whitespace-nowrap">
+                  {emChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Check Now
+                </button>
+                <button onClick={handleSaveEmailMonitor} disabled={emSaving} className="btn-primary text-sm whitespace-nowrap">
+                  {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Email Monitor
+                </button>
+              </div>
+
+              {/* Status */}
+              {emStatus && (
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-sm space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${emStatus.enabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {emStatus.enabled ? 'Monitoring active' : 'Monitor disabled'}
+                    </span>
+                  </div>
+                  {emStatus.lastCheckTime && (
+                    <p className="text-gray-500 dark:text-gray-400">Last check: {new Date(emStatus.lastCheckTime).toLocaleString()}</p>
+                  )}
+                  <p className="text-gray-500 dark:text-gray-400">Total alerts: {emStatus.totalAlerts || 0} | SMS sent: {emStatus.totalSmsSent || 0}</p>
+                </div>
+              )}
+
+              {/* Recent Alerts */}
+              {emAlerts.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent Alerts</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {emAlerts.map((a, i) => (
+                      <div key={a.id || i} className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{a.fromName || a.fromAddress}</span>
+                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">{a.processedAt ? new Date(a.processedAt).toLocaleString() : ''}</span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 truncate">{a.subject}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(a.matchedKeywords || '').split(', ').filter(Boolean).map(kw => (
+                            <span key={kw} className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-mono">{kw}</span>
+                          ))}
+                        </div>
+                        {a.smsSent ? (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 inline-block">SMS sent</span>
+                        ) : (
+                          <span className="text-xs text-gray-500 mt-1 inline-block">No SMS</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Section>
     </div>
   );
 

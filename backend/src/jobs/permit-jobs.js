@@ -4,6 +4,7 @@ import { runIngestion } from '../services/permits/ingestion.js';
 import { scoreAllUnscored } from '../services/permits/scoring.js';
 import { runBuilderRollup } from '../services/permits/intelligence.js';
 import { sendLeadAlert, sendDailyDigest } from '../services/permits/notifications.js';
+import { checkEmails } from '../services/email-monitor.js';
 
 // Simple console logger
 const logger = {
@@ -129,6 +130,25 @@ export function startPermitJobs() {
   });
   logger.info(`🏗️  Builder rollup scheduled: ${rollupSchedule} CT`);
 
+  // Job 6: Email monitor — check inbox for keyword-matched emails every 10 min
+  const emailMonitorSchedule = process.env.EMAIL_MONITOR_CRON || '*/10 * * * *';
+  cron.schedule(emailMonitorSchedule, async () => {
+    logger.info('Running email monitor check...');
+    try {
+      const result = await checkEmails();
+      if (result.matched > 0) {
+        logger.info(`Email monitor: ${result.matched} keyword matches, ${result.smsSent} SMS sent`);
+      } else if (!result.disabled && !result.skipped && !result.error) {
+        logger.debug('Email monitor: no keyword matches');
+      }
+    } catch (err) {
+      logger.error(`Email monitor job failed: ${err.message}`);
+    }
+  }, {
+    timezone: 'America/Chicago'
+  });
+  logger.info(`📧 Email monitor scheduled: ${emailMonitorSchedule} CT`);
+
   isRunning = true;
   logger.info('✅ All permit jobs initialized and running');
 }
@@ -169,6 +189,13 @@ export async function manualDigest() {
   logger.info('Manual digest send requested...');
   await sendDailyDigest(db, logger);
   logger.info('Manual digest sent');
+}
+
+export async function manualEmailCheck() {
+  logger.info('Manual email check requested...');
+  const result = await checkEmails();
+  logger.info(`Manual email check complete: ${JSON.stringify(result)}`);
+  return result;
 }
 
 export async function manualRollup() {

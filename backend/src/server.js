@@ -45,6 +45,7 @@ import settingsRoutes from './routes/settings.js';
 import historyRoutes from './routes/history.js';
 import visionRoutes from './routes/vision.js';
 import weatherRoutes from './routes/weather.js';
+import emailMonitorRoutes from './routes/email-monitor.js';
 import { visionService } from './services/vision.js';
 
 // Import permit jobs
@@ -97,6 +98,7 @@ app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
 app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
 app.use('/api/weather', weatherRoutes); // Weather forecast (NWS proxy with caching)
+app.use('/api/email-monitor', emailMonitorRoutes); // Email keyword monitoring + SMS alerts
 app.use('/api/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' })); // Serve DZI tiles as static files
 
 // Root endpoint

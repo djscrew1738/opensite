@@ -263,6 +263,16 @@ export const api = {
     getForecast: () => apiClient.get('/weather/forecast'),
   },
 
+  // Email Monitor
+  emailMonitor: {
+    getStatus: () => apiClient.get('/email-monitor/status'),
+    getAlerts: (params) => apiClient.get('/email-monitor/alerts', { params }),
+    getSettings: () => apiClient.get('/email-monitor/settings'),
+    saveSettings: (data) => apiClient.put('/email-monitor/settings', data),
+    testConnection: (data) => apiClient.post('/email-monitor/test', data),
+    checkNow: () => apiClient.post('/email-monitor/check-now'),
+  },
+
   // Permits (lead finder)
   permits: {
     getAll: (params) => apiClient.get('/permits', { params }),

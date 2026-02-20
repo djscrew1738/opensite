@@ -83,135 +83,56 @@ async function processPdfExtraction(filePath, fileName) {
   };
 }
 
-// Build AI analysis prompt - requests structured JSON output
+// Build AI analysis prompt — focused on supply-house-ready takeoff + bid number
 function buildAnalysisPrompt(fileName, extractedData, blueprintText, tier) {
-  return `You are an expert plumbing estimator for CTL Plumbing LLC analyzing a blueprint.
+  const fixtureCount = (extractedData.toilets || 0) + (extractedData.lavatories || 0) +
+    (extractedData.kitchenFaucets || 0) + (extractedData.barSinks || 0) +
+    (extractedData.tubs || 0) + (extractedData.showerBases || 0) +
+    (extractedData.mudPans || 0) + (extractedData.washingMachines || 0);
 
-Blueprint File: ${fileName}
-${Object.keys(extractedData).length > 0 ? 'Extracted Information:\n' + JSON.stringify(extractedData, null, 2) : ''}
+  return `You are a DFW plumbing estimator. Analyze this blueprint and return a supply-house-ready material takeoff.
 
-${blueprintText ? 'Relevant Blueprint Text:\n' + blueprintText : 'No text extracted from blueprint.'}
+PROJECT: ${fileName}
+${extractedData.sqft ? `SQ FT: ${extractedData.sqft}` : ''}
+${extractedData.units ? `UNITS: ${extractedData.units}` : ''}
+${extractedData.stories ? `STORIES: ${extractedData.stories}` : ''}
+${extractedData.bathrooms ? `BATHROOMS: ${extractedData.bathrooms}` : ''}
+FIXTURES DETECTED: ${fixtureCount} total — ${extractedData.toilets || 0} toilets, ${extractedData.lavatories || 0} lavs, ${extractedData.kitchenFaucets || 0} kitchen, ${extractedData.barSinks || 0} bar, ${extractedData.tubs || 0} tubs, ${extractedData.showerBases || 0} showers, ${extractedData.mudPans || 0} mud pans, ${extractedData.washingMachines || 0} W/M, ${extractedData.waterSoftenerPreplumb || 0} WS pre-plumb
 
-Please analyze this blueprint and provide a comprehensive response in the following JSON structure:
+${blueprintText ? 'BLUEPRINT TEXT:\n' + blueprintText.substring(0, 6000) : ''}
+
+Return ONLY this JSON — no text before or after:
 
 {
-  "overview": "2-3 sentence summary of the project",
-  "projectComplexity": "simple|medium|complex",
-  "complexityScore": 0-100,
-  "complexityFactors": ["factor 1", "factor 2", ...],
-  "requirements": {
-    "pipes": [
-      {"type": "Supply", "material": "PEX or Copper", "size": "3/4\" main, 1/2\" branches", "estimatedLength": "500 ft"}
-    ],
-    "fixtures": [
-      {"category": "Toilets", "count": ${extractedData.toilets || 0}, "notes": "Standard efficiency"}
-    ],
-    "waterHeater": {
-      "type": "Tankless or Tank",
-      "capacity": "50+ gallons or appropriate GPM",
-      "location": "utility room",
-      "units": ${extractedData.units || 1}
-    },
-    "drainage": "Cast iron or PVC main lines, PVC branches",
-    "specialFeatures": ["luxury fixtures", "accessibility features", etc.]
+  "fixtures": {
+    "toilets": 0, "lavatories": 0, "kitchenFaucets": 0, "barSinks": 0,
+    "tubs": 0, "showerBases": 0, "mudPans": 0, "washingMachines": 0,
+    "waterSoftener": 0, "total": 0
   },
-  "laborEstimate": {
-    "roughIn": {"hours": 40, "duration": "5 days"},
-    "topOut": {"hours": 16, "duration": "2 days"},
-    "trim": {"hours": 24, "duration": "3 days"}
-  },
-  "timeline": {
-    "estimatedDuration": "10-12 days",
-    "phases": [
-      {"name": "Rough-in", "duration": "5 days", "tasks": ["Install supply lines", "Install drain lines", "Pressure test"]},
-      {"name": "Top-out", "duration": "2 days", "tasks": ["Install risers", "Inspection"]},
-      {"name": "Trim", "duration": "3 days", "tasks": ["Install fixtures", "Final inspection"]}
-    ],
-    "criticalPath": ["Rough-in inspection", "Top-out inspection"]
-  },
-  "codeCompliance": {
-    "notes": ["DFW area requirements", "Texas plumbing code considerations", "Inspection checkpoints"]
-  },
-  "recommendations": [
-    "Recommendation 1",
-    "Recommendation 2"
+  "takeoff": [
+    {"item": "3/4\\" Type L Copper", "cat": "Supply", "qty": 340, "unit": "LF", "cost": 3.85, "total": 1309},
+    {"item": "1/2\\" Type L Copper", "cat": "Supply", "qty": 600, "unit": "LF", "cost": 2.45, "total": 1470}
   ],
-  "risks": [
-    {"risk": "Description", "mitigation": "How to address"},
-    {"risk": "Description", "mitigation": "How to address"}
-  ],
-  "materialBreakdown": {
-    "pipes": 5000,
-    "fixtures": 8000,
-    "valves": 1500,
-    "other": 2000
+  "totals": {
+    "material": 18400,
+    "laborMultiplier": 1.65,
+    "estimate": 30360
   },
-  "materialTakeoff": [
-    {
-      "item": "3/4\" PEX Pipe",
-      "category": "Pipe",
-      "description": "Main supply line",
-      "quantity": 500,
-      "unit": "LF",
-      "unitCost": 2.50,
-      "totalCost": 1250
-    },
-    {
-      "item": "1/2\" PEX Pipe",
-      "category": "Pipe",
-      "description": "Branch supply lines to fixtures",
-      "quantity": 800,
-      "unit": "LF",
-      "unitCost": 1.75,
-      "totalCost": 1400
-    },
-    {
-      "item": "4\" PVC DWV Pipe",
-      "category": "Pipe",
-      "description": "Main drain line",
-      "quantity": 200,
-      "unit": "LF",
-      "unitCost": 8.00,
-      "totalCost": 1600
-    },
-    {
-      "item": "2\" PVC DWV Pipe",
-      "category": "Pipe",
-      "description": "Branch drain lines",
-      "quantity": 400,
-      "unit": "LF",
-      "unitCost": 4.50,
-      "totalCost": 1800
-    },
-    {
-      "item": "Toilet (Standard)",
-      "category": "Fixture",
-      "description": "1.28 GPF water closet",
-      "quantity": 10,
-      "unit": "EA",
-      "unitCost": 250,
-      "totalCost": 2500
-    },
-    {
-      "item": "Lavatory Faucet",
-      "category": "Fixture",
-      "description": "Chrome single-handle",
-      "quantity": 10,
-      "unit": "EA",
-      "unitCost": 85,
-      "totalCost": 850
-    }
-  ],
-  "pricingRecommendation": {
-    "tier": "Production|Custom|Premium",
-    "factors": ["factor 1", "factor 2"],
-    "adjustments": "Any suggested adjustments"
-  }
+  "notes": ["47 fixtures total", "PEX-A recommended for 2nd floor"]
 }
 
-IMPORTANT:
-- Return ONLY valid JSON. Do not include any text before or after the JSON. Ensure all numeric values are numbers, not strings.
-- The "materialTakeoff" array is CRITICAL. Include EVERY material needed for the project: all pipe types/sizes, fittings (elbows, tees, couplings, adapters), valves (shut-offs, ball valves, check valves), fixtures (toilets, faucets, tubs, showers), connectors, hangers/supports, sealants, test plugs, cleanouts, P-traps, wax rings, supply lines, water heater components, and any specialty items. Be specific with sizes and materials. Use realistic current pricing. Categories should be: Pipe, Fitting, Valve, Fixture, Support, Connector, Specialty, or Other.`;
+RULES:
+- "takeoff" is the ONLY thing that matters. Make it SUPPLY HOUSE READY.
+- Use real part descriptions a plumber would say at Ferguson: "3/4\\" Type L Copper" not "copper pipe", "1/2\\" PEX-A Uponor" not "PEX pipe", "4\\" Sch 40 PVC DWV" not "drain pipe"
+- Standard trade units: LF (linear feet), EA (each), RL (roll), BX (box), PR (pair), SET
+- Use realistic 2024-2025 DFW supply house pricing
+- Categories: Supply, DWV, Fitting, Valve, Fixture, Support, Specialty
+- Include EVERYTHING: all pipe sizes, fittings (elbows, tees, couplings, adapters, bushings), valves (ball, gate, check, PRV), fixtures, hangers, straps, test plugs, cleanouts, P-traps, wax rings, supply lines, flex connectors, gas components if applicable, water heater, expansion tank, insulation
+- "fixtures" should confirm or correct the detected counts above
+- "totals.laborMultiplier" = typical labor-to-material ratio (1.5-2.0x for plumbing)
+- "totals.estimate" = material × laborMultiplier
+- "notes" = 2-4 short bullets — only things a plumber needs to know to bid
+- Return ONLY valid JSON. All numbers must be numbers, not strings.`;
 }
 
 // Helper to safely parse JSON from AI response
@@ -307,6 +228,67 @@ function buildWarnings(extractedData, aiResult) {
   return warnings;
 }
 
+// Map new concise AI format → structured analysis (backwards-compatible with frontend)
+function structureAnalysis(parsed, complexityLevel, complexityScore) {
+  // Handle new concise format (has "takeoff" array with "cat" field)
+  const isNewFormat = Array.isArray(parsed.takeoff);
+
+  // Normalize takeoff: new format uses "cat"/"qty"/"cost"/"total", old uses "category"/"quantity"/"unitCost"/"totalCost"
+  let materialTakeoff = [];
+  if (isNewFormat && parsed.takeoff.length > 0) {
+    materialTakeoff = parsed.takeoff.map(t => ({
+      item: t.item,
+      category: t.cat || t.category || 'Other',
+      description: t.desc || t.description || '',
+      quantity: t.qty ?? t.quantity ?? 0,
+      unit: t.unit || 'EA',
+      unitCost: t.cost ?? t.unitCost ?? 0,
+      totalCost: t.total ?? t.totalCost ?? 0,
+    }));
+  } else if (Array.isArray(parsed.materialTakeoff)) {
+    materialTakeoff = parsed.materialTakeoff;
+  }
+
+  return {
+    overview: parsed.overview || null,
+    projectComplexity: parsed.projectComplexity || complexityLevel,
+    complexityScore: parsed.complexityScore || complexityScore,
+    fixtures: parsed.fixtures || null,
+    materialTakeoff,
+    totals: parsed.totals || {
+      material: materialTakeoff.reduce((s, m) => s + (m.totalCost || 0), 0),
+      laborMultiplier: 1.65,
+      estimate: materialTakeoff.reduce((s, m) => s + (m.totalCost || 0), 0) * 1.65,
+    },
+    notes: parsed.notes || [],
+    // Preserve legacy fields if present (won't break old responses)
+    requirements: parsed.requirements || null,
+    laborEstimate: parsed.laborEstimate || null,
+    timeline: parsed.timeline || null,
+    recommendations: parsed.recommendations || null,
+    risks: parsed.risks || null,
+    codeCompliance: parsed.codeCompliance || null,
+  };
+}
+
+function defaultAnalysis(complexityLevel, complexityScore) {
+  return {
+    overview: null,
+    projectComplexity: complexityLevel,
+    complexityScore,
+    fixtures: null,
+    materialTakeoff: [],
+    totals: { material: 0, laborMultiplier: 1.65, estimate: 0 },
+    notes: [],
+    requirements: null,
+    laborEstimate: null,
+    timeline: null,
+    recommendations: null,
+    risks: null,
+    codeCompliance: null,
+  };
+}
+
 // Background job handler for blueprint analysis
 async function performBlueprintAnalysis(jobData, progressCallback) {
   const { filePath, fileName, extractedData, blueprintText, tier, model } = jobData;
@@ -378,54 +360,24 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
 
     progressCallback(95); // File cleanup
 
-    // Structure the AI analysis data
-    const structuredAnalysis = parsedAnalysis ? {
-      overview: parsedAnalysis.overview || 'Analysis complete',
-      projectComplexity: parsedAnalysis.projectComplexity || complexityLevel,
-      complexityScore: parsedAnalysis.complexityScore || complexityScore,
-      complexityFactors: parsedAnalysis.complexityFactors || [],
-      requirements: parsedAnalysis.requirements || {},
-      laborEstimate: parsedAnalysis.laborEstimate || {
-        roughIn: { hours: 40, duration: '5 days' },
-        topOut: { hours: 16, duration: '2 days' },
-        trim: { hours: 24, duration: '3 days' }
-      },
-      timeline: parsedAnalysis.timeline || {
-        estimatedDuration: '10-14 days',
-        phases: [],
-        criticalPath: []
-      },
-      codeCompliance: parsedAnalysis.codeCompliance || { notes: [] },
-      recommendations: parsedAnalysis.recommendations || [],
-      risks: parsedAnalysis.risks || [],
-      materialTakeoff: parsedAnalysis.materialTakeoff || []
-    } : {
-      overview: 'Analysis complete',
-      projectComplexity: complexityLevel,
-      complexityScore,
-      complexityFactors: [],
-      requirements: {},
-      laborEstimate: {
-        roughIn: { hours: 40, duration: '5 days' },
-        topOut: { hours: 16, duration: '2 days' },
-        trim: { hours: 24, duration: '3 days' }
-      },
-      timeline: {
-        estimatedDuration: '10-14 days',
-        phases: [],
-        criticalPath: []
-      },
-      codeCompliance: { notes: [] },
-      recommendations: [],
-      risks: [],
-      materialTakeoff: []
-    };
+    // Structure the AI analysis — new concise format
+    const structuredAnalysis = parsedAnalysis ? structureAnalysis(parsedAnalysis, complexityLevel, complexityScore) : defaultAnalysis(complexityLevel, complexityScore);
+
+    // Override estimate with AI totals if available
+    if (parsedAnalysis?.totals) {
+      estimate = {
+        ...(estimate || {}),
+        total: parsedAnalysis.totals.estimate || estimate?.total || 0,
+        materialTotal: parsedAnalysis.totals.material || 0,
+        laborMultiplier: parsedAnalysis.totals.laborMultiplier || 1.65,
+      };
+    }
 
     const result = {
       fileName,
       extractedData,
       aiAnalysis: structuredAnalysis,
-      aiAnalysisText: aiAnalysisText, // Keep original text as fallback
+      aiAnalysisText: aiAnalysisText,
       aiError: aiResult.success ? null : aiResult.error,
       modelUsed: aiModel,
       estimate,
@@ -433,7 +385,7 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
       warnings: buildWarnings(extractedData, aiResult)
     };
 
-    progressCallback(100); // Complete
+    progressCallback(100);
 
     return result;
 
@@ -530,48 +482,18 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
 
     await blueprintService.deleteFile(filePath);
 
-    // Structure the AI analysis data
-    const structuredAnalysis = parsedAnalysis ? {
-      overview: parsedAnalysis.overview || 'Analysis complete',
-      projectComplexity: parsedAnalysis.projectComplexity || complexityLevel,
-      complexityScore: parsedAnalysis.complexityScore || complexityScore,
-      complexityFactors: parsedAnalysis.complexityFactors || [],
-      requirements: parsedAnalysis.requirements || {},
-      laborEstimate: parsedAnalysis.laborEstimate || {
-        roughIn: { hours: 40, duration: '5 days' },
-        topOut: { hours: 16, duration: '2 days' },
-        trim: { hours: 24, duration: '3 days' }
-      },
-      timeline: parsedAnalysis.timeline || {
-        estimatedDuration: '10-14 days',
-        phases: [],
-        criticalPath: []
-      },
-      codeCompliance: parsedAnalysis.codeCompliance || { notes: [] },
-      recommendations: parsedAnalysis.recommendations || [],
-      risks: parsedAnalysis.risks || [],
-      materialTakeoff: parsedAnalysis.materialTakeoff || []
-    } : {
-      overview: 'Analysis complete',
-      projectComplexity: complexityLevel,
-      complexityScore,
-      complexityFactors: [],
-      requirements: {},
-      laborEstimate: {
-        roughIn: { hours: 40, duration: '5 days' },
-        topOut: { hours: 16, duration: '2 days' },
-        trim: { hours: 24, duration: '3 days' }
-      },
-      timeline: {
-        estimatedDuration: '10-14 days',
-        phases: [],
-        criticalPath: []
-      },
-      codeCompliance: { notes: [] },
-      recommendations: [],
-      risks: [],
-      materialTakeoff: []
-    };
+    // Structure the AI analysis — new concise format
+    const structuredAnalysis = parsedAnalysis ? structureAnalysis(parsedAnalysis, complexityLevel, complexityScore) : defaultAnalysis(complexityLevel, complexityScore);
+
+    // Override estimate with AI totals if available
+    if (parsedAnalysis?.totals) {
+      estimate = {
+        ...(estimate || {}),
+        total: parsedAnalysis.totals.estimate || estimate?.total || 0,
+        materialTotal: parsedAnalysis.totals.material || 0,
+        laborMultiplier: parsedAnalysis.totals.laborMultiplier || 1.65,
+      };
+    }
 
     const response = {
       fileName,

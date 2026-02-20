@@ -1,745 +1,1044 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/client';
-import {
-  DollarSign, Briefcase, Flame, Users, Building2, Plus, Activity,
-  ArrowUpRight, RefreshCw, AlertCircle, Bot, FileText, X,
-  MapPin, Phone, Mail, Edit3, Clock,
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import StatCard from '../components/dashboard/StatCard';
-import ProjectModal from '../components/projects/ProjectModal';
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../api/client";
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning, Cory';
-  if (h < 17) return 'Good afternoon, Cory';
-  return 'Good evening, Cory';
-}
+/* ================================================================
+   JOB PULSE v5 · CTL Plumbing · Mobile-First Command Center
+   - Real weather from NWS via backend
+   - Dashboard stats from backend API
+   - Smooth tab transitions
+   - Enhanced KPI cards
+   ================================================================ */
 
-function phaseColor(phase = '') {
-  const p = phase.toLowerCase();
-  if (p.includes('rough')) return '#3b82f6';
-  if (p.includes('finish')) return '#10b981';
-  if (p.includes('design') || p.includes('permit')) return '#f59e0b';
-  if (p.includes('complete')) return '#8b5cf6';
-  return '#003594';
-}
+/* -- THEME -- */
+const C = {
+  bg: "#060608", bgCard: "#0E0F12", bgCardHi: "#151720",
+  surface: "#1A1C24", surfaceHi: "#22252F",
+  border: "rgba(255,255,255,.06)", borderHi: "rgba(255,255,255,.12)",
+  text: "#EDE9E0", sub: "#A8A29E", mid: "#78716C", dim: "#44403C", faint: "#1C1917",
+  accent: "#E5A31E", accentMute: "#A37514", accentBg: "rgba(229,163,30,.08)",
+  green: "#34D399", greenMute: "#059669",
+  blue: "#38BDF8", blueMute: "#0284C7",
+  red: "#F87171", redMute: "#B91C1C",
+  orange: "#FB923C", purple: "#A78BFA", pink: "#F472B6",
+};
+const FN = "'JetBrains Mono','IBM Plex Mono',monospace";
+const FS = "'DM Sans',-apple-system,system-ui,sans-serif";
 
-/* ── Lead Drawer ── */
-function LeadDetailDrawer({ lead, onClose, onNavigate }) {
-  if (!lead) return null;
+/* -- PLUMBING DATA -- */
+const PHASES = [
+  { id: "underground", label: "Underground", sh: "UG", icon: "\u26CF", color: "#92700C" },
+  { id: "roughin", label: "Rough-In", sh: "RI", icon: "\uD83D\uDD27", color: C.accent },
+  { id: "topout", label: "Top-Out", sh: "TO", icon: "\uD83D\uDCD0", color: C.blue },
+  { id: "trim", label: "Trim", sh: "TR", icon: "\uD83D\uDEBF", color: "#2DD4BF" },
+  { id: "final", label: "Final", sh: "FN", icon: "\u2705", color: C.green },
+];
+
+const CREWS = [
+  { id: "A", name: "Team Alpha", lead: "Marco", members: ["Marco", "Luis"], phone: "(817) 555-0142", color: C.accent },
+  { id: "B", name: "Team Bravo", lead: "Carlos", members: ["Carlos", "Javi"], phone: "(817) 555-0198", color: C.blue },
+  { id: "C", name: "Team Charlie", lead: "Danny", members: ["Danny"], phone: "(817) 555-0231", color: C.green },
+];
+
+const BUILDERS = {
+  "Horizon Homes": { pay: 18, jobs: 14, onTime: 85 },
+  "Summit Builders": { pay: 32, jobs: 7, onTime: 70 },
+  "Redbrick Dev": { pay: 14, jobs: 3, onTime: 95 },
+  "DR Horton": { pay: 45, jobs: 22, onTime: 60 },
+};
+
+const FLAGS = {
+  material: { label: "Material Hold", icon: "\uD83D\uDCE6", color: C.orange },
+  inspection: { label: "Inspection", icon: "\uD83D\uDD0D", color: C.purple },
+  weather: { label: "Weather Risk", icon: "\u26C8", color: C.blue },
+  change: { label: "Change Order", icon: "\uD83D\uDCDD", color: C.red },
+};
+
+const REV = [
+  { w: "Jan 6", b: 12400, c: 9800 }, { w: "Jan 13", b: 18200, c: 14500 },
+  { w: "Jan 20", b: 8600, c: 16200 }, { w: "Jan 27", b: 22100, c: 8600 },
+  { w: "Feb 3", b: 15800, c: 22100 }, { w: "Feb 10", b: 19400, c: 12400 },
+  { w: "Feb 17", b: 4800, c: 19400 },
+];
+
+/* -- STATIC FALLBACK DATA -- */
+const WEATHER_FALLBACK = [
+  { day: "Wed", dt: 18, hi: 62, lo: 41, icon: "\u2600\uFE0F", precip: 0, forecast: "Sunny" },
+  { day: "Thu", dt: 19, hi: 58, lo: 38, icon: "\u26C5", precip: 10, forecast: "Partly Cloudy" },
+  { day: "Fri", dt: 20, hi: 52, lo: 34, icon: "\uD83C\uDF27\uFE0F", precip: 80, forecast: "Rain" },
+  { day: "Sat", dt: 21, hi: 48, lo: 30, icon: "\uD83C\uDF27\uFE0F", precip: 60, forecast: "Showers" },
+  { day: "Sun", dt: 22, hi: 55, lo: 33, icon: "\u26C5", precip: 15, forecast: "Partly Cloudy" },
+  { day: "Mon", dt: 23, hi: 64, lo: 42, icon: "\u2600\uFE0F", precip: 0, forecast: "Sunny" },
+  { day: "Tue", dt: 24, hi: 68, lo: 45, icon: "\u2600\uFE0F", precip: 0, forecast: "Sunny" },
+];
+
+const JOBS_DATA = [
+  { id: "J-1001", addr: "4821 Westridge Dr", builder: "Horizon Homes", phase: "roughin", crew: "A", sched: "2026-02-18", est: 3200, notes: "2-story, 3.5 bath. PEX re-pipe entire 2nd floor.", flag: null, progress: 65 },
+  { id: "J-1002", addr: "9310 Magnolia Blvd", builder: "Summit Builders", phase: "underground", crew: "B", sched: "2026-02-18", est: 4800, notes: "Slab on grade. 42 fixtures. Watch for gas line conflict.", flag: "material", progress: 20 },
+  { id: "J-1003", addr: "1177 Crestview Ln", builder: "Horizon Homes", phase: "topout", crew: "A", sched: "2026-02-19", est: 2100, notes: "Standard top-out. Vent through roof on south side.", flag: null, progress: 40 },
+  { id: "J-1004", addr: "5600 Timber Creek", builder: "DR Horton", phase: "trim", crew: "C", sched: "2026-02-18", est: 1800, notes: "Install all trim fixtures. Delta faucets per spec.", flag: "inspection", progress: 80 },
+  { id: "J-1005", addr: "2244 Oakmont Pl", builder: "Redbrick Dev", phase: "final", crew: "C", sched: "2026-02-19", est: 900, notes: "Final walk. Punch list items from last inspection.", flag: null, progress: 95 },
+  { id: "J-1006", addr: "8732 Preston Rd", builder: "DR Horton", phase: "roughin", crew: "B", sched: "2026-02-20", est: 3600, notes: "Duplex unit A. Mirror layout of unit B.", flag: "weather", progress: 10 },
+  { id: "J-1007", addr: "3310 Riverside Way", builder: "Summit Builders", phase: "underground", crew: "A", sched: "2026-02-21", est: 5200, notes: "Large custom. 56 fixtures. Requires city variance.", flag: null, progress: 0 },
+  { id: "J-1008", addr: "1450 Bluebonnet Trl", builder: "Horizon Homes", phase: "topout", crew: "B", sched: "2026-02-20", est: 2400, notes: "Top-out + water heater set.", flag: null, progress: 30 },
+  { id: "J-1009", addr: "6677 Cedar Elm Dr", builder: "DR Horton", phase: "roughin", crew: "C", sched: "2026-02-22", est: 3100, notes: "Production home. Standard layout B7.", flag: null, progress: 0 },
+  { id: "J-1010", addr: "990 Summit Ridge", builder: "Redbrick Dev", phase: "trim", crew: "A", sched: "2026-02-24", est: 2200, notes: "High-end trim. Kohler throughout.", flag: null, progress: 0 },
+];
+
+const MESSAGES_DATA = [
+  { id: "m1", type: "email", from: "Mike Reeves", email: "mike@horizonhomes.com", subject: "Westridge Dr \u2014 Schedule Change", preview: "Hey, we need to push the rough-in inspection to Thursday. City inspector had a conflict. Can your crew be ready by 8am?", time: "7:32 AM", date: "2026-02-18", read: false, starred: true, labels: ["horizon", "urgent"],
+    thread: [{ from: "Mike Reeves", body: "Hey, we need to push the rough-in inspection to Thursday. City inspector had a conflict. Can your crew be ready by 8am?", time: "7:32 AM" }] },
+  { id: "m2", type: "email", from: "Sarah Chen", email: "sarah@summitbuilders.com", subject: "PO #4487 \u2014 Fixture Delivery Update", preview: "The Kohler fixtures for Magnolia Blvd are backordered. ETA now Feb 25.", time: "6:58 AM", date: "2026-02-18", read: false, starred: false, labels: ["summit", "materials"],
+    thread: [{ from: "Sarah Chen", body: "The Kohler fixtures for Magnolia Blvd are backordered. ETA now Feb 25. I've attached the updated PO with alternates if you want to swap.", time: "6:58 AM" }] },
+  { id: "m3", type: "sms", from: "Marco", phone: "(817) 555-0142", preview: "On site at Westridge. Found a conflict with HVAC ductwork in the master bath wall. Need you to come look at it or should I reroute?", time: "6:15 AM", date: "2026-02-18", read: false, starred: false, labels: ["crew"],
+    thread: [
+      { from: "Marco", body: "Boss, heading to Westridge now. Traffic on 35 is bad.", time: "5:48 AM" },
+      { from: "You", body: "Copy. Take 121 to avoid it.", time: "5:52 AM" },
+      { from: "Marco", body: "On site at Westridge. Found a conflict with HVAC ductwork in the master bath wall. Need you to come look at it or should I reroute?", time: "6:15 AM" },
+    ] },
+  { id: "m4", type: "sms", from: "Carlos", phone: "(817) 555-0198", preview: "Magnolia underground is going smooth. Should finish by 2pm. Want us to move to Bluebonnet after?", time: "5:55 AM", date: "2026-02-18", read: true, starred: false, labels: ["crew"],
+    thread: [{ from: "Carlos", body: "Magnolia underground is going smooth. Should finish by 2pm. Want us to move to Bluebonnet after?", time: "5:55 AM" }] },
+  { id: "m5", type: "email", from: "Tarrant County Permits", email: "permits@tarrantcounty.com", subject: "Permit #BLD-2026-0847 Approved", preview: "Your building permit for 3310 Riverside Way has been approved.", time: "Yesterday", date: "2026-02-17", read: true, starred: true, labels: ["permits"],
+    thread: [{ from: "Tarrant County Permits", body: "Your building permit for 3310 Riverside Way has been approved. Please schedule your pre-pour inspection at least 48 hours in advance. Permit valid through August 2026.", time: "4:22 PM" }] },
+  { id: "m6", type: "email", from: "Jenny Martinez", email: "jenny@drhorton.com", subject: "Cedar Elm Dr \u2014 Spec Sheet Revision", preview: "Updated spec sheet attached for lot 6677. They changed to a tankless water heater.", time: "Yesterday", date: "2026-02-17", read: true, starred: false, labels: ["drhorton"],
+    thread: [{ from: "Jenny Martinez", body: "Updated spec sheet attached for lot 6677. They changed to a tankless water heater. Please revise your bid accordingly.", time: "3:15 PM" }] },
+  { id: "m7", type: "sms", from: "Danny", phone: "(817) 555-0231", preview: "Timber Creek trim is looking good. Homeowner stopped by asking about the shower valve.", time: "Yesterday", date: "2026-02-17", read: true, starred: false, labels: ["crew"],
+    thread: [
+      { from: "Danny", body: "Timber Creek trim is looking good. Homeowner stopped by asking about the shower valve. I told them it's per builder spec.", time: "2:30 PM" },
+      { from: "You", body: "Good call. Always refer them back to the builder.", time: "2:45 PM" },
+    ] },
+  { id: "m8", type: "email", from: "Ferguson Supply", email: "orders@ferguson.com", subject: "Order #FC-90122 Ready for Pickup", preview: "Your order including 2\" copper, PEX fittings, and 3 Delta shower valves is ready.", time: "Yesterday", date: "2026-02-17", read: true, starred: false, labels: ["materials"],
+    thread: [{ from: "Ferguson Supply", body: "Your order #FC-90122 including 2\" copper, PEX fittings, and 3 Delta shower valves is ready for pickup at the Ft Worth branch. Pickup hours: 6AM-5PM.", time: "11:00 AM" }] },
+];
+
+/* -- HELPERS -- */
+const fmt$ = n => "$" + n.toLocaleString();
+const phaseMeta = id => PHASES.find(p => p.id === id) || PHASES[0];
+const crewMeta = id => CREWS.find(c => c.id === id) || CREWS[0];
+const dayDiff = (d, ref) => {
+  const today = ref || new Date().toISOString().split("T")[0];
+  const a = new Date(d + "T00:00:00"), b = new Date(today + "T00:00:00");
+  return Math.round((a - b) / 864e5);
+};
+const schedLabel = (d, ref) => {
+  const diff = dayDiff(d, ref);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff < 0) return `${-diff}d ago`;
+  return `In ${diff}d`;
+};
+
+/* ================================================================
+   SCOPED STYLES
+   ================================================================ */
+const ScopedStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600;700;800&display=swap');
+    .jp-root *, .jp-root *::before, .jp-root *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .jp-root ::-webkit-scrollbar { width: 4px; height: 4px; }
+    .jp-root ::-webkit-scrollbar-track { background: transparent; }
+    .jp-root ::-webkit-scrollbar-thumb { background: ${C.dim}; border-radius: 4px; }
+    @keyframes jpFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes jpSlideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    @keyframes jpPulse { 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+    @keyframes jpSlideInLeft { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes jpSlideInRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+    .jp-fade-up { animation: jpFadeUp .35s ease both; }
+    .jp-slide-left { animation: jpSlideInLeft .22s ease-out both; }
+    .jp-slide-right { animation: jpSlideInRight .22s ease-out both; }
+    .jp-touch { transition: transform .12s ease, box-shadow .12s ease; }
+    .jp-touch:active { transform: scale(.97); }
+    .jp-touch:hover { box-shadow: 0 2px 12px rgba(0,0,0,.3); }
+  `}</style>
+);
+
+/* ================================================================
+   PRIMITIVES
+   ================================================================ */
+const Badge = ({ text, color, icon }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center", gap: 3,
+    padding: "2px 7px", fontSize: 9, fontFamily: FN, fontWeight: 600,
+    color, background: color + "14", border: `1px solid ${color}30`,
+    borderRadius: 4, letterSpacing: .4, textTransform: "uppercase", whiteSpace: "nowrap",
+  }}>{icon && <span style={{ fontSize: 10 }}>{icon}</span>}{text}</span>
+);
+
+const ProgressBar = ({ value, color = C.accent, h = 4 }) => (
+  <div style={{ width: "100%", height: h, background: C.faint, borderRadius: h, overflow: "hidden" }}>
+    <div style={{
+      width: `${Math.min(100, Math.max(0, value))}%`, height: "100%",
+      background: `linear-gradient(90deg,${color}88,${color})`,
+      borderRadius: h, transition: "width .5s ease",
+    }} />
+  </div>
+);
+
+const Pill = ({ children, active, color = C.accent, onClick }) => (
+  <button onClick={onClick} style={{
+    padding: "6px 14px", border: `1px solid ${active ? color + "50" : C.border}`,
+    borderRadius: 20, background: active ? color + "15" : "transparent",
+    color: active ? color : C.mid, fontFamily: FN, fontSize: 10, fontWeight: 600,
+    cursor: "pointer", transition: "all .15s", whiteSpace: "nowrap", letterSpacing: .3,
+  }}>{children}</button>
+);
+
+/* ================================================================
+   SPARKLINE SVG
+   ================================================================ */
+const Spark = ({ data, w = 100, h = 28, color = C.accent }) => {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data), min = Math.min(...data), r = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / r) * (h - 4) - 2}`);
+  const id = `sf${color.replace('#', '')}`;
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md bg-white dark:bg-surface-900 h-full shadow-2xl animate-slide-left overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-surface-900 border-b border-surface-100 dark:border-surface-800 px-5 py-4 flex items-center justify-between">
-          <h3 className="text-sm font-display font-bold text-surface-900 dark:text-surface-100">
-            Lead Details
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-          >
-            <X className="w-4 h-4 text-surface-500" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-5">
-          <div>
-            <h2 className="text-xl font-display font-bold text-surface-900 dark:text-surface-100">
-              {lead.name}
-            </h2>
-            {lead.company && (
-              <p className="text-sm text-surface-500 mt-0.5">{lead.company}</p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                lead.status === 'hot'
-                  ? 'bg-hot-50 text-hot-600 dark:bg-hot-950/30 dark:text-hot-400'
-                  : lead.status === 'warm'
-                  ? 'bg-warm-50 text-warm-600 dark:bg-warm-950/30 dark:text-warm-400'
-                  : 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400'
-              }`}
-            >
-              {lead.status || 'new'}
-            </span>
-            {lead.score > 0 && (
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-copper-50 text-copper-600 dark:bg-copper-950/30 dark:text-copper-400">
-                Score {lead.score}
-              </span>
-            )}
-          </div>
-
-          {lead.value > 0 && (
-            <div
-              className="p-4 rounded-xl"
-              style={{
-                background: 'rgba(0,53,148,0.04)',
-                border: '1px solid rgba(0,53,148,0.1)',
-              }}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-surface-400 mb-1">
-                Estimated Value
-              </p>
-              <p className="text-3xl font-display font-bold text-copper-600 dark:text-copper-400">
-                ${lead.value?.toLocaleString()}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {lead.email && (
-              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
-                <Mail className="w-4 h-4 text-surface-400" />
-                <span>{lead.email}</span>
-              </div>
-            )}
-            {lead.phone && (
-              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
-                <Phone className="w-4 h-4 text-surface-400" />
-                <span>{lead.phone}</span>
-              </div>
-            )}
-            {lead.location && (
-              <div className="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300">
-                <MapPin className="w-4 h-4 text-surface-400" />
-                <span>{lead.location}</span>
-              </div>
-            )}
-          </div>
-
-          {lead.notes && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-surface-400 mb-2">
-                Notes
-              </p>
-              <p className="text-sm text-surface-700 dark:text-surface-300 whitespace-pre-wrap leading-relaxed">
-                {lead.notes}
-              </p>
-            </div>
-          )}
-
-          <p className="text-xs text-surface-400">
-            Added{' '}
-            {new Date(lead.createdAt).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </p>
-
-          <div className="flex gap-3 pt-1">
-            <button
-              onClick={() => { onClose(); onNavigate('/leads'); }}
-              className="btn-primary flex-1 text-sm"
-            >
-              <Edit3 className="w-4 h-4" />
-              Edit Lead
-            </button>
-            <button
-              onClick={() => { onClose(); onNavigate('/plans'); }}
-              className="btn-secondary flex-1 text-sm"
-            >
-              <FileText className="w-4 h-4" />
-              Estimate
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={.35} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
+      <polygon points={`0,${h} ${pts.join(" ")} ${w},${h}`} fill={`url(#${id})`} />
+      <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1].split(",")[0]} cy={pts[pts.length - 1].split(",")[1]} r={2} fill={color} />
+    </svg>
   );
-}
+};
 
-/* ── Section Card wrapper ── */
-function SectionCard({ children, className = '' }) {
+/* ================================================================
+   BAR CHART SVG
+   ================================================================ */
+const BarChart = ({ data, w = 320, h = 120, barColor = C.accent, bar2Color = C.blue }) => {
+  const max = Math.max(...data.map(d => Math.max(d.b, d.c)), 1);
+  const barW = Math.floor((w - (data.length - 1) * 6) / data.length / 2);
+  const gap = 6;
   return (
-    <div
-      className={`bg-white dark:bg-surface-900/80 rounded-2xl border border-surface-200/60 dark:border-surface-800/40 overflow-hidden ${className}`}
-    >
-      {children}
-    </div>
+    <svg width={w} height={h + 20} style={{ display: "block", width: "100%" }} viewBox={`0 0 ${w} ${h + 20}`} preserveAspectRatio="xMidYMid meet">
+      {data.map((d, i) => {
+        const x = i * (barW * 2 + gap);
+        const bH = (d.b / max) * (h - 4);
+        const cH = (d.c / max) * (h - 4);
+        return (
+          <g key={i}>
+            <rect x={x} y={h - bH} width={barW} height={bH} rx={2} fill={barColor} opacity={.7} />
+            <rect x={x + barW + 1} y={h - cH} width={barW} height={cH} rx={2} fill={bar2Color} opacity={.7} />
+            <text x={x + barW} y={h + 14} textAnchor="middle" style={{ fontSize: 7, fontFamily: FN, fill: C.dim }}>{d.w.split(" ")[0]}</text>
+          </g>
+        );
+      })}
+      <line x1={0} y1={h} x2={w} y2={h} stroke={C.border} strokeWidth={1} />
+    </svg>
   );
-}
+};
 
-/* ── Section Header ── */
-function SectionHead({ icon: Icon, iconColor, iconBg, title, action, actionLabel }) {
-  return (
-    <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: iconBg }}
-        >
-          <Icon className="w-3.5 h-3.5" strokeWidth={2} style={{ color: iconColor }} />
-        </div>
-        <span className="text-sm font-display font-bold text-surface-900 dark:text-surface-100">
-          {title}
-        </span>
-      </div>
-      {action && (
-        <button
-          onClick={action}
-          className="text-xs font-bold flex items-center gap-1 transition-colors text-copper-500 dark:text-copper-400 hover:text-copper-600"
-        >
-          {actionLabel || 'View All'}
-          <ArrowUpRight className="w-3 h-3" />
+/* ================================================================
+   TAB NAV
+   ================================================================ */
+const TAB_ITEMS = [
+  { id: "dash", icon: "\u26A1", label: "Pulse" },
+  { id: "jobs", icon: "\uD83D\uDD27", label: "Jobs" },
+  { id: "msgs", icon: "\uD83D\uDCAC", label: "Messages" },
+  { id: "money", icon: "\uD83D\uDCB0", label: "Revenue" },
+];
+const TAB_ORDER = { dash: 0, jobs: 1, msgs: 2, money: 3 };
+
+const TabNav = ({ active, onChange, unread }) => (
+  <nav style={{
+    position: "sticky", top: 0, zIndex: 50,
+    background: "rgba(6,6,8,.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+    borderBottom: `1px solid ${C.border}`,
+    display: "flex",
+  }}>
+    {TAB_ITEMS.map(n => {
+      const isActive = active === n.id;
+      return (
+        <button key={n.id} onClick={() => onChange(n.id)} style={{
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          background: "none", border: "none", cursor: "pointer", padding: "12px 0",
+          position: "relative", borderBottom: isActive ? `2px solid ${C.accent}` : "2px solid transparent",
+          transition: "all .2s",
+        }}>
+          <span style={{ fontSize: 14, filter: isActive ? "none" : "grayscale(1) brightness(.6)", transition: "all .2s" }}>{n.icon}</span>
+          <span style={{
+            fontFamily: FN, fontSize: 10, fontWeight: isActive ? 700 : 500,
+            color: isActive ? C.accent : C.dim, letterSpacing: .6, textTransform: "uppercase",
+            transition: "color .2s",
+          }}>{n.label}</span>
+          {n.id === "msgs" && unread > 0 && (
+            <div style={{
+              position: "absolute", top: 6, right: "20%", minWidth: 16, height: 16, borderRadius: 8,
+              background: C.red, display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: FN, fontSize: 8, fontWeight: 700, color: "#fff", padding: "0 4px",
+            }}>{unread}</div>
+          )}
         </button>
+      );
+    })}
+  </nav>
+);
+
+/* ================================================================
+   HEADER
+   ================================================================ */
+const Header = ({ clock }) => (
+  <header style={{
+    background: "rgba(6,6,8,.88)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+    borderBottom: `1px solid ${C.border}`,
+    padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, boxShadow: `0 0 8px ${C.green}60`, animation: "jpPulse 2s ease infinite" }} />
+      <span style={{ fontFamily: FN, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: 2 }}>JOB PULSE</span>
+      <span style={{ fontFamily: FN, fontSize: 9, fontWeight: 700, color: C.accent, background: C.accentBg, padding: "1px 5px", borderRadius: 3 }}>v5</span>
+    </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontFamily: FN, fontSize: 10, color: C.mid }}>
+        {clock.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+      </span>
+      <span style={{ fontFamily: FN, fontSize: 12, fontWeight: 700, color: C.accent, letterSpacing: 1 }}>
+        {clock.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+      </span>
+    </div>
+  </header>
+);
+
+/* ================================================================
+   WEATHER STRIP (supports live + fallback)
+   ================================================================ */
+const WeatherStrip = ({ weather, isLoading }) => {
+  const today = new Date().toISOString().split("T")[0];
+
+  if (isLoading) {
+    return (
+      <div style={{
+        display: "flex", gap: 4, padding: "10px 8px",
+        background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+      }}>
+        {[...Array(7)].map((_, i) => (
+          <div key={i} style={{
+            flex: 1, minWidth: 44, height: 72, borderRadius: 8,
+            background: C.faint, animation: "jpPulse 1.5s ease infinite",
+            animationDelay: `${i * 100}ms`,
+          }} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "flex", gap: 4, padding: "10px 8px",
+      background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+      overflow: "auto",
+    }}>
+      {weather.map((w, i) => {
+        const risky = w.precip >= 60;
+        const isToday = w.date === today || i === 0;
+        return (
+          <div key={i} style={{
+            flex: 1, minWidth: 46, display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            padding: "6px 2px", borderRadius: 8,
+            background: isToday ? C.accentBg : risky ? C.red + "08" : "transparent",
+            border: risky ? `1px solid ${C.red}20` : isToday ? `1px solid ${C.accent}20` : "1px solid transparent",
+          }}>
+            <span style={{ fontFamily: FN, fontSize: 8, color: isToday ? C.accent : C.dim, fontWeight: isToday ? 700 : 400 }}>{w.day}</span>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>{w.icon}</span>
+            <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 600, color: C.text }}>{w.hi}\u00B0</span>
+            {w.lo != null && <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>{w.lo}\u00B0</span>}
+            {w.precip > 0 && <span style={{ fontFamily: FN, fontSize: 7, color: risky ? C.red : C.blue }}>{w.precip}%</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ================================================================
+   KPI CARD (enhanced with sparkline + trend)
+   ================================================================ */
+const KpiCard = ({ label, value, sub, color, glow, trend, sparkData, delay = 0 }) => (
+  <div className="jp-touch jp-fade-up" style={{
+    background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+    padding: "14px 14px 10px", position: "relative", overflow: "hidden",
+    animationDelay: `${delay}ms`,
+  }}>
+    <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: glow || "transparent", opacity: .04, filter: "blur(30px)" }} />
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
+      {trend && (
+        <span style={{ fontFamily: FN, fontSize: 9, fontWeight: 700, color: trend.dir === "up" ? C.green : trend.dir === "down" ? C.red : C.mid }}>
+          {trend.dir === "up" ? "\u2191" : trend.dir === "down" ? "\u2193" : "\u2192"} {trend.pct}%
+        </span>
       )}
     </div>
+    <div style={{ fontFamily: FN, fontSize: 22, fontWeight: 800, color, marginTop: 2, lineHeight: 1 }}>{value}</div>
+    <span style={{ fontFamily: FN, fontSize: 9, color: C.mid, marginTop: 4, display: "block" }}>{sub}</span>
+    {sparkData && sparkData.length > 1 && (
+      <div style={{ marginTop: 6 }}>
+        <Spark data={sparkData} w={120} h={20} color={color} />
+      </div>
+    )}
+  </div>
+);
+
+/* ================================================================
+   DASHBOARD (PULSE) TAB
+   ================================================================ */
+const DashTab = ({ jobs, messages, weather, weatherLoading, dashStats, onJobSelect, onNavChange }) => {
+  const today = new Date().toISOString().split("T")[0];
+  const todayJobs = jobs.filter(j => j.sched === today);
+  const pipeline = dashStats?.pipelineValue || jobs.reduce((s, j) => s + j.est, 0);
+  const flagged = jobs.filter(j => j.flag);
+  const unread = messages.filter(m => !m.read);
+  const billed = REV.reduce((s, r) => s + r.b, 0);
+
+  // Compute trends from revenue data
+  const lastWeekBilled = REV[REV.length - 1]?.b || 0;
+  const prevWeekBilled = REV[REV.length - 2]?.b || 1;
+  const pipelineTrend = prevWeekBilled > 0
+    ? { dir: lastWeekBilled >= prevWeekBilled ? "up" : "down", pct: Math.abs(Math.round(((lastWeekBilled - prevWeekBilled) / prevWeekBilled) * 100)) }
+    : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 14px 24px" }}>
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <KpiCard
+          label="Today's Jobs" value={todayJobs.length}
+          sub={`${fmt$(todayJobs.reduce((s, j) => s + j.est, 0))} est`}
+          color={C.accent} glow={C.accent} delay={0}
+          sparkData={[3, 4, 2, 5, 3, 4, todayJobs.length]}
+        />
+        <KpiCard
+          label="Pipeline" value={fmt$(pipeline)}
+          sub={`${dashStats?.activeProjectsCount || jobs.length} active`}
+          color={C.green} glow={C.green} delay={60}
+          trend={pipelineTrend}
+          sparkData={REV.map(r => r.b)}
+        />
+        <KpiCard
+          label="Unread" value={unread.length}
+          sub={unread.length ? `${unread.filter(m => m.type === "sms").length} SMS \u00B7 ${unread.filter(m => m.type === "email").length} Email` : "All caught up"}
+          color={unread.length ? C.blue : C.green} delay={120}
+        />
+        <KpiCard
+          label="Flagged" value={flagged.length}
+          sub={flagged.length ? flagged.map(j => FLAGS[j.flag].icon).join(" ") : "Clear"}
+          color={flagged.length ? C.orange : C.green} delay={180}
+        />
+      </div>
+
+      {/* Weather Strip */}
+      <div className="jp-fade-up" style={{ animationDelay: "240ms" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>
+            {weather !== WEATHER_FALLBACK ? "\uD83C\uDF24\uFE0F DFW Forecast" : "\uD83C\uDF24\uFE0F Weather"}
+          </span>
+          {weather !== WEATHER_FALLBACK && (
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.greenMute }}>LIVE</span>
+          )}
+        </div>
+        <WeatherStrip weather={weather} isLoading={weatherLoading} />
+      </div>
+
+      {/* Today's Schedule */}
+      <div className="jp-fade-up" style={{ animationDelay: "320ms" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\u26A1"} Today's Schedule</span>
+          <button onClick={() => onNavChange("jobs")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`See all \u2192`}</button>
+        </div>
+        {todayJobs.length > 0 ? todayJobs.map((j) => {
+          const ph = phaseMeta(j.phase); const cr = crewMeta(j.crew); const fl = j.flag ? FLAGS[j.flag] : null;
+          return (
+            <div key={j.id} className="jp-touch" onClick={() => onJobSelect(j)} style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "12px 14px", marginBottom: 8,
+              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10,
+              borderLeft: `3px solid ${ph.color}`, cursor: "pointer",
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontFamily: FS, fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.addr}</span>
+                  {fl && <span style={{ fontSize: 12 }} title={fl.label}>{fl.icon}</span>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Badge text={ph.sh} color={ph.color} icon={ph.icon} />
+                  <span style={{ fontFamily: FN, fontSize: 9, color: cr.color }}>{cr.lead}</span>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{fmt$(j.est)}</span>
+                </div>
+              </div>
+              <div style={{ width: 48, textAlign: "right" }}>
+                <div style={{ fontFamily: FN, fontSize: 14, fontWeight: 700, color: ph.color }}>{j.progress}%</div>
+                <ProgressBar value={j.progress} color={ph.color} h={3} />
+              </div>
+            </div>
+          );
+        }) : (
+          <div style={{ textAlign: "center", padding: 24, fontFamily: FN, fontSize: 11, color: C.dim, background: C.bgCard, borderRadius: 10, border: `1px solid ${C.border}` }}>No jobs scheduled today</div>
+        )}
+      </div>
+
+      {/* Recent Messages Preview */}
+      <div className="jp-fade-up" style={{ animationDelay: "400ms" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\uD83D\uDCAC"} Recent Messages</span>
+          <button onClick={() => onNavChange("msgs")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`Inbox \u2192`}</button>
+        </div>
+        {unread.length > 0 ? unread.slice(0, 3).map(m => (
+          <div key={m.id} className="jp-touch" style={{
+            display: "flex", alignItems: "flex-start", gap: 10,
+            padding: "10px 12px", marginBottom: 6,
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10,
+            borderLeft: `3px solid ${m.type === "sms" ? C.green : C.blue}`,
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+              background: m.type === "sms" ? C.green + "15" : C.blue + "15",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, border: `1px solid ${m.type === "sms" ? C.green + "30" : C.blue + "30"}`,
+            }}>{m.type === "sms" ? "\uD83D\uDCF1" : "\u2709\uFE0F"}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: C.text }}>{m.from}</span>
+                <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>{m.time}</span>
+              </div>
+              {m.subject && <div style={{ fontFamily: FS, fontSize: 11, fontWeight: 600, color: C.sub, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>}
+              <div style={{ fontFamily: FS, fontSize: 11, color: C.mid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.preview}</div>
+            </div>
+          </div>
+        )) : (
+          <div style={{ textAlign: "center", padding: 24, fontFamily: FN, fontSize: 11, color: C.dim, background: C.bgCard, borderRadius: 10, border: `1px solid ${C.border}` }}>All caught up</div>
+        )}
+      </div>
+
+      {/* Revenue Snapshot */}
+      <div className="jp-fade-up" style={{
+        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        animationDelay: "460ms",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1 }}>{"\uD83D\uDCB0"} Revenue</span>
+          <button onClick={() => onNavChange("money")} style={{ fontFamily: FN, fontSize: 9, color: C.accent, background: "none", border: "none", cursor: "pointer" }}>{`Details \u2192`}</button>
+        </div>
+        <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
+          <div>
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Billed</span>
+            <div style={{ fontFamily: FN, fontSize: 18, fontWeight: 800, color: C.accent }}>{fmt$(billed)}</div>
+          </div>
+          <div>
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Collected</span>
+            <div style={{ fontFamily: FN, fontSize: 18, fontWeight: 800, color: C.green }}>{fmt$(REV.reduce((s, r) => s + r.c, 0))}</div>
+          </div>
+        </div>
+        <Spark data={REV.map(r => r.b)} w={280} h={32} color={C.accent} />
+      </div>
+
+      {/* Phase Pipeline */}
+      <div className="jp-fade-up" style={{
+        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        animationDelay: "540ms",
+      }}>
+        <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "block" }}>{"\uD83D\uDD04"} Pipeline</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {PHASES.map(p => {
+            const count = jobs.filter(j => j.phase === p.id).length;
+            const maxC = Math.max(...PHASES.map(ph => jobs.filter(j => j.phase === ph.id).length), 1);
+            return (
+              <div key={p.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span style={{ fontFamily: FN, fontSize: 14, fontWeight: 800, color: p.color }}>{count}</span>
+                <div style={{ width: "100%", height: 32, borderRadius: 4, position: "relative", overflow: "hidden", background: C.faint }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${(count / maxC) * 100}%`, background: `linear-gradient(180deg,${p.color},${p.color}44)`, borderRadius: 4, transition: "height .5s ease", minHeight: count > 0 ? 4 : 0 }} />
+                </div>
+                <span style={{ fontFamily: FN, fontSize: 7, color: C.dim, textTransform: "uppercase" }}>{p.sh}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
-}
+};
 
-/* ═══════════════════════════════════════════ */
+/* ================================================================
+   JOBS TAB
+   ================================================================ */
+const JobsTab = ({ jobs, onJobSelect }) => {
+  const [filter, setFilter] = useState("all");
+  const [crewFilter, setCrewFilter] = useState(null);
+  const today = new Date().toISOString().split("T")[0];
+
+  const filtered = useMemo(() => {
+    let f = jobs;
+    if (filter !== "all") f = f.filter(j => j.phase === filter);
+    if (crewFilter) f = f.filter(j => j.crew === crewFilter);
+    return f.sort((a, b) => a.sched.localeCompare(b.sched));
+  }, [jobs, filter, crewFilter]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div style={{ padding: "10px 14px", display: "flex", gap: 6, overflowX: "auto", borderBottom: `1px solid ${C.border}` }}>
+        <Pill active={filter === "all"} onClick={() => setFilter("all")}>All ({jobs.length})</Pill>
+        {PHASES.map(p => {
+          const c = jobs.filter(j => j.phase === p.id).length;
+          return <Pill key={p.id} active={filter === p.id} color={p.color} onClick={() => setFilter(filter === p.id ? "all" : p.id)}>{p.icon} {p.sh} ({c})</Pill>;
+        })}
+      </div>
+      <div style={{ padding: "6px 14px", display: "flex", gap: 6, overflowX: "auto", borderBottom: `1px solid ${C.border}` }}>
+        <Pill active={!crewFilter} onClick={() => setCrewFilter(null)}>All Crews</Pill>
+        {CREWS.map(c => (
+          <Pill key={c.id} active={crewFilter === c.id} color={c.color} onClick={() => setCrewFilter(crewFilter === c.id ? null : c.id)}>{c.lead}</Pill>
+        ))}
+      </div>
+      <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {filtered.map((j, i) => {
+          const ph = phaseMeta(j.phase); const cr = crewMeta(j.crew); const fl = j.flag ? FLAGS[j.flag] : null;
+          const isToday = j.sched === today;
+          return (
+            <div key={j.id} className="jp-touch jp-fade-up" onClick={() => onJobSelect(j)} style={{
+              background: C.bgCard, border: `1px solid ${isToday ? ph.color + "30" : C.border}`,
+              borderRadius: 12, padding: "14px", cursor: "pointer",
+              borderLeft: `4px solid ${ph.color}`,
+              animationDelay: `${i * 40}ms`,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: FS, fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>{j.addr}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{j.id}</span>
+                    <span style={{ fontFamily: FN, fontSize: 9, color: C.mid }}>{"\u00B7"}</span>
+                    <span style={{ fontFamily: FN, fontSize: 9, color: C.mid }}>{j.builder}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: FN, fontSize: 16, fontWeight: 800, color: ph.color, lineHeight: 1 }}>{j.progress}%</div>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: isToday ? C.accent : C.dim, fontWeight: isToday ? 700 : 400 }}>{schedLabel(j.sched)}</span>
+                </div>
+              </div>
+              <ProgressBar value={j.progress} color={ph.color} h={4} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <Badge text={`${ph.icon} ${ph.label}`} color={ph.color} />
+                <Badge text={cr.lead} color={cr.color} />
+                <span style={{ fontFamily: FN, fontSize: 10, color: C.green, fontWeight: 600 }}>{fmt$(j.est)}</span>
+                {fl && <Badge text={`${fl.icon} ${fl.label}`} color={fl.color} />}
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40, fontFamily: FN, fontSize: 11, color: C.dim }}>No jobs match filters</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   JOB DETAIL BOTTOM SHEET
+   ================================================================ */
+const JobSheet = ({ job, onClose, onUpdate }) => {
+  const ph = phaseMeta(job.phase); const cr = crewMeta(job.crew); const fl = job.flag ? FLAGS[job.flag] : null;
+  const builder = BUILDERS[job.builder] || {};
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 300 }} />
+      <div style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, maxHeight: "88vh", zIndex: 301,
+        background: C.bgCard, borderTop: `2px solid ${ph.color}`,
+        borderRadius: "20px 20px 0 0", overflow: "auto",
+        animation: "jpSlideUp .3s ease",
+        paddingBottom: "env(safe-area-inset-bottom, 20px)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: C.dim }} />
+        </div>
+        <div style={{ padding: "0 18px 24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontFamily: FS, fontSize: 20, fontWeight: 800, color: C.text }}>{job.addr}</div>
+              <div style={{ fontFamily: FN, fontSize: 10, color: C.mid, marginTop: 2 }}>{job.builder} {"\u00B7"} {job.id}</div>
+            </div>
+            <button onClick={onClose} style={{ background: C.surface, border: "none", color: C.mid, fontSize: 16, width: 32, height: 32, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{"\u2715"}</button>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontFamily: FN, fontSize: 9, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Progress</span>
+              <span style={{ fontFamily: FN, fontSize: 12, fontWeight: 700, color: ph.color }}>{job.progress}%</span>
+            </div>
+            <ProgressBar value={job.progress} color={ph.color} h={6} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+              {PHASES.map(p => (
+                <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, opacity: p.id === job.phase ? 1 : .25 }}>
+                  <span style={{ fontSize: 16 }}>{p.icon}</span>
+                  <span style={{ fontFamily: FN, fontSize: 7, color: p.id === job.phase ? p.color : C.dim }}>{p.sh}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            {[
+              { label: "Crew", value: cr.name, sub: `${cr.members.join(", ")} \u00B7 ${cr.phone}`, color: cr.color },
+              { label: "Schedule", value: schedLabel(job.sched), sub: job.sched, color: job.sched === new Date().toISOString().split("T")[0] ? C.accent : C.text },
+              { label: "Estimate", value: fmt$(job.est), sub: "", color: C.green },
+              { label: "Builder Pay", value: `${builder.pay || "\u2014"}d`, sub: `${builder.onTime || "\u2014"}% on-time`, color: builder.pay <= 15 ? C.green : builder.pay <= 30 ? C.accent : C.red },
+            ].map((d, i) => (
+              <div key={i} style={{ background: C.surface, borderRadius: 10, padding: "10px 12px" }}>
+                <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>{d.label}</span>
+                <div style={{ fontFamily: FN, fontSize: 16, fontWeight: 700, color: d.color, marginTop: 3 }}>{d.value}</div>
+                {d.sub && <div style={{ fontFamily: FN, fontSize: 9, color: C.mid, marginTop: 2 }}>{d.sub}</div>}
+              </div>
+            ))}
+          </div>
+          <div style={{ background: C.surface, borderRadius: 10, padding: "10px 12px", marginBottom: 16 }}>
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8 }}>Notes</span>
+            <div style={{ fontFamily: FS, fontSize: 13, color: C.sub, marginTop: 4, lineHeight: 1.5 }}>{job.notes}</div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: .8, display: "block", marginBottom: 8 }}>Flags</span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {Object.entries(FLAGS).map(([k, f]) => (
+                <Pill key={k} active={job.flag === k} color={f.color} onClick={() => onUpdate({ ...job, flag: job.flag === k ? null : k })}>{f.icon} {f.label}</Pill>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {PHASES.filter(p => p.id !== job.phase).slice(0, 2).map(p => (
+              <button key={p.id} className="jp-touch" onClick={() => onUpdate({ ...job, phase: p.id, progress: Math.min(100, job.progress + 20) })} style={{
+                flex: 1, padding: "12px", border: `1px solid ${p.color}40`, borderRadius: 10,
+                background: p.color + "10", color: p.color, fontFamily: FN, fontSize: 10,
+                fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: .5,
+              }}>{`Move to ${p.label}`}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+/* ================================================================
+   MESSAGES TAB
+   ================================================================ */
+const MessagesTab = ({ messages, onMarkRead }) => {
+  const [msgFilter, setMsgFilter] = useState("all");
+  const [openThread, setOpenThread] = useState(null);
+
+  const filtered = useMemo(() => {
+    if (msgFilter === "all") return messages;
+    if (msgFilter === "unread") return messages.filter(m => !m.read);
+    if (msgFilter === "sms") return messages.filter(m => m.type === "sms");
+    if (msgFilter === "email") return messages.filter(m => m.type === "email");
+    if (msgFilter === "starred") return messages.filter(m => m.starred);
+    return messages;
+  }, [messages, msgFilter]);
+
+  if (openThread) {
+    const m = openThread;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setOpenThread(null)} style={{ background: "none", border: "none", color: C.accent, fontFamily: FN, fontSize: 11, cursor: "pointer", fontWeight: 700 }}>{`\u2190 Back`}</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FS, fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.from}</div>
+            {m.subject && <div style={{ fontFamily: FN, fontSize: 9, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>}
+          </div>
+          <Badge text={m.type.toUpperCase()} color={m.type === "sms" ? C.green : C.blue} />
+        </div>
+        <div style={{ flex: 1, overflow: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {m.thread.map((t, i) => {
+            const isMe = t.from === "You";
+            return (
+              <div key={i} style={{
+                maxWidth: "85%", alignSelf: isMe ? "flex-end" : "flex-start",
+                background: isMe ? C.accent + "20" : C.surface,
+                border: `1px solid ${isMe ? C.accent + "30" : C.border}`,
+                borderRadius: isMe ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                padding: "10px 14px",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontFamily: FN, fontSize: 9, fontWeight: 700, color: isMe ? C.accent : C.sub }}>{t.from}</span>
+                  <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, marginLeft: 12 }}>{t.time}</span>
+                </div>
+                <div style={{ fontFamily: FS, fontSize: 13, color: C.text, lineHeight: 1.5 }}>{t.body}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding: "10px 14px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, padding: "10px 14px", background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FS, fontSize: 12, color: C.dim }}>Type a reply...</div>
+          <button style={{ padding: "10px 16px", background: C.accent, border: "none", borderRadius: 10, fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.bg, cursor: "pointer" }}>Send</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div style={{ padding: "10px 14px", display: "flex", gap: 6, overflowX: "auto", borderBottom: `1px solid ${C.border}` }}>
+        {[
+          { id: "all", label: `All (${messages.length})` },
+          { id: "unread", label: `Unread (${messages.filter(m => !m.read).length})` },
+          { id: "sms", label: "SMS" },
+          { id: "email", label: "Email" },
+          { id: "starred", label: "\u2B50" },
+        ].map(f => (
+          <Pill key={f.id} active={msgFilter === f.id} color={f.id === "unread" ? C.red : C.accent} onClick={() => setMsgFilter(f.id)}>{f.label}</Pill>
+        ))}
+      </div>
+      <div style={{ padding: "8px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
+        {filtered.map((m, i) => (
+          <div key={m.id} className="jp-touch jp-fade-up" onClick={() => {
+            if (!m.read) onMarkRead(m.id);
+            setOpenThread(m);
+          }} style={{
+            display: "flex", alignItems: "flex-start", gap: 10,
+            padding: "12px 14px", cursor: "pointer",
+            background: m.read ? C.bgCard : C.bgCardHi,
+            border: `1px solid ${m.read ? C.border : C.borderHi}`, borderRadius: 10,
+            borderLeft: `3px solid ${m.type === "sms" ? C.green : C.blue}`,
+            animationDelay: `${i * 30}ms`,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+              background: m.type === "sms" ? C.green + "15" : C.blue + "15",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16, border: `1px solid ${m.type === "sms" ? C.green + "30" : C.blue + "30"}`,
+            }}>{m.type === "sms" ? "\uD83D\uDCF1" : "\u2709\uFE0F"}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: FS, fontSize: 13, fontWeight: m.read ? 500 : 700, color: C.text }}>{m.from}</span>
+                  {!m.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent }} />}
+                  {m.starred && <span style={{ fontSize: 10 }}>{"\u2B50"}</span>}
+                </div>
+                <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, whiteSpace: "nowrap" }}>{m.time}</span>
+              </div>
+              {m.subject && <div style={{ fontFamily: FS, fontSize: 11, fontWeight: 600, color: C.sub, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>}
+              <div style={{ fontFamily: FS, fontSize: 11, color: C.mid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.preview}</div>
+              {m.labels && (
+                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                  {m.labels.slice(0, 3).map(l => (
+                    <span key={l} style={{ fontFamily: FN, fontSize: 7, color: C.dim, background: C.faint, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: .5 }}>{l}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40, fontFamily: FN, fontSize: 11, color: C.dim }}>No messages</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   REVENUE TAB
+   ================================================================ */
+const RevenueTab = ({ jobs }) => {
+  const billed = REV.reduce((s, r) => s + r.b, 0);
+  const collected = REV.reduce((s, r) => s + r.c, 0);
+  const outstanding = billed - collected;
+  const pipeline = jobs.reduce((s, j) => s + j.est, 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 14px 24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {[
+          { label: "Billed (7wk)", value: fmt$(billed), color: C.accent, spark: REV.map(r => r.b) },
+          { label: "Collected", value: fmt$(collected), color: C.green, spark: REV.map(r => r.c) },
+          { label: "Outstanding", value: fmt$(outstanding), color: outstanding > 0 ? C.orange : C.green },
+          { label: "Pipeline", value: fmt$(pipeline), color: C.blue },
+        ].map((kpi, i) => (
+          <div key={i} className="jp-fade-up" style={{
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+            padding: "14px", animationDelay: `${i * 60}ms`,
+          }}>
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase", letterSpacing: 1 }}>{kpi.label}</span>
+            <div style={{ fontFamily: FN, fontSize: 20, fontWeight: 800, color: kpi.color, marginTop: 4, lineHeight: 1 }}>{kpi.value}</div>
+            {kpi.spark && <div style={{ marginTop: 8 }}><Spark data={kpi.spark} w={120} h={24} color={kpi.color} /></div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="jp-fade-up" style={{
+        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        animationDelay: "280ms",
+      }}>
+        <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Weekly Billed vs Collected</span>
+        <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.accent, opacity: .7 }} />
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>Billed</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.blue, opacity: .7 }} />
+            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>Collected</span>
+          </div>
+        </div>
+        <BarChart data={REV} />
+      </div>
+
+      <div className="jp-fade-up" style={{
+        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        animationDelay: "360ms",
+      }}>
+        <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "block" }}>{"\uD83C\uDFD7"} Builder Breakdown</span>
+        {Object.entries(BUILDERS).map(([name, b]) => {
+          const builderJobs = jobs.filter(j => j.builder === name);
+          const builderEst = builderJobs.reduce((s, j) => s + j.est, 0);
+          const payColor = b.pay <= 15 ? C.green : b.pay <= 30 ? C.accent : C.red;
+          return (
+            <div key={name} style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "10px 0", borderBottom: `1px solid ${C.border}`,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: FS, fontSize: 13, fontWeight: 700, color: C.text }}>{name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{builderJobs.length} jobs</span>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{"\u00B7"}</span>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: C.green }}>{fmt$(builderEst)}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: FN, fontSize: 12, fontWeight: 700, color: payColor }}>{b.pay}d pay</div>
+                <div style={{ fontFamily: FN, fontSize: 9, color: b.onTime >= 80 ? C.green : b.onTime >= 70 ? C.accent : C.red }}>{b.onTime}% on-time</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="jp-fade-up" style={{
+        padding: "14px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        animationDelay: "440ms",
+      }}>
+        <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.mid, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "block" }}>{"\uD83D\uDC77"} Crew Load</span>
+        {CREWS.map(cr => {
+          const crewJobs = jobs.filter(j => j.crew === cr.id);
+          const crewEst = crewJobs.reduce((s, j) => s + j.est, 0);
+          const avgProgress = crewJobs.length ? Math.round(crewJobs.reduce((s, j) => s + j.progress, 0) / crewJobs.length) : 0;
+          return (
+            <div key={cr.id} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: cr.color }}>{cr.name}</span>
+                  <span style={{ fontFamily: FN, fontSize: 9, color: C.dim }}>{crewJobs.length} jobs</span>
+                </div>
+                <span style={{ fontFamily: FN, fontSize: 11, fontWeight: 700, color: C.green }}>{fmt$(crewEst)}</span>
+              </div>
+              <ProgressBar value={avgProgress} color={cr.color} h={4} />
+              <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, marginTop: 2, display: "block" }}>{avgProgress}% avg progress</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   MAIN DASHBOARD
+   ================================================================ */
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [showProjectModal, setShowProjectModal] = useState(false);
-  const [editingProject, setEditingProject] = useState(null);
-  const [selectedLead, setSelectedLead] = useState(null);
+  const [tab, setTab] = useState("dash");
+  const [clock, setClock] = useState(new Date());
+  const [jobs, setJobs] = useState(JOBS_DATA);
+  const [messages, setMessages] = useState(MESSAGES_DATA);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [slideClass, setSlideClass] = useState("jp-fade-up");
+  const prevTab = useRef("dash");
 
+  // Live clock
   useEffect(() => {
-    const t = setInterval(() => setCurrentTime(new Date()), 60000);
+    const t = setInterval(() => setClock(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
 
-  const { data: stats, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard-stats'],
+  // Weather from backend (NWS proxy)
+  const { data: weatherData, isLoading: weatherLoading } = useQuery({
+    queryKey: ["weather-forecast"],
+    queryFn: () => api.weather.getForecast(),
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // Dashboard stats from backend
+  const { data: dashStats } = useQuery({
+    queryKey: ["dashboard-stats"],
     queryFn: () => api.dashboard.getStats(),
-    refetchInterval: 30000,
+    staleTime: 30000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
-  const { data: permitSummary } = useQuery({
-    queryKey: ['permit-summary'],
-    queryFn: () => api.permits.getSummary(),
-    refetchInterval: 60000,
-  });
+  const weather = weatherData || WEATHER_FALLBACK;
 
-  const { data: prospects } = useQuery({
-    queryKey: ['top-prospects'],
-    queryFn: () => api.permits.getProspects(5),
-  });
+  // Tab transitions
+  const handleTabChange = useCallback((newTab) => {
+    if (newTab === tab) return;
+    const dir = TAB_ORDER[newTab] > TAB_ORDER[prevTab.current] ? "left" : "right";
+    setSlideClass(dir === "left" ? "jp-slide-left" : "jp-slide-right");
+    prevTab.current = newTab;
+    setTab(newTab);
+  }, [tab]);
 
-  const { data: leadsData } = useQuery({
-    queryKey: ['recent-leads'],
-    queryFn: () => api.leads.getAll({ limit: 10 }),
-  });
+  const handleUpdateJob = useCallback((updated) => {
+    setJobs(prev => prev.map(j => j.id === updated.id ? updated : j));
+    setSelectedJob(updated);
+  }, []);
 
-  const createProject = useMutation({
-    mutationFn: (data) => api.projects.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-      setShowProjectModal(false);
-      setEditingProject(null);
-    },
-  });
+  const handleMarkRead = useCallback((id) => {
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+  }, []);
 
-  const updateProject = useMutation({
-    mutationFn: ({ id, data }) => api.projects.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-      setShowProjectModal(false);
-      setEditingProject(null);
-    },
-  });
+  const unread = messages.filter(m => !m.read).length;
 
-  const handleSave = (data) => {
-    if (editingProject) updateProject.mutate({ id: editingProject.id, data });
-    else createProject.mutate(data);
-  };
-
-  const openNewProject = () => { setEditingProject(null); setShowProjectModal(true); };
-  const recentLeads = leadsData?.leads || [];
-
-  /* ── Error ── */
-  if (error) {
-    return (
-      <div className="p-4 md:p-8">
-        <div className="rounded-2xl border border-hot-200 dark:border-hot-900/30 bg-hot-50 dark:bg-hot-950/20 p-6 flex items-start gap-4">
-          <div className="w-10 h-10 bg-hot-500 rounded-xl flex items-center justify-center shrink-0">
-            <AlertCircle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="font-display font-bold text-hot-800 dark:text-hot-200 mb-1">
-              Dashboard unavailable
-            </h3>
-            <p className="text-sm text-hot-600 dark:text-hot-400 mb-3">{error.message}</p>
-            <button onClick={() => refetch()} className="btn-primary text-sm">
-              <RefreshCw className="w-4 h-4" />
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Loading ── */
-  if (isLoading) {
-    return (
-      <div className="p-4 md:p-6 lg:p-8 space-y-5 animate-fade-in">
-        <div className="skeleton h-32 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
-        </div>
-        <div className="skeleton h-10 w-72 rounded-xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-7 skeleton h-80 rounded-2xl" />
-          <div className="lg:col-span-5 space-y-5">
-            <div className="skeleton h-52 rounded-2xl" />
-            <div className="skeleton h-44 rounded-2xl" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Main render ── */
   return (
-    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-5 animate-fade-in">
+    <div className="jp-root" style={{
+      background: C.bg, minHeight: "100%",
+      display: "flex", flexDirection: "column",
+      fontFamily: FS, color: C.text,
+    }}>
+      <ScopedStyles />
+      <Header clock={clock} />
+      <TabNav active={tab} onChange={handleTabChange} unread={unread} />
 
-      {/* ── COMMAND HEADER ── */}
-      <header className="command-header animate-slide-down">
-        {/* Atmospheric blue glow bottom-right */}
-        <div
-          className="absolute bottom-0 right-0 w-80 h-48 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at bottom right, rgba(0,53,148,0.14) 0%, transparent 70%)',
-          }}
-        />
-        <div className="relative flex items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span
-                className="text-[10px] font-bold uppercase tracking-[0.18em]"
-                style={{ color: 'rgba(255,255,255,0.25)' }}
-              >
-                CTL Plumbing · DFW Operations
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-[1.75rem] font-display font-bold text-white tracking-tight leading-none mb-1.5">
-              {getGreeting()}
-            </h1>
-            <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>
-              {currentTime.toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}
-              <span className="mx-2 opacity-40">·</span>
-              {currentTime.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-          </div>
-
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors"
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'rgba(255,255,255,0.4)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-        </div>
-      </header>
-
-      {/* ── KPI ROW ── */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          {
-            icon: DollarSign,
-            label: 'Pipeline Value',
-            value: `$${Math.round((stats?.pipelineValue || 0) / 1000)}k`,
-            subtext: 'Hot leads total',
-            trend: 'up',
-            trendValue: '12.5',
-            color: 'primary',
-            onClick: () => navigate('/leads'),
-          },
-          {
-            icon: Briefcase,
-            label: 'Active Projects',
-            value: stats?.activeProjectsCount || 0,
-            subtext: 'In progress',
-            color: 'blue',
-            onClick: openNewProject,
-          },
-          {
-            icon: Flame,
-            label: 'Hot Leads',
-            value: stats?.hotLeadsCount || 0,
-            subtext: 'High-priority',
-            trend: 'up',
-            trendValue: '8.7',
-            color: 'hot',
-            onClick: () => navigate('/leads'),
-          },
-          {
-            icon: Users,
-            label: 'Total Leads',
-            value: leadsData?.total || 0,
-            subtext: 'All in system',
-            color: 'purple',
-            onClick: () => navigate('/leads'),
-          },
-        ].map((props, i) => (
-          <div key={props.label} className={`animate-slide-up stagger-${i + 1}`}>
-            <StatCard {...props} edgeBar />
-          </div>
-        ))}
-      </section>
-
-      {/* ── QUICK ACTIONS ── */}
-      <section className="flex items-center gap-2 flex-wrap animate-slide-up stagger-5">
-        <button
-          onClick={openNewProject}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-150 hover:-translate-y-0.5 active:scale-[0.97]"
-          style={{
-            background: 'linear-gradient(135deg, #003594, #002266)',
-            boxShadow: '0 2px 8px rgba(0,53,148,0.22)',
-          }}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          New Project
-        </button>
-        {[
-          { label: 'Find Leads', icon: Users, path: '/leads' },
-          { label: 'Estimate', icon: FileText, path: '/plans' },
-          { label: 'AI Chat', icon: Bot, path: '/ai' },
-          { label: 'Permits', icon: Building2, path: '/leads' },
-        ].map(({ label, icon: Icon, path }) => (
-          <button
-            key={label}
-            onClick={() => navigate(path)}
-            className="quick-action-secondary text-xs py-2 px-4 min-h-0"
-          >
-            <Icon className="w-3.5 h-3.5 opacity-60" />
-            {label}
-          </button>
-        ))}
-      </section>
-
-      {/* ── MAIN GRID ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-        {/* LEFT COL */}
-        <div className="lg:col-span-7 space-y-5 animate-slide-up stagger-6">
-
-          {/* Active Projects */}
-          <SectionCard>
-            <SectionHead
-              icon={Briefcase}
-              iconColor="#3b82f6"
-              iconBg="rgba(59,130,246,0.08)"
-              title="Active Projects"
-              action={openNewProject}
-              actionLabel={<><Plus className="w-3 h-3" />Add New</>}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        <div key={tab} className={slideClass}>
+          {tab === "dash" && (
+            <DashTab
+              jobs={jobs}
+              messages={messages}
+              weather={weather}
+              weatherLoading={weatherLoading}
+              dashStats={dashStats}
+              onJobSelect={setSelectedJob}
+              onNavChange={handleTabChange}
             />
-
-            {stats?.activeProjects?.length > 0 ? (
-              <div className="px-2 pb-2">
-                {stats.activeProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    onClick={() => { setEditingProject(project); setShowProjectModal(true); }}
-                    className="w-full text-left px-3 py-3.5 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3 mb-2.5">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0 mt-0.5"
-                        style={{ background: phaseColor(project.phase) }}
-                      />
-                      <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                        <span className="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate group-hover:text-copper-600 dark:group-hover:text-copper-400 transition-colors">
-                          {project.name}
-                        </span>
-                        <span className="text-sm font-mono font-bold text-surface-500 dark:text-surface-400 shrink-0 tabular-nums">
-                          ${(project.value || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-surface-400 dark:text-surface-500 shrink-0 tabular-nums w-10 text-right">
-                        {project.progress || 0}%
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 ml-5 mb-0.5">
-                      <span className="text-[10px] text-surface-400 dark:text-surface-500 mr-1">{project.phase}</span>
-                    </div>
-                    <div className="pipe-track ml-5">
-                      <div
-                        className="pipe-fill"
-                        style={{
-                          '--pipe-width': `${project.progress || 0}%`,
-                          background: phaseColor(project.phase),
-                        }}
-                      />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="px-5 pb-8 pt-2 text-center">
-                <Briefcase className="w-10 h-10 mx-auto mb-3 text-surface-300 dark:text-surface-700" strokeWidth={1.5} />
-                <p className="text-sm text-surface-500 mb-3">No active projects yet</p>
-                <button className="btn-secondary text-xs" onClick={openNewProject}>
-                  <Plus className="w-3.5 h-3.5" />
-                  Create First Project
-                </button>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Top Prospects — horizontal scrollable */}
-          {prospects && prospects.length > 0 && (
-            <SectionCard>
-              <SectionHead
-                icon={Building2}
-                iconColor="#3b82f6"
-                iconBg="rgba(59,130,246,0.08)"
-                title="Top Prospects"
-                action={() => navigate('/leads')}
-              />
-              <p className="px-5 -mt-1 pb-3 text-[10px] text-surface-400">
-                Active builders without plumbers
-              </p>
-              <div className="px-4 pb-4 flex gap-2 overflow-x-auto scrollbar-hide">
-                {prospects.slice(0, 6).map((builder) => (
-                  <button
-                    key={builder.id}
-                    onClick={() => navigate('/leads')}
-                    className="shrink-0 flex flex-col items-start gap-1.5 px-3.5 py-3 rounded-xl text-left transition-all duration-150 hover:-translate-y-0.5"
-                    style={{
-                      background: 'rgba(59,130,246,0.04)',
-                      border: '1px solid rgba(59,130,246,0.1)',
-                    }}
-                  >
-                    <span className="text-xs font-bold text-surface-900 dark:text-surface-100 whitespace-nowrap">
-                      {builder.name || builder.company}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3 text-blue-400" />
-                      <span className="text-xs font-mono font-bold text-blue-500 tabular-nums">
-                        {builder.totalPermits || 0}
-                      </span>
-                      <span className="text-[10px] text-surface-400">permits</span>
-                    </div>
-                    {builder.permitsLast30d > 0 && (
-                      <span className="text-[10px] text-surface-400">
-                        {builder.permitsLast30d} last 30d
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </SectionCard>
+          )}
+          {tab === "jobs" && (
+            <JobsTab
+              jobs={jobs}
+              onJobSelect={setSelectedJob}
+            />
+          )}
+          {tab === "msgs" && (
+            <MessagesTab
+              messages={messages}
+              onMarkRead={handleMarkRead}
+            />
+          )}
+          {tab === "money" && (
+            <RevenueTab jobs={jobs} />
           )}
         </div>
-
-        {/* RIGHT COL */}
-        <aside className="lg:col-span-5 space-y-5 animate-slide-up stagger-7">
-
-          {/* Hot Leads */}
-          <SectionCard>
-            <SectionHead
-              icon={Flame}
-              iconColor="#ef4444"
-              iconBg="rgba(239,68,68,0.08)"
-              title="Hot Leads"
-              action={() => navigate('/leads')}
-            />
-
-            {stats?.hotLeads?.length > 0 ? (
-              <div className="px-2 pb-2">
-                {stats.hotLeads.map((lead) => (
-                  <button
-                    key={lead.id}
-                    onClick={() => setSelectedLead(lead)}
-                    className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-hot-50/40 dark:hover:bg-hot-950/15 transition-colors group"
-                  >
-                    {/* Score chip */}
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-mono font-bold tabular-nums"
-                      style={{
-                        background:
-                          lead.score >= 90
-                            ? 'rgba(239,68,68,0.1)'
-                            : lead.score >= 75
-                            ? 'rgba(245,158,11,0.1)'
-                            : 'rgba(200,197,191,0.12)',
-                        color:
-                          lead.score >= 90
-                            ? '#ef4444'
-                            : lead.score >= 75
-                            ? '#d97706'
-                            : '#78736b',
-                      }}
-                    >
-                      {lead.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate group-hover:text-hot-600 dark:group-hover:text-hot-400 transition-colors">
-                        {lead.name}
-                      </p>
-                      <p className="text-xs text-surface-400 truncate">{lead.company || 'Independent'}</p>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-surface-500 dark:text-surface-400 shrink-0 tabular-nums">
-                      ${(lead.value || 0).toLocaleString()}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="px-5 pb-8 pt-2 text-center">
-                <Flame className="w-10 h-10 mx-auto mb-3 text-surface-300 dark:text-surface-700" strokeWidth={1.5} />
-                <p className="text-sm text-surface-500 mb-3">No hot leads yet</p>
-                <button className="btn-secondary text-xs" onClick={() => navigate('/leads')}>
-                  Add First Lead
-                </button>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Permit Pulse */}
-          {permitSummary && (
-            <SectionCard>
-              <SectionHead
-                icon={Building2}
-                iconColor="#3b82f6"
-                iconBg="rgba(59,130,246,0.08)"
-                title="Permit Pulse"
-                action={() => navigate('/leads')}
-              />
-              <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Hot', value: permitSummary.hot || 0, color: '#ef4444', bg: 'rgba(239,68,68,0.06)', sub: 'Score ≥ 80' },
-                  { label: 'Warm', value: permitSummary.warm || 0, color: '#f59e0b', bg: 'rgba(245,158,11,0.06)', sub: 'Score 50–79' },
-                  { label: 'New Today', value: permitSummary.newToday || 0, color: '#10b981', bg: 'rgba(16,185,129,0.06)', sub: 'Ingested today' },
-                  { label: 'Total', value: permitSummary.total || 0, color: '#3b82f6', bg: 'rgba(59,130,246,0.06)', sub: 'All tracked' },
-                ].map(({ label, value, color, bg, sub }) => (
-                  <button
-                    key={label}
-                    onClick={() => navigate('/leads')}
-                    className="text-left rounded-xl p-3.5 transition-all duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
-                    style={{ background: bg, border: `1px solid ${color}1a` }}
-                  >
-                    <p className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: `${color}88` }}>
-                      {label}
-                    </p>
-                    <p className="text-2xl font-display font-bold tabular-nums leading-none mb-1" style={{ color }}>
-                      {value}
-                    </p>
-                    <p className="text-[10px] text-surface-400">{sub}</p>
-                  </button>
-                ))}
-              </div>
-            </SectionCard>
-          )}
-
-          {/* Activity Timeline */}
-          <SectionCard>
-            <SectionHead
-              icon={Clock}
-              iconColor="#78736b"
-              iconBg="rgba(120,115,107,0.08)"
-              title="Recent Activity"
-            />
-
-            {recentLeads.length > 0 ? (
-              <div className="px-2 pb-3">
-                {recentLeads.slice(0, 5).map((lead) => (
-                  <button
-                    key={lead.id}
-                    onClick={() => setSelectedLead(lead)}
-                    className="w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors group"
-                  >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                      style={{
-                        background:
-                          lead.status === 'hot'
-                            ? '#ef4444'
-                            : lead.status === 'warm'
-                            ? '#f59e0b'
-                            : '#a09b93',
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-surface-800 dark:text-surface-200 truncate group-hover:text-copper-600 dark:group-hover:text-copper-400 transition-colors">
-                        {lead.name}
-                      </p>
-                      <p className="text-[10px] text-surface-400 mt-0.5">
-                        {new Date(lead.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                        {lead.company && ` · ${lead.company}`}
-                      </p>
-                    </div>
-                    <Activity className="w-3 h-3 text-surface-300 dark:text-surface-600 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="px-5 pb-6 pt-2 text-center">
-                <p className="text-xs text-surface-400">No recent activity</p>
-              </div>
-            )}
-          </SectionCard>
-        </aside>
       </div>
 
-      {/* ── STATUS BAR ── */}
-      <footer className="animate-slide-up stagger-8">
-        <div
-          className="flex items-center justify-between px-5 py-3 rounded-xl text-xs"
-          style={{
-            background: 'rgba(16,185,129,0.04)',
-            border: '1px solid rgba(16,185,129,0.1)',
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="font-bold text-emerald-700 dark:text-emerald-400">System Operational</span>
-            <span className="hidden md:inline text-surface-400">— All services running</span>
-          </div>
-          <span className="font-mono text-surface-400 tabular-nums hidden md:block">
-            {currentTime.toLocaleTimeString()}
-          </span>
-        </div>
-      </footer>
-
-      {/* Modals */}
-      {showProjectModal && (
-        <ProjectModal
-          project={editingProject}
-          onClose={() => { setShowProjectModal(false); setEditingProject(null); }}
-          onSave={handleSave}
-          isSaving={createProject.isPending || updateProject.isPending}
-        />
-      )}
-      {selectedLead && (
-        <LeadDetailDrawer
-          lead={selectedLead}
-          onClose={() => setSelectedLead(null)}
-          onNavigate={navigate}
+      {selectedJob && (
+        <JobSheet
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onUpdate={handleUpdateJob}
         />
       )}
     </div>

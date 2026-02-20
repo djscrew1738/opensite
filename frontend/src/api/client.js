@@ -216,7 +216,12 @@ export const api = {
     getRunLeads: (runId, params) => apiClient.get(`/discovery/runs/${runId}/leads`, { params }),
     getLead: (id) => apiClient.get(`/discovery/leads/${id}`),
     updateLeadStatus: (id, status) => apiClient.patch(`/discovery/leads/${id}/status`, { status }),
-    deleteRun: (runId) => apiClient.delete(`/discovery/runs/${runId}`)
+    deleteRun: (runId) => apiClient.delete(`/discovery/runs/${runId}`),
+    // Enhanced features
+    export: (runId, format, tier) => apiClient.post('/discovery/export', { runId, format, tier }),
+    getExports: () => apiClient.get('/discovery/exports'),
+    getAnalytics: (runId) => apiClient.get(`/discovery/runs/${runId}/analytics`),
+    getReport: () => apiClient.get('/discovery/analytics/report'),
   },
 
   // History
@@ -251,6 +256,11 @@ export const api = {
     createLayer: (projectId, data) => apiClient.post(`/vision/projects/${projectId}/layers`, data),
     updateLayer: (projectId, layerId, data) => apiClient.put(`/vision/projects/${projectId}/layers/${layerId}`, data),
     deleteLayer: (projectId, layerId) => apiClient.delete(`/vision/projects/${projectId}/layers/${layerId}`),
+  },
+
+  // Weather
+  weather: {
+    getForecast: () => apiClient.get('/weather/forecast'),
   },
 
   // Permits (lead finder)

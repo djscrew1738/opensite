@@ -40,9 +40,11 @@ import plumbingRoutes from './routes/plumbing.js';
 import takeoffRoutes from './routes/takeoff.js';
 import permitsRoutes from './routes/permits.js';
 import discoveryRoutes from './routes/discovery.js';
+import discoveryEnhancedRoutes from './routes/discovery-enhanced.js';
 import settingsRoutes from './routes/settings.js';
 import historyRoutes from './routes/history.js';
 import visionRoutes from './routes/vision.js';
+import weatherRoutes from './routes/weather.js';
 import { visionService } from './services/vision.js';
 
 // Import permit jobs
@@ -90,9 +92,11 @@ app.use('/api/plumbing', plumbingRoutes);
 app.use('/api/takeoff', takeoffRoutes);
 app.use('/api/permits', permitsRoutes); // Permit ingestion and lead tracking
 app.use('/api/discovery', discoveryRoutes); // Discovery pipeline (Maps scraping + AI scoring)
+app.use('/api/discovery', discoveryEnhancedRoutes); // Enhanced discovery features (export, analytics, follow-ups)
 app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
 app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
+app.use('/api/weather', weatherRoutes); // Weather forecast (NWS proxy with caching)
 app.use('/api/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' })); // Serve DZI tiles as static files
 
 // Root endpoint

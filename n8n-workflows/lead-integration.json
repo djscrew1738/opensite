@@ -1,0 +1,207 @@
+{
+  "name": "CTL Plumbing Lead Integration",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-lead",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "lead-submission"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5001/api/leads",
+        "body": {
+          "name": "={{ $json.body.name }}",
+          "email": "={{ $json.body.email }}",
+          "phone": "={{ $json.body.phone }}",
+          "company": "={{ $json.body.company }}",
+          "projectType": "={{ $json.body.projectType }}",
+          "message": "={{ $json.body.message }}",
+          "source": "={{ $json.body.source || 'website' }}"
+        }
+      },
+      "id": "create-lead",
+      "name": "Create Lead in OpenSite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.projectType }}",
+              "rightValue": "emergency",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-emergency",
+      "name": "Is Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "🚨 EMERGENCY LEAD ALERT 🚨\n\nName: {{ $json.name }}\nPhone: {{ $json.phone }}\nProject: {{ $json.projectType }}\nMessage: {{ $json.message }}"
+      },
+      "id": "telegram-alert",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $env.NOTIFICATION_EMAIL }}",
+        "subject": "New Lead: {{ $json.name }}",
+        "text": "A new lead has been submitted:\n\nName: {{ $json.name }}\nEmail: {{ $json.email }}\nPhone: {{ $json.phone }}\nCompany: {{ $json.company }}\nProject Type: {{ $json.projectType }}\nMessage: {{ $json.message }}"
+      },
+      "id": "email-notification",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Score lead using AI\nconst lead = $input.first().json;\nconst scorePrompt = `Score this plumbing lead 0-100 based on:\n- Project type: ${lead.projectType}\n- Company: ${lead.company || 'N/A'}\n- Message: ${lead.message || 'N/A'}\n\nReturn JSON: { score: number, reason: string, status: 'hot'|'warm'|'cold' }`;\n\nreturn [{ json: { prompt: scorePrompt, lead: lead } }];"
+      },
+      "id": "prepare-score",
+      "name": "Prepare Score Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5001/api/ai/optimize/generate",
+        "body": {
+          "prompt": "={{ $json.prompt }}",
+          "options": {
+            "provider": "ollama",
+            "model": "llama3.1",
+            "skipCache": false
+          }
+        }
+      },
+      "id": "ai-score",
+      "name": "AI Score Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:5001/api/leads/{{ $json.lead.id }}/score",
+        "body": {
+          "score": "={{ JSON.parse($json.response).score }}",
+          "aiReason": "={{ JSON.parse($json.response).reason }}"
+        }
+      },
+      "id": "update-score",
+      "name": "Update Lead Score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 500]
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Lead in OpenSite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Lead in OpenSite": {
+      "main": [
+        [
+          {
+            "node": "Is Emergency?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Score Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Emergency?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Score Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Score Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Score Lead": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["leads", "integration", "ctl-plumbing"]
+}

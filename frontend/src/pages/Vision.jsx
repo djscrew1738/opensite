@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ScanEye, Plus, Trash2, FileImage, Calendar, Maximize,
-  ChevronRight, Loader2, AlertCircle
+  ChevronRight, Loader2, AlertCircle, LayoutDashboard
 } from 'lucide-react';
 import { visionApi } from '../api/vision';
 import VisionViewer from '../components/vision/VisionViewer';
 import VisionUpload from '../components/vision/VisionUpload';
+import VisionHome from '../components/vision/VisionHome';
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -27,6 +28,7 @@ export default function Vision() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showHome, setShowHome] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeJobId, setAnalyzeJobId] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
@@ -53,6 +55,7 @@ export default function Vision() {
 
   const handleProjectCreated = useCallback((projectId) => {
     setShowUpload(false);
+    setShowHome(false);
     setSelectedId(projectId);
     queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
   }, [queryClient]);
@@ -113,7 +116,7 @@ export default function Vision() {
               </h2>
             </div>
             <button
-              onClick={() => { setShowUpload(true); setSelectedId(null); }}
+              onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
               className="p-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors"
               title="Upload blueprint"
             >
@@ -123,9 +126,35 @@ export default function Vision() {
           <p className="text-[11px] text-surface-500 dark:text-surface-400 mt-1">
             Deep-zoom blueprint viewer
           </p>
+          
+          {/* Navigation */}
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => { setShowHome(true); setShowUpload(false); setSelectedId(null); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                showHome && !showUpload
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-gray-800 dark:text-surface-400'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              Home
+            </button>
+            <button
+              onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                showUpload
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-gray-800 dark:text-surface-400'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Upload
+            </button>
+          </div>
         </div>
 
-        {/* Project list */}
+        {/* Project list -- show only when not on home/upload */}
         <div className="flex-1 overflow-y-auto py-2">
           {isLoading && (
             <div className="flex items-center justify-center py-8">
@@ -152,7 +181,7 @@ export default function Vision() {
           {projects.map((p) => (
             <button
               key={p.id}
-              onClick={() => { setSelectedId(p.id); setShowUpload(false); }}
+              onClick={() => { setSelectedId(p.id); setShowUpload(false); setShowHome(false); }}
               className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
                 ${selectedId === p.id && !showUpload
                   ? 'bg-primary-50 dark:bg-primary-900/10 border-r-2 border-primary-500'
@@ -198,9 +227,23 @@ export default function Vision() {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col bg-surface-950 min-w-0">
+      <div className="flex-1 flex flex-col bg-surface-50 dark:bg-surface-900 min-w-0 overflow-hidden">
         {showUpload ? (
           <VisionUpload onProjectCreated={handleProjectCreated} />
+        ) : showHome ? (
+          <div className="flex-1 overflow-y-auto p-6">
+            <VisionHome
+              projects={projects}
+              onUpload={() => setShowUpload(true)}
+              onViewProject={(project) => {
+                setSelectedId(project.id);
+                setShowHome(false);
+                setShowUpload(false);
+              }}
+              onOpenSearch={() => {}}
+              isLoading={isLoading}
+            />
+          </div>
         ) : selectedId && projectDetail ? (
           <VisionViewer
             project={projectDetail}

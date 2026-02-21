@@ -2,6 +2,7 @@
 
 import express from 'express';
 import { aiProvider } from '../services/ai-provider.js';
+import { aiOptimizer } from '../services/ai-optimizer.js';
 import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
@@ -218,6 +219,96 @@ router.delete('/models/:name', tryCatch(async (req, res) => {
   }
 
   res.success({ deleted: true, model: req.params.name }, `Model ${req.params.name} deleted`);
+}));
+
+/* ── POST /api/ai/optimize/generate ─────────────────────────────────── */
+router.post('/optimize/generate', tryCatch(async (req, res) => {
+  const { prompt, options = {} } = req.body;
+  
+  if (!prompt?.trim()) {
+    return res.error('Prompt is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  const result = await aiOptimizer.generate(prompt, options);
+  
+  if (!result.success) {
+    return res.error(result.error, 'AI_ERROR', null, 503);
+  }
+
+  res.success({
+    response: result.response,
+    model: result.model,
+    provider: result.provider,
+    isFallback: result.isFallback,
+    cached: result.cached || false,
+    durationMs: result.durationMs,
+  });
+}));
+
+/* ── POST /api/ai/optimize/chat ─────────────────────────────────────── */
+router.post('/optimize/chat', tryCatch(async (req, res) => {
+  const { message, history = [], options = {} } = req.body;
+  
+  if (!message?.trim()) {
+    return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  const result = await aiOptimizer.generateChat(message, history, options);
+  
+  if (!result.success) {
+    return res.error(result.error, 'AI_ERROR', null, 503);
+  }
+
+  res.success({
+    response: result.response,
+    provider: result.provider,
+    cached: result.cached || false,
+  });
+}));
+
+/* ── POST /api/ai/batch/score ───────────────────────────────────────── */
+router.post('/batch/score', tryCatch(async (req, res) => {
+  const { leads, options = {} } = req.body;
+  
+  if (!Array.isArray(leads) || leads.length === 0) {
+    return res.error('Leads array is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  const results = await aiOptimizer.batchScoreLeads(leads, options);
+  
+  res.success({
+    results,
+    processed: results.length,
+    successful: results.filter(r => r.success).length,
+  });
+}));
+
+/* ── POST /api/ai/preload ───────────────────────────────────────────── */
+router.post('/preload', tryCatch(async (req, res) => {
+  const { model, provider = 'ollama' } = req.body;
+  
+  if (!model) {
+    return res.error('Model name is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  const result = await aiOptimizer.preloadModel(model, provider);
+  
+  if (!result.success) {
+    return res.error(result.error, 'PRELOAD_FAILED', null, 400);
+  }
+
+  res.success(result, `Model ${model} preloaded`);
+}));
+
+/* ── GET /api/ai/optimizer/stats ────────────────────────────────────── */
+router.get('/optimizer/stats', tryCatch(async (req, res) => {
+  res.success(aiOptimizer.getStats());
+}));
+
+/* ── POST /api/ai/optimizer/clear-cache ─────────────────────────────── */
+router.post('/optimizer/clear-cache', tryCatch(async (req, res) => {
+  aiOptimizer.clearCaches();
+  res.success({}, 'AI cache cleared');
 }));
 
 export default router;

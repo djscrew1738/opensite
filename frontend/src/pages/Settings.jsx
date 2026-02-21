@@ -13,8 +13,9 @@ import {
   Phone, Mail, DollarSign, SlidersHorizontal, MessageSquare,
   Moon, Sun, Monitor, AlertOctagon, FileDown, Hash,
   ChevronRight, LayoutDashboard, RotateCcw, FileText,
-  Percent, CalendarDays, Package, Layers
+  Percent, CalendarDays, Package, Layers, Settings as SettingsIcon
 } from 'lucide-react';
+import SettingsHome from '../components/settings/SettingsHome';
 
 /* ─────────────────────────────────────────────
    PRIMITIVES
@@ -176,7 +177,8 @@ function KeyInput({ label, description, value, onChange, show, onToggleShow, onS
    NAV
 ───────────────────────────────────────────── */
 const NAV_ITEMS = [
-  { id: 'ai',            icon: Cpu,             label: 'AI' },
+  { id: 'overview',      icon: LayoutDashboard,  label: 'Overview' },
+  { id: 'ai',            icon: Cpu,              label: 'AI' },
   { id: 'business',      icon: Building2,        label: 'Business' },
   { id: 'estimating',    icon: Calculator,       label: 'Estimating' },
   { id: 'discovery',     icon: Search,           label: 'Discovery' },
@@ -188,6 +190,21 @@ const NAV_ITEMS = [
   { id: 'system',        icon: Activity,         label: 'System' },
 ];
 
+// Icon map for SettingsHome
+const NAV_ICON_MAP = {
+  overview: LayoutDashboard,
+  ai: Cpu,
+  business: Building2,
+  estimating: Calculator,
+  discovery: Search,
+  notifications: Bell,
+  apikeys: Key,
+  performance: Gauge,
+  appearance: Palette,
+  data: Database,
+  system: Activity,
+};
+
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────── */
@@ -198,7 +215,7 @@ export default function Settings() {
   const { theme, toggleTheme } = useTheme();
 
   /* ── Tab nav ── */
-  const [activeTab, setActiveTab] = useState('ai');
+  const [activeTab, setActiveTab] = useState('overview');
 
   /* ── Toast ── */
   const [toast, setToast] = useState(null);

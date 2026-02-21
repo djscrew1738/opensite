@@ -4,8 +4,10 @@ import { api } from '../api/client';
 import {
   Plus, Search, Filter, X, Command, Trash2,
   ArrowUpDown, CheckSquare, Square, Building2,
-  MapPin, Users, Compass, FileText, Download, Sparkles
+  MapPin, Users, Compass, FileText, Download, Sparkles,
+  LayoutDashboard
 } from 'lucide-react';
+import LeadPulseHome from '../components/leads/LeadPulseHome';
 import LeadCard from '../components/leads/LeadCard';
 import LeadModal from '../components/leads/LeadModal';
 import PermitLeadCard from '../components/leads/PermitLeadCard';
@@ -23,6 +25,7 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatCurrency, formatDate } from '../utils/format';
 
 const tabs = [
+  { key: 'home', label: 'Overview', icon: LayoutDashboard },
   { key: 'discovery', label: 'Discovery', icon: Compass },
   { key: 'permits', label: 'Permit Leads', icon: FileText },
   { key: 'builders', label: 'Builder Intel', icon: Building2 },
@@ -31,7 +34,7 @@ const tabs = [
 ];
 
 export default function LeadFinder() {
-  const [activeTab, setActiveTab] = useState('discovery');
+  const [activeTab, setActiveTab] = useState('home');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tierFilter, setTierFilter] = useState('');
@@ -54,7 +57,7 @@ export default function LeadFinder() {
   const { data: manualData, isLoading: manualLoading } = useQuery({
     queryKey: ['leads', { status: statusFilter, search }],
     queryFn: () => api.leads.getAll({ status: statusFilter || undefined, search: search || undefined }),
-    enabled: activeTab === 'manual',
+    enabled: activeTab === 'manual' || activeTab === 'home',
   });
 
   const { data: permitData, isLoading: permitLoading } = useQuery({
@@ -160,8 +163,13 @@ export default function LeadFinder() {
 
   const handleSearchNavigate = (type, id, item) => {
     if (type === 'permit') { setActiveTab('permits'); setSelectedPermit(item); }
-    else if (type === 'lead') { setActiveTab('manual'); }
+    else if (type === 'lead') { setActiveTab('manual'); handleEditLead(item); }
     else if (type === 'builder') { setActiveTab('builders'); }
+  };
+
+  const handleViewLead = (lead) => {
+    setEditingLead(lead);
+    setShowModal(true);
   };
 
   const isLoading = activeTab === 'manual' ? manualLoading : permitLoading;
@@ -231,6 +239,20 @@ export default function LeadFinder() {
           })}
         </div>
       </div>
+
+      {/* Home Tab - Lead Pulse */}
+      {activeTab === 'home' && (
+        <LeadPulseHome
+          manualLeads={manualLeads}
+          permits={permits}
+          onAddLead={handleAddNew}
+          onViewLead={handleViewLead}
+          onViewPermit={handleViewPermitDetails}
+          onTabChange={setActiveTab}
+          onOpenSearch={() => setShowUnifiedSearch(true)}
+          isLoading={manualLoading || permitLoading}
+        />
+      )}
 
       {/* Discovery Tab */}
       {activeTab === 'discovery' && <DiscoveryTab />}

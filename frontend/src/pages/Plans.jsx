@@ -3,7 +3,9 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { useModelPreference } from '../hooks/useModelPreference';
+import { LayoutDashboard, Calculator, Settings } from 'lucide-react';
 
+import PlansHome from '../components/plans/PlansHome';
 import PlansCommandHeader from '../components/plans/PlansCommandHeader';
 import FixtureGrid from '../components/plans/FixtureGrid';
 import PricingDashboard from '../components/plans/PricingDashboard';
@@ -14,8 +16,14 @@ import TakeoffPanel from '../components/plans/TakeoffPanel';
 import PlansActionBar from '../components/plans/PlansActionBar';
 import { FIXTURE_PRICE, DEFAULT_FIXTURES, DEFAULT_PROJECT_INFO, QUALIFYING_FIXTURES } from '../components/plans/constants';
 
+const tabs = [
+  { key: 'home', label: 'Overview', icon: LayoutDashboard },
+  { key: 'estimate', label: 'Estimate', icon: Calculator },
+];
+
 export default function Plans() {
   // --- State ---
+  const [activeTab, setActiveTab] = useState('home');
   const [fixtures, setFixtures] = useState({ ...DEFAULT_FIXTURES });
   const [projectInfo, setProjectInfo] = useState({ ...DEFAULT_PROJECT_INFO });
   const [estimate, setEstimate] = useState(null);
@@ -129,6 +137,7 @@ export default function Plans() {
 
   const handleBlueprintAnalysis = (result) => {
     clearSaved();
+    setActiveTab('estimate');
 
     if (result.extractedData) {
       const ext = result.extractedData;
@@ -157,16 +166,73 @@ export default function Plans() {
     if (result.aiAnalysis) setAnalysis(result.aiAnalysis);
   };
 
+  const handleNewEstimate = () => {
+    setFixtures({ ...DEFAULT_FIXTURES });
+    setProjectInfo({ ...DEFAULT_PROJECT_INFO });
+    setEstimate(null);
+    setAnalysis(null);
+    setExtractedData(null);
+    setActiveTab('estimate');
+  };
+
+  const handleQuickAddFixture = (defaults) => {
+    setFixtures(prev => ({ ...prev, ...defaults }));
+    setActiveTab('estimate');
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Command Header */}
-        <PlansCommandHeader
-          totalFixtures={totalFixtures}
-          totalPrice={totalPrice}
-          projectName={projectInfo.projectName}
-          onProjectNameChange={(name) => setProjectInfo(prev => ({ ...prev, projectName: name }))}
-        />
+        {/* Tabs */}
+        <div className="flex items-center gap-1 border-b border-surface-200 dark:border-surface-700">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-all relative ${
+                  activeTab === tab.key
+                    ? 'text-accent-600 dark:text-accent-400'
+                    : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+                {activeTab === tab.key && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent-500 to-accent-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Home Tab */}
+        {activeTab === 'home' && (
+          <PlansHome
+            fixtures={fixtures}
+            projectInfo={projectInfo}
+            estimate={estimate}
+            onNewEstimate={handleNewEstimate}
+            onLoadEstimate={(est) => {
+              // Would load from API
+              setActiveTab('estimate');
+            }}
+            onContinueEditing={() => setActiveTab('estimate')}
+            onQuickAddFixture={handleQuickAddFixture}
+          />
+        )}
+
+        {/* Estimate Tab */}
+        {activeTab === 'estimate' && (
+          <>
+            {/* Command Header */}
+            <PlansCommandHeader
+              totalFixtures={totalFixtures}
+              totalPrice={totalPrice}
+              projectName={projectInfo.projectName}
+              onProjectNameChange={(name) => setProjectInfo(prev => ({ ...prev, projectName: name }))}
+            />
 
         {/* Fixture Grid */}
         <section>
@@ -215,8 +281,8 @@ export default function Plans() {
         />
 
         {/* Estimate result display */}
-        {estimate && (
-          <div className="bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5">
+            {estimate && (
+              <div className="bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider mb-3">
               Saved Estimate
             </h3>
@@ -247,11 +313,13 @@ export default function Plans() {
               </div>
             </div>
             {estimate.estimateId && (
-              <p className="text-xs text-surface-400 dark:text-surface-500 mt-3 text-right">
-                Estimate ID: {estimate.estimateId}
-              </p>
-            )}
-          </div>
+                <p className="text-xs text-surface-400 dark:text-surface-500 mt-3 text-right">
+                  Estimate ID: {estimate.estimateId}
+                </p>
+              )}
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

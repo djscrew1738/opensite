@@ -6,6 +6,7 @@ import { groqService } from './groq.js';
 import { openclawService } from './openclaw.js';
 import { anthropicService } from './anthropic.js';
 import { db } from './database.js';
+import { aiOptimizer } from './ai-optimizer.js';
 
 class AIProviderManager {
   constructor() {
@@ -139,7 +140,11 @@ class AIProviderManager {
       if (openclawTemp) ocConfig.temperature = parseFloat(openclawTemp);
       if (Object.keys(ocConfig).length > 0) openclawService.configure(ocConfig);
 
+      // Initialize optimizer with current configuration
+      aiOptimizer.fallbackOrder = ['openclaw', 'ollama', 'groq', 'anthropic'];
+      
       console.log(`[ai-provider] Loaded settings — active: ${this._activeProvider}`);
+      console.log(`[ai-provider] Optimizer initialized with cache and connection pooling`);
     } catch (err) {
       console.warn('[ai-provider] Could not load settings:', err.message);
     }

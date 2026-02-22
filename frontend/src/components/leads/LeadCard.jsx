@@ -65,7 +65,7 @@ export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect,
       onClick={handleCardClick}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
-      className={`group relative overflow-hidden rounded-xl border ${tier.border} bg-white dark:bg-surface-800 shadow-sm hover:shadow-lg transition-all duration-300 ${selectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-2 ring-accent-500 ring-offset-2' : ''}`}
+      className={`group relative overflow-hidden rounded-xl border ${tier.border} bg-surface-50 dark:bg-surface-800 shadow-sm hover:shadow-lg transition-all duration-300 ${selectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-2 ring-accent-500 ring-offset-2' : ''}`}
     >
       {/* Selection checkbox overlay */}
       {selectionMode && (
@@ -85,7 +85,7 @@ export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect,
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-display font-bold text-surface-900 dark:text-surface-100 truncate group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
+            <h3 className="text-base font-bold text-surface-900 dark:text-surface-100 truncate group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
               {lead.name}
             </h3>
             <p className="text-sm text-surface-500 dark:text-surface-400 truncate font-medium">
@@ -96,10 +96,10 @@ export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect,
           {/* Score display */}
           {hasScore && (
             <div className="text-right shrink-0">
-              <div className={`text-2xl font-display font-bold ${tier.text}`}>
+              <div className={`text-2xl font-mono font-bold tabular-nums ${tier.text}`}>
                 {lead.score}
               </div>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold ring-1 ${tier.badge}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ring-1 ${tier.badge}`}>
                 {tier.label}
               </span>
             </div>

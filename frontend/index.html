@@ -1,18 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0908" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0B0D" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Preconnect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Font imports (non-render-blocking via link tags) -->
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
+    <!-- Dark Forge fonts: Inter (UI) + JetBrains Mono (data) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <!-- DNS prefetch for API -->
@@ -21,7 +22,7 @@
     <!-- OpenSeadragon deep-zoom viewer -->
     <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.1/build/openseadragon/openseadragon.min.js"></script>
 
-    <title>Opensite - CTL Plumbing Intelligence</title>
+    <title>Job Pulse — CTL Plumbing</title>
 
     <!-- Theme detection — prevent flash -->
     <script>
@@ -38,6 +39,7 @@
       /* Critical CSS for instant render */
       #root {
         min-height: 100vh;
+        min-height: 100dvh;
       }
 
       .initial-loader {
@@ -48,35 +50,35 @@
         align-items: center;
         justify-content: center;
         gap: 24px;
-        background: #f0efed;
+        background: #f8fafc;
         z-index: 9999;
       }
 
       .dark .initial-loader {
-        background: #0a0908;
+        background: #0A0B0D;
       }
 
-      /* Copper ring spinner */
+      /* Electric blue spinner */
       .loader-ring {
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        border: 3px solid rgba(0, 53, 148, 0.12);
-        border-top-color: #003594;
+        border: 3px solid rgba(59, 130, 246, 0.12);
+        border-top-color: #3B82F6;
         animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
       }
 
       .loader-text {
-        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.15em;
         text-transform: uppercase;
-        color: rgba(160, 155, 147, 0.5);
+        color: rgba(148, 163, 184, 0.5);
       }
 
       .dark .loader-text {
-        color: rgba(92, 87, 79, 0.6);
+        color: rgba(71, 85, 105, 0.6);
       }
 
       @keyframes spin {
@@ -88,7 +90,7 @@
     <div id="root">
       <div class="initial-loader">
         <div class="loader-ring"></div>
-        <div class="loader-text">Opensite</div>
+        <div class="loader-text">Job Pulse</div>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>

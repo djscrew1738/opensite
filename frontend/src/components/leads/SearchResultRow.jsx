@@ -56,7 +56,7 @@ export default function SearchResultRow({ result, type, isHighlighted, onClick }
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-100 ${
         isHighlighted
-          ? 'bg-copper-50 dark:bg-copper-950/20'
+          ? 'bg-blue-50 dark:bg-copper-950/20'
           : 'hover:bg-concrete-50 dark:hover:bg-gray-800/50'
       }`}
     >

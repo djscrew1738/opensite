@@ -17,7 +17,7 @@ export default function CityStatsPanel({ stats, onViewBuilder, onViewPermit }) {
     <div className="space-y-4 animate-fade-in">
       {/* City Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-copper-500 to-copper-600 flex items-center justify-center shadow-md">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
           <MapPin className="w-5 h-5 text-white" strokeWidth={2.5} />
         </div>
         <div>
@@ -44,8 +44,8 @@ export default function CityStatsPanel({ stats, onViewBuilder, onViewPermit }) {
         </div>
         <div className="card">
           <div className="card-body p-4 text-center">
-            <DollarSign className="w-5 h-5 text-copper-500 mx-auto mb-1" />
-            <p className="text-2xl font-display font-bold text-copper-600 dark:text-copper-400 tabular-nums">{formatCurrency(stats.avgCost)}</p>
+            <DollarSign className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+            <p className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(stats.avgCost)}</p>
             <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Avg Cost</p>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function CityStatsPanel({ stats, onViewBuilder, onViewPermit }) {
                   </div>
                   {b.totalValue > 0 && (
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-copper-600 dark:text-copper-400 tabular-nums">{formatCurrency(b.totalValue)}</p>
+                      <p className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(b.totalValue)}</p>
                       <p className="text-2xs text-gray-500">value</p>
                     </div>
                   )}

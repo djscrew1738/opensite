@@ -1,1 +1,238 @@
 /* App-specific styles - keep empty to avoid conflicts with Tailwind */
+
+/* =============================================
+   VISION CANVAS STYLES
+   ============================================= */
+
+/* Canvas grid pattern animation */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-dash {
+  animation: dash 1s linear infinite;
+}
+
+/* Pin pulse animation */
+@keyframes pin-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+
+.pin-pulse {
+  animation: pin-pulse 2s ease-in-out infinite;
+}
+
+/* Connection flow animation for pipes */
+@keyframes flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -24;
+  }
+}
+
+.connection-flow {
+  animation: flow 1s linear infinite;
+  stroke-dasharray: 12 12;
+}
+
+/* Canvas node selection glow */
+@keyframes node-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+.node-selected {
+  animation: node-glow 2s ease-in-out infinite;
+}
+
+/* Smooth canvas transitions */
+.canvas-transition {
+  transition: transform 0.1s ease-out;
+}
+
+/* OCR text highlight */
+.ocr-highlight {
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.3) 100%);
+  border-bottom: 2px solid #f59e0b;
+}
+
+/* Drawing cursor styles */
+.cursor-crosshair {
+  cursor: crosshair !important;
+}
+
+.cursor-grab {
+  cursor: grab !important;
+}
+
+.cursor-grabbing {
+  cursor: grabbing !important;
+}
+
+/* Toolbar tool active state */
+.tool-active {
+  background-color: rgb(219 234 254);
+  color: rgb(29 78 216);
+}
+
+.dark .tool-active {
+  background-color: rgba(29, 78, 216, 0.2);
+  color: rgb(147, 197, 253);
+}
+
+/* Layer visibility transitions */
+.layer-transition {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Modal animations */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-animate-in {
+  animation: modal-in 0.2s ease-out;
+}
+
+/* Blueprint thumbnail hover effect */
+.blueprint-thumb {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.blueprint-thumb:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Pin tooltip animation */
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.pin-tooltip {
+  animation: tooltip-in 0.15s ease-out;
+}
+
+/* Measurement line */
+.measurement-line {
+  stroke: #3b82f6;
+  stroke-width: 2;
+  stroke-dasharray: 5, 5;
+}
+
+/* Wall line (critical) */
+.wall-line {
+  stroke: #ef4444;
+  stroke-width: 3;
+  stroke-dasharray: 10, 5;
+}
+
+/* Pipe line */
+.pipe-line {
+  stroke: #06b6d4;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* Fixture marker */
+.fixture-marker {
+  fill: #10b981;
+  fill-opacity: 0.3;
+  stroke: #10b981;
+  stroke-width: 2;
+}
+
+/* Connection line styles */
+.connection-solid {
+  stroke-dasharray: none;
+}
+
+.connection-dashed {
+  stroke-dasharray: 8, 4;
+}
+
+.connection-dotted {
+  stroke-dasharray: 2, 2;
+}
+
+/* Text selection overlay */
+.text-select-overlay {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+/* Grid background */
+.canvas-grid {
+  background-image: 
+    linear-gradient(to right, rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Scrollbar styling for canvas panels */
+.canvas-panel::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.canvas-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-panel::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 3px;
+}
+
+.canvas-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Dark mode adjustments */
+.dark .canvas-grid {
+  background-image: 
+    linear-gradient(to right, rgba(71, 85, 105, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(71, 85, 105, 0.2) 1px, transparent 1px);
+}
+
+/* Responsive canvas adjustments */
+@media (max-width: 768px) {
+  .canvas-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .canvas-node {
+    min-width: 200px;
+    min-height: 150px;
+  }
+}

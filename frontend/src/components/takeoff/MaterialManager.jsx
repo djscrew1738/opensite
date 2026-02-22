@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
+import { useToast } from '../../hooks/useToast';
 import {
   Plus, Edit3, Trash2, Search, Package, X, Save, Filter,
   Star, Copy, Download, Upload, ChevronDown, ChevronRight,
@@ -61,6 +62,7 @@ const QUICK_FILTERS = {
 export default function MaterialManager({ onSelect, selectionMode = false }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
+  const { success: showToast, error: showToastError } = useToast();
 
   // Core state
   const [search, setSearch] = useState('');
@@ -98,13 +100,14 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
   // Collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
 
-  // Notification state
-  const [notification, setNotification] = useState(null);
-
+  // Notification helper
   const showNotification = useCallback((message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  }, []);
+    if (type === 'error') {
+      showToastError(message);
+    } else {
+      showToast(message);
+    }
+  }, [showToast, showToastError]);
 
   // ---- Queries ----
 
@@ -830,20 +833,6 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   return (
     <div className="space-y-4">
-      {/* Notification Toast */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium transition-all animate-in ${
-          notification.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'
-        }`}>
-          {notification.type === 'error' ? (
-            <AlertCircle className="w-4 h-4" />
-          ) : (
-            <Check className="w-4 h-4" />
-          )}
-          {notification.message}
-        </div>
-      )}
-
       {/* Stats bar */}
       {!selectionMode && stats.total > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

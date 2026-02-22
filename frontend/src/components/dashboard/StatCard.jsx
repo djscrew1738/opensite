@@ -1,8 +1,8 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const palette = {
-  primary: { bar: '#003594', accent: '#003594', bg: 'rgba(0,53,148,0.07)' },
-  accent:  { bar: '#003594', accent: '#003594', bg: 'rgba(0,53,148,0.07)' },
+  primary: { bar: '#3B82F6', accent: '#3B82F6', bg: 'rgba(59,130,246,0.07)' },
+  accent:  { bar: '#3B82F6', accent: '#3B82F6', bg: 'rgba(59,130,246,0.07)' },
   hot:     { bar: '#ef4444', accent: '#ef4444', bg: 'rgba(239,68,68,0.07)' },
   warm:    { bar: '#f59e0b', accent: '#d97706', bg: 'rgba(245,158,11,0.07)' },
   emerald: { bar: '#10b981', accent: '#10b981', bg: 'rgba(16,185,129,0.07)' },

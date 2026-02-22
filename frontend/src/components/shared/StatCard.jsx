@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * StatCard - Reusable metric card component with optional animation
+ * Follows industrial control room aesthetic with monospace numerals
  * @param {string} title - Card title
  * @param {number|string} value - Main value to display
  * @param {string} subtitle - Optional subtitle text
@@ -9,6 +10,8 @@ import { useEffect, useState } from 'react';
  * @param {string} trend - Optional trend indicator (up/down/neutral)
  * @param {boolean} animated - Whether to animate the number counting
  * @param {string} className - Additional CSS classes
+ * @param {string} color - Color accent: 'copper', 'green', 'amber', 'blue', 'purple'
+ * @param {number} delay - Animation delay in ms
  */
 export default function StatCard({
   title,
@@ -17,9 +20,18 @@ export default function StatCard({
   icon: Icon,
   trend,
   animated = true,
-  className = ''
+  className = '',
+  color = 'copper',
+  delay = 0
 }) {
   const [displayValue, setDisplayValue] = useState(animated ? 0 : value);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Stagger animation
+    const visibilityTimer = setTimeout(() => setIsVisible(true), delay);
+    return () => clearTimeout(visibilityTimer);
+  }, [delay]);
 
   useEffect(() => {
     if (!animated || typeof value !== 'number') {
@@ -27,8 +39,7 @@ export default function StatCard({
       return;
     }
 
-    // Simple animation - counts up to the target value
-    const duration = 1000; // 1 second
+    const duration = 1000;
     const steps = 60;
     const increment = value / steps;
     let current = 0;
@@ -50,9 +61,20 @@ export default function StatCard({
   }, [value, animated]);
 
   const getTrendColor = () => {
-    if (trend === 'up') return 'text-green-600';
-    if (trend === 'down') return 'text-red-600';
-    return 'text-gray-600';
+    if (trend === 'up') return 'text-emerald-600 dark:text-emerald-400';
+    if (trend === 'down') return 'text-red-600 dark:text-red-400';
+    return 'text-surface-500 dark:text-surface-400';
+  };
+
+  const getColorClasses = () => {
+    const colors = {
+      copper: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+      green: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+      amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+      blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+      purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+    };
+    return colors[color] || colors.copper;
   };
 
   const formatValue = (val) => {
@@ -63,29 +85,47 @@ export default function StatCard({
   };
 
   return (
-    <div className={`card hover:shadow-md transition-shadow ${className}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold text-gray-900">
+    <div 
+      className={`
+        card p-5 hover:shadow-md transition-all duration-300 
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+        ${className}
+      `}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {/* Title */}
+          <p className="text-xs uppercase tracking-wider font-semibold text-surface-500 dark:text-surface-400 mb-2">
+            {title}
+          </p>
+          
+          {/* Value */}
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <p className="text-2xl font-mono font-bold tabular-nums text-surface-900 dark:text-surface-100">
               {formatValue(displayValue)}
             </p>
             {subtitle && (
-              <p className="text-sm text-gray-500">{subtitle}</p>
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                {subtitle}
+              </p>
             )}
           </div>
+          
+          {/* Trend */}
           {trend && (
-            <p className={`text-xs mt-1 ${getTrendColor()}`}>
+            <p className={`text-xs mt-2 uppercase tracking-wide font-medium ${getTrendColor()}`}>
               {trend === 'up' && '↑ '}
               {trend === 'down' && '↓ '}
               {trend}
             </p>
           )}
         </div>
+        
+        {/* Icon */}
         {Icon && (
-          <div className="ml-4 p-3 bg-primary-50 rounded-lg">
-            <Icon className="w-6 h-6 text-primary-600" />
+          <div className={`flex-shrink-0 p-2.5 rounded-xl ${getColorClasses()}`}>
+            <Icon className="w-5 h-5" />
           </div>
         )}
       </div>

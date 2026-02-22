@@ -40,7 +40,7 @@ export default function TakeoffPanel({ expanded, onToggle }) {
             <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
               <a
                 href="#takeoff"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#003594] dark:text-blue-400 hover:underline"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#3B82F6] dark:text-blue-400 hover:underline"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Open Full Editor

@@ -22,7 +22,7 @@ export const NON_QUALIFYING_FIXTURES = [
 ];
 
 export const PHASE_CONFIG = [
-  { key: 'roughIn', label: 'Rough-in', pct: 50, color: '#003594' },
+  { key: 'roughIn', label: 'Rough-in', pct: 50, color: '#3B82F6' },
   { key: 'topOut',  label: 'Top-out',  pct: 30, color: '#0066cc' },
   { key: 'trim',    label: 'Trim',     pct: 20, color: '#4d94ff' },
 ];

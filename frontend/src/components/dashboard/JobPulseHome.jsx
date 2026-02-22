@@ -1,907 +1,184 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../../api/client";
+import { useState, useMemo } from 'react';
+import {
+  LayoutDashboard,
+  Target,
+  Calendar,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
+  HardHat,
+} from 'lucide-react';
+import { JobCard } from '../jobs';
+import { PHASES, PHASE_MAP } from '../../styles/tokens';
 
-/* ================================================================
-   JOB PULSE HOME v6 - Enhanced Command Center
-   - Smart alerts & notifications
-   - Quick action dock
-   - Live crew tracking
-   - Priority job cards
-   - Material & inspection alerts
-   ================================================================ */
-
-/* -- THEME -- */
-const C = {
-  bg: "#060608",
-  bgCard: "#0E0F12",
-  bgCardHi: "#151720",
-  surface: "#1A1C24",
-  surfaceHi: "#22252F",
-  border: "rgba(255,255,255,.06)",
-  borderHi: "rgba(255,255,255,.12)",
-  text: "#EDE9E0",
-  sub: "#A8A29E",
-  mid: "#78716C",
-  dim: "#44403C",
-  faint: "#1C1917",
-  accent: "#E5A31E",
-  accentMute: "#A37514",
-  accentBg: "rgba(229,163,30,.08)",
-  green: "#34D399",
-  greenMute: "#059669",
-  greenBg: "rgba(52,211,153,.08)",
-  blue: "#38BDF8",
-  blueMute: "#0284C7",
-  blueBg: "rgba(56,189,248,.08)",
-  red: "#F87171",
-  redMute: "#B91C1C",
-  redBg: "rgba(248,113,113,.08)",
-  orange: "#FB923C",
-  purple: "#A78BFA",
-  pink: "#F472B6",
-};
-const FN = "'JetBrains Mono','IBM Plex Mono',monospace";
-const FS = "'DM Sans',-apple-system,system-ui,sans-serif";
-
-/* -- DATA CONSTANTS -- */
-const PHASES = [
-  { id: "underground", label: "Underground", sh: "UG", icon: "⛏", color: "#92700C", desc: "Rough grade, sewer/water taps" },
-  { id: "roughin", label: "Rough-In", sh: "RI", icon: "🔧", color: C.accent, desc: "Top out walls, rough fixtures" },
-  { id: "topout", label: "Top-Out", sh: "TO", icon: "📐", color: C.blue, desc: "Set water heater, final tests" },
-  { id: "trim", label: "Trim", sh: "TR", icon: "🚿", color: "#2DD4BF", desc: "Install fixtures, final connections" },
-  { id: "final", label: "Final", sh: "FN", icon: "✅", color: C.green, desc: "Walk through, punch list" },
+/* ────────────────────────────────────────────────
+   Mock data — DFW construction jobs for CTL Plumbing
+   ──────────────────────────────────────────────── */
+const MOCK_JOBS = [
+  { id: 'CTL-1041', address: '2914 Ridgewood Dr', city: 'Aubrey', zip: '76227', builder: 'DR Horton', phase: 'underground', daysInPhase: 4, status: 'healthy' },
+  { id: 'CTL-1042', address: '5103 Copper Canyon Trl', city: 'Fort Worth', zip: '76244', builder: 'Horizon Homes', phase: 'roughin', daysInPhase: 7, status: 'due-today' },
+  { id: 'CTL-1043', address: '810 Bluebonnet Blvd', city: 'Celina', zip: '75009', builder: 'DR Horton', phase: 'topout', daysInPhase: 12, status: 'overdue' },
+  { id: 'CTL-1044', address: '3321 Harvest Bend Ln', city: 'Prosper', zip: '75078', builder: 'DR Horton', phase: 'trim', daysInPhase: 3, status: 'healthy' },
+  { id: 'CTL-1045', address: '1204 Prairie Wind Dr', city: 'Sanger', zip: '76266', builder: 'Horizon Homes', phase: 'final', daysInPhase: 2, status: 'due-today' },
+  { id: 'CTL-1046', address: '7750 Stampede Dr', city: 'Haslet', zip: '76052', builder: 'DR Horton', phase: 'underground', daysInPhase: 1, status: 'healthy' },
+  { id: 'CTL-1047', address: '4460 Ridgepoint Ct', city: 'Denton', zip: '76210', builder: 'Horizon Homes', phase: 'roughin', daysInPhase: 9, status: 'overdue' },
+  { id: 'CTL-1048', address: '990 Twin Creeks Pkwy', city: 'Allen', zip: '75013', builder: 'DR Horton', phase: 'topout', daysInPhase: 5, status: 'healthy' },
+  { id: 'CTL-1049', address: '6622 Elm Fork Dr', city: 'Frisco', zip: '75033', builder: 'Horizon Homes', phase: 'trim', daysInPhase: 6, status: 'healthy' },
+  { id: 'CTL-1050', address: '1180 Cattlemen Dr', city: 'Pilot Point', zip: '76258', builder: 'DR Horton', phase: 'underground', daysInPhase: 11, status: 'overdue' },
 ];
 
-const CREWS = [
-  { id: "A", name: "Team Alpha", lead: "Marco", members: ["Marco", "Luis"], phone: "(817) 555-0142", color: C.accent, status: "on-site", location: "4821 Westridge Dr" },
-  { id: "B", name: "Team Bravo", lead: "Carlos", members: ["Carlos", "Javi"], phone: "(817) 555-0198", color: C.blue, status: "traveling", location: "En route to Magnolia" },
-  { id: "C", name: "Team Charlie", lead: "Danny", members: ["Danny", "Mike"], phone: "(817) 555-0231", color: C.green, status: "break", location: "Lunch break" },
+const METRICS = [
+  { label: 'Active Jobs', value: '12', icon: HardHat, color: 'text-accent', bg: 'bg-accent/10' },
+  { label: 'Inspections', value: '3', icon: Calendar, color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
+  { label: 'Overdue', value: '2', icon: AlertTriangle, color: 'text-accent-red', bg: 'bg-accent-red/10' },
+  { label: 'Revenue', value: '$47.2K', icon: DollarSign, color: 'text-accent-green', bg: 'bg-accent-green/10' },
+  { label: 'Pipeline', value: '8', icon: TrendingUp, color: 'text-accent-amber', bg: 'bg-accent-amber/10' },
 ];
 
-const FLAGS = {
-  material: { label: "Material Hold", icon: "📦", color: C.orange, urgency: "medium" },
-  inspection: { label: "Inspection", icon: "🔍", color: C.purple, urgency: "high" },
-  weather: { label: "Weather Risk", icon: "⛈", color: C.blue, urgency: "medium" },
-  change: { label: "Change Order", icon: "📝", color: C.red, urgency: "high" },
-  permit: { label: "Permit Issue", icon: "📋", color: C.pink, urgency: "high" },
-};
-
-const WEATHER_FALLBACK = [
-  { day: "Wed", dt: 18, hi: 62, lo: 41, icon: "☀️", precip: 0, forecast: "Sunny" },
-  { day: "Thu", dt: 19, hi: 58, lo: 38, icon: "⛅", precip: 10, forecast: "Partly Cloudy" },
-  { day: "Fri", dt: 20, hi: 52, lo: 34, icon: "🌧️", precip: 80, forecast: "Rain" },
-  { day: "Sat", dt: 21, hi: 48, lo: 30, icon: "🌧️", precip: 60, forecast: "Showers" },
-  { day: "Sun", dt: 22, hi: 55, lo: 33, icon: "⛅", precip: 15, forecast: "Partly Cloudy" },
-  { day: "Mon", dt: 23, hi: 64, lo: 42, icon: "☀️", precip: 0, forecast: "Sunny" },
-  { day: "Tue", dt: 24, hi: 68, lo: 45, icon: "☀️", precip: 0, forecast: "Sunny" },
+const FOCUS_ITEMS = [
+  { job: MOCK_JOBS[2], reason: 'Overdue 12 days', reasonColor: 'text-accent-red' },
+  { job: MOCK_JOBS[6], reason: 'Overdue 9 days', reasonColor: 'text-accent-red' },
+  { job: MOCK_JOBS[1], reason: 'Inspection today', reasonColor: 'text-accent-amber' },
+  { job: MOCK_JOBS[4], reason: 'Due today', reasonColor: 'text-accent-amber' },
 ];
 
-/* -- HELPERS -- */
-const fmt$ = (n) => "$" + n.toLocaleString();
-const phaseMeta = (id) => PHASES.find((p) => p.id === id) || PHASES[0];
-const crewMeta = (id) => CREWS.find((c) => c.id === id) || CREWS[0];
-const dayDiff = (d, ref) => {
-  const today = ref || new Date().toISOString().split("T")[0];
-  const a = new Date(d + "T00:00:00"),
-    b = new Date(today + "T00:00:00");
-  return Math.round((a - b) / 864e5);
-};
-const schedLabel = (d, ref) => {
-  const diff = dayDiff(d, ref);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff < 0) return `${Math.abs(diff)}d ago`;
-  return `In ${diff}d`;
-};
+const PHASE_TABS = [
+  { key: 'all', label: 'All', color: '#3B82F6' },
+  ...PHASES,
+];
 
-/* ================================================================
-   SUB-COMPONENTS
-   ================================================================ */
+/* ────────────────────────────────────────────────
+   Component
+   ──────────────────────────────────────────────── */
+export default function JobPulseHome({ jobs = MOCK_JOBS, onJobClick }) {
+  const [activePhase, setActivePhase] = useState('all');
 
-const Badge = ({ text, color, icon, size = "sm" }) => {
-  const sizes = {
-    sm: { padding: "2px 7px", fontSize: 9, iconSize: 10 },
-    md: { padding: "4px 10px", fontSize: 10, iconSize: 12 },
-    lg: { padding: "6px 14px", fontSize: 11, iconSize: 14 },
-  };
-  const s = sizes[size];
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: s.padding,
-        fontSize: s.fontSize,
-        fontFamily: FN,
-        fontWeight: 600,
-        color,
-        background: color + "14",
-        border: `1px solid ${color}30`,
-        borderRadius: 4,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {icon && <span style={{ fontSize: s.iconSize }}>{icon}</span>}
-      {text}
-    </span>
+  const filteredJobs = useMemo(
+    () => activePhase === 'all' ? jobs : jobs.filter(j => j.phase === activePhase),
+    [jobs, activePhase],
   );
-};
 
-const ProgressRing = ({ value, color = C.accent, size = 48, stroke = 4 }) => {
-  const radius = (size - stroke) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
-  return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={C.faint} strokeWidth={stroke} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 0.5s ease" }}
-      />
-    </svg>
-  );
-};
-
-const ProgressBar = ({ value, color = C.accent, h = 4, animated = false }) => (
-  <div style={{ width: "100%", height: h, background: C.faint, borderRadius: h, overflow: "hidden" }}>
-    <div
-      style={{
-        width: `${Math.min(100, Math.max(0, value))}%`,
-        height: "100%",
-        background: `linear-gradient(90deg,${color}88,${color})`,
-        borderRadius: h,
-        transition: animated ? "width 1s ease-out" : "width 0.3s ease",
-      }}
-    />
-  </div>
-);
-
-const QuickAction = ({ icon, label, onClick, color = C.accent, badge = null }) => (
-  <button
-    onClick={onClick}
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 6,
-      padding: "12px 8px",
-      background: C.bgCard,
-      border: `1px solid ${C.border}`,
-      borderRadius: 12,
-      cursor: "pointer",
-      transition: "all 0.15s",
-      position: "relative",
-      minWidth: 72,
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.borderColor = color + "50";
-      e.currentTarget.style.background = color + "08";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.borderColor = C.border;
-      e.currentTarget.style.background = C.bgCard;
-    }}
-  >
-    <span style={{ fontSize: 24 }}>{icon}</span>
-    <span
-      style={{
-        fontFamily: FN,
-        fontSize: 9,
-        fontWeight: 600,
-        color: C.sub,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-      }}
-    >
-      {label}
-    </span>
-    {badge && (
-      <div
-        style={{
-          position: "absolute",
-          top: -6,
-          right: -6,
-          minWidth: 18,
-          height: 18,
-          borderRadius: 9,
-          background: C.red,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: FN,
-          fontSize: 9,
-          fontWeight: 700,
-          color: "#fff",
-          padding: "0 5px",
-        }}
-      >
-        {badge}
-      </div>
-    )}
-  </button>
-);
-
-const AlertCard = ({ type, title, message, action, onAction, time }) => {
-  const config = {
-    urgent: { color: C.red, bg: C.redBg, icon: "🚨" },
-    warning: { color: C.orange, bg: "rgba(251,146,60,.08)", icon: "⚠️" },
-    info: { color: C.blue, bg: C.blueBg, icon: "ℹ️" },
-    success: { color: C.green, bg: C.greenBg, icon: "✅" },
-  }[type] || config.info;
+  const phaseCounts = useMemo(() => {
+    const counts = { all: jobs.length };
+    for (const p of PHASES) counts[p.key] = 0;
+    for (const j of jobs) if (counts[j.phase] !== undefined) counts[j.phase]++;
+    return counts;
+  }, [jobs]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        padding: "12px 14px",
-        background: config.bg,
-        border: `1px solid ${config.color}20`,
-        borderRadius: 10,
-        borderLeft: `3px solid ${config.color}`,
-      }}
-    >
-      <span style={{ fontSize: 18 }}>{config.icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
-          <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: C.text }}>{title}</span>
-          {time && (
-            <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>{time}</span>
-          )}
-        </div>
-        <p style={{ fontFamily: FS, fontSize: 11, color: C.sub, lineHeight: 1.4, margin: 0 }}>{message}</p>
-        {action && (
-          <button
-            onClick={onAction}
-            style={{
-              marginTop: 8,
-              padding: "4px 10px",
-              background: config.color + "15",
-              border: `1px solid ${config.color}30`,
-              borderRadius: 6,
-              fontFamily: FN,
-              fontSize: 9,
-              fontWeight: 600,
-              color: config.color,
-              cursor: "pointer",
-              textTransform: "uppercase",
-            }}
-          >
-            {action}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const CrewStatusCard = ({ crew }) => {
-  const statusColors = {
-    "on-site": C.green,
-    traveling: C.blue,
-    break: C.orange,
-    off: C.dim,
-  };
-  const statusIcons = {
-    "on-site": "🔨",
-    traveling: "🚚",
-    break: "☕",
-    off: "😴",
-  };
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 12px",
-        background: C.bgCard,
-        border: `1px solid ${C.border}`,
-        borderRadius: 10,
-      }}
-    >
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          background: crew.color + "15",
-          border: `2px solid ${crew.color}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: FN,
-          fontSize: 14,
-          fontWeight: 700,
-          color: crew.color,
-        }}
-      >
-        {crew.id}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-          <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: C.text }}>{crew.name}</span>
-          <span style={{ fontFamily: FN, fontSize: 8, color: statusColors[crew.status], textTransform: "uppercase" }}>
-            {statusIcons[crew.status]} {crew.status}
-          </span>
-        </div>
-        <span style={{ fontFamily: FN, fontSize: 9, color: C.mid, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {crew.location}
-        </span>
-      </div>
-      <a
-        href={`tel:${crew.phone}`}
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          background: C.green + "15",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 12,
-          textDecoration: "none",
-        }}
-      >
-        📞
-      </a>
-    </div>
-  );
-};
-
-const WeatherMini = ({ weather, isLoading }) => {
-  if (isLoading) {
-    return (
-      <div style={{ display: "flex", gap: 8, padding: "10px 0" }}>
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              height: 60,
-              borderRadius: 8,
-              background: C.faint,
-              animation: "pulse 1.5s ease infinite",
-              animationDelay: `${i * 100}ms`,
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  const today = new Date().toISOString().split("T")[0];
-
-  return (
-    <div style={{ display: "flex", gap: 6, overflow: "auto", padding: "2px 0" }}>
-      {weather.slice(0, 5).map((w, i) => {
-        const risky = w.precip >= 60;
-        const isToday = i === 0;
-        return (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              minWidth: 56,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 3,
-              padding: "8px 4px",
-              borderRadius: 10,
-              background: isToday ? C.accentBg : risky ? C.redBg : "transparent",
-              border: isToday ? `1px solid ${C.accent}30` : risky ? `1px solid ${C.red}20` : `1px solid ${C.border}`,
-            }}
-          >
-            <span style={{ fontFamily: FN, fontSize: 8, color: isToday ? C.accent : C.dim, fontWeight: isToday ? 700 : 400 }}>
-              {isToday ? "Today" : w.day}
-            </span>
-            <span style={{ fontSize: 20 }}>{w.icon}</span>
-            <span style={{ fontFamily: FN, fontSize: 10, fontWeight: 700, color: C.text }}>{w.hi}°</span>
-            {w.precip > 0 && (
-              <span style={{ fontFamily: FN, fontSize: 7, color: risky ? C.red : C.blue }}>{w.precip}%</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const PriorityJobCard = ({ job, onClick }) => {
-  const ph = phaseMeta(job.phase);
-  const cr = crewMeta(job.crew);
-  const fl = job.flag ? FLAGS[job.flag] : null;
-  const isToday = job.sched === new Date().toISOString().split("T")[0];
-  const isOverdue = dayDiff(job.sched) < 0;
-
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px",
-        background: C.bgCard,
-        border: `1px solid ${isToday ? ph.color + "40" : isOverdue ? C.red + "40" : C.border}`,
-        borderRadius: 12,
-        borderLeft: `4px solid ${isOverdue ? C.red : ph.color}`,
-        cursor: "pointer",
-        transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = C.bgCardHi;
-        e.currentTarget.style.transform = "translateX(4px)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = C.bgCard;
-        e.currentTarget.style.transform = "translateX(0)";
-      }}
-    >
-      <div style={{ position: "relative" }}>
-        <ProgressRing value={job.progress} color={ph.color} size={44} stroke={3} />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: FN,
-            fontSize: 11,
-            fontWeight: 700,
-            color: ph.color,
-          }}
-        >
-          {job.progress}%
-        </div>
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <span
-            style={{
-              fontFamily: FS,
-              fontSize: 14,
-              fontWeight: 700,
-              color: C.text,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {job.addr}
-          </span>
-          {fl && <span style={{ fontSize: 14 }} title={fl.label}>{fl.icon}</span>}
-          {isOverdue && <Badge text="OVERDUE" color={C.red} size="sm" />}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <Badge text={`${ph.icon} ${ph.sh}`} color={ph.color} size="sm" />
-          <span style={{ fontFamily: FN, fontSize: 9, color: cr.color }}>{cr.lead}</span>
-          <span style={{ fontFamily: FN, fontSize: 9, color: C.green, fontWeight: 600 }}>{fmt$(job.est)}</span>
-          <span
-            style={{
-              fontFamily: FN,
-              fontSize: 9,
-              color: isToday ? C.accent : isOverdue ? C.red : C.dim,
-              fontWeight: isToday || isOverdue ? 700 : 400,
-            }}
-          >
-            {isToday ? "📅 TODAY" : schedLabel(job.sched)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
-
-export default function JobPulseHome({ jobs, messages, weather, weatherLoading, dashStats, onJobSelect, onNavChange }) {
-  const today = new Date().toISOString().split("T")[0];
-
-  // Computed data
-  const todayJobs = useMemo(() => jobs.filter((j) => j.sched === today), [jobs, today]);
-  const overdueJobs = useMemo(() => jobs.filter((j) => dayDiff(j.sched) < 0 && j.progress < 100), [jobs]);
-  const flaggedJobs = useMemo(() => jobs.filter((j) => j.flag), [jobs]);
-  const unreadMsgs = useMemo(() => messages.filter((m) => !m.read), [messages]);
-  const pipeline = dashStats?.pipelineValue || jobs.reduce((s, j) => s + j.est, 0);
-
-  // Priority sorting for job list
-  const priorityJobs = useMemo(() => {
-    return [...jobs]
-      .sort((a, b) => {
-        // Sort: Overdue > Today > Flagged > Others
-        const aOverdue = dayDiff(a.sched) < 0 ? 3 : 0;
-        const bOverdue = dayDiff(b.sched) < 0 ? 3 : 0;
-        const aToday = a.sched === today ? 2 : 0;
-        const bToday = b.sched === today ? 2 : 0;
-        const aFlag = a.flag ? 1 : 0;
-        const bFlag = b.flag ? 1 : 0;
-        return bOverdue + bToday + bFlag - (aOverdue + aToday + aFlag);
-      })
-      .slice(0, 5);
-  }, [jobs, today]);
-
-  // Generate smart alerts
-  const alerts = useMemo(() => {
-    const list = [];
-    if (overdueJobs.length > 0) {
-      list.push({
-        type: "urgent",
-        title: `${overdueJobs.length} Overdue Job${overdueJobs.length > 1 ? "s" : ""}`,
-        message: overdueJobs.map((j) => j.addr).join(", "),
-        action: "View All",
-        onAction: () => onNavChange("jobs"),
-      });
-    }
-    if (flaggedJobs.some((j) => j.flag === "inspection")) {
-      list.push({
-        type: "warning",
-        title: "Inspection Required",
-        message: `${flaggedJobs.filter((j) => j.flag === "inspection").length} job(s) waiting for inspection`,
-        action: "Schedule",
-      });
-    }
-    if (flaggedJobs.some((j) => j.flag === "material")) {
-      list.push({
-        type: "info",
-        title: "Material Hold",
-        message: "Parts on order for " + flaggedJobs.find((j) => j.flag === "material")?.addr,
-        action: "Check Status",
-      });
-    }
-    if (weather?.[0]?.precip >= 60) {
-      list.push({
-        type: "warning",
-        title: "Weather Alert",
-        message: `${weather[0].precip}% chance of rain today. Consider rescheduling outdoor work.`,
-      });
-    }
-    return list;
-  }, [overdueJobs, flaggedJobs, weather, onNavChange]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "16px", paddingBottom: 100 }}>
-      {/* Smart Alerts */}
-      {alerts.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {alerts.map((alert, i) => (
-            <AlertCard key={i} {...alert} />
-          ))}
-        </div>
-      )}
-
-      {/* Quick Actions Dock */}
-      <div>
-        <span
-          style={{
-            fontFamily: FN,
-            fontSize: 10,
-            fontWeight: 700,
-            color: C.dim,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 10,
-            display: "block",
-          }}
-        >
-          Quick Actions
-        </span>
-        <div style={{ display: "flex", gap: 10, overflow: "auto", padding: "2px 0" }}>
-          <QuickAction icon="➕" label="New Job" onClick={() => {}} />
-          <QuickAction icon="📋" label="Schedule" onClick={() => onNavChange("jobs")} />
-          <QuickAction icon="💬" label="Messages" onClick={() => onNavChange("msgs")} badge={unreadMsgs.length > 0 ? unreadMsgs.length : null} />
-          <QuickAction icon="📊" label="Reports" onClick={() => onNavChange("money")} />
-          <QuickAction icon="👥" label="Crews" onClick={() => {}} />
-          <QuickAction icon="⚙️" label="Settings" onClick={() => {}} />
-        </div>
-      </div>
-
-      {/* Weather */}
-      <div
-        style={{
-          padding: "14px",
-          background: C.bgCard,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span
-            style={{
-              fontFamily: FN,
-              fontSize: 10,
-              fontWeight: 700,
-              color: C.dim,
-              textTransform: "uppercase",
-              letterSpacing: 1,
-            }}
-          >
-            🌤️ Weather Forecast
-          </span>
-          {weather !== undefined && weather[0]?.forecast && (
-            <span style={{ fontFamily: FN, fontSize: 9, color: C.sub }}>{weather[0].forecast}</span>
-          )}
-        </div>
-        <WeatherMini weather={weather || WEATHER_FALLBACK} isLoading={weatherLoading} />
-      </div>
-
-      {/* Stats Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-        {[
-          { label: "Today", value: todayJobs.length, sub: "jobs scheduled", color: C.accent, icon: "📅" },
-          { label: "Pipeline", value: fmt$(pipeline), sub: "total value", color: C.green, icon: "💰" },
-          { label: "Unread", value: unreadMsgs.length, sub: "messages", color: C.blue, icon: "✉️" },
-          { label: "Flagged", value: flaggedJobs.length, sub: "need attention", color: C.orange, icon: "🚩" },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            style={{
-              padding: "12px 8px",
-              background: C.bgCard,
-              border: `1px solid ${C.border}`,
-              borderRadius: 10,
-              textAlign: "center",
-              transition: "all 0.15s",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = stat.color + "40";
-              e.currentTarget.style.background = stat.color + "08";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = C.border;
-              e.currentTarget.style.background = C.bgCard;
-            }}
-            onClick={() => {
-              if (stat.label === "Today" || stat.label === "Flagged") onNavChange("jobs");
-              if (stat.label === "Unread") onNavChange("msgs");
-              if (stat.label === "Pipeline") onNavChange("money");
-            }}
-          >
-            <div style={{ fontSize: 16, marginBottom: 4 }}>{stat.icon}</div>
-            <div style={{ fontFamily: FN, fontSize: 16, fontWeight: 800, color: stat.color, lineHeight: 1 }}>
-              {stat.value}
-            </div>
-            <div style={{ fontFamily: FN, fontSize: 7, color: C.dim, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 4 }}>
-              {stat.label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Priority Jobs */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span
-            style={{
-              fontFamily: FN,
-              fontSize: 10,
-              fontWeight: 700,
-              color: C.dim,
-              textTransform: "uppercase",
-              letterSpacing: 1,
-            }}
-          >
-            ⚡ Priority Jobs
-          </span>
-          <button
-            onClick={() => onNavChange("jobs")}
-            style={{
-              fontFamily: FN,
-              fontSize: 9,
-              color: C.accent,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            View All →
-          </button>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {priorityJobs.length > 0 ? (
-            priorityJobs.map((job) => <PriorityJobCard key={job.id} job={job} onClick={() => onJobSelect(job)} />)
-          ) : (
+    <div className="space-y-6">
+      {/* ── 1. METRICS STRIP ─────────────────────── */}
+      <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
+        <div className="flex gap-3 w-max">
+          {METRICS.map(m => (
             <div
-              style={{
-                textAlign: "center",
-                padding: 40,
-                fontFamily: FN,
-                fontSize: 11,
-                color: C.dim,
-                background: C.bgCard,
-                borderRadius: 12,
-                border: `1px solid ${C.border}`,
-              }}
+              key={m.label}
+              className="snap-start flex-shrink-0 w-[140px] rounded-xl border border-border bg-surface-card p-3.5 transition-colors hover:border-border-strong"
             >
-              No jobs scheduled
+              <div className={`${m.bg} ${m.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}>
+                <m.icon size={18} />
+              </div>
+              <p className="font-mono text-2xl font-extrabold tabular-nums text-text-primary leading-none">
+                {m.value}
+              </p>
+              <p className="text-xs text-text-muted mt-1 truncate">{m.label}</p>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Crew Status */}
-      <div>
-        <span
-          style={{
-            fontFamily: FN,
-            fontSize: 10,
-            fontWeight: 700,
-            color: C.dim,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 10,
-            display: "block",
-          }}
-        >
-          👥 Crew Status
-        </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {CREWS.map((crew) => (
-            <CrewStatusCard key={crew.id} crew={crew} />
           ))}
         </div>
       </div>
 
-      {/* Recent Messages Preview */}
-      {unreadMsgs.length > 0 && (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span
-              style={{
-                fontFamily: FN,
-                fontSize: 10,
-                fontWeight: 700,
-                color: C.dim,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              💬 Recent Messages
-            </span>
-            <button
-              onClick={() => onNavChange("msgs")}
-              style={{
-                fontFamily: FN,
-                fontSize: 9,
-                color: C.accent,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              Inbox →
-            </button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {unreadMsgs.slice(0, 3).map((m) => (
-              <div
-                key={m.id}
-                onClick={() => onNavChange("msgs")}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  padding: "10px 12px",
-                  background: C.bgCardHi,
-                  border: `1px solid ${C.borderHi}`,
-                  borderRadius: 10,
-                  borderLeft: `3px solid ${m.type === "sms" ? C.green : C.blue}`,
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: m.type === "sms" ? C.green + "15" : C.blue + "15",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 14,
-                    flexShrink: 0,
-                  }}
-                >
-                  {m.type === "sms" ? "📱" : "✉️"}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                    <span style={{ fontFamily: FS, fontSize: 12, fontWeight: 700, color: C.text }}>{m.from}</span>
-                    <span style={{ fontFamily: FN, fontSize: 8, color: C.dim }}>{m.time}</span>
-                  </div>
-                  <div style={{ fontFamily: FS, fontSize: 11, color: C.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {m.preview}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* ── 2. TODAY'S FOCUS ──────────────────────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Target size={18} className="text-accent-amber" />
+          <h2 className="text-label font-bold text-text-primary">Today's Focus</h2>
         </div>
-      )}
 
-      {/* Phase Pipeline */}
-      <div
-        style={{
-          padding: "14px",
-          background: C.bgCard,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: FN,
-            fontSize: 10,
-            fontWeight: 700,
-            color: C.dim,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 12,
-            display: "block",
-          }}
-        >
-          🔄 Pipeline by Phase
-        </span>
-        <div style={{ display: "flex", gap: 8 }}>
-          {PHASES.map((p) => {
-            const count = jobs.filter((j) => j.phase === p.id).length;
-            const maxC = Math.max(...PHASES.map((ph) => jobs.filter((j) => j.phase === ph.id).length), 1);
+        <div className="space-y-2">
+          {FOCUS_ITEMS.map(({ job, reason, reasonColor }) => {
+            const phase = PHASE_MAP[job.phase] || PHASES[0];
             return (
-              <div key={p.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                <span style={{ fontFamily: FN, fontSize: 16, fontWeight: 800, color: p.color }}>{count}</span>
-                <div
-                  style={{
-                    width: "100%",
-                    height: 40,
-                    borderRadius: 6,
-                    position: "relative",
-                    overflow: "hidden",
-                    background: C.faint,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: `${(count / maxC) * 100}%`,
-                      background: `linear-gradient(180deg,${p.color},${p.color}44)`,
-                      borderRadius: 6,
-                      transition: "height 0.5s ease",
-                      minHeight: count > 0 ? 4 : 0,
-                    }}
-                  />
-                </div>
-                <span style={{ fontFamily: FN, fontSize: 8, color: C.dim, textTransform: "uppercase" }}>{p.sh}</span>
-              </div>
+              <button
+                key={job.id}
+                type="button"
+                onClick={() => onJobClick?.(job)}
+                className="w-full flex items-center gap-3 rounded-lg border border-border bg-surface-card h-14 px-3 text-left transition-colors hover:border-border-strong active:scale-[0.99]"
+              >
+                <span
+                  className="w-[3px] self-stretch rounded-full flex-shrink-0"
+                  style={{ backgroundColor: phase.color }}
+                />
+                <span className="flex-1 min-w-0">
+                  <p className="text-sm text-text-primary truncate">{job.address}</p>
+                  <p className="text-xs text-text-muted truncate">{job.city}, TX {job.zip}</p>
+                </span>
+                <span className={`text-xs font-semibold flex-shrink-0 ${reasonColor}`}>
+                  {reason}
+                </span>
+              </button>
             );
           })}
         </div>
-      </div>
+      </section>
+
+      {/* ── 3. PHASE TAB SWITCHER + JOB BOARD ─────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <LayoutDashboard size={18} className="text-accent" />
+          <h2 className="text-label font-bold text-text-primary">Job Board</h2>
+        </div>
+
+        {/* Tabs */}
+        <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4 mb-4">
+          <div className="flex gap-2 w-max">
+            {PHASE_TABS.map(tab => {
+              const isActive = activePhase === tab.key;
+              const count = phaseCounts[tab.key] ?? 0;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActivePhase(tab.key)}
+                  className={`snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+                    isActive
+                      ? 'bg-accent text-white'
+                      : 'text-text-secondary hover:bg-surface-elevated'
+                  }`}
+                >
+                  {tab.label}
+                  <span
+                    className={`font-mono text-xs tabular-nums px-1.5 py-0.5 rounded-md ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-surface-elevated text-text-muted'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Job cards grid */}
+        <div className="grid gap-3 stagger-container">
+          {filteredJobs.length > 0 ? (
+            filteredJobs.map(job => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onClick={() => onJobClick?.(job)}
+              />
+            ))
+          ) : (
+            <div className="rounded-xl border border-border bg-surface-card p-8 text-center">
+              <HardHat size={32} className="mx-auto text-text-muted mb-2" />
+              <p className="text-sm text-text-secondary">No jobs in this phase</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

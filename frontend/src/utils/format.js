@@ -53,6 +53,48 @@ export function formatRelativeTime(dateString) {
 /**
  * Format numbers with abbreviations (e.g., 1.2k, 3.5M)
  */
+/**
+ * Format relative time in short form (2h ago, 3d ago) — for outdoor readability
+ */
+export function formatRelativeShort(dateString) {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+
+    if (diffMin < 1) return 'now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDay < 7) return `${diffDay}d ago`;
+    if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
+    return `${Math.floor(diffDay / 30)}mo ago`;
+  } catch {
+    return dateString;
+  }
+}
+
+/**
+ * Format DFW address — street, city, zip (never state)
+ */
+export function formatDFWAddress(address, city, zip) {
+  return [address, city, zip].filter(Boolean).join(', ');
+}
+
+/**
+ * Generate Google/Apple Maps URL for a DFW address
+ */
+export function getMapsUrl(address, city, zip) {
+  const query = encodeURIComponent(formatDFWAddress(address, city, zip) + ', TX');
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  return isIOS
+    ? `maps://maps.apple.com/?q=${query}`
+    : `https://maps.google.com/?q=${query}`;
+}
+
 export function formatNumber(num, decimals = 1) {
   if (num === null || num === undefined) return 'N/A';
 

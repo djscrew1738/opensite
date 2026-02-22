@@ -68,17 +68,17 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
                       onClick={() => setSelectedCity(city.city)}
                       className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
                         selectedCity === city.city
-                          ? 'bg-copper-50 dark:bg-copper-950/20 ring-1 ring-copper-200 dark:ring-copper-800'
+                          ? 'bg-blue-50 dark:bg-copper-950/20 ring-1 ring-copper-200 dark:ring-blue-800'
                           : 'hover:bg-concrete-50 dark:hover:bg-surface-800'
                       }`}
                     >
                       <MapPin className={`w-4 h-4 shrink-0 ${
-                        selectedCity === city.city ? 'text-copper-500' : 'text-gray-400'
+                        selectedCity === city.city ? 'text-blue-500' : 'text-gray-400'
                       }`} />
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold truncate ${
                           selectedCity === city.city
-                            ? 'text-copper-700 dark:text-copper-400'
+                            ? 'text-blue-700 dark:text-blue-400'
                             : 'text-gray-900 dark:text-gray-100'
                         }`}>
                           {city.city}
@@ -91,7 +91,7 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
                         </div>
                       </div>
                       <ChevronRight className={`w-4 h-4 shrink-0 transition-colors ${
-                        selectedCity === city.city ? 'text-copper-400' : 'text-gray-300 dark:text-gray-600'
+                        selectedCity === city.city ? 'text-blue-400' : 'text-gray-300 dark:text-gray-600'
                       }`} />
                     </button>
                   ))}
@@ -100,7 +100,7 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
                 <div className="p-6 text-center">
                   <p className="text-sm text-gray-500">No cities found</p>
                   {citySearch && (
-                    <button onClick={() => setCitySearch('')} className="text-xs text-copper-500 mt-1 hover:underline">
+                    <button onClick={() => setCitySearch('')} className="text-xs text-blue-500 mt-1 hover:underline">
                       Clear filter
                     </button>
                   )}

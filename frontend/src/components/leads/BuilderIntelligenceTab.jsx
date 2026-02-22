@@ -91,7 +91,7 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
                 onClick={() => setTrendFilter(f.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   trendFilter === f.key
-                    ? 'bg-copper-100 dark:bg-copper-950/30 text-copper-700 dark:text-copper-400'
+                    ? 'bg-blue-100 dark:bg-copper-950/30 text-blue-700 dark:text-blue-400'
                     : 'bg-concrete-100 dark:bg-surface-800 text-gray-500 dark:text-gray-400 hover:bg-concrete-200 dark:hover:bg-surface-700'
                 }`}
               >
@@ -108,7 +108,7 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
                 onClick={() => setPlumberFilter(f.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   plumberFilter === f.key
-                    ? 'bg-copper-100 dark:bg-copper-950/30 text-copper-700 dark:text-copper-400'
+                    ? 'bg-blue-100 dark:bg-copper-950/30 text-blue-700 dark:text-blue-400'
                     : 'bg-concrete-100 dark:bg-surface-800 text-gray-500 dark:text-gray-400 hover:bg-concrete-200 dark:hover:bg-surface-700'
                 }`}
               >
@@ -121,9 +121,9 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
 
       {/* Prospects Banner */}
       {prospects.length > 0 && !builderSearch && !trendFilter && plumberFilter !== 'true' && (
-        <div className="card border-l-4 border-l-copper-500">
+        <div className="card border-l-4 border-l-blue-500">
           <div className="card-body p-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-copper-600 dark:text-copper-400 mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-3">
               Top Prospects — Builders Without Plumbers
             </h3>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -131,7 +131,7 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
                 <button
                   key={p.id}
                   onClick={() => setSelectedBuilderId(p.id)}
-                  className="shrink-0 px-3 py-2 rounded-xl bg-copper-50 dark:bg-copper-950/20 hover:bg-copper-100 dark:hover:bg-copper-950/30 transition-colors text-left"
+                  className="shrink-0 px-3 py-2 rounded-xl bg-blue-50 dark:bg-copper-950/20 hover:bg-blue-100 dark:hover:bg-copper-950/30 transition-colors text-left"
                 >
                   <p className="text-sm font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">{p.name || p.company}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{p.totalPermits || 0} permits · {p.activityTrend}</p>

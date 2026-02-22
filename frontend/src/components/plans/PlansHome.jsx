@@ -1,33 +1,69 @@
-import { useState, useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { 
   Calculator, FileText, TrendingUp, Clock, CheckCircle2, AlertCircle,
   Sparkles, Zap, Download, History, Plus, ChevronRight, BarChart3,
-  Wallet, Home, Building2, ArrowRight, RotateCcw, Save, Brain,
-  Droplets, UtensilsCrossed, Bath, Flame
+  Wallet, Home, Building2, ArrowRight, Brain
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 import { FIXTURE_PRICE, QUALIFYING_FIXTURES, PHASE_CONFIG } from './constants';
 
 /* ================================================================
-   PLANS HOME v2 - Enhanced Estimate Command Center
-   - Smart alerts & validation warnings
-   - Quick action dock
-   - Visual stats dashboard
-   - Recent estimates
-   - Quick-start templates
-   - AI insights
+   PLANS HOME v3 - Optimized Performance Edition
+   - Moved static data outside component
+   - Memoized all child components
+   - Removed unused code
+   - Optimized alert computation
    ================================================================ */
 
-const FIXTURE_ICONS = {
-  lavatories: Droplets,
-  kitchenFaucets: UtensilsCrossed,
-  toilets: Bath,
-  waterHeaters: Flame,
-};
+// --- Static Data (defined outside component to prevent re-creation) ---
 
-/* -- COMPONENTS -- */
+const RECENT_ESTIMATES = [
+  { id: 1, projectName: 'Horizon Homes - Building A', total: 89550, fixtureCount: 90, createdAt: new Date().toISOString(), hasAnalysis: true },
+  { id: 2, projectName: 'Summit Plaza Renovation', total: 44775, fixtureCount: 45, createdAt: new Date(Date.now() - 86400000).toISOString(), hasAnalysis: false },
+  { id: 3, projectName: 'Downtown Office Complex', total: 199000, fixtureCount: 200, createdAt: new Date(Date.now() - 172800000).toISOString(), hasAnalysis: true },
+];
 
-const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', badge = null, disabled = false, description }) => (
+const TEMPLATES = [
+  {
+    title: 'Single Family Home',
+    description: '3 bed, 2 bath typical residential',
+    fixtures: QUALIFYING_FIXTURES.slice(0, 4),
+    color: '#3b82f6',
+    defaults: { lavatories: 3, kitchenFaucets: 2, toilets: 3, showerBases: 2, tubs: 1, waterHeaters: 1 },
+  },
+  {
+    title: 'Small Apartment',
+    description: '1 bed, 1 bath unit',
+    fixtures: QUALIFYING_FIXTURES.slice(0, 3),
+    color: '#10b981',
+    defaults: { lavatories: 1, kitchenFaucets: 1, toilets: 1, showerBases: 1, waterHeaters: 1 },
+  },
+  {
+    title: 'Commercial Office',
+    description: 'Multi-floor office building',
+    fixtures: QUALIFYING_FIXTURES.slice(0, 5),
+    color: '#8b5cf6',
+    defaults: { lavatories: 8, kitchenFaucets: 2, toilets: 8, waterSoftenerPreplumb: 1, waterHeaters: 2 },
+  },
+];
+
+const RECENT_ACTIVITY = [
+  { icon: CheckCircle2, text: 'Estimate saved: Horizon Homes', time: '10m ago', type: 'success' },
+  { icon: Sparkles, text: 'AI analysis completed', time: '25m ago', type: 'info' },
+  { icon: Download, text: 'CSV export downloaded', time: '1h ago', type: 'neutral' },
+  { icon: Calculator, text: 'New estimate created', time: '2h ago', type: 'neutral' },
+];
+
+const AI_FEATURES = [
+  { icon: Building2, label: 'Cost Optimization', desc: 'Find savings' },
+  { icon: TrendingUp, label: 'Price Trends', desc: 'Market analysis' },
+  { icon: CheckCircle2, label: 'Validation', desc: 'Accuracy check' },
+  { icon: FileText, label: 'Reports', desc: 'Detailed docs' },
+];
+
+// --- Memoized Child Components ---
+
+const QuickAction = memo(({ icon: Icon, label, onClick, color = 'text-accent-600', badge = null, disabled = false, description }) => (
   <button
     onClick={onClick}
     disabled={disabled}
@@ -46,9 +82,9 @@ const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', ba
     <span className="text-xs font-medium text-surface-600 dark:text-surface-400">{label}</span>
     {description && <span className="text-[10px] text-surface-400">{description}</span>}
   </button>
-);
+));
 
-const AlertCard = ({ type, title, message, action, onAction, count }) => {
+const AlertCard = memo(({ type, title, message, action, onAction, count }) => {
   const styles = {
     urgent: { border: 'border-red-300', bg: 'bg-red-50/80', icon: AlertCircle, iconColor: 'text-red-500' },
     warning: { border: 'border-amber-300', bg: 'bg-amber-50/80', icon: Clock, iconColor: 'text-amber-500' },
@@ -81,9 +117,9 @@ const AlertCard = ({ type, title, message, action, onAction, count }) => {
       </div>
     </div>
   );
-};
+});
 
-const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600', trend = null, onClick }) => (
+const StatCard = memo(({ label, value, subtext, icon: Icon, color = 'text-accent-600', trend = null, onClick }) => (
   <div 
     onClick={onClick}
     className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 transition-all cursor-pointer group"
@@ -102,9 +138,9 @@ const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600'
     <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">{label}</div>
     {subtext && <div className="text-xs text-surface-400 mt-1">{subtext}</div>}
   </div>
-);
+));
 
-const RecentEstimateRow = ({ estimate, onClick }) => {
+const RecentEstimateRow = memo(({ estimate, onClick }) => {
   const total = estimate.total || 0;
   const fixtureCount = estimate.fixtureCount || 0;
   const date = new Date(estimate.createdAt || Date.now());
@@ -115,12 +151,10 @@ const RecentEstimateRow = ({ estimate, onClick }) => {
       onClick={onClick}
       className="flex items-center gap-4 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 hover:shadow-md transition-all cursor-pointer group"
     >
-      {/* Icon */}
       <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
         <Calculator className="w-6 h-6 text-primary-600" />
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <h4 className="font-semibold text-surface-900 dark:text-surface-100 truncate">
@@ -137,7 +171,6 @@ const RecentEstimateRow = ({ estimate, onClick }) => {
         </p>
       </div>
 
-      {/* Value & Date */}
       <div className="text-right">
         <p className="text-lg font-bold text-surface-900">{formatCurrency(total)}</p>
         <p className="text-xs text-surface-400">
@@ -145,33 +178,28 @@ const RecentEstimateRow = ({ estimate, onClick }) => {
         </p>
       </div>
 
-      {/* Arrow */}
       <ChevronRight className="w-5 h-5 text-surface-300 group-hover:text-accent-500 transition-colors" />
     </div>
   );
-};
+});
 
-const TemplateCard = ({ title, description, fixtures, onClick, color }) => {
-  const Icon = fixtures[0]?.icon || Calculator;
-  
-  return (
-    <button
-      onClick={onClick}
-      className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 hover:shadow-md transition-all text-left group"
-    >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3`} style={{ backgroundColor: `${color}15` }}>
-        <Icon className="w-5 h-5" style={{ color }} />
-      </div>
-      <h4 className="font-semibold text-surface-900 dark:text-surface-100 text-sm mb-1">{title}</h4>
-      <p className="text-xs text-surface-500 dark:text-surface-400 mb-3">{description}</p>
-      <div className="flex items-center gap-1 text-xs text-accent-600 font-medium">
-        Use Template <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-      </div>
-    </button>
-  );
-};
+const TemplateCard = memo(({ title, description, color, onClick }) => (
+  <button
+    onClick={onClick}
+    className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 hover:shadow-md transition-all text-left group"
+  >
+    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: `${color}15` }}>
+      <Home className="w-5 h-5" style={{ color }} />
+    </div>
+    <h4 className="font-semibold text-surface-900 dark:text-surface-100 text-sm mb-1">{title}</h4>
+    <p className="text-xs text-surface-500 dark:text-surface-400 mb-3">{description}</p>
+    <div className="flex items-center gap-1 text-xs text-accent-600 font-medium">
+      Use Template <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+    </div>
+  </button>
+));
 
-const ActivityItem = ({ icon: Icon, text, time, type = 'neutral' }) => {
+const ActivityItem = memo(({ icon: Icon, text, time, type = 'neutral' }) => {
   const colors = {
     neutral: 'text-surface-400',
     success: 'text-emerald-500',
@@ -189,36 +217,97 @@ const ActivityItem = ({ icon: Icon, text, time, type = 'neutral' }) => {
       <span className="text-xs text-surface-400 whitespace-nowrap">{time}</span>
     </div>
   );
-};
+});
 
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
+const PhaseDistribution = memo(({ totalValue, hasFixtures }) => (
+  <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
+    <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
+      <BarChart3 className="w-4 h-4 text-surface-400" />
+      Phase Distribution
+    </h3>
+    <div className="space-y-4">
+      {PHASE_CONFIG.map((phase) => {
+        const amount = Math.round(totalValue * phase.pct / 100);
+        return (
+          <div key={phase.key}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: phase.color }} />
+                {phase.label}
+              </span>
+              <span className="text-sm font-bold text-surface-900">
+                {hasFixtures ? formatCurrency(amount) : '--'}
+              </span>
+            </div>
+            <div className="h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: hasFixtures ? `${phase.pct}%` : '0%', backgroundColor: phase.color }}
+              />
+            </div>
+            <p className="text-xs text-surface-400 mt-1">{phase.pct}% of total</p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+));
 
-export default function PlansHome({ 
+const RecentActivity = memo(() => (
+  <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
+    <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
+      <Clock className="w-4 h-4 text-surface-400" />
+      Recent Activity
+    </h3>
+    <div className="space-y-1">
+      {RECENT_ACTIVITY.map((activity, i) => (
+        <ActivityItem key={i} {...activity} />
+      ))}
+    </div>
+  </div>
+));
+
+const AICapabilities = memo(() => (
+  <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-gradient-to-br from-violet-50 to-blue-50 dark:from-violet-900/10 dark:to-blue-900/10">
+    <div className="flex items-center gap-3 mb-4">
+      <div className="p-2 rounded-xl bg-violet-500 text-white">
+        <Sparkles className="w-5 h-5" />
+      </div>
+      <div>
+        <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100">AI-Powered Analysis</h3>
+        <p className="text-xs text-surface-500">Smart insights for better estimates</p>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {AI_FEATURES.map((feature) => (
+        <div key={feature.label} className="p-3 rounded-lg bg-white/80 dark:bg-surface-800/80 text-center">
+          <feature.icon className="w-5 h-5 text-violet-500 mx-auto mb-2" />
+          <p className="text-xs font-semibold text-surface-800">{feature.label}</p>
+          <p className="text-[10px] text-surface-500">{feature.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+));
+
+// --- Main Component ---
+
+function PlansHome({ 
   fixtures = {},
   projectInfo = {},
   estimate = null,
+  totalFixtures,
+  totalValue,
   onNewEstimate,
   onLoadEstimate,
   onContinueEditing,
   onQuickAddFixture,
-  isLoading = false
 }) {
-  // Mock recent estimates (would come from API)
-  const recentEstimates = [
-    { id: 1, projectName: 'Horizon Homes - Building A', total: 89550, fixtureCount: 90, createdAt: new Date().toISOString(), hasAnalysis: true },
-    { id: 2, projectName: 'Summit Plaza Renovation', total: 44775, fixtureCount: 45, createdAt: new Date(Date.now() - 86400000).toISOString(), hasAnalysis: false },
-    { id: 3, projectName: 'Downtown Office Complex', total: 199000, fixtureCount: 200, createdAt: new Date(Date.now() - 172800000).toISOString(), hasAnalysis: true },
-  ];
-
-  // Compute stats
-  const totalFixtures = QUALIFYING_FIXTURES.reduce((sum, f) => sum + (fixtures[f.key] || 0), 0);
-  const totalValue = totalFixtures * FIXTURE_PRICE;
+  // Compute basic stats
   const hasProjectName = !!projectInfo.projectName;
   const hasFixtures = totalFixtures > 0;
 
-  // Generate alerts
+  // Generate alerts - only depend on primitive values, not callbacks
   const alerts = useMemo(() => {
     const list = [];
     
@@ -255,50 +344,11 @@ export default function PlansHome({
     return list;
   }, [hasFixtures, hasProjectName, totalFixtures, onNewEstimate, onContinueEditing]);
 
-  // Quick templates
-  const templates = [
-    {
-      title: 'Single Family Home',
-      description: '3 bed, 2 bath typical residential',
-      fixtures: QUALIFYING_FIXTURES.slice(0, 4),
-      color: '#3b82f6',
-      defaults: { lavatories: 3, kitchenFaucets: 2, toilets: 3, showerBases: 2, tubs: 1, waterHeaters: 1 },
-    },
-    {
-      title: 'Small Apartment',
-      description: '1 bed, 1 bath unit',
-      fixtures: QUALIFYING_FIXTURES.slice(0, 3),
-      color: '#10b981',
-      defaults: { lavatories: 1, kitchenFaucets: 1, toilets: 1, showerBases: 1, waterHeaters: 1 },
-    },
-    {
-      title: 'Commercial Office',
-      description: 'Multi-floor office building',
-      fixtures: QUALIFYING_FIXTURES.slice(0, 5),
-      color: '#8b5cf6',
-      defaults: { lavatories: 8, kitchenFaucets: 2, toilets: 8, waterSoftenerPreplumb: 1, waterHeaters: 2 },
-    },
-  ];
-
-  // Recent activity
-  const recentActivity = [
-    { icon: CheckCircle2, text: 'Estimate saved: Horizon Homes', time: '10m ago', type: 'success' },
-    { icon: Sparkles, text: 'AI analysis completed', time: '25m ago', type: 'info' },
-    { icon: Download, text: 'CSV export downloaded', time: '1h ago', type: 'neutral' },
-    { icon: Calculator, text: 'New estimate created', time: '2h ago', type: 'neutral' },
-  ];
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-surface-200 rounded-xl" />)}
-        </div>
-        <div className="h-40 bg-surface-200 rounded-xl" />
-        <div className="h-60 bg-surface-200 rounded-xl" />
-      </div>
-    );
-  }
+  // Memoized handlers for template clicks
+  const handleTemplateClick = useMemo(() => 
+    TEMPLATES.map(t => () => onQuickAddFixture?.(t.defaults)),
+    [onQuickAddFixture]
+  );
 
   return (
     <div className="space-y-6 pb-20">
@@ -376,7 +426,7 @@ export default function PlansHome({
         />
         <StatCard
           label="Recent Estimates"
-          value={recentEstimates.length}
+          value={RECENT_ESTIMATES.length}
           subtext="This week"
           icon={FileText}
           color="text-blue-600"
@@ -400,11 +450,13 @@ export default function PlansHome({
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {templates.map((template) => (
+          {TEMPLATES.map((template, index) => (
             <TemplateCard
               key={template.title}
-              {...template}
-              onClick={() => onQuickAddFixture?.(template.defaults)}
+              title={template.title}
+              description={template.description}
+              color={template.color}
+              onClick={handleTemplateClick[index]}
             />
           ))}
         </div>
@@ -426,7 +478,7 @@ export default function PlansHome({
         </div>
 
         <div className="space-y-3">
-          {recentEstimates.map((estimate) => (
+          {RECENT_ESTIMATES.map((estimate) => (
             <RecentEstimateRow
               key={estimate.id}
               estimate={estimate}
@@ -438,79 +490,15 @@ export default function PlansHome({
 
       {/* Two Column Layout */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Phase Breakdown Preview */}
-        <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
-          <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-surface-400" />
-            Phase Distribution
-          </h3>
-          <div className="space-y-4">
-            {PHASE_CONFIG.map((phase) => {
-              const amount = Math.round(totalValue * phase.pct / 100);
-              return (
-                <div key={phase.key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: phase.color }} />
-                      {phase.label}
-                    </span>
-                    <span className="text-sm font-bold text-surface-900">
-                      {hasFixtures ? formatCurrency(amount) : '--'}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: hasFixtures ? `${phase.pct}%` : '0%', backgroundColor: phase.color }}
-                    />
-                  </div>
-                  <p className="text-xs text-surface-400 mt-1">{phase.pct}% of total</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
-          <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-surface-400" />
-            Recent Activity
-          </h3>
-          <div className="space-y-1">
-            {recentActivity.map((activity, i) => (
-              <ActivityItem key={i} {...activity} />
-            ))}
-          </div>
-        </div>
+        <PhaseDistribution totalValue={totalValue} hasFixtures={hasFixtures} />
+        <RecentActivity />
       </div>
 
       {/* AI Capabilities */}
-      <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-gradient-to-br from-violet-50 to-blue-50 dark:from-violet-900/10 dark:to-blue-900/10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-violet-500 text-white">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100">AI-Powered Analysis</h3>
-            <p className="text-xs text-surface-500">Smart insights for better estimates</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { icon: Building2, label: 'Cost Optimization', desc: 'Find savings' },
-            { icon: TrendingUp, label: 'Price Trends', desc: 'Market analysis' },
-            { icon: CheckCircle2, label: 'Validation', desc: 'Accuracy check' },
-            { icon: FileText, label: 'Reports', desc: 'Detailed docs' },
-          ].map((feature) => (
-            <div key={feature.label} className="p-3 rounded-lg bg-white/80 dark:bg-surface-800/80 text-center">
-              <feature.icon className="w-5 h-5 text-violet-500 mx-auto mb-2" />
-              <p className="text-xs font-semibold text-surface-800">{feature.label}</p>
-              <p className="text-[10px] text-surface-500">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      <AICapabilities />
     </div>
   );
 }
+
+// Export memoized version
+export default memo(PlansHome);

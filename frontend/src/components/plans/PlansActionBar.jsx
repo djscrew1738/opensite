@@ -56,14 +56,17 @@ export default function PlansActionBar({
         </div>
 
         {/* Model Selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap">AI Model:</label>
-          <ModelSelector
-            value={selectedModel}
-            onChange={(e) => onModelChange(e.target.value)}
-            showSizes={false}
-            className="text-sm py-1"
-          />
+        <div className="flex items-center gap-2 min-w-0">
+          <label className="text-xs font-medium text-surface-600 dark:text-surface-300 whitespace-nowrap">AI Model:</label>
+          <div className="w-40 sm:w-48">
+            <ModelSelector
+              value={selectedModel}
+              onChange={(modelName) => onModelChange(modelName)}
+              showPerformance={false}
+              size="sm"
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
     </div>

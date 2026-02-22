@@ -11,7 +11,7 @@ export default function AIAnalysisSection({ analysis, extractedData }) {
   return (
     <div className="bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-surface-200 dark:border-surface-700 flex items-center gap-3">
-        <Brain className="w-4.5 h-4.5 text-[#003594] dark:text-blue-400" />
+        <Brain className="w-4.5 h-4.5 text-[#3B82F6] dark:text-blue-400" />
         <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider">
           AI Analysis
         </h3>

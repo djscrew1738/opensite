@@ -70,7 +70,7 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
                   <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Last 30 Days</p>
                 </div>
                 <div className="p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 text-center">
-                  <p className="text-2xl font-display font-bold text-copper-600 dark:text-copper-400 tabular-nums">
+                  <p className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400 tabular-nums">
                     {builder.avgProjectCost ? formatCurrency(builder.avgProjectCost) : 'N/A'}
                   </p>
                   <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Avg Cost</p>

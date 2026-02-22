@@ -205,7 +205,6 @@ export default function VisionHome({
   projects = [],
   onUpload,
   onViewProject,
-  onOpenSearch,
   isLoading = false
 }) {
   // Compute statistics
@@ -323,8 +322,8 @@ export default function VisionHome({
           />
           <QuickAction 
             icon={Cpu} 
-            label="Models" 
-            onClick={onOpenSearch}
+            label="AI Models" 
+            onClick={() => {}}
             color="text-amber-600"
             description="Settings"
           />

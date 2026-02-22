@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ScanEye, Plus, Trash2, FileImage, Calendar, Maximize,
-  ChevronRight, Loader2, AlertCircle, LayoutDashboard
+  ChevronRight, Loader2, AlertCircle, LayoutDashboard,
+  Eye, Upload, FolderOpen
 } from 'lucide-react';
 import { visionApi } from '../api/vision';
 import VisionViewer from '../components/vision/VisionViewer';
 import VisionUpload from '../components/vision/VisionUpload';
 import VisionHome from '../components/vision/VisionHome';
+import { PageHeader, EmptyState, ListItemCard, InlineLoader } from '../components/shared';
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -21,7 +23,7 @@ function formatDate(dateStr) {
 
 function formatDimensions(w, h) {
   if (!w || !h) return '';
-  return `${w.toLocaleString()} x ${h.toLocaleString()}`;
+  return `${w.toLocaleString()} × ${h.toLocaleString()}`;
 }
 
 export default function Vision() {
@@ -33,20 +35,17 @@ export default function Vision() {
   const [analyzeJobId, setAnalyzeJobId] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
 
-  // Fetch projects
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['vision-projects'],
     queryFn: () => visionApi.getProjects(),
   });
 
-  // Fetch selected project details
   const { data: projectDetail, refetch: refetchProject } = useQuery({
     queryKey: ['vision-project', selectedId],
     queryFn: () => visionApi.getProject(selectedId),
     enabled: !!selectedId,
   });
 
-  // Auto-select first project
   useEffect(() => {
     if (!selectedId && projects.length > 0 && !showUpload) {
       setSelectedId(projects[0].id);
@@ -68,7 +67,6 @@ export default function Vision() {
     queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
   }, [selectedId, queryClient]);
 
-  // AI Analysis
   const handleAnalyze = useCallback(async (model) => {
     if (!selectedId || analyzing) return;
     setAnalyzing(true);
@@ -77,7 +75,6 @@ export default function Vision() {
       const result = await visionApi.analyze(selectedId, model || selectedModel);
       setAnalyzeJobId(result.jobId);
 
-      // Poll for completion
       const poll = setInterval(async () => {
         try {
           const status = await visionApi.getJobStatus(result.jobId);
@@ -94,139 +91,154 @@ export default function Vision() {
     }
   }, [selectedId, analyzing, selectedModel, refetchProject]);
 
-  // Layer updates
   const handleLayerUpdate = useCallback(async (layerId, updates) => {
     if (!selectedId) return;
     await visionApi.updateLayer(selectedId, layerId, updates);
     refetchProject();
   }, [selectedId, refetchProject]);
 
-  return (
-    <div className="flex h-[calc(100vh-2rem)] gap-0 overflow-hidden">
-      {/* Sidebar — Project List */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-surface-200 dark:border-gray-700
-                      bg-white dark:bg-gray-900">
-        {/* Header */}
-        <div className="px-4 py-4 border-b border-surface-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ScanEye className="w-5 h-5 text-primary-600" />
-              <h2 className="text-base font-display font-bold text-surface-900 dark:text-surface-100">
-                Vision
-              </h2>
+  const renderSidebar = () => (
+    <div className="w-72 flex-shrink-0 flex flex-col border-r border-surface-200 dark:border-surface-700
+                    bg-white dark:bg-surface-900">
+      {/* Header */}
+      <div className="px-4 py-4 border-b border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent-50 dark:bg-accent-900/20 flex items-center justify-center">
+              <ScanEye className="w-4 h-4 text-accent-600" />
             </div>
-            <button
-              onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
-              className="p-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-              title="Upload blueprint"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <h2 className="text-base font-display font-bold text-surface-900 dark:text-surface-100">
+              Vision
+            </h2>
           </div>
-          <p className="text-[11px] text-surface-500 dark:text-surface-400 mt-1">
-            Deep-zoom blueprint viewer
-          </p>
-          
-          {/* Navigation */}
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={() => { setShowHome(true); setShowUpload(false); setSelectedId(null); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                showHome && !showUpload
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-gray-800 dark:text-surface-400'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              Home
-            </button>
-            <button
-              onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                showUpload
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-gray-800 dark:text-surface-400'
-              }`}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Upload
-            </button>
-          </div>
+          <button
+            onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
+            className="p-2 rounded-lg bg-accent-500 text-white hover:bg-accent-600 transition-all duration-200 hover:shadow-lg hover:shadow-accent-500/25"
+            title="Upload blueprint"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-
-        {/* Project list -- show only when not on home/upload */}
-        <div className="flex-1 overflow-y-auto py-2">
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 text-surface-400 animate-spin" />
-            </div>
-          )}
-
-          {!isLoading && projects.length === 0 && !showUpload && (
-            <div className="text-center py-12 px-4">
-              <FileImage className="w-10 h-10 text-surface-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-sm text-surface-500 dark:text-surface-400 font-medium">No blueprints yet</p>
-              <p className="text-xs text-surface-400 dark:text-surface-500 mt-1">Upload a blueprint to get started</p>
-              <button
-                onClick={() => setShowUpload(true)}
-                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                           bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Upload
-              </button>
-            </div>
-          )}
-
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => { setSelectedId(p.id); setShowUpload(false); setShowHome(false); }}
-              className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
-                ${selectedId === p.id && !showUpload
-                  ? 'bg-primary-50 dark:bg-primary-900/10 border-r-2 border-primary-500'
-                  : 'hover:bg-surface-50 dark:hover:bg-gray-800/50'
-                }`}
-            >
-              {/* Thumbnail */}
-              <div className="w-11 h-11 rounded-lg bg-surface-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                <img
-                  src={visionApi.getThumbnailUrl(p.id)}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-surface-800 dark:text-surface-200 truncate">
-                  {p.name}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-surface-400 dark:text-surface-500 uppercase font-medium">
-                    {p.fileType}
-                  </span>
-                  {p.width && p.height && (
-                    <span className="text-[10px] text-surface-400 dark:text-surface-500 font-mono">
-                      {formatDimensions(p.width, p.height)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => handleDelete(p.id, e)}
-                className="p-1 rounded text-surface-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                title="Delete"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </button>
-          ))}
+        <p className="text-[11px] text-surface-500 dark:text-surface-400 mt-1">
+          Deep-zoom blueprint viewer
+        </p>
+        
+        {/* Navigation */}
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => { setShowHome(true); setShowUpload(false); setSelectedId(null); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+              showHome && !showUpload
+                ? 'bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400 ring-1 ring-accent-200 dark:ring-accent-800'
+                : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-400'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Home
+          </button>
+          <button
+            onClick={() => { setShowUpload(true); setSelectedId(null); setShowHome(false); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+              showUpload
+                ? 'bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400 ring-1 ring-accent-200 dark:ring-accent-800'
+                : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-400'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Upload
+          </button>
         </div>
       </div>
 
-      {/* Main content area */}
+      {/* Project list */}
+      <div className="flex-1 overflow-y-auto py-2">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <InlineLoader size="md" />
+            <p className="text-xs text-surface-400">Loading projects...</p>
+          </div>
+        ) : projects.length === 0 && !showUpload ? (
+          <div className="px-4 py-8">
+            <EmptyState
+              icon={FolderOpen}
+              title="No blueprints"
+              subtitle="Upload a blueprint to get started with AI-powered analysis"
+              action={
+                <button 
+                  onClick={() => setShowUpload(true)}
+                  className="btn-primary text-sm inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Upload Blueprint
+                </button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="space-y-1 px-2">
+            {projects.map((p, idx) => (
+              <button
+                key={p.id}
+                onClick={() => { 
+                  setSelectedId(p.id); 
+                  setShowUpload(false); 
+                  setShowHome(false);
+                }}
+                className={`
+                  group w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left
+                  transition-all duration-200
+                  ${selectedId === p.id && !showUpload
+                    ? 'bg-accent-50 dark:bg-accent-900/10 ring-1 ring-accent-200 dark:ring-accent-800'
+                    : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'
+                  }
+                `}
+                style={{ animationDelay: `${idx * 30}ms` }}
+              >
+                <div className="w-11 h-11 rounded-lg bg-surface-100 dark:bg-surface-800 overflow-hidden flex-shrink-0 ring-1 ring-surface-200 dark:ring-surface-700">
+                  <img
+                    src={visionApi.getThumbnailUrl(p.id)}
+                    alt=""
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-surface-800 dark:text-surface-200 truncate">
+                    {p.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-surface-400 dark:text-surface-500 uppercase font-medium">
+                      {p.fileType}
+                    </span>
+                    {p.width && p.height && (
+                      <span className="text-[10px] text-surface-400 dark:text-surface-500 font-mono">
+                        {formatDimensions(p.width, p.height)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => handleDelete(p.id, e)}
+                  className="p-1.5 rounded-lg text-surface-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all opacity-0 group-hover:opacity-100"
+                  title="Delete"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-[calc(100vh-2rem)] gap-0 overflow-hidden page-transition-wrapper">
+      {renderSidebar()}
+
+      {/* Main content */}
       <div className="flex-1 flex flex-col bg-surface-50 dark:bg-surface-900 min-w-0 overflow-hidden">
         {showUpload ? (
           <VisionUpload onProjectCreated={handleProjectCreated} />
@@ -240,7 +252,6 @@ export default function Vision() {
                 setShowHome(false);
                 setShowUpload(false);
               }}
-              onOpenSearch={() => {}}
               isLoading={isLoading}
             />
           </div>
@@ -256,10 +267,20 @@ export default function Vision() {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-3">
-              <ScanEye className="w-12 h-12 text-surface-600 mx-auto" />
-              <p className="text-sm text-surface-500">Select a project or upload a blueprint</p>
-            </div>
+            <EmptyState
+              icon={ScanEye}
+              title="Select a project"
+              subtitle="Choose a project from the sidebar or upload a new blueprint"
+              action={
+                <button 
+                  onClick={() => setShowUpload(true)}
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload Blueprint
+                </button>
+              }
+            />
           </div>
         )}
       </div>

@@ -27,7 +27,7 @@ export default function ThemeToggle({ compact = false, className = '' }) {
               : 'opacity-0 rotate-90 scale-0'
           }`}
           strokeWidth={2}
-          style={{ color: '#003594' }}
+          style={{ color: '#3B82F6' }}
         />
 
         {/* Moon Icon (visible in light mode) */}
@@ -46,8 +46,8 @@ export default function ThemeToggle({ compact = false, className = '' }) {
       <div
         className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{
-          boxShadow: `0 0 8px rgba(0, 53, 148, 0.1)`,
-          border: '1px solid rgba(0, 53, 148, 0.15)',
+          boxShadow: `0 0 8px rgba(59, 130, 246, 0.1)`,
+          border: '1px solid rgba(59, 130, 246, 0.15)',
         }}
       />
     </button>

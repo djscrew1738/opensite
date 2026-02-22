@@ -96,7 +96,7 @@ export default function UnifiedSearch({ onClose, onNavigate }) {
               className="flex-1 bg-transparent text-lg font-medium text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none"
             />
             {isSearching && (
-              <div className="w-5 h-5 border-2 border-copper-200 border-t-copper-500 rounded-full animate-spin shrink-0" />
+              <div className="w-5 h-5 border-2 border-copper-200 border-t-blue-500 rounded-full animate-spin shrink-0" />
             )}
             <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono text-gray-400 bg-concrete-100 dark:bg-surface-800 border border-concrete-200 dark:border-surface-700">
               esc
@@ -111,7 +111,7 @@ export default function UnifiedSearch({ onClose, onNavigate }) {
                 onClick={() => setTypeFilter(f.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                   typeFilter === f.key
-                    ? 'bg-copper-100 dark:bg-copper-950/30 text-copper-700 dark:text-copper-400'
+                    ? 'bg-blue-100 dark:bg-copper-950/30 text-blue-700 dark:text-blue-400'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-concrete-100 dark:hover:bg-surface-800'
                 }`}
               >

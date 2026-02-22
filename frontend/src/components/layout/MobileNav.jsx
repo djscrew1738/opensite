@@ -2,71 +2,82 @@ import { NavLink } from 'react-router-dom';
 import { prefetchRoute } from '../../App';
 import {
   LayoutDashboard,
-  Users,
-  ClipboardList,
-  ScanEye,
-  Settings,
+  HardHat,
+  Radar,
+  Network,
+  Bell,
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/',         icon: LayoutDashboard, label: 'Home'     },
-  { path: '/leads',    icon: Users,           label: 'Leads'    },
-  { path: '/plans',    icon: ClipboardList,   label: 'Plans'    },
-  { path: '/vision',   icon: ScanEye,         label: 'Vision'   },
-  { path: '/settings', icon: Settings,        label: 'Settings' },
+  { path: '/',       icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/plans',  icon: HardHat,         label: 'Jobs'      },
+  { path: '/leads',  icon: Radar,           label: 'Leads'     },
+  { path: '/canvas', icon: Network,         label: 'Canvas'    },
+  { path: '/alerts', icon: Bell,            label: 'Alerts'    },
 ];
 
-export default function MobileNav() {
+export default function MobileNav({ alertCount = 0 }) {
   return (
-    <nav className="mobile-nav">
-      {/* Top accent line */}
-      <div
-        className="absolute top-0 left-10 right-10 h-px"
-        style={{
-          background: 'linear-gradient(90deg, transparent, rgba(0,53,148,0.22), transparent)',
-        }}
-      />
-
-      <div className="flex items-center justify-around px-1 pt-1.5 pb-0.5">
+    <nav className="mobile-nav" aria-label="Main navigation">
+      <div className="flex items-center justify-around px-2 py-1.5">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             end={item.path === '/'}
             onTouchStart={() => prefetchRoute(item.path)}
-            className="tap-target flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200"
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation"
+            style={{ minWidth: '48px', minHeight: '48px' }}
           >
             {({ isActive }) => (
               <>
-                <div className="relative mb-0.5">
-                  {isActive && (
-                    <div
-                      className="absolute -inset-1.5 rounded-full pointer-events-none"
-                      style={{
-                        background: 'radial-gradient(circle, rgba(0,53,148,0.09), transparent)',
-                      }}
-                    />
-                  )}
+                <div className="relative">
                   <item.icon
-                    className="w-5 h-5 relative transition-all duration-200"
+                    className="w-[22px] h-[22px] transition-colors duration-200"
                     strokeWidth={isActive ? 2.5 : 1.75}
-                    style={{ color: isActive ? '#003594' : 'rgba(160,155,147,0.52)' }}
+                    style={{
+                      color: isActive ? '#3B82F6' : 'rgba(148, 163, 184, 0.5)',
+                    }}
+                    fill={isActive ? 'rgba(59, 130, 246, 0.15)' : 'none'}
                   />
+
+                  {/* Alert badge */}
+                  {item.path === '/alerts' && alertCount > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 flex items-center justify-center text-white font-bold"
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        fontSize: '9px',
+                        borderRadius: '8px',
+                        background: '#EF4444',
+                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)',
+                      }}
+                    >
+                      {alertCount > 9 ? '9+' : alertCount}
+                    </span>
+                  )}
                 </div>
 
                 <span
-                  className="text-[9px] font-bold tracking-wide leading-none transition-all duration-200"
-                  style={{ color: isActive ? '#003594' : 'rgba(160,155,147,0.42)' }}
+                  className="font-semibold leading-none transition-colors duration-200"
+                  style={{
+                    fontSize: '10px',
+                    color: isActive ? '#3B82F6' : 'rgba(148, 163, 184, 0.4)',
+                  }}
                 >
                   {item.label}
                 </span>
 
-                {/* Active dot */}
+                {/* Active dot indicator */}
                 <div
-                  className="w-[3px] h-[3px] rounded-full mt-0.5 transition-all duration-200"
+                  className="rounded-full transition-all duration-200"
                   style={{
-                    background: isActive ? '#003594' : 'transparent',
+                    width: '3px',
+                    height: '3px',
+                    background: isActive ? '#3B82F6' : 'transparent',
                     transform: isActive ? 'scale(1)' : 'scale(0)',
+                    boxShadow: isActive ? '0 0 6px rgba(59, 130, 246, 0.4)' : 'none',
                   }}
                 />
               </>

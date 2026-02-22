@@ -1,7 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './hooks/useTheme';
+import { ToastProvider } from './hooks/useToast';
+import { ToastContainer } from './components/shared';
 import Layout from './components/layout/Layout';
 
 // Lazy load pages — store import functions for prefetching
@@ -13,6 +15,10 @@ const pageImports = {
   history: () => import('./pages/History'),
   vision: () => import('./pages/Vision'),
   settings: () => import('./pages/Settings'),
+  plumbing: () => import('./plumbing-visualizer/PlumbingVisualizer'),
+  documents: () => import('./pages/Documents'),
+  canvas: () => import('./pages/Canvas'),
+  alerts: () => import('./pages/Alerts'),
 };
 
 const Dashboard = lazy(pageImports.dashboard);
@@ -22,6 +28,10 @@ const AIAssistant = lazy(pageImports.ai);
 const History = lazy(pageImports.history);
 const Vision = lazy(pageImports.vision);
 const Settings = lazy(pageImports.settings);
+const PlumbingVisualizer = lazy(pageImports.plumbing);
+const Documents = lazy(pageImports.documents);
+const Canvas = lazy(pageImports.canvas);
+const Alerts = lazy(pageImports.alerts);
 
 // Map routes to prefetch keys
 const routePrefetchMap = {
@@ -32,6 +42,10 @@ const routePrefetchMap = {
   '/history': 'history',
   '/vision': 'vision',
   '/settings': 'settings',
+  '/plumbing': 'plumbing',
+  '/documents': 'documents',
+  '/canvas': 'canvas',
+  '/alerts': 'alerts',
 };
 
 // Track which chunks have been prefetched
@@ -46,17 +60,74 @@ export function prefetchRoute(path) {
   pageImports[key]?.();
 }
 
-// Lightweight skeleton loader — no full-screen spinner, just a subtle pulse
+/** Eager prefetch — loads immediately but quietly */
+export function eagerPrefetch(path) {
+  prefetchRoute(path);
+}
+
+// Dark Forge page loader
 function PageLoader() {
   return (
-    <div className="p-6 space-y-4 animate-pulse">
-      <div className="h-8 w-48 rounded-lg bg-surface-200/50 dark:bg-gray-800/50" />
-      <div className="h-4 w-72 rounded bg-surface-200/30 dark:bg-gray-800/30" />
-      <div className="grid grid-cols-3 gap-4 mt-6">
-        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
-        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
-        <div className="h-32 rounded-xl bg-surface-200/40 dark:bg-gray-800/40" />
+    <div className="p-4 space-y-4 min-h-[60vh]">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-7 w-48 rounded-lg skeleton-shimmer" />
+          <div className="h-3 w-72 rounded skeleton-shimmer" />
+        </div>
+        <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
       </div>
+      <div className="flex gap-3 overflow-hidden">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="h-20 rounded-xl skeleton-shimmer flex-shrink-0"
+            style={{ width: '140px', animationDelay: `${i * 50}ms` }}
+          />
+        ))}
+      </div>
+      <div className="space-y-3 mt-4">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="h-32 rounded-xl skeleton-shimmer"
+            style={{ animationDelay: `${(i + 4) * 50}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Page transition wrapper with animation
+function PageTransition({ children }) {
+  const location = useLocation();
+  const [displayChildren, setDisplayChildren] = useState(children);
+  const [transitionClass, setTransitionClass] = useState('page-transition-wrapper');
+  const prevPath = useRef(location.pathname);
+
+  useEffect(() => {
+    if (location.pathname !== prevPath.current) {
+      // Determine direction based on route order
+      const paths = Object.keys(routePrefetchMap);
+      const currentIdx = paths.indexOf(location.pathname);
+      const prevIdx = paths.indexOf(prevPath.current);
+      
+      const direction = currentIdx > prevIdx ? 'page-slide-left' : 'page-slide-right';
+      setTransitionClass(direction);
+      
+      // Small delay to allow transition to start
+      const timer = setTimeout(() => {
+        setDisplayChildren(children);
+        prevPath.current = location.pathname;
+      }, 30);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname, children]);
+
+  return (
+    <div className={`tab-content-wrapper ${transitionClass}`} key={location.pathname}>
+      {displayChildren}
     </div>
   );
 }
@@ -67,6 +138,12 @@ function RoutePrefetcher() {
   const prefetchedAdjacent = useRef(new Set());
 
   useEffect(() => {
+    // Smooth scroll to top on route change
+    const mainContent = document.querySelector('main');
+    if (mainContent && mainContent.scrollTop > 0) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
     if (prefetchedAdjacent.current.has(location.pathname)) return;
     prefetchedAdjacent.current.add(location.pathname);
 
@@ -104,30 +181,47 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 30000,
-      gcTime: 300000
+      staleTime: 60000,       // 60s — stale-while-revalidate for field use
+      gcTime: 600000,          // 10min cache — keeps data through offline gaps
+      refetchInterval: 60000,  // Silent 60s background refresh
     }
   }
 });
+
+// Wrapped route component with transition
+function PageWrapper({ children }) {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <PageTransition>{children}</PageTransition>
+    </Suspense>
+  );
+}
 
 export default function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <RoutePrefetcher />
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
-              <Route path="leads" element={<Suspense fallback={<PageLoader />}><LeadFinder /></Suspense>} />
-              <Route path="plans" element={<Suspense fallback={<PageLoader />}><Plans /></Suspense>} />
-              <Route path="ai" element={<Suspense fallback={<PageLoader />}><AIAssistant /></Suspense>} />
-              <Route path="history" element={<Suspense fallback={<PageLoader />}><History /></Suspense>} />
-              <Route path="vision" element={<Suspense fallback={<PageLoader />}><Vision /></Suspense>} />
-              <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <RoutePrefetcher />
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
+                <Route path="leads" element={<PageWrapper><LeadFinder /></PageWrapper>} />
+                <Route path="plans" element={<PageWrapper><Plans /></PageWrapper>} />
+                <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
+                <Route path="history" element={<PageWrapper><History /></PageWrapper>} />
+                <Route path="vision" element={<PageWrapper><Vision /></PageWrapper>} />
+                <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />
+                <Route path="plumbing" element={<PageWrapper><PlumbingVisualizer /></PageWrapper>} />
+                <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
+                <Route path="alerts" element={<PageWrapper><Alerts /></PageWrapper>} />
+              </Route>
+              <Route path="canvas" element={<Canvas />} />
+            </Routes>
+          </BrowserRouter>
+          <ToastContainer />
+        </ToastProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

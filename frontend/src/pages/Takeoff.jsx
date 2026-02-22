@@ -7,12 +7,14 @@ import TakeoffList from '../components/takeoff/TakeoffList';
 import TakeoffReport from '../components/takeoff/TakeoffReport';
 import MaterialManager from '../components/takeoff/MaterialManager';
 import MaterialPicker from '../components/takeoff/MaterialPicker';
+import TakeoffHome from '../components/takeoff/TakeoffHome';
 import {
   Upload, Ruler, Package, FileText, Save, Loader,
-  ChevronLeft, Image, X, AlertCircle
+  ChevronLeft, Image, X, AlertCircle, LayoutDashboard
 } from 'lucide-react';
 
 const TABS = {
+  HOME: 'home',
   TAKEOFFS: 'takeoffs',
   EDITOR: 'editor',
   MATERIALS: 'materials',
@@ -24,7 +26,7 @@ export default function Takeoff() {
   const fileInputRef = useRef(null);
 
   // State
-  const [activeTab, setActiveTab] = useState(TABS.TAKEOFFS);
+  const [activeTab, setActiveTab] = useState(TABS.HOME);
   const [selectedTakeoff, setSelectedTakeoff] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [scale, setScale] = useState(null);
@@ -42,6 +44,21 @@ export default function Takeoff() {
     queryFn: () => api.takeoff.getOne(selectedTakeoff.id),
     enabled: !!selectedTakeoff?.id
   });
+
+  // Load all takeoffs for home view
+  const { data: takeoffsData, isLoading: takeoffsLoading } = useQuery({
+    queryKey: ['takeoffs-home'],
+    queryFn: () => api.takeoff.getAll(),
+  });
+
+  // Load materials for stats
+  const { data: materialsData } = useQuery({
+    queryKey: ['materials-home'],
+    queryFn: () => api.takeoff.getMaterials(),
+  });
+
+  const takeoffs = takeoffsData?.takeoffs || [];
+  const materials = materialsData?.materials || [];
 
   // Sync takeoff detail data into local state when it loads
   useEffect(() => {
@@ -212,6 +229,7 @@ export default function Takeoff() {
   };
 
   const tabConfig = [
+    { id: TABS.HOME, label: 'Overview', icon: LayoutDashboard },
     { id: TABS.TAKEOFFS, label: 'Takeoffs', icon: FileText },
     { id: TABS.EDITOR, label: 'Editor', icon: Ruler, disabled: !selectedTakeoff },
     { id: TABS.MATERIALS, label: 'Materials', icon: Package },
@@ -302,6 +320,26 @@ export default function Takeoff() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
+        {/* Home Tab */}
+        {activeTab === TABS.HOME && (
+          <div className="p-6 overflow-y-auto h-full">
+            <TakeoffHome
+              takeoffs={takeoffs}
+              materials={materials}
+              onNewTakeoff={() => setActiveTab(TABS.TAKEOFFS)}
+              onSelectTakeoff={handleSelectTakeoff}
+              onViewMaterials={() => setActiveTab(TABS.MATERIALS)}
+              onViewReports={() => selectedTakeoff ? setActiveTab(TABS.REPORT) : setActiveTab(TABS.TAKEOFFS)}
+              onQuickTemplate={(defaults) => {
+                // Create takeoff with template defaults
+                console.log('Template selected:', defaults);
+                setActiveTab(TABS.TAKEOFFS);
+              }}
+              isLoading={takeoffsLoading}
+            />
+          </div>
+        )}
+
         {/* Takeoffs List Tab */}
         {activeTab === TABS.TAKEOFFS && (
           <div className="p-6 overflow-y-auto h-full">

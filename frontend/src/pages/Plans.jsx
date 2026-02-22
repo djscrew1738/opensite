@@ -1,60 +1,91 @@
-import { useState, useMemo, useCallback } from 'react';
+import { 
+  useState, 
+  useMemo, 
+  useCallback, 
+  useRef, 
+  useEffect,
+  memo
+} from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { useModelPreference } from '../hooks/useModelPreference';
-import { LayoutDashboard, Calculator, Settings } from 'lucide-react';
+import { LayoutDashboard, Calculator, Save } from 'lucide-react';
 
 import PlansHome from '../components/plans/PlansHome';
 import PlansCommandHeader from '../components/plans/PlansCommandHeader';
 import FixtureGrid from '../components/plans/FixtureGrid';
 import PricingDashboard from '../components/plans/PricingDashboard';
 import ProjectInfoPanel from '../components/plans/ProjectInfoPanel';
-import BlueprintUpload from '../components/pricing/BlueprintUpload';
+import { BlueprintUpload } from '../components/upload';
 import AIAnalysisSection from '../components/plans/AIAnalysisSection';
 import TakeoffPanel from '../components/plans/TakeoffPanel';
 import PlansActionBar from '../components/plans/PlansActionBar';
-import { FIXTURE_PRICE, DEFAULT_FIXTURES, DEFAULT_PROJECT_INFO, QUALIFYING_FIXTURES } from '../components/plans/constants';
+import { PageHeader, TabNavigation, StatCard } from '../components/shared';
+import { 
+  FIXTURE_PRICE, 
+  DEFAULT_FIXTURES, 
+  DEFAULT_PROJECT_INFO, 
+  QUALIFYING_FIXTURES 
+} from '../components/plans/constants';
 
 const tabs = [
-  { key: 'home', label: 'Overview', icon: LayoutDashboard },
-  { key: 'estimate', label: 'Estimate', icon: Calculator },
+  { key: 'home', label: 'Overview', shortLabel: 'Home', icon: LayoutDashboard },
+  { key: 'estimate', label: 'Estimate', shortLabel: 'Estimate', icon: Calculator },
 ];
+
+// Tab order for animations - frozen object to prevent accidental mutations
+const TAB_ORDER = Object.freeze({ home: 0, estimate: 1 });
+
+// Memoized child components to prevent unnecessary re-renders
+const MemoizedStatCard = memo(StatCard);
+const MemoizedPlansHome = memo(PlansHome);
+const MemoizedPlansCommandHeader = memo(PlansCommandHeader);
+const MemoizedFixtureGrid = memo(FixtureGrid);
+const MemoizedPricingDashboard = memo(PricingDashboard);
+const MemoizedProjectInfoPanel = memo(ProjectInfoPanel);
+const MemoizedBlueprintUpload = memo(BlueprintUpload);
+const MemoizedAIAnalysisSection = memo(AIAnalysisSection);
+const MemoizedTakeoffPanel = memo(TakeoffPanel);
+const MemoizedPlansActionBar = memo(PlansActionBar);
 
 export default function Plans() {
   // --- State ---
   const [activeTab, setActiveTab] = useState('home');
-  const [fixtures, setFixtures] = useState({ ...DEFAULT_FIXTURES });
-  const [projectInfo, setProjectInfo] = useState({ ...DEFAULT_PROJECT_INFO });
+  const [tabDirection, setTabDirection] = useState(null);
+  const prevTab = useRef('home');
+  
+  const [fixtures, setFixtures] = useState(() => ({ ...DEFAULT_FIXTURES }));
+  const [projectInfo, setProjectInfo] = useState(() => ({ ...DEFAULT_PROJECT_INFO }));
   const [estimate, setEstimate] = useState(null);
   const [analysis, setAnalysis] = useState(null);
-  const [extractedData, setExtractedData] = useState(null);
   const [projectInfoExpanded, setProjectInfoExpanded] = useState(false);
   const [takeoffExpanded, setTakeoffExpanded] = useState(false);
 
-  // Model selector
   const { defaultModel } = useModelPreference();
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;
 
   // --- Form Persistence ---
   const persistedData = useMemo(() => ({ fixtures, projectInfo }), [fixtures, projectInfo]);
+  
   const setPersisted = useCallback((data) => {
     if (data.fixtures) setFixtures(prev => ({ ...prev, ...data.fixtures }));
     if (data.projectInfo) setProjectInfo(prev => ({ ...prev, ...data.projectInfo }));
   }, []);
 
   const { clearSaved } = useFormPersistence('plans-v3', persistedData, setPersisted, {
-    shouldSave: (data) => {
+    shouldSave: useCallback((data) => {
       const f = data.fixtures || {};
       return Object.values(f).some(v => v > 0);
-    },
+    }, []),
   });
 
-  // --- Derived ---
-  const totalFixtures = useMemo(() => {
-    return QUALIFYING_FIXTURES.reduce((sum, f) => sum + (fixtures[f.key] || 0), 0);
-  }, [fixtures]);
+  // --- Computed Values (memoized) ---
+  const totalFixtures = useMemo(() => 
+    QUALIFYING_FIXTURES.reduce((sum, f) => sum + (fixtures[f.key] || 0), 0),
+    [fixtures]
+  );
 
   const totalPrice = useMemo(() => totalFixtures * FIXTURE_PRICE, [totalFixtures]);
 
@@ -83,7 +114,7 @@ export default function Plans() {
     },
   });
 
-  // --- Handlers ---
+  // --- Callbacks (memoized) ---
   const buildPayload = useCallback(() => ({
     mode: 'fixture-based',
     fixtures,
@@ -94,16 +125,16 @@ export default function Plans() {
     stories: Number(projectInfo.stories) || 1,
   }), [fixtures, projectInfo]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     calculateMutation.mutate(buildPayload());
-  };
+  }, [calculateMutation, buildPayload]);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = useCallback(() => {
     analyzeMutation.mutate({ ...buildPayload(), model: effectiveModel });
-  };
+  }, [analyzeMutation, buildPayload, effectiveModel]);
 
-  const handleExport = () => {
-    // Build CSV
+  // Memoized export handler with proper cleanup
+  const handleExport = useCallback(() => {
     const rows = [
       ['Fixture', 'Count', 'Price Per', 'Subtotal'],
       ...QUALIFYING_FIXTURES.map(f => [
@@ -128,31 +159,36 @@ export default function Plans() {
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
+    
     const a = document.createElement('a');
     a.href = url;
     a.download = `${projectInfo.projectName || 'plans'}-estimate.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    
+    // Use requestAnimationFrame to ensure cleanup happens after click
+    requestAnimationFrame(() => {
+      a.click();
+      // Revoke URL after a short delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    });
+  }, [fixtures, totalFixtures, totalPrice, phaseBreakdown, projectInfo.projectName]);
 
-  const handleBlueprintAnalysis = (result) => {
+  const handleBlueprintAnalysis = useCallback((result) => {
     clearSaved();
     setActiveTab('estimate');
 
     if (result.extractedData) {
       const ext = result.extractedData;
-      setExtractedData(ext);
-
-      // Auto-fill fixtures from extracted data
-      const newFixtures = { ...fixtures };
-      for (const f of QUALIFYING_FIXTURES) {
-        if (ext[f.key] != null && ext[f.key] > 0) {
-          newFixtures[f.key] = Number(ext[f.key]);
+      
+      setFixtures(prev => {
+        const newFixtures = { ...prev };
+        for (const f of QUALIFYING_FIXTURES) {
+          if (ext[f.key] != null && ext[f.key] > 0) {
+            newFixtures[f.key] = Number(ext[f.key]);
+          }
         }
-      }
-      setFixtures(newFixtures);
+        return newFixtures;
+      });
 
-      // Auto-fill project info
       setProjectInfo(prev => ({
         ...prev,
         sqft: ext.sqft || prev.sqft,
@@ -164,163 +200,218 @@ export default function Plans() {
 
     if (result.estimate) setEstimate(result.estimate);
     if (result.aiAnalysis) setAnalysis(result.aiAnalysis);
-  };
+  }, [clearSaved]);
 
-  const handleNewEstimate = () => {
+  const handleNewEstimate = useCallback(() => {
     setFixtures({ ...DEFAULT_FIXTURES });
     setProjectInfo({ ...DEFAULT_PROJECT_INFO });
     setEstimate(null);
     setAnalysis(null);
-    setExtractedData(null);
     setActiveTab('estimate');
-  };
+  }, []);
 
-  const handleQuickAddFixture = (defaults) => {
+  const handleQuickAddFixture = useCallback((defaults) => {
     setFixtures(prev => ({ ...prev, ...defaults }));
     setActiveTab('estimate');
-  };
+  }, []);
+
+  const handleTabChange = useCallback((newTab) => {
+    if (newTab === activeTab) return;
+    const direction = TAB_ORDER[newTab] > TAB_ORDER[prevTab.current] ? 'left' : 'right';
+    setTabDirection(direction);
+    prevTab.current = newTab;
+    setActiveTab(newTab);
+  }, [activeTab]);
+
+  const handleLoadEstimate = useCallback(() => {
+    setActiveTab('estimate');
+  }, []);
+
+  const handleContinueEditing = useCallback(() => {
+    setActiveTab('estimate');
+  }, []);
+
+  const handleProjectNameChange = useCallback((name) => {
+    setProjectInfo(prev => ({ ...prev, projectName: name }));
+  }, []);
+
+  const toggleProjectInfo = useCallback(() => {
+    setProjectInfoExpanded(v => !v);
+  }, []);
+
+  const toggleTakeoff = useCallback(() => {
+    setTakeoffExpanded(v => !v);
+  }, []);
+
+  // --- Effects ---
+  useEffect(() => {
+    const timer = setTimeout(() => setTabDirection(null), 350);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
+  // --- Render Helpers ---
+  const estimateDisplayItems = useMemo(() => [
+    { label: 'Total', value: estimate?.total || totalPrice },
+    { label: 'Rough-in', value: estimate?.breakdown?.roughIn?.amount || phaseBreakdown.roughIn },
+    { label: 'Top-out', value: estimate?.breakdown?.topOut?.amount || phaseBreakdown.topOut },
+    { label: 'Trim', value: estimate?.breakdown?.trim?.amount || phaseBreakdown.trim },
+  ], [estimate, totalPrice, phaseBreakdown]);
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-surface-200 dark:border-surface-700">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-all relative ${
-                  activeTab === tab.key
-                    ? 'text-accent-600 dark:text-accent-400'
-                    : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                {activeTab === tab.key && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent-500 to-accent-600" />
-                )}
-              </button>
-            );
-          })}
+    <div className="h-full overflow-y-auto page-transition-wrapper">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Header */}
+        <PageHeader
+          title="Plans & Estimates"
+          subtitle="Create detailed estimates from blueprints or manual fixture counts"
+        />
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MemoizedStatCard
+            label="Total Fixtures"
+            value={totalFixtures.toLocaleString()}
+            subtext="Across all categories"
+            color="copper"
+            delay={0}
+          />
+          <MemoizedStatCard
+            label="Total Price"
+            value={`$${totalPrice.toLocaleString()}`}
+            subtext="Before tax & markup"
+            color="green"
+            delay={50}
+          />
+          <MemoizedStatCard
+            label="Rough-in"
+            value={`$${phaseBreakdown.roughIn.toLocaleString()}`}
+            subtext="50% of total"
+            color="amber"
+            delay={100}
+          />
+          <MemoizedStatCard
+            label="Trim"
+            value={`$${phaseBreakdown.trim.toLocaleString()}`}
+            subtext="20% of total"
+            color="purple"
+            delay={150}
+          />
         </div>
 
-        {/* Home Tab */}
-        {activeTab === 'home' && (
-          <PlansHome
-            fixtures={fixtures}
-            projectInfo={projectInfo}
-            estimate={estimate}
-            onNewEstimate={handleNewEstimate}
-            onLoadEstimate={(est) => {
-              // Would load from API
-              setActiveTab('estimate');
-            }}
-            onContinueEditing={() => setActiveTab('estimate')}
-            onQuickAddFixture={handleQuickAddFixture}
-          />
-        )}
+        {/* Tabs */}
+        <TabNavigation
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={handleTabChange}
+        />
 
-        {/* Estimate Tab */}
-        {activeTab === 'estimate' && (
-          <>
-            {/* Command Header */}
-            <PlansCommandHeader
+        {/* Tab Content */}
+        <div 
+          key={activeTab}
+          className={`
+            ${tabDirection === 'left' ? 'page-slide-left' : tabDirection === 'right' ? 'page-slide-right' : 'page-transition-wrapper'}
+          `}
+          style={{ willChange: 'transform, opacity' }}
+        >
+          {/* Home Tab */}
+          {activeTab === 'home' && (
+            <MemoizedPlansHome
+              fixtures={fixtures}
+              projectInfo={projectInfo}
+              estimate={estimate}
               totalFixtures={totalFixtures}
-              totalPrice={totalPrice}
-              projectName={projectInfo.projectName}
-              onProjectNameChange={(name) => setProjectInfo(prev => ({ ...prev, projectName: name }))}
+              totalValue={totalPrice}
+              onNewEstimate={handleNewEstimate}
+              onLoadEstimate={handleLoadEstimate}
+              onContinueEditing={handleContinueEditing}
+              onQuickAddFixture={handleQuickAddFixture}
             />
+          )}
 
-        {/* Fixture Grid */}
-        <section>
-          <h2 className="text-sm font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-3">
-            Fixture Counts
-          </h2>
-          <FixtureGrid fixtures={fixtures} onChange={setFixtures} />
-        </section>
+          {/* Estimate Tab */}
+          {activeTab === 'estimate' && (
+            <div className="space-y-6 stagger-container">
+              {/* Command Header */}
+              <MemoizedPlansCommandHeader
+                totalFixtures={totalFixtures}
+                totalPrice={totalPrice}
+                projectName={projectInfo.projectName}
+                onProjectNameChange={handleProjectNameChange}
+              />
 
-        {/* Dashboard Charts */}
-        <PricingDashboard fixtures={fixtures} totalPrice={totalPrice} />
+              {/* Fixture Grid */}
+              <section className="card p-5">
+                <h2 className="text-sm font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">
+                  Fixture Counts
+                </h2>
+                <MemoizedFixtureGrid fixtures={fixtures} onChange={setFixtures} />
+              </section>
 
-        {/* Project Info (collapsible) */}
-        <ProjectInfoPanel
-          expanded={projectInfoExpanded}
-          onToggle={() => setProjectInfoExpanded(v => !v)}
-          projectInfo={projectInfo}
-          onChange={setProjectInfo}
-        />
+              {/* Dashboard Charts */}
+              <MemoizedPricingDashboard fixtures={fixtures} totalPrice={totalPrice} />
 
-        {/* Blueprint Upload */}
-        <BlueprintUpload
-          onAnalysisComplete={handleBlueprintAnalysis}
-          selectedModel={effectiveModel}
-        />
+              {/* Project Info */}
+              <MemoizedProjectInfoPanel
+                expanded={projectInfoExpanded}
+                onToggle={toggleProjectInfo}
+                projectInfo={projectInfo}
+                onChange={setProjectInfo}
+              />
 
-        {/* AI Analysis (shows after analysis completes) */}
-        <AIAnalysisSection analysis={analysis} extractedData={extractedData} />
+              {/* Blueprint Upload */}
+              <MemoizedBlueprintUpload
+                onAnalysisComplete={handleBlueprintAnalysis}
+                selectedModel={effectiveModel}
+              />
 
-        {/* Material Takeoff (collapsible) */}
-        <TakeoffPanel
-          expanded={takeoffExpanded}
-          onToggle={() => setTakeoffExpanded(v => !v)}
-        />
+              {/* AI Analysis */}
+              <MemoizedAIAnalysisSection analysis={analysis} />
 
-        {/* Action Bar */}
-        <PlansActionBar
-          onSave={handleSave}
-          onAnalyze={handleAnalyze}
-          onExport={handleExport}
-          isSaving={calculateMutation.isPending}
-          isAnalyzing={analyzeMutation.isPending}
-          totalFixtures={totalFixtures}
-          selectedModel={selectedModel}
-          onModelChange={setSelectedModel}
-        />
+              {/* Material Takeoff */}
+              <MemoizedTakeoffPanel
+                expanded={takeoffExpanded}
+                onToggle={toggleTakeoff}
+              />
 
-        {/* Estimate result display */}
-            {estimate && (
-              <div className="bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider mb-3">
-              Saved Estimate
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">Total</p>
-                <p className="text-xl font-bold text-surface-900 dark:text-surface-100">
-                  ${(estimate.total || totalPrice).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">Rough-in</p>
-                <p className="text-xl font-bold text-surface-900 dark:text-surface-100">
-                  ${(estimate.breakdown?.roughIn?.amount || phaseBreakdown.roughIn).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">Top-out</p>
-                <p className="text-xl font-bold text-surface-900 dark:text-surface-100">
-                  ${(estimate.breakdown?.topOut?.amount || phaseBreakdown.topOut).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">Trim</p>
-                <p className="text-xl font-bold text-surface-900 dark:text-surface-100">
-                  ${(estimate.breakdown?.trim?.amount || phaseBreakdown.trim).toLocaleString()}
-                </p>
-              </div>
-            </div>
-            {estimate.estimateId && (
-                <p className="text-xs text-surface-400 dark:text-surface-500 mt-3 text-right">
-                  Estimate ID: {estimate.estimateId}
-                </p>
+              {/* Action Bar */}
+              <MemoizedPlansActionBar
+                onSave={handleSave}
+                onAnalyze={handleAnalyze}
+                onExport={handleExport}
+                isSaving={calculateMutation.isPending}
+                isAnalyzing={analyzeMutation.isPending}
+                totalFixtures={totalFixtures}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+              />
+
+              {/* Estimate result */}
+              {estimate && (
+                <div className="card p-5 border-l-4 border-l-accent-500">
+                  <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Save className="w-4 h-4 text-accent-500" />
+                    Saved Estimate
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {estimateDisplayItems.map((item) => (
+                      <div key={item.label} className="bg-surface-50 dark:bg-surface-850/50 rounded-xl p-4 text-center border border-surface-200 dark:border-surface-700">
+                        <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">{item.label}</p>
+                        <p className="text-xl font-bold text-surface-900 dark:text-surface-100 font-mono">
+                          ${(item.value || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {estimate.estimateId && (
+                    <p className="text-xs text-surface-400 dark:text-surface-500 mt-4 text-right font-mono">
+                      Estimate ID: {estimate.estimateId}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
-          </>
-        )}
+        </div>
       </div>
     </div>
   );

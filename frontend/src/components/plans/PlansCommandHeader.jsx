@@ -6,7 +6,7 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
   const hasFixtures = totalFixtures > 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#001a4d] via-[#003594] to-[#002266]">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#001a4d] via-[#3B82F6] to-[#1d4ed8]">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full bg-white/20 blur-3xl" />
@@ -21,7 +21,8 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
               <div className="p-2 rounded-xl bg-white/10 backdrop-blur">
                 <Calculator className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-2xl font-display font-bold tracking-tight">Estimate</h1>
+              {/* Fixed: Removed font-display, kept standard font-bold */}
+              <h1 className="text-2xl font-bold tracking-tight">Estimate</h1>
               {hasFixtures && hasProjectName && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
                   <CheckCircle2 className="w-3 h-3" /> Ready
@@ -43,25 +44,28 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
           {/* Center: Stats */}
           <div className="flex items-center gap-6">
             <div className="text-center px-4 py-2 rounded-xl bg-white/5 backdrop-blur">
-              <p className="text-[10px] uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Fixtures</p>
-              <p className="text-3xl font-bold tabular-nums">{totalFixtures}</p>
+              {/* Fixed: text-xs instead of text-[10px] */}
+              <p className="text-xs uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Fixtures</p>
+              {/* Fixed: text-2xl instead of text-3xl, added font-mono */}
+              <p className="text-2xl font-bold font-mono tabular-nums">{totalFixtures}</p>
             </div>
             <div className="w-px h-12 bg-white/20" />
             <div className="text-center px-4 py-2 rounded-xl bg-white/5 backdrop-blur">
-              <p className="text-[10px] uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Total</p>
-              <p className="text-3xl font-bold tabular-nums">${totalPrice.toLocaleString()}</p>
+              <p className="text-xs uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Total</p>
+              <p className="text-2xl font-bold font-mono tabular-nums">${totalPrice.toLocaleString()}</p>
             </div>
             <div className="w-px h-12 bg-white/20 hidden sm:block" />
             <div className="text-center hidden sm:block px-4 py-2 rounded-xl bg-white/5 backdrop-blur">
-              <p className="text-[10px] uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Per Unit</p>
-              <p className="text-xl font-semibold">${FIXTURE_PRICE.toLocaleString()}</p>
+              <p className="text-xs uppercase tracking-widest text-blue-200/60 font-semibold mb-1">Per Unit</p>
+              {/* Fixed: text-xl font-bold font-mono for consistency */}
+              <p className="text-xl font-bold font-mono tabular-nums">${FIXTURE_PRICE.toLocaleString()}</p>
             </div>
           </div>
 
           {/* Right: Phase mini-bar */}
           <div className="lg:w-52">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] uppercase tracking-widest text-blue-200/60 font-semibold">Phase Breakdown</p>
+              <p className="text-xs uppercase tracking-widest text-blue-200/60 font-semibold">Phase Breakdown</p>
               {totalPrice > 0 && (
                 <span className="text-xs text-white/60">${(totalPrice / 1000).toFixed(0)}k total</span>
               )}
@@ -83,8 +87,8 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
             <div className="flex justify-between mt-2">
               {PHASE_CONFIG.map(phase => (
                 <div key={phase.key} className="text-center">
-                  <span className="text-[10px] text-blue-200/50 block">{phase.label}</span>
-                  <span className="text-[10px] font-medium text-white/80">{phase.pct}%</span>
+                  <span className="text-xs text-blue-200/50 block">{phase.label}</span>
+                  <span className="text-xs font-medium text-white/80">{phase.pct}%</span>
                 </div>
               ))}
             </div>

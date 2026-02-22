@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import {
   Plus, Search, Filter, X, Command, Trash2,
   ArrowUpDown, CheckSquare, Square, Building2,
   MapPin, Users, Compass, FileText, Download, Sparkles,
-  LayoutDashboard
+  LayoutDashboard, Building
 } from 'lucide-react';
 import LeadPulseHome from '../components/leads/LeadPulseHome';
 import LeadCard from '../components/leads/LeadCard';
@@ -15,6 +15,7 @@ import PermitDetailModal from '../components/leads/PermitDetailModal';
 import DiscoveryTab from '../components/discovery/DiscoveryTab';
 import BuilderIntelligenceTab from '../components/leads/BuilderIntelligenceTab';
 import CityDashboardTab from '../components/leads/CityDashboardTab';
+import CitySearch from '../components/leads/CitySearch';
 import UnifiedSearch from '../components/leads/UnifiedSearch';
 import LeadFunnel from '../components/leads/LeadFunnel';
 import StatusProgressBar from '../components/leads/StatusProgressBar';
@@ -25,16 +26,19 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatCurrency, formatDate } from '../utils/format';
 
 const tabs = [
-  { key: 'home', label: 'Overview', icon: LayoutDashboard },
+  { key: 'cities', label: 'City Search', icon: Building },
+  { key: 'permits', label: 'All Permits', icon: FileText },
+  { key: 'builders', label: 'Builders', icon: Building2 },
   { key: 'discovery', label: 'Discovery', icon: Compass },
-  { key: 'permits', label: 'Permit Leads', icon: FileText },
-  { key: 'builders', label: 'Builder Intel', icon: Building2 },
-  { key: 'cities', label: 'City Dashboard', icon: MapPin },
-  { key: 'manual', label: 'Manual Leads', icon: Users },
+  { key: 'manual', label: 'My Leads', icon: Users },
+  { key: 'home', label: 'Overview', icon: LayoutDashboard },
 ];
 
+// Tab order for directional animations
+const TAB_ORDER = { cities: 0, permits: 1, builders: 2, discovery: 3, manual: 4, home: 5 };
+
 export default function LeadFinder() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('cities');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tierFilter, setTierFilter] = useState('');
@@ -172,6 +176,25 @@ export default function LeadFinder() {
     setShowModal(true);
   };
 
+  // Tab transition animation
+  const [tabDirection, setTabDirection] = useState(null);
+  const prevTab = useRef(activeTab);
+  
+  const handleTabChange = (newTab) => {
+    if (newTab === activeTab) return;
+    const direction = TAB_ORDER[newTab] > TAB_ORDER[prevTab.current] ? 'left' : 'right';
+    setTabDirection(direction);
+    prevTab.current = newTab;
+    setActiveTab(newTab);
+    if (selectionMode) { setSelectionMode(false); bulk.clearSelection(); }
+  };
+  
+  // Reset animation direction after it plays
+  useEffect(() => {
+    const timer = setTimeout(() => setTabDirection(null), 350);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
   const isLoading = activeTab === 'manual' ? manualLoading : permitLoading;
   const hasActiveFilters = search || statusFilter || tierFilter || permitCityFilter;
 
@@ -184,7 +207,7 @@ export default function LeadFinder() {
             Lead Finder
           </h1>
           <p className="text-sm text-surface-600 dark:text-surface-400 mt-1 font-medium">
-            Intelligence hub for permits, builders & leads
+            Search permits by city across DFW metroplex
           </p>
         </div>
 
@@ -219,10 +242,7 @@ export default function LeadFinder() {
             return (
               <button
                 key={tab.key}
-                onClick={() => {
-                  setActiveTab(tab.key);
-                  if (selectionMode) { setSelectionMode(false); bulk.clearSelection(); }
-                }}
+                onClick={() => handleTabChange(tab.key)}
                 className={`relative flex items-center gap-2 px-5 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
                   activeTab === tab.key
                     ? 'text-accent-600 dark:text-accent-400'
@@ -240,37 +260,43 @@ export default function LeadFinder() {
         </div>
       </div>
 
-      {/* Home Tab - Lead Pulse */}
-      {activeTab === 'home' && (
-        <LeadPulseHome
-          manualLeads={manualLeads}
-          permits={permits}
-          onAddLead={handleAddNew}
-          onViewLead={handleViewLead}
-          onViewPermit={handleViewPermitDetails}
-          onTabChange={setActiveTab}
-          onOpenSearch={() => setShowUnifiedSearch(true)}
-          isLoading={manualLoading || permitLoading}
-        />
-      )}
+      {/* Tab Content with smooth transitions */}
+      <div 
+        key={activeTab}
+        className={`${tabDirection === 'left' ? 'page-slide-left' : tabDirection === 'right' ? 'page-slide-right' : 'page-transition-wrapper'}`}
+        style={{ willChange: 'transform, opacity' }}
+      >
+        {/* Home Tab - Lead Pulse */}
+        {activeTab === 'home' && (
+          <LeadPulseHome
+            manualLeads={manualLeads}
+            permits={permits}
+            onAddLead={handleAddNew}
+            onViewLead={handleViewLead}
+            onViewPermit={handleViewPermitDetails}
+            onTabChange={setActiveTab}
+            onOpenSearch={() => setShowUnifiedSearch(true)}
+            isLoading={manualLoading || permitLoading}
+          />
+        )}
 
-      {/* Discovery Tab */}
-      {activeTab === 'discovery' && <DiscoveryTab />}
+        {/* Discovery Tab */}
+        {activeTab === 'discovery' && <DiscoveryTab />}
 
-      {/* Builder Intelligence Tab */}
-      {activeTab === 'builders' && (
-        <BuilderIntelligenceTab onViewPermit={handleViewPermitDetails} />
-      )}
+        {/* Builder Intelligence Tab */}
+        {activeTab === 'builders' && (
+          <BuilderIntelligenceTab onViewPermit={handleViewPermitDetails} />
+        )}
 
-      {/* City Dashboard Tab */}
-      {activeTab === 'cities' && (
-        <CityDashboardTab
-          onViewPermit={handleViewPermitDetails}
-          onSwitchToBuilders={() => setActiveTab('builders')}
-        />
-      )}
+        {/* City Search Tab */}
+        {activeTab === 'cities' && (
+          <CitySearch
+            onViewPermit={handleViewPermitDetails}
+            onSwitchToBuilders={() => setActiveTab('builders')}
+          />
+        )}
 
-      {/* Manual & Permits: Search, Filters, Results */}
+        {/* Manual & Permits: Search, Filters, Results */}
       {(activeTab === 'manual' || activeTab === 'permits') && (
         <>
           {/* Lead Funnel (manual only) */}
@@ -334,7 +360,7 @@ export default function LeadFinder() {
                         setSelectionMode(!selectionMode);
                         if (selectionMode) bulk.clearSelection();
                       }}
-                      className={`btn-secondary shrink-0 ${selectionMode ? 'ring-2 ring-copper-400' : ''}`}
+                      className={`btn-secondary shrink-0 ${selectionMode ? 'ring-2 ring-blue-400' : ''}`}
                       title="Select multiple leads"
                     >
                       <CheckSquare className="w-5 h-5" />
@@ -423,7 +449,7 @@ export default function LeadFinder() {
 
           {/* Bulk Action Toolbar */}
           {selectionMode && bulk.selectionCount > 0 && (
-            <div className="card border-l-4 border-l-copper-500 animate-slide-up">
+            <div className="card border-l-4 border-l-blue-500 animate-slide-up">
               <div className="card-body p-3 flex items-center gap-3">
                 <button
                   onClick={() => {
@@ -439,7 +465,7 @@ export default function LeadFinder() {
                   )}
                 </button>
 
-                <span className="text-sm font-bold text-copper-600 dark:text-copper-400 tabular-nums">
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">
                   {bulk.selectionCount} selected
                 </span>
 
@@ -487,8 +513,8 @@ export default function LeadFinder() {
                           onClick={(e) => bulk.toggleSelect(lead.id, idx, e.shiftKey)}
                           className="absolute top-3 left-3 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all"
                           style={{
-                            background: bulk.isSelected(lead.id) ? '#003594' : 'rgba(255,255,255,0.8)',
-                            borderColor: bulk.isSelected(lead.id) ? '#003594' : 'rgba(200,197,191,0.5)',
+                            background: bulk.isSelected(lead.id) ? '#3B82F6' : 'rgba(255,255,255,0.8)',
+                            borderColor: bulk.isSelected(lead.id) ? '#3B82F6' : 'rgba(200,197,191,0.5)',
                           }}
                         >
                           {bulk.isSelected(lead.id) && (
@@ -569,6 +595,7 @@ export default function LeadFinder() {
           )}
         </>
       )}
+      </div>
 
       {/* Modals */}
       {showModal && (

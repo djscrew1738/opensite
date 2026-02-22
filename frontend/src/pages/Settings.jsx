@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useOllama } from '../hooks/useOllama';
 import { useModelPreference } from '../hooks/useModelPreference';
 import { useTheme } from '../hooks/useTheme';
+import { useToast } from '../hooks/useToast';
 import {
   CheckCircle, XCircle, RefreshCw, Building2, MapPin, Wrench,
   Cpu, Shield, Key, Download, Trash2, Star, Activity,
@@ -13,7 +14,8 @@ import {
   Phone, Mail, DollarSign, SlidersHorizontal, MessageSquare,
   Moon, Sun, Monitor, AlertOctagon, FileDown, Hash,
   ChevronRight, LayoutDashboard, RotateCcw, FileText,
-  Percent, CalendarDays, Package, Layers, Settings as SettingsIcon
+  Percent, CalendarDays, Package, Layers, Settings as SettingsIcon,
+  AlertCircle
 } from 'lucide-react';
 import SettingsHome from '../components/settings/SettingsHome';
 
@@ -21,32 +23,13 @@ import SettingsHome from '../components/settings/SettingsHome';
    PRIMITIVES
 ───────────────────────────────────────────── */
 
-function Toast({ message, type = 'success', onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3000);
-    return () => clearTimeout(t);
-  }, [onClose]);
-  return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-semibold backdrop-blur-lg transition-all animate-in slide-in-from-bottom-4 ${
-      type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200'
-      : type === 'error' ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200'
-      : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-200'
-    }`}>
-      {type === 'success' && <CheckCircle className="w-4 h-4" />}
-      {type === 'error' && <XCircle className="w-4 h-4" />}
-      {type === 'warning' && <AlertTriangle className="w-4 h-4" />}
-      {message}
-    </div>
-  );
-}
-
 function Toggle({ enabled, onChange }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-        enabled ? 'bg-copper-500' : 'bg-gray-300 dark:bg-gray-600'
+        enabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
       }`}
     >
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
@@ -73,8 +56,8 @@ function Section({ icon: Icon, title, badge, children }) {
     <div className="card p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-copper-50 dark:bg-copper-950/30 flex items-center justify-center">
-            <Icon className="w-4 h-4 text-copper-600 dark:text-copper-400" />
+          <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-copper-950/30 flex items-center justify-center">
+            <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           </div>
           <h2 className="text-lg font-bold text-surface-900 dark:text-surface-100 tracking-tight">{title}</h2>
         </div>
@@ -99,7 +82,7 @@ function StatusPill({ connected, label }) {
 
 function MetricBox({ label, value, sub, icon: Icon }) {
   return (
-    <div className="bg-surface-50 dark:bg-surface-850/60 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700/60 border-l-2 border-l-copper-400/30 dark:border-l-copper-600/20">
+    <div className="bg-surface-50 dark:bg-surface-850/60 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700/60 border-l-2 border-l-blue-400/30 dark:border-l-blue-600/20">
       <div className="flex items-center gap-2 mb-1">
         {Icon && <Icon className="w-3.5 h-3.5 text-gray-400" />}
         <span className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">{label}</span>
@@ -138,7 +121,7 @@ function KeyInput({ label, description, value, onChange, show, onToggleShow, onS
       {(description || href) && (
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
           {description}{href && <> Get a key at{' '}
-            <a href={href} target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline inline-flex items-center gap-1">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
               {hrefLabel} <ExternalLink className="w-3 h-3" />
             </a>
           </>}
@@ -182,6 +165,7 @@ const NAV_ITEMS = [
   { id: 'business',      icon: Building2,        label: 'Business' },
   { id: 'estimating',    icon: Calculator,       label: 'Estimating' },
   { id: 'discovery',     icon: Search,           label: 'Discovery' },
+  { id: 'jobpulse',      icon: Activity,         label: 'Job Pulse' },
   { id: 'notifications', icon: Bell,             label: 'Notifications' },
   { id: 'apikeys',       icon: Key,              label: 'API Keys' },
   { id: 'performance',   icon: Gauge,            label: 'Performance' },
@@ -197,6 +181,7 @@ const NAV_ICON_MAP = {
   business: Building2,
   estimating: Calculator,
   discovery: Search,
+  jobpulse: Activity,
   notifications: Bell,
   apikeys: Key,
   performance: Gauge,
@@ -213,13 +198,34 @@ export default function Settings() {
   const { connected, model, available, isLoading: ollamaLoading, refetch: refetchOllama } = useOllama();
   const { defaultModel, setDefaultModel } = useModelPreference();
   const { theme, toggleTheme } = useTheme();
+  const { success: showToastSuccess, error: showToastError, warning: showToastWarning } = useToast();
+  const showToast = useCallback((message, type = 'success') => {
+    if (type === 'success') showToastSuccess(message);
+    else if (type === 'error') showToastError(message);
+    else showToastWarning(message);
+  }, [showToastSuccess, showToastError, showToastWarning]);
 
   /* ── Tab nav ── */
   const [activeTab, setActiveTab] = useState('overview');
-
-  /* ── Toast ── */
-  const [toast, setToast] = useState(null);
-  const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const [tabDirection, setTabDirection] = useState(null);
+  const prevTab = useRef('overview');
+  
+  // Tab order for animations
+  const TAB_ORDER = NAV_ITEMS.reduce((acc, item, idx) => ({ ...acc, [item.id]: idx }), {});
+  
+  const handleTabChange = (newTab) => {
+    if (newTab === activeTab) return;
+    const direction = TAB_ORDER[newTab] > TAB_ORDER[prevTab.current] ? 'left' : 'right';
+    setTabDirection(direction);
+    prevTab.current = newTab;
+    setActiveTab(newTab);
+  };
+  
+  // Reset animation after it plays
+  useEffect(() => {
+    const timer = setTimeout(() => setTabDirection(null), 350);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
 
   /* ── AI provider ── */
   const [activeProvider, setActiveProvider] = useState('ollama');
@@ -320,6 +326,23 @@ export default function Settings() {
   const [googleMapsKey, setGoogleMapsKey] = useState('');
   const [showGoogleMapsKey, setShowGoogleMapsKey] = useState(false);
 
+  /* ── Email Watcher (Microsoft Graph) ── */
+  const [msClientId, setMsClientId] = useState('');
+  const [msClientSecret, setMsClientSecret] = useState('');
+  const [showMsClientSecret, setShowMsClientSecret] = useState(false);
+  
+  /* ── Email Watcher (Google Gmail) ── */
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
+  const [showGoogleClientSecret, setShowGoogleClientSecret] = useState(false);
+  
+  /* ── Telegram ── */
+  const [telegramToken, setTelegramToken] = useState('');
+  const [showTelegramToken, setShowTelegramToken] = useState(false);
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [ewPollInterval, setEwPollInterval] = useState(60);
+  const [ewMarkAsRead, setEwMarkAsRead] = useState(false);
+
   /* ── Performance ── */
   const [perfCacheTtl, setPerfCacheTtl] = useState(5);
   const [perfRateLimit, setPerfRateLimit] = useState(100);
@@ -364,6 +387,9 @@ export default function Settings() {
   const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [testingStripe, setTestingStripe] = useState(false);
   const [testingGoogleMaps, setTestingGoogleMaps] = useState(false);
+  const [testingMicrosoft, setTestingMicrosoft] = useState(false);
+  const [testingGoogle, setTestingGoogle] = useState(false);
+  const [testingTelegram, setTestingTelegram] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [savingEstimating, setSavingEstimating] = useState(false);
@@ -500,6 +526,11 @@ export default function Settings() {
     setPerfCbThreshold(num(s.perf_cb_threshold, 5));
     setPerfLowMemory(bool(s.perf_low_memory, false));
     setPerfBgJobs(bool(s.perf_bg_jobs, true));
+
+    // Email Watcher
+    setEwPollInterval(num(s.email_watcher_poll_interval, 60));
+    setEwMarkAsRead(bool(s.email_watcher_mark_read, false));
+    setTelegramChatId(s.telegram_chat_id || '');
   }, [settingsData]);
 
   /* ─────────────────────────────────────────────
@@ -925,6 +956,70 @@ export default function Settings() {
     try { const r = await api.settings.testGoogleMaps(googleMapsKey || undefined); if (r.valid) showToast('Google Maps key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
     catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
     finally { setTestingGoogleMaps(false); }
+  };
+
+  const handleSaveMicrosoft = async () => {
+    try {
+      const u = {};
+      if (msClientId) u.microsoft_client_id = msClientId;
+      if (msClientSecret) u.microsoft_client_secret = msClientSecret;
+      await api.settings.update(u);
+      setMsClientId(''); setMsClientSecret('');
+      refetchSettings(); showToast('Microsoft OAuth credentials saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleTestMicrosoft = async () => {
+    setTestingMicrosoft(true);
+    try { const r = await api.settings.testMicrosoft(msClientId || undefined, msClientSecret || undefined); if (r.valid) showToast('Microsoft OAuth credentials valid'); else showToast(r.error || 'Invalid credentials', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingMicrosoft(false); }
+  };
+
+  const handleSaveGoogle = async () => {
+    try {
+      const u = {};
+      if (googleClientId) u.google_client_id = googleClientId;
+      if (googleClientSecret) u.google_client_secret = googleClientSecret;
+      await api.settings.update(u);
+      setGoogleClientId(''); setGoogleClientSecret('');
+      refetchSettings(); showToast('Google OAuth credentials saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleTestGoogle = async () => {
+    setTestingGoogle(true);
+    try { const r = await api.settings.testGoogle(googleClientId || undefined, googleClientSecret || undefined); if (r.valid) showToast(r.message || 'Google OAuth credentials valid'); else showToast(r.error || 'Invalid credentials', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingGoogle(false); }
+  };
+
+  const handleSaveTelegram = async () => {
+    try {
+      const u = {};
+      if (telegramToken) u.telegram_bot_token = telegramToken;
+      if (telegramChatId) u.telegram_chat_id = telegramChatId;
+      await api.settings.update(u);
+      setTelegramToken('');
+      refetchSettings(); showToast('Telegram settings saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleTestTelegram = async () => {
+    setTestingTelegram(true);
+    try { const r = await api.settings.testTelegram(telegramToken || undefined); if (r.valid) showToast(`Bot connected: @${r.botUsername}`); else showToast(r.error || 'Invalid token', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingTelegram(false); }
+  };
+
+  const handleSaveEmailWatcher = async () => {
+    try {
+      await api.settings.update({
+        email_watcher_poll_interval: String(ewPollInterval),
+        email_watcher_mark_read: String(ewMarkAsRead),
+      });
+      refetchSettings(); showToast('Email watcher settings saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
   };
 
   /* ─────────────────────────────────────────────
@@ -1666,6 +1761,147 @@ export default function Settings() {
           )}
         </div>
       </Section>
+
+      {/* Email Watcher Section - Multi-Provider */}
+      <Section icon={Mail} title="Email Watcher (Multi-Provider)"
+        badge={
+          settings.microsoft_client_id_configured || settings.google_client_id_configured ? (
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">Configured</span>
+          ) : (
+            <span className="text-xs font-semibold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">Not Configured</span>
+          )
+        }
+      >
+        <div className="space-y-5">
+          <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-800/40">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <Info className="w-4 h-4 inline mr-2" />
+              The Email Watcher monitors Gmail and Outlook inboxes via OAuth2, sending keyword-based alerts via SMS and Telegram.
+            </p>
+          </div>
+
+          {/* Google OAuth */}
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Google Gmail OAuth</p>
+              {settings.google_client_id_configured && (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Connected
+                </span>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Client ID</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">From <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Google Cloud Console <ExternalLink className="w-3 h-3 inline" /></a></p>
+                <input 
+                  type="text" 
+                  value={googleClientId} 
+                  onChange={e => setGoogleClientId(e.target.value)} 
+                  className="input font-mono text-sm" 
+                  placeholder={settings.google_client_id_masked || 'xxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com'} 
+                />
+              </div>
+              <div>
+                <label className="label">Client Secret</label>
+                <div className="relative">
+                  <input 
+                    type={showGoogleClientSecret ? 'text' : 'password'} 
+                    value={googleClientSecret} 
+                    onChange={e => setGoogleClientSecret(e.target.value)} 
+                    className="input pr-10 font-mono text-sm" 
+                    placeholder={settings.google_client_secret_masked || 'Enter Client Secret'} 
+                  />
+                  <button type="button" onClick={() => setShowGoogleClientSecret(!showGoogleClientSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showGoogleClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={handleTestGoogle} disabled={testingGoogle} className="btn-secondary text-sm whitespace-nowrap">
+                  {testingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
+                </button>
+                <button onClick={handleSaveGoogle} disabled={!googleClientId.trim() && !googleClientSecret.trim()} className="btn-primary text-sm whitespace-nowrap">
+                  <Save className="w-4 h-4" /> Save
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Microsoft OAuth */}
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Microsoft Outlook OAuth</p>
+              {settings.microsoft_client_id_configured && (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Connected
+                </span>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Application (Client) ID</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Register an app at <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">portal.azure.com <ExternalLink className="w-3 h-3 inline" /></a></p>
+                <input 
+                  type="text" 
+                  value={msClientId} 
+                  onChange={e => setMsClientId(e.target.value)} 
+                  className="input font-mono text-sm" 
+                  placeholder={settings.microsoft_client_id_masked || 'Enter Client ID'} 
+                />
+              </div>
+              <div>
+                <label className="label">Client Secret</label>
+                <div className="relative">
+                  <input 
+                    type={showMsClientSecret ? 'text' : 'password'} 
+                    value={msClientSecret} 
+                    onChange={e => setMsClientSecret(e.target.value)} 
+                    className="input pr-10 font-mono text-sm" 
+                    placeholder={settings.microsoft_client_secret_masked || 'Enter Client Secret'} 
+                  />
+                  <button type="button" onClick={() => setShowMsClientSecret(!showMsClientSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showMsClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={handleTestMicrosoft} disabled={testingMicrosoft} className="btn-secondary text-sm whitespace-nowrap">
+                  {testingMicrosoft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
+                </button>
+                <button onClick={handleSaveMicrosoft} disabled={!msClientId.trim() && !msClientSecret.trim()} className="btn-primary text-sm whitespace-nowrap">
+                  <Save className="w-4 h-4" /> Save
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Watcher Configuration */}
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Watcher Configuration</p>
+            <div className="space-y-4">
+              <SliderField 
+                label="Poll Interval" 
+                value={ewPollInterval} 
+                onChange={setEwPollInterval} 
+                min={30} 
+                max={300} 
+                step={30} 
+                unit=" sec" 
+                markers={['30s','60s','120s','300s']} 
+              />
+              <SettingsRow label="Mark Emails as Read" description="Automatically mark matched emails as read">
+                <Toggle enabled={ewMarkAsRead} onChange={setEwMarkAsRead} />
+              </SettingsRow>
+              <div className="flex justify-end">
+                <button onClick={handleSaveEmailWatcher} className="btn-primary text-sm whitespace-nowrap">
+                  <Save className="w-4 h-4" /> Save Config
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
     </div>
   );
 
@@ -1679,6 +1915,9 @@ export default function Settings() {
             { key: 'openai_api_key_configured', label: 'OpenAI' },
             { key: 'twilio_account_sid_configured', label: 'Twilio' },
             { key: 'sendgrid_api_key_configured', label: 'SendGrid' },
+            { key: 'google_client_id_configured', label: 'Google' },
+            { key: 'microsoft_client_id_configured', label: 'Microsoft' },
+            { key: 'telegram_bot_token_configured', label: 'Telegram' },
           ].map(({ key, label }) => (
             <StatusPill key={key} connected={settings[key]} label={settings[key] ? label : `${label} N/A`} />
           ))}
@@ -1724,7 +1963,7 @@ export default function Settings() {
           <div className="space-y-5">
             <div>
               <label className="label">Twilio (SMS)</label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">SMS notifications. Get credentials at <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-copper-600 dark:text-copper-400 hover:underline">console.twilio.com <ExternalLink className="w-3 h-3 inline" /></a></p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">SMS notifications. Get credentials at <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">console.twilio.com <ExternalLink className="w-3 h-3 inline" /></a></p>
               <div className="space-y-3">
                 <input type="text" value={twilioSid} onChange={e => setTwilioSid(e.target.value)} className="input font-mono text-sm" placeholder={settings.twilio_account_sid_masked || 'Account SID (AC...)'} />
                 <div className="relative">
@@ -1748,6 +1987,47 @@ export default function Settings() {
               value={sendgridKey} onChange={setSendgridKey} show={showSendgridKey} onToggleShow={() => setShowSendgridKey(!showSendgridKey)}
               placeholder={settings.sendgrid_api_key_masked || 'SG....'}
               onTest={handleTestSendgrid} testing={testingSendgrid} onSave={handleSaveSendgridKey} />
+            
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Messaging</p>
+              <div className="space-y-5">
+                <div>
+                  <label className="label">Telegram Bot Token</label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">@BotFather <ExternalLink className="w-3 h-3 inline" /></a></p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input 
+                        type={showTelegramToken ? 'text' : 'password'} 
+                        value={telegramToken} 
+                        onChange={e => setTelegramToken(e.target.value)} 
+                        className="input pr-10 font-mono text-sm" 
+                        placeholder={settings.telegram_bot_token_masked || 'Enter bot token'} 
+                      />
+                      <button type="button" onClick={() => setShowTelegramToken(!showTelegramToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showTelegramToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button onClick={handleTestTelegram} disabled={testingTelegram} className="btn-secondary text-sm whitespace-nowrap">
+                      {testingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
+                    </button>
+                    <button onClick={handleSaveTelegram} disabled={!telegramToken.trim() && !telegramChatId.trim()} className="btn-primary text-sm whitespace-nowrap">
+                      <Save className="w-4 h-4" /> Save
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Telegram Chat ID</label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Your personal chat ID or group chat ID</p>
+                  <input 
+                    type="text" 
+                    value={telegramChatId} 
+                    onChange={e => setTelegramChatId(e.target.value)} 
+                    className="input font-mono text-sm" 
+                    placeholder={settings.telegram_chat_id || 'e.g. 123456789 or -1001234567890'} 
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1825,12 +2105,12 @@ export default function Settings() {
             <button key={id} onClick={() => handleApplyTheme(id)}
               className={`relative p-4 rounded-xl border-2 transition-all text-left ${
                 themePreference === id
-                  ? 'border-copper-500 bg-copper-50/50 dark:bg-copper-950/20'
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-copper-950/20'
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
-              {themePreference === id && <div className="absolute top-2 right-2"><CheckCircle className="w-5 h-5 text-copper-500" /></div>}
-              <Icon className={`w-5 h-5 mb-2 ${themePreference === id ? 'text-copper-600 dark:text-copper-400' : 'text-gray-400'}`} />
+              {themePreference === id && <div className="absolute top-2 right-2"><CheckCircle className="w-5 h-5 text-blue-500" /></div>}
+              <Icon className={`w-5 h-5 mb-2 ${themePreference === id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
               <div className="font-bold text-sm text-gray-900 dark:text-gray-100">{label}</div>
               <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
             </button>
@@ -1983,6 +2263,233 @@ export default function Settings() {
   );
 
   /* ─────────────────────────────────────────────
+     JOB PULSE — Email Integration for Job Site Monitoring
+  ───────────────────────────────────────────── */
+  const renderJobPulse = () => (
+    <div className="space-y-6">
+      <Section icon={Activity} title="Job Pulse Email Login"
+        badge={emStatus?.enabled ? (
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">Connected</span>
+        ) : (
+          <span className="text-xs font-semibold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">Not Connected</span>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Connect your email to Job Pulse for automatic job site monitoring. 
+            Job Pulse scans your inbox for permit updates, inspection notices, schedule changes, 
+            and other job-related communications, then sends SMS alerts for urgent items.
+          </p>
+
+          <SettingsRow label="Enable Job Pulse Email Monitoring" description="Automatically scan emails for job site updates">
+            <Toggle enabled={emEnabled} onChange={setEmEnabled} />
+          </SettingsRow>
+
+          {emEnabled && (
+            <>
+              <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-800/40 mb-4">
+                <p className="text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    Use an <strong>App Password</strong> if your email has 2FA/MFA enabled. 
+                    For Outlook, generate one at account.microsoft.com/security.
+                  </span>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input 
+                      type="email" 
+                      value={emUser} 
+                      onChange={e => setEmUser(e.target.value)} 
+                      className="input pl-10 text-sm" 
+                      placeholder="you@company.com" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Password / App Password</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input 
+                      type="password" 
+                      value={emPass} 
+                      onChange={e => setEmPass(e.target.value)} 
+                      className="input pl-10 text-sm" 
+                      placeholder="Enter password (leave blank to keep current)" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Email Server (IMAP)</label>
+                  <select 
+                    value={emHost} 
+                    onChange={e => {
+                      const host = e.target.value;
+                      setEmHost(host);
+                      // Auto-set port based on host
+                      if (host === 'outlook.office365.com') setEmPort('993');
+                      else if (host === 'imap.gmail.com') setEmPort('993');
+                      else if (host === 'imap.mail.yahoo.com') setEmPort('993');
+                      else if (host === 'imap.office365.com') setEmPort('993');
+                    }} 
+                    className="input text-sm"
+                  >
+                    <option value="outlook.office365.com">Microsoft 365 / Outlook</option>
+                    <option value="imap.gmail.com">Gmail (Google)</option>
+                    <option value="imap.mail.yahoo.com">Yahoo Mail</option>
+                    <option value="">Custom Server...</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">IMAP Port</label>
+                  <input 
+                    type="number" 
+                    value={emPort} 
+                    onChange={e => setEmPort(e.target.value)} 
+                    className="input text-sm font-mono" 
+                    placeholder="993" 
+                  />
+                </div>
+              </div>
+
+              {!emHost && (
+                <div>
+                  <label className="label">Custom IMAP Server</label>
+                  <input 
+                    type="text" 
+                    value={emHost} 
+                    onChange={e => setEmHost(e.target.value)} 
+                    className="input text-sm font-mono" 
+                    placeholder="mail.yourcompany.com" 
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label">Alert Keywords</label>
+                <textarea 
+                  value={emKeywords} 
+                  onChange={e => setEmKeywords(e.target.value)} 
+                  className="input text-sm font-mono" 
+                  rows={3}
+                  placeholder="permit, inspection, plumbing, rough-in, schedule change, urgent, failed, approved..." 
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated keywords. Job Pulse sends SMS alerts when emails match these terms.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button onClick={handleTestEmailMonitor} disabled={emTesting} className="btn-secondary text-sm whitespace-nowrap">
+                  {emTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test Connection
+                </button>
+                <button onClick={handleCheckNow} disabled={emChecking} className="btn-secondary text-sm whitespace-nowrap">
+                  {emChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Check Now
+                </button>
+                <button onClick={handleSaveEmailMonitor} disabled={emSaving} className="btn-primary text-sm whitespace-nowrap">
+                  {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Job Pulse Email
+                </button>
+              </div>
+
+              {/* Connection Status */}
+              {emStatus && (
+                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2 h-2 rounded-full ${emStatus.enabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {emStatus.enabled ? 'Job Pulse Monitoring Active' : 'Job Pulse Monitoring Disabled'}
+                    </span>
+                  </div>
+                  {emStatus.lastCheckTime && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Last check: {new Date(emStatus.lastCheckTime).toLocaleString()}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                    <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <p className="text-gray-500 text-xs">Total Alerts</p>
+                      <p className="font-mono font-bold text-gray-900 dark:text-gray-100">{emStatus.totalAlerts || 0}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <p className="text-gray-500 text-xs">SMS Sent</p>
+                      <p className="font-mono font-bold text-gray-900 dark:text-gray-100">{emStatus.totalSmsSent || 0}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <p className="text-gray-500 text-xs">Keywords</p>
+                      <p className="font-mono font-bold text-gray-900 dark:text-gray-100">{emStatus.keywords?.length || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Alerts */}
+              {emAlerts.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent Job Alerts</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {emAlerts.slice(0, 5).map((a, i) => (
+                      <div key={a.id || i} className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{a.fromName || a.fromAddress}</span>
+                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">{a.processedAt ? new Date(a.processedAt).toLocaleString() : ''}</span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 truncate">{a.subject}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(a.matchedKeywords || '').split(', ').filter(Boolean).map(kw => (
+                            <span key={kw} className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-mono">{kw}</span>
+                          ))}
+                        </div>
+                        {a.smsSent ? (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 inline-block">✓ SMS sent</span>
+                        ) : (
+                          <span className="text-xs text-gray-500 mt-1 inline-block">No SMS</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Section>
+
+      <Section icon={Bell} title="SMS Alert Settings">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Configure SMS notifications for Job Pulse alerts. Requires Twilio credentials in API Keys section.
+          </p>
+          <SettingsRow label="Send SMS for Job Alerts" description="Get text messages when important job emails arrive">
+            <Toggle enabled={notifySmsEnabled} onChange={setNotifySmsEnabled} />
+          </SettingsRow>
+          <div>
+            <label className="label">Admin Mobile Number</label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="tel" 
+                value={notifyAdminPhone} 
+                onChange={e => setNotifyAdminPhone(e.target.value)} 
+                className="input pl-10 text-sm" 
+                placeholder="+1 (817) 555-0100" 
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Phone number to receive SMS alerts from Job Pulse</p>
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+
+  /* ─────────────────────────────────────────────
      RENDER
   ───────────────────────────────────────────── */
   const TAB_CONTENT = {
@@ -1990,6 +2497,7 @@ export default function Settings() {
     business: renderBusiness,
     estimating: renderEstimating,
     discovery: renderDiscovery,
+    jobpulse: renderJobPulse,
     notifications: renderNotifications,
     apikeys: renderAPIKeys,
     performance: renderPerformance,
@@ -1999,7 +2507,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 page-transition-wrapper">
       {/* Page header */}
       <div className="command-header mb-6">
         <div className="flex items-center justify-between">
@@ -2018,16 +2526,16 @@ export default function Settings() {
             {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabChange(id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all mb-0.5 text-left ${
                   activeTab === id
-                    ? 'bg-copper-500/10 text-copper-700 dark:text-copper-300 dark:bg-copper-900/30'
+                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 dark:bg-blue-900/30'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${activeTab === id ? 'text-copper-600 dark:text-copper-400' : ''}`} />
+                <Icon className={`w-4 h-4 shrink-0 ${activeTab === id ? 'text-blue-600 dark:text-blue-400' : ''}`} />
                 {label}
-                {activeTab === id && <ChevronRight className="w-3 h-3 ml-auto text-copper-500 dark:text-copper-400" />}
+                {activeTab === id && <ChevronRight className="w-3 h-3 ml-auto text-blue-500 dark:text-blue-400" />}
               </button>
             ))}
           </div>
@@ -2040,10 +2548,10 @@ export default function Settings() {
             {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabChange(id)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
                   activeTab === id
-                    ? 'bg-copper-500/10 text-copper-700 dark:text-copper-300 border border-copper-300/40 dark:border-copper-700/40'
+                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-300/40 dark:border-blue-700/40'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 border border-transparent'
                 }`}
               >
@@ -2054,14 +2562,19 @@ export default function Settings() {
           </div>
 
           {/* Tab panel */}
-          <div className="min-h-[400px]">
+          <div 
+            key={activeTab}
+            className={`
+              min-h-[400px]
+              ${tabDirection === 'left' ? 'page-slide-left' : tabDirection === 'right' ? 'page-slide-right' : 'page-transition-wrapper'}
+            `}
+            style={{ willChange: 'transform, opacity' }}
+          >
             {(TAB_CONTENT[activeTab] || renderAI)()}
           </div>
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

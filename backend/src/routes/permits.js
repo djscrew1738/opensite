@@ -1,11 +1,12 @@
 import express from 'express';
 import { db } from '../services/database.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 
 // Logger middleware
 const log = (req, _res, next) => {
-  console.log(`[permits] ${req.method} ${req.path}`);
+  logger.debug(`[permits] ${req.method} ${req.path}`);
   next();
 };
 
@@ -18,10 +19,10 @@ router.use(log);
 router.get('/summary', (req, res) => {
   try {
     const summary = db.getPermitSummary();
-    res.json({ success: true, data: summary });
+    res.success(summary);
   } catch (err) {
-    console.error('[permits] Summary error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Summary error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -32,10 +33,10 @@ router.get('/summary', (req, res) => {
 router.get('/cities', (req, res) => {
   try {
     const cities = db.getCitiesWithCounts();
-    res.json({ success: true, data: cities });
+    res.success(cities);
   } catch (err) {
-    console.error('[permits] Cities error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Cities error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -46,10 +47,10 @@ router.get('/cities', (req, res) => {
 router.get('/stats/city/:city', (req, res) => {
   try {
     const stats = db.getCityStats(decodeURIComponent(req.params.city));
-    res.json({ success: true, data: stats });
+    res.success(stats);
   } catch (err) {
-    console.error('[permits] City stats error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] City stats error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -61,13 +62,13 @@ router.get('/search', (req, res) => {
   try {
     const { q, type } = req.query;
     if (!q || q.trim().length < 2) {
-      return res.json({ success: true, data: { permits: [], leads: [], builders: [] } });
+      return res.success({ permits: [], leads: [], builders: [] });
     }
     const results = db.unifiedSearch(q.trim(), type || null);
-    res.json({ success: true, data: results });
+    res.success(results);
   } catch (err) {
-    console.error('[permits] Search error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Search error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -90,10 +91,10 @@ router.get('/builders', (req, res) => {
     });
 
     const builders = db.getAllBuilders(filters);
-    res.json({ success: true, data: builders, count: builders.length });
+    res.success({ builders, count: builders.length });
   } catch (err) {
-    console.error('[permits] Builders list error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Builders list error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -103,16 +104,16 @@ router.get('/builders', (req, res) => {
  */
 router.get('/builders/prospects', async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 1000) : 20;
 
     // Import intelligence module dynamically to avoid circular dependencies
     const { getTopProspects } = await import('../services/permits/intelligence.js');
     const prospects = await getTopProspects(db, limit);
 
-    res.json({ success: true, data: prospects, count: prospects.length });
+    res.success({ prospects, count: prospects.length });
   } catch (err) {
-    console.error('[permits] Prospects error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Prospects error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -125,22 +126,16 @@ router.get('/builders/:id', (req, res) => {
     const builder = db.getBuilder(req.params.id);
 
     if (!builder) {
-      return res.status(404).json({ success: false, error: 'Builder not found' });
+      return res.error('Builder not found', 'NOT_FOUND', null, 404);
     }
 
     // Get permit history
     const permits = db.getBuilderPermits(req.params.id);
 
-    res.json({
-      success: true,
-      data: {
-        ...builder,
-        permits
-      }
-    });
+    res.success({ ...builder, permits });
   } catch (err) {
-    console.error('[permits] Builder get error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Builder get error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -154,10 +149,7 @@ router.get('/near', (req, res) => {
     const { lat, lng, radius } = req.query;
 
     if (!lat || !lng || !radius) {
-      return res.status(400).json({
-        success: false,
-        error: 'lat, lng, and radius are required'
-      });
+      return res.error('lat, lng, and radius are required', 'VALIDATION_ERROR', null, 400);
     }
 
     const latitude = parseFloat(lat);
@@ -165,18 +157,27 @@ router.get('/near', (req, res) => {
     const radiusMiles = parseFloat(radius);
 
     if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusMiles)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid coordinates or radius'
-      });
+      return res.error('Invalid coordinates or radius', 'VALIDATION_ERROR', null, 400);
+    }
+
+    if (latitude < -90 || latitude > 90) {
+      return res.error('Latitude must be between -90 and 90', 'VALIDATION_ERROR', null, 400);
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      return res.error('Longitude must be between -180 and 180', 'VALIDATION_ERROR', null, 400);
+    }
+
+    if (radiusMiles < 1 || radiusMiles > 500) {
+      return res.error('Radius must be between 1 and 500 miles', 'VALIDATION_ERROR', null, 400);
     }
 
     const permits = db.getPermitsNearLocation(latitude, longitude, radiusMiles);
 
-    res.json({ success: true, data: permits, count: permits.length });
+    res.success({ permits, count: permits.length });
   } catch (err) {
-    console.error('[permits] Near location error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Near location error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -187,16 +188,33 @@ router.get('/near', (req, res) => {
  */
 router.get('/', (req, res) => {
   try {
+    // Whitelist validation for enum params
+    const VALID_TIERS = ['hot', 'warm', 'cold', 'unscored'];
+    const VALID_STATUSES = ['new', 'contacted', 'quoted', 'won', 'lost', 'dismissed'];
+    const VALID_CATEGORIES = ['residential', 'commercial', 'industrial', 'multi-family', 'renovation'];
+
+    if (req.query.tier && !VALID_TIERS.includes(req.query.tier)) {
+      return res.error(`Invalid tier. Must be one of: ${VALID_TIERS.join(', ')}`, 'VALIDATION_ERROR', null, 400);
+    }
+
+    if (req.query.status && !VALID_STATUSES.includes(req.query.status)) {
+      return res.error(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`, 'VALIDATION_ERROR', null, 400);
+    }
+
+    if (req.query.category && !VALID_CATEGORIES.includes(req.query.category)) {
+      return res.error(`Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}`, 'VALIDATION_ERROR', null, 400);
+    }
+
     const filters = {
       tier: req.query.tier,
       status: req.query.status,
       category: req.query.category,
       zipCode: req.query.zipCode,
-      minScore: req.query.minScore ? parseInt(req.query.minScore) : undefined,
+      minScore: req.query.minScore ? Math.min(Math.max(parseInt(req.query.minScore) || 0, 0), 100) : undefined,
       startDate: req.query.startDate,
       endDate: req.query.endDate,
       search: req.query.search,
-      limit: req.query.limit ? parseInt(req.query.limit) : undefined
+      limit: req.query.limit ? Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 1000) : undefined
     };
 
     // Remove undefined values
@@ -205,10 +223,10 @@ router.get('/', (req, res) => {
     });
 
     const permits = db.getAllPermits(filters);
-    res.json({ success: true, data: permits, count: permits.length });
+    res.success({ permits, count: permits.length });
   } catch (err) {
-    console.error('[permits] List error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] List error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -221,22 +239,16 @@ router.get('/:id', (req, res) => {
     const permit = db.getPermit(req.params.id);
 
     if (!permit) {
-      return res.status(404).json({ success: false, error: 'Permit not found' });
+      return res.error('Permit not found', 'NOT_FOUND', null, 404);
     }
 
     // Get associated builders
     const builders = db.getPermitBuilders(req.params.id);
 
-    res.json({
-      success: true,
-      data: {
-        ...permit,
-        builders
-      }
-    });
+    res.success({ ...permit, builders });
   } catch (err) {
-    console.error('[permits] Get error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Get error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 
@@ -250,15 +262,12 @@ router.patch('/:id/status', (req, res) => {
     const { status, notes } = req.body;
 
     if (!status) {
-      return res.status(400).json({ success: false, error: 'Status is required' });
+      return res.error('Status is required', 'VALIDATION_ERROR', null, 400);
     }
 
     const validStatuses = ['new', 'contacted', 'quoted', 'won', 'lost', 'dismissed'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-      });
+      return res.error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 'VALIDATION_ERROR', null, 400);
     }
 
     const updateData = { leadStatus: status };
@@ -274,13 +283,13 @@ router.patch('/:id/status', (req, res) => {
     const updated = db.updatePermit(req.params.id, updateData);
 
     if (!updated) {
-      return res.status(404).json({ success: false, error: 'Permit not found' });
+      return res.error('Permit not found', 'NOT_FOUND', null, 404);
     }
 
-    res.json({ success: true, data: updated });
+    res.success(updated);
   } catch (err) {
-    console.error('[permits] Status update error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    logger.error('[permits] Status update error:', { error: err.message, stack: err.stack });
+    return res.error(err.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 

@@ -1,30 +1,32 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, ClipboardList, MessageSquare,
-  Settings, Clock, ScanEye, HardHat, Box, Files,
-  Network, ChevronLeft, ChevronRight, Wifi, WifiOff,
+  LayoutDashboard, Users, HardHat, Files, MessageSquare,
+  Network, Settings, ChevronLeft, ChevronRight, Wifi,
+  Command
 } from 'lucide-react';
 import ThemeToggle from '../shared/ThemeToggle';
-import { prefetchRoute } from '../../App';
+import { prefetchRoute } from '../../routes/prefetch';
+import { NotificationBell } from '../notifications';
 
-const mainNav = [
-  { path: '/',          icon: LayoutDashboard, label: 'Dashboard',    shortcut: '1' },
-  { path: '/leads',     icon: Users,           label: 'Lead Finder',  shortcut: '2' },
-  { path: '/plans',     icon: ClipboardList,   label: 'Plans',        shortcut: '3' },
-  { path: '/ai',        icon: MessageSquare,   label: 'AI Assistant', shortcut: '4' },
-  { path: '/history',   icon: Clock,           label: 'History',      shortcut: '5' },
-  { path: '/vision',    icon: ScanEye,         label: 'Vision',       shortcut: '6' },
-  { path: '/documents', icon: Files,           label: 'Documents',    shortcut: '7' },
-  { path: '/plumbing',  icon: Box,             label: '4D Plumbing',  shortcut: '8' },
-  { path: '/canvas',    icon: Network,         label: 'Canvas',       shortcut: '9' },
-];
+// New simplified navigation structure
+const navGroups = {
+  core: [
+    { path: '/',          icon: LayoutDashboard, label: 'Dashboard',    shortcut: '1', badge: null },
+    { path: '/jobs',      icon: HardHat,         label: 'Jobs',         shortcut: '2', badge: null },
+    { path: '/leads',     icon: Users,           label: 'Lead Finder',  shortcut: '3', badge: null },
+    { path: '/documents', icon: Files,           label: 'Documents',    shortcut: '4', badge: null },
+  ],
+  tools: [
+    { path: '/canvas',    icon: Network,         label: 'Canvas',       shortcut: '5', badge: null },
+  ],
+};
 
 const bottomNav = [
   { path: '/settings', icon: Settings, label: 'Settings', shortcut: '0' },
 ];
 
-function NavItem({ item, expanded }) {
+function NavItem({ item, expanded, onClick }) {
   const prefetchTimeout = useRef(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -49,12 +51,13 @@ function NavItem({ item, expanded }) {
           justifyContent: expanded ? 'flex-start' : 'center',
           background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
           color: isActive ? '#3B82F6' : 'rgba(148, 163, 184, 0.45)',
-          minHeight: '40px',
+          minHeight: '44px',
         })}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onTouchStart={() => prefetchRoute(item.path)}
         onFocus={() => prefetchRoute(item.path)}
+        onClick={onClick}
       >
         {({ isActive }) => (
           <>
@@ -83,6 +86,20 @@ function NavItem({ item, expanded }) {
               {item.label}
             </span>
 
+            {/* Badge */}
+            {item.badge && expanded && (
+              <span
+                className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                style={{
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                }}
+              >
+                {item.badge}
+              </span>
+            )}
+
+            {/* Shortcut key */}
             {expanded && (
               <span
                 className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0"
@@ -97,6 +114,7 @@ function NavItem({ item, expanded }) {
               </span>
             )}
 
+            {/* Tooltip when collapsed */}
             {!expanded && (
               <div
                 className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50"
@@ -118,11 +136,56 @@ function NavItem({ item, expanded }) {
   );
 }
 
-export default function Sidebar() {
+function NavGroup({ title, items, expanded }) {
+  if (!expanded) {
+    // When sidebar is collapsed, just show items without group headers
+    return (
+      <ul className="space-y-0.5">
+        {items.map((item) => (
+          <NavItem key={item.path} item={item} expanded={false} />
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <div className="mb-1">
+      <div
+        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider"
+        style={{ color: 'rgba(148, 163, 184, 0.25)' }}
+      >
+        {title}
+      </div>
+      <ul className="space-y-0.5">
+        {items.map((item) => (
+          <NavItem key={item.path} item={item} expanded={true} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function Sidebar({ 
+  onCommandPaletteOpen, 
+  onNotificationsOpen, 
+  notificationCount = 0,
+  hasUrgent = false,
+}) {
   const [expanded, setExpanded] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const location = useLocation();
   const isExpanded = expanded || pinned;
+
+  // Keyboard shortcut to toggle sidebar pin
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        setPinned(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <aside
@@ -167,7 +230,7 @@ export default function Sidebar() {
             boxShadow: '0 2px 10px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
           }}
         >
-          <HardHat className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+          <Command className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
         </div>
 
         <div
@@ -199,7 +262,7 @@ export default function Sidebar() {
             onClick={() => setPinned(!pinned)}
             className="tap-target rounded-lg transition-colors duration-150 hover:bg-white/5"
             style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            title={pinned ? 'Collapse sidebar' : 'Pin sidebar'}
+            title={pinned ? 'Collapse sidebar (Ctrl+B)' : 'Pin sidebar (Ctrl+B)'}
           >
             {pinned ? (
               <ChevronLeft className="w-4 h-4" />
@@ -210,16 +273,70 @@ export default function Sidebar() {
         )}
       </div>
 
+      {/* Global Actions */}
+      <div 
+        className="relative z-10 px-2 pt-3 pb-2"
+        style={{ borderBottom: '1px solid #1F2430' }}
+      >
+        <div className={`flex items-center gap-2 ${isExpanded ? 'px-1' : 'justify-center'}`}>
+          <button
+            onClick={onCommandPaletteOpen}
+            className="flex items-center gap-2 rounded-lg transition-all duration-150 hover:bg-white/5"
+            style={{ 
+              padding: isExpanded ? '8px 10px' : '8px',
+              color: 'rgba(148, 163, 184, 0.6)',
+              minHeight: '36px',
+            }}
+            title="Command Palette (Ctrl+K)"
+          >
+            <Command className="w-4 h-4 flex-shrink-0" />
+            {isExpanded && (
+              <>
+                <span className="text-xs font-medium flex-1 text-left">Command...</span>
+                <kbd 
+                  className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                  style={{ 
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    color: 'rgba(148, 163, 184, 0.4)',
+                  }}
+                >
+                  ⌘K
+                </kbd>
+              </>
+            )}
+          </button>
+          
+          <NotificationBell
+            count={notificationCount}
+            hasUrgent={hasUrgent}
+            onClick={onNotificationsOpen}
+            size="sm"
+          />
+        </div>
+      </div>
+
       {/* Main navigation */}
       <nav className="relative z-10 flex-1 py-2 px-2 overflow-y-auto scrollbar-hide">
-        <ul className="space-y-0.5">
-          {mainNav.map((item) => (
-            <NavItem key={item.path} item={item} expanded={isExpanded} />
-          ))}
-        </ul>
+        {/* Core */}
+        <NavGroup 
+          title="Core"
+          items={navGroups.core}
+          expanded={isExpanded}
+        />
+        
+        {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
+        
+        {/* Tools */}
+        <NavGroup 
+          title="Tools"
+          items={navGroups.tools}
+          expanded={isExpanded}
+        />
 
-        <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />
+        {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
 
+        {/* Settings */}
         <ul className="space-y-0.5">
           {bottomNav.map((item) => (
             <NavItem key={item.path} item={item} expanded={isExpanded} />
@@ -227,7 +344,7 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Footer — status + theme */}
+      {/* Footer */}
       <div className="relative z-10 px-2 pt-2 pb-3" style={{ borderTop: '1px solid #1F2430' }}>
         <div className={`flex items-center mb-2 ${isExpanded ? 'px-2 justify-between' : 'justify-center'}`}>
           <ThemeToggle compact={!isExpanded} />
@@ -244,7 +361,7 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Company card (expanded only) */}
+        {/* Company card */}
         {isExpanded && (
           <div
             className="mx-1 rounded-lg p-2.5 flex items-center gap-2.5"
@@ -272,7 +389,7 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Current time */}
+        {/* Time */}
         {isExpanded && (
           <div className="mt-2 px-3 text-center">
             <TimeDisplay />
@@ -286,10 +403,10 @@ export default function Sidebar() {
 function TimeDisplay() {
   const [time, setTime] = useState(new Date());
 
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 60000);
     return () => clearInterval(interval);
-  });
+  }, []);
 
   return (
     <span className="font-mono text-[10px] tabular-nums" style={{ color: 'rgba(148,163,184,0.25)' }}>

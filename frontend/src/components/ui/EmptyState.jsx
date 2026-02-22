@@ -4,10 +4,15 @@ import {
   LayoutGrid, Bell, Radar, CalendarCheck, Layers,
   ShieldCheck, SearchSlash, Crane,
 } from 'lucide-react';
+import { colors } from '../../styles/tokens';
 
 /**
- * Dark Forge Empty State
- * Centered vertically, 64px icon, Subheading title, Body supporting text, CTA button
+ * Empty State Component
+ * Uses design tokens for consistent theming
+ * 
+ * Accessibility:
+ * - role="status" for empty state announcements
+ * - Proper heading hierarchy
  */
 export const EmptyState = ({
   title,
@@ -31,30 +36,72 @@ export const EmptyState = ({
 
   if (compact) {
     return (
-      <div className={`flex flex-col items-center justify-center text-center py-8 ${className}`}>
+      <div 
+        className={`flex flex-col items-center justify-center text-center py-8 ${className}`}
+        role="status"
+        aria-label={`${title}. ${description || ''}`}
+      >
         <div
           className="flex items-center justify-center mb-3"
-          style={{ width: '48px', height: '48px' }}
+          style={{ 
+            width: '48px', 
+            height: '48px',
+            borderRadius: '12px',
+            background: colors.surface.card,
+          }}
         >
-          <Icon className="w-8 h-8" style={{ color: '#475569' }} strokeWidth={1.5} />
+          <Icon 
+            className="w-6 h-6" 
+            style={{ color: colors.text.muted }} 
+            strokeWidth={1.5} 
+            aria-hidden="true"
+          />
         </div>
-        <h3 className="font-semibold" style={{ color: '#F1F5F9', fontSize: '15px' }}>{title}</h3>
+        <h3 
+          className="font-semibold"
+          style={{ color: colors.text.primary, fontSize: '15px' }}
+        >
+          {title}
+        </h3>
         {description && (
-          <p className="mt-1 max-w-xs" style={{ color: '#475569', fontSize: '13px' }}>{description}</p>
+          <p 
+            className="mt-1 max-w-xs text-sm"
+            style={{ color: colors.text.muted }}
+          >
+            {description}
+          </p>
         )}
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}>
-      <div className="flex items-center justify-center mb-5" style={{ width: '64px', height: '64px' }}>
-        <Icon className="w-12 h-12" style={{ color: '#475569' }} strokeWidth={1.5} />
+    <div 
+      className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}
+      role="status"
+      aria-label={`${title}. ${description || ''}`}
+    >
+      <div 
+        className="flex items-center justify-center mb-5"
+        style={{ 
+          width: '64px', 
+          height: '64px',
+          borderRadius: '16px',
+          background: colors.surface.card,
+          border: `1px solid ${colors.border.default}`,
+        }}
+      >
+        <Icon 
+          className="w-8 h-8" 
+          style={{ color: colors.text.muted }} 
+          strokeWidth={1.5} 
+          aria-hidden="true"
+        />
       </div>
 
       <h3
         className="font-semibold mb-2"
-        style={{ color: '#F1F5F9', fontSize: '17px', lineHeight: 1.4 }}
+        style={{ color: colors.text.primary, fontSize: '17px', lineHeight: 1.4 }}
       >
         {title}
       </h3>
@@ -62,7 +109,7 @@ export const EmptyState = ({
       {description && (
         <p
           className="max-w-sm mb-6"
-          style={{ color: '#475569', fontSize: '15px', lineHeight: 1.5 }}
+          style={{ color: colors.text.secondary, fontSize: '15px', lineHeight: 1.5 }}
         >
           {description}
         </p>
@@ -70,7 +117,8 @@ export const EmptyState = ({
 
       {primaryAction && (
         <button
-          className="btn-primary"
+          type="button"
+          className="btn-primary flex items-center gap-2"
           onClick={primaryAction.onClick}
         >
           {primaryAction.icon}

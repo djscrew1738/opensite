@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Auto-save hook for form persistence across browser refreshes
@@ -33,6 +33,7 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
   const storageKey = `opensite_form_${formKey}`;
   const debounceTimer = useRef(null);
   const initialLoadDone = useRef(false);
+  const [hasRestored, setHasRestored] = useState(false);
 
   // Restore saved data on mount
   useEffect(() => {
@@ -56,6 +57,7 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
             // Merge saved data with current form data (preserve structure)
             const mergedData = { ...formData, ...parsed };
             setFormData(mergedData);
+            setHasRestored(true);
 
             if (onRestore) {
               onRestore(parsed);
@@ -130,7 +132,8 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
 
   return {
     clearSaved,
-    isEnabled: enabled
+    isEnabled: enabled,
+    hasRestored
   };
 }
 

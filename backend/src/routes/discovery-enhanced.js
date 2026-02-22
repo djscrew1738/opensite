@@ -130,31 +130,24 @@ router.post('/leads/:id/schedule', tryCatch(async (req, res) => {
 /**
  * Get daily follow-up tasks
  * GET /api/discovery/tasks/today
+ * 
+ * NOTE: This endpoint is not yet implemented. Schedules table required.
  */
 router.get('/tasks/today', tryCatch(async (req, res) => {
-  const { date } = req.query;
-
-  // Get all schedules from database
-  // For now, return empty array (would need schedules table)
-  const tasks = {
-    calls: [],
-    emails: [],
-    other: [],
-  };
-
-  res.success(tasks, 'Daily tasks retrieved');
+  return res.error('Daily tasks endpoint requires schedules table implementation. Use /api/discovery/leads/:id/schedule to create individual schedules.', 'NOT_IMPLEMENTED', null, 501);
 }));
 
 /**
  * Get upcoming follow-ups
  * GET /api/discovery/follow-ups/upcoming
+ * 
+ * NOTE: This endpoint is not yet implemented. Schedules table required.
  */
 router.get('/follow-ups/upcoming', tryCatch(async (req, res) => {
-  const { hours = 24 } = req.query;
-
-  // Would query schedules from database
-  res.success({ upcoming: [], withinHours: hours }, 'Upcoming follow-ups retrieved');
+  return res.error('Upcoming follow-ups endpoint requires schedules table implementation.', 'NOT_IMPLEMENTED', null, 501);
 }));
+
+
 
 // ==================== Analytics Routes ====================
 
@@ -181,8 +174,8 @@ router.get('/runs/:runId/analytics', tryCatch(async (req, res) => {
 router.post('/analytics/compare-runs', tryCatch(async (req, res) => {
   const { runIds } = req.body;
 
-  if (!Array.isArray(runIds) || runIds.length === 0) {
-    return res.error('Run IDs array required', 'VALIDATION_ERROR', null, 400);
+  if (!Array.isArray(runIds) || runIds.length === 0 || runIds.length > 50) {
+    return res.error('Run IDs must be an array with 1 to 50 entries', 'VALIDATION_ERROR', null, 400);
   }
 
   const analyses = [];
@@ -203,7 +196,8 @@ router.post('/analytics/compare-runs', tryCatch(async (req, res) => {
  * GET /api/discovery/analytics/progression
  */
 router.get('/analytics/progression', tryCatch(async (req, res) => {
-  const { days = 30 } = req.query;
+  const { days: daysParam = 30 } = req.query;
+  const days = Math.min(Math.max(parseInt(daysParam) || 30, 1), 365);
 
   // Get all discovery leads
   const runs = db.getAllDiscoveryRuns();
@@ -213,7 +207,7 @@ router.get('/analytics/progression', tryCatch(async (req, res) => {
     allLeads = allLeads.concat(leads);
   }
 
-  const progression = sourceAnalytics.trackLeadProgression(allLeads, parseInt(days));
+  const progression = sourceAnalytics.trackLeadProgression(allLeads, days);
   res.success(progression);
 }));
 

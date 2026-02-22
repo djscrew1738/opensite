@@ -2,7 +2,7 @@
 // Chains Stage 1 (Maps) -> Stage 2 (Enrich) -> Stage 3 (Score + Outreach)
 // Uses existing jobQueue for background processing
 
-import { jobQueue } from '../jobQueue.js';
+import { jobQueue } from '../jobQueuePersistent.js';
 import { db } from '../database.js';
 import { scrapeGoogleMaps } from './mapsScraper.js';
 import { enrichLeads } from './webEnricher.js';

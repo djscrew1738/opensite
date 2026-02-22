@@ -2,8 +2,18 @@
 
 import axios from 'axios';
 
+// Determine API base URL based on environment
+const getBaseURL = () => {
+  // In production, use relative path (same origin)
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  // In development, use the Vite proxy
+  return '/api';
+};
+
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json'
   },
@@ -36,6 +46,15 @@ apiClient.interceptors.response.use(
     return responseData;
   },
   (error) => {
+    // Handle network errors (backend unavailable)
+    if (!error.response) {
+      const networkError = new Error('Cannot connect to server. Please check your connection or try again later.');
+      networkError.isNetworkError = true;
+      networkError.originalError = error;
+      console.error('Network Error:', error.message);
+      return Promise.reject(networkError);
+    }
+
     // Extract error message from standardized error format
     // { success: false, error: { message: "...", code: "...", details: {...} } }
     let message = 'An error occurred';
@@ -118,10 +137,16 @@ export const api = {
     testSendgrid: (key) => apiClient.post('/settings/test-sendgrid', { key }),
     testStripe: (key) => apiClient.post('/settings/test-stripe', { key }),
     testGoogleMaps: (key) => apiClient.post('/settings/test-google-maps', { key }),
+    testMicrosoft: (clientId, clientSecret) => apiClient.post('/settings/test-microsoft', { clientId, clientSecret }),
+    testGoogle: (clientId, clientSecret) => apiClient.post('/settings/test-google', { clientId, clientSecret }),
+    testTelegram: (token) => apiClient.post('/settings/test-telegram', { token }),
     getMetrics: () => apiClient.get('/settings/metrics'),
   },
 
   // Upload
+  // Note: These methods use axios directly (not apiClient) because they need
+  // custom timeout and multipart handling. The response interceptor unwrapping
+  // is handled manually here to match the apiClient behavior.
   upload: {
     blueprint: (file, tier, model, async = true) => {
       const formData = new FormData();
@@ -130,31 +155,30 @@ export const api = {
       if (model) formData.append('model', model);
       formData.append('async', async);
 
-      return axios.post('/api/upload/blueprint', formData, {
+      // Use axios directly with custom timeout, but rely on response interceptor
+      // by using apiClient instead of raw axios for consistent unwrapping
+      return apiClient.post('/upload/blueprint', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: async ? 30000 : 300000 // 30s for async, 5min for sync
-      }).then(res => {
-        // Handle standardized response format
-        const data = res.data;
-        if (data && typeof data === 'object' && 'success' in data) {
-          return data.data;
-        }
-        return data;
+      });
+    },
+    blueprintWithData: (file, extractedData, model) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('extractedData', JSON.stringify(extractedData));
+      if (model) formData.append('model', model);
+
+      return apiClient.post('/upload/blueprint', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000
       });
     },
     extract: (file) => {
       const formData = new FormData();
       formData.append('file', file);
 
-      return axios.post('/api/upload/extract', formData, {
+      return apiClient.post('/upload/extract', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
-      }).then(res => {
-        // Handle standardized response format
-        const data = res.data;
-        if (data && typeof data === 'object' && 'success' in data) {
-          return data.data;
-        }
-        return data;
       });
     }
   },
@@ -263,7 +287,7 @@ export const api = {
     getForecast: () => apiClient.get('/weather/forecast'),
   },
 
-  // Email Monitor
+  // Email Monitor (Legacy IMAP)
   emailMonitor: {
     getStatus: () => apiClient.get('/email-monitor/status'),
     getAlerts: (params) => apiClient.get('/email-monitor/alerts', { params }),
@@ -271,6 +295,25 @@ export const api = {
     saveSettings: (data) => apiClient.put('/email-monitor/settings', data),
     testConnection: (data) => apiClient.post('/email-monitor/test', data),
     checkNow: () => apiClient.post('/email-monitor/check-now'),
+  },
+
+  // Email Alerts (Microsoft Graph)
+  emailAlerts: {
+    getHealth: () => apiClient.get('/email-alerts/health'),
+    getRules: () => apiClient.get('/email-alerts/rules'),
+    createRule: (data) => apiClient.post('/email-alerts/rules', data),
+    updateRule: (id, data) => apiClient.patch(`/email-alerts/rules/${id}`, data),
+    deleteRule: (id) => apiClient.delete(`/email-alerts/rules/${id}`),
+    toggleRule: (id) => apiClient.post(`/email-alerts/rules/${id}/toggle`),
+    getLog: (params) => apiClient.get('/email-alerts/log', { params }),
+    getStats: () => apiClient.get('/email-alerts/log/stats'),
+    getProcessed: () => apiClient.get('/email-alerts/log/processed'),
+    triggerPoll: () => apiClient.post('/email-alerts/trigger'),
+    reloadRules: () => apiClient.post('/email-alerts/reload'),
+    testAlerts: (channels) => apiClient.post('/email-alerts/test', { channels }),
+    getAccounts: () => apiClient.get('/email-alerts/accounts'),
+    getConfig: () => apiClient.get('/email-alerts/config'),
+    updateConfig: (data) => apiClient.put('/email-alerts/config', data),
   },
 
   // Permits (lead finder)

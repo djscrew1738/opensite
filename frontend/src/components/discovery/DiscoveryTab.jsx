@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { Search, Filter, X, Download, BarChart3, Sparkles, FileSpreadsheet, FileJson } from 'lucide-react';
+import { Search, X, Download, BarChart3, Sparkles, FileSpreadsheet, FileJson } from 'lucide-react';
 import DiscoverySearchForm from './DiscoverySearchForm';
 import DiscoveryProgress from './DiscoveryProgress';
 import DiscoveryLeadCard from './DiscoveryLeadCard';
@@ -12,7 +12,6 @@ export default function DiscoveryTab() {
   const [activeRunId, setActiveRunId] = useState(null);
   const [selectedLead, setSelectedLead] = useState(null);
   const [tierFilter, setTierFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const queryClient = useQueryClient();

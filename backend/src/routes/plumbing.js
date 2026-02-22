@@ -2,9 +2,9 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { spawn } from 'child_process';
 
 import logger from '../services/logger.js';
+import { execPython, validatePythonInterpreter } from '../utils/subprocess.js';
 
 const router = express.Router();
 const UPLOAD_DIR = path.join(process.cwd(), 'data', 'uploads');
@@ -26,39 +26,44 @@ const upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 },
 });
 
-function spawnEnqueueJob(pdfId) {
-  return new Promise((resolve, reject) => {
-    const pythonCommand = process.env.PYTHON_INTERPRETER || 'python3';
-    const args = ['enqueue_job.py', '--pdf-id', pdfId];
-    if (process.env.REDIS_URL) {
-      args.push('--redis-url', process.env.REDIS_URL);
+async function spawnEnqueueJob(pdfId) {
+  // Validate pdfId to prevent injection
+  if (!pdfId || typeof pdfId !== 'string' || pdfId.length > 256) {
+    throw new Error('Invalid PDF ID');
+  }
+  
+  // Validate PDF ID format (should be a safe filename)
+  if (!/^[a-zA-Z0-9_\-\.]+$/.test(pdfId)) {
+    throw new Error('Invalid PDF ID format');
+  }
+
+  const args = ['--pdf-id', pdfId];
+  
+  // Only pass REDIS_URL if it's a valid URL
+  if (process.env.REDIS_URL) {
+    const redisUrl = process.env.REDIS_URL;
+    // Basic URL validation
+    if (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://')) {
+      args.push('--redis-url', redisUrl);
     }
+  }
 
-    const child = spawn(pythonCommand, args, {
-      cwd: process.cwd(),
-      env: process.env,
-    });
+  // Validate Python interpreter against allowlist
+  const pythonInterpreter = validatePythonInterpreter(process.env.PYTHON_INTERPRETER);
 
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        const jobId = stdout.trim().split(/\r?\n/).pop();
-        resolve(jobId);
-      } else {
-        reject(new Error(stderr.trim() || `enqueue_job exited with code ${code}`));
-      }
-    });
+  const { stdout, stderr } = await execPython('enqueue_job.py', args, {
+    pythonInterpreter,
+    // Do NOT pass raw env - subprocess.js will sanitize it
+    timeout: 60000 // 60 second timeout for enqueue
   });
+
+  // Log stderr separately for debugging
+  if (stderr) {
+    logger.debug('Python subprocess stderr', { pdfId, stderr: stderr.substring(0, 1000) });
+  }
+
+  const jobId = stdout.trim().split(/\r?\n/).pop();
+  return jobId;
 }
 
 router.post('/extract', upload.single('file'), async (req, res) => {

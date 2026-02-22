@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
   try {
     const aiStatus = await aiProvider.healthCheck();
 
-    res.json({
+    res.success({
       status: 'ok',
       timestamp: new Date().toISOString(),
       ai: aiStatus,
@@ -17,11 +17,7 @@ router.get('/', async (req, res) => {
       version: '1.0.0'
     });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
+    return res.error(error.message, 'INTERNAL_ERROR', null, 500);
   }
 });
 

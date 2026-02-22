@@ -10,7 +10,7 @@ import MaterialPicker from '../components/takeoff/MaterialPicker';
 import TakeoffHome from '../components/takeoff/TakeoffHome';
 import {
   Upload, Ruler, Package, FileText, Save, Loader,
-  ChevronLeft, Image, X, AlertCircle, LayoutDashboard
+  ChevronLeft, Image, X, AlertCircle, LayoutDashboard, RefreshCw
 } from 'lucide-react';
 
 const TABS = {
@@ -39,26 +39,50 @@ export default function Takeoff() {
   const [error, setError] = useState(null);
 
   // Load takeoff details when selected
-  const { data: takeoffDetail } = useQuery({
+  const { 
+    data: takeoffDetail, 
+    isError: takeoffDetailIsError, 
+    error: takeoffDetailError,
+    refetch: refetchTakeoffDetail
+  } = useQuery({
     queryKey: ['takeoff', selectedTakeoff?.id],
     queryFn: () => api.takeoff.getOne(selectedTakeoff.id),
     enabled: !!selectedTakeoff?.id
   });
 
   // Load all takeoffs for home view
-  const { data: takeoffsData, isLoading: takeoffsLoading } = useQuery({
+  const { 
+    data: takeoffsData, 
+    isLoading: takeoffsLoading,
+    isError: takeoffsIsError,
+    error: takeoffsError,
+    refetch: refetchTakeoffs
+  } = useQuery({
     queryKey: ['takeoffs-home'],
     queryFn: () => api.takeoff.getAll(),
   });
 
   // Load materials for stats
-  const { data: materialsData } = useQuery({
+  const { 
+    data: materialsData,
+    isError: materialsIsError,
+    error: materialsError,
+    refetch: refetchMaterials
+  } = useQuery({
     queryKey: ['materials-home'],
     queryFn: () => api.takeoff.getMaterials(),
   });
 
   const takeoffs = takeoffsData?.takeoffs || [];
   const materials = materialsData?.materials || [];
+  
+  // Combined error state for home view
+  const homeViewError = takeoffsIsError || materialsIsError;
+  const homeViewErrorMessage = takeoffsError?.message || materialsError?.message;
+  const refetchHomeView = () => {
+    refetchTakeoffs();
+    refetchMaterials();
+  };
 
   // Sync takeoff detail data into local state when it loads
   useEffect(() => {
@@ -314,6 +338,24 @@ export default function Takeoff() {
           <p className="text-sm text-red-700 dark:text-red-300 flex-1">{error}</p>
           <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 dark:hover:text-red-300">
             <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Query Error Display for Home View */}
+      {activeTab === TABS.HOME && homeViewError && (
+        <div className="mx-6 mt-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3 flex-shrink-0">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Failed to load data</h3>
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{homeViewErrorMessage || 'Something went wrong while fetching takeoffs and materials.'}</p>
+          </div>
+          <button 
+            onClick={refetchHomeView}
+            className="btn-secondary text-sm inline-flex items-center gap-1"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
           </button>
         </div>
       )}

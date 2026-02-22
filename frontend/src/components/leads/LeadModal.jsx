@@ -1,50 +1,120 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { useFormPersistence } from '../../hooks/useFormPersistence';
+import { useFormValidation } from '../../hooks/useFormValidation';
+
+// Validation rules
+const validators = {
+  name: [
+    { required: true, message: 'Name is required' },
+    { minLength: 2, message: 'Name must be at least 2 characters' },
+  ],
+  company: [
+    { required: true, message: 'Company is required' },
+    { minLength: 2, message: 'Company must be at least 2 characters' },
+  ],
+  email: [
+    { 
+      pattern: /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
+      message: 'Please enter a valid email address' 
+    },
+  ],
+  phone: [
+    { 
+      pattern: /^$|^\(\d{3}\)\s?\d{3}-?\d{4}$|^\d{3}-?\d{3}-?\d{4}$|^\d{10}$/,
+      message: 'Format: (214) 555-0100 or 214-555-0100'
+    },
+  ],
+};
+
+// Format phone number as user types
+const formatPhone = (value) => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
 
 export default function LeadModal({ lead, onClose, onSave }) {
-  const [formData, setFormData] = useState(() => ({
-    name: lead?.name || '',
-    company: lead?.company || '',
-    email: lead?.email || '',
-    phone: lead?.phone || '',
-    location: lead?.location || '',
-    projectType: lead?.projectType || '',
-    value: lead?.value || '',
-    notes: lead?.notes || ''
-  }));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form validation hook
+  const {
+    values,
+    errors,
+    touched,
+    handleChange,
+    handleBlur,
+    setValue,
+    validateAll,
+    isValid,
+    getFieldProps,
+  } = useFormValidation(
+    {
+      name: lead?.name || '',
+      company: lead?.company || '',
+      email: lead?.email || '',
+      phone: lead?.phone || '',
+      location: lead?.location || '',
+      projectType: lead?.projectType || '',
+      value: lead?.value || '',
+      notes: lead?.notes || ''
+    },
+    validators
+  );
 
   // Auto-save form data to localStorage (only for new leads, not edits)
-  const { clearSaved } = useFormPersistence('lead-form', formData, setFormData, {
-    enabled: !lead, // Only enable auto-save for new leads, not when editing
-    shouldSave: (data) => {
-      // Only save if name or company has a value
-      return data.name?.trim() || data.company?.trim();
-    },
+  const { clearSaved } = useFormPersistence('lead-form', values, (newValues) => {
+    Object.entries(newValues).forEach(([key, value]) => {
+      setValue(key, value);
+    });
+  }, {
+    enabled: !lead,
+    shouldSave: (data) => data.name?.trim() || data.company?.trim(),
     onRestore: () => {}
   });
 
   useEffect(() => {
     if (lead) {
-      // Clear any auto-saved data when editing an existing lead
       clearSaved();
     }
   }, [lead, clearSaved]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({
-      ...formData,
-      value: Number(formData.value) || 0
-    });
-    clearSaved(); // Clear auto-saved form data after successful save
+  // Handle phone input with formatting
+  const handlePhoneChange = (e) => {
+    const formatted = formatPhone(e.target.value);
+    setValue('phone', formatted);
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    const isFormValid = validateAll();
+    if (!isFormValid) {
+      setIsSubmitting(false);
+      return;
+    }
+    
+    try {
+      await onSave({
+        ...values,
+        value: Number(values.value) || 0
+      });
+      clearSaved();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Helper to show field error state
+  const getFieldClassName = (fieldName) => {
+    const baseClass = 'input w-full';
+    if (touched[fieldName] && errors[fieldName]) {
+      return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-500/20`;
+    }
+    return baseClass;
   };
 
   return (
@@ -64,89 +134,112 @@ export default function LeadModal({ lead, onClose, onSave }) {
 
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Name Field */}
             <div>
-              <label className="label">Name *</label>
+              <label className="label">
+                Name <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="input w-full"
+                {...getFieldProps('name')}
+                className={getFieldClassName('name')}
                 placeholder="John Doe"
               />
+              {touched.name && errors.name && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.name}
+                </p>
+              )}
             </div>
 
+            {/* Company Field */}
             <div>
-              <label className="label">Company *</label>
+              <label className="label">
+                Company <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-                required
-                className="input w-full"
+                {...getFieldProps('company')}
+                className={getFieldClassName('company')}
                 placeholder="ABC Apartments"
               />
+              {touched.company && errors.company && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.company}
+                </p>
+              )}
             </div>
 
+            {/* Email Field */}
             <div>
               <label className="label">Email</label>
               <input
                 type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="input w-full"
+                {...getFieldProps('email')}
+                className={getFieldClassName('email')}
                 placeholder="john@example.com"
               />
+              {touched.email && errors.email && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.email}
+                </p>
+              )}
             </div>
 
+            {/* Phone Field */}
             <div>
               <label className="label">Phone</label>
               <input
                 type="tel"
                 name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="input w-full"
+                value={values.phone}
+                onChange={handlePhoneChange}
+                onBlur={handleBlur}
+                className={getFieldClassName('phone')}
                 placeholder="(214) 555-0100"
               />
+              {touched.phone && errors.phone && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.phone}
+                </p>
+              )}
             </div>
 
+            {/* Location Field */}
             <div>
               <label className="label">Location</label>
               <input
                 type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
+                {...getFieldProps('location')}
                 className="input w-full"
                 placeholder="Dallas, TX"
               />
             </div>
 
+            {/* Project Type Field */}
             <div>
               <label className="label">Project Type</label>
               <input
                 type="text"
-                name="projectType"
-                value={formData.projectType}
-                onChange={handleChange}
+                {...getFieldProps('projectType')}
                 className="input w-full"
                 placeholder="Commercial, Multi-family, etc."
               />
             </div>
 
+            {/* Value Field */}
             <div>
               <label className="label">Estimated Value</label>
               <input
                 type="number"
-                name="value"
-                value={formData.value}
-                onChange={handleChange}
+                {...getFieldProps('value')}
                 className="input w-full"
                 placeholder="50000"
+                min="0"
               />
             </div>
           </div>
@@ -154,9 +247,7 @@ export default function LeadModal({ lead, onClose, onSave }) {
           <div className="mb-6">
             <label className="label">Notes</label>
             <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
+              {...getFieldProps('notes')}
               rows={4}
               className="input w-full"
               placeholder="Additional information about the lead..."
@@ -168,14 +259,16 @@ export default function LeadModal({ lead, onClose, onSave }) {
               type="button"
               onClick={onClose}
               className="btn-secondary"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              disabled={!isValid || isSubmitting}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {lead ? 'Update Lead' : 'Create Lead'}
+              {isSubmitting ? 'Saving...' : lead ? 'Update Lead' : 'Create Lead'}
             </button>
           </div>
         </form>

@@ -64,33 +64,35 @@ services:
       interval: 30s
     networks: [default]
 
-  worker-plumber:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    command: python3 -m workers.tasks
-    deploy:
-      resources:
-        limits:
-          memory: 6G
-    volumes:
-      - ./data/uploads:/app/data/uploads
-      - ./workers:/app/workers
-    depends_on:
-      - redis-plumber
-      - chromadb-plumber
-    # or separate Ollama container
-    environment:
-      - REDIS_URL=redis://redis-plumber:6379
-      - OLLAMA_HOST=http://host.docker.internal:11434
-    healthcheck:
-      test:
-        - "CMD"
-        - "python3"
-        - "-c"
-        - "import arq; from arq.connections import ArqRedis; ArqRedis.from_url('redis://redis-plumber:6379').ping()"
-      interval: 30s
-    networks: [default]
+  # Worker service - disabled by default
+  # To enable: uncomment and ensure workers/tasks.py exists with arq worker setup
+  # worker-plumber:
+  #   build:
+  #     context: .
+  #     dockerfile: backend/Dockerfile
+  #   working_dir: /app
+  #   command: python3 -m workers.tasks
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 6G
+  #   volumes:
+  #     - ./data/uploads:/app/data/uploads
+  #     - ./workers:/app/workers
+  #   depends_on:
+  #     - redis-plumber
+  #     - chromadb-plumber
+  #   environment:
+  #     - REDIS_URL=redis://redis-plumber:6379
+  #     - OLLAMA_HOST=http://host.docker.internal:11434
+  #   healthcheck:
+  #     test:
+  #       - "CMD"
+  #       - "python3"
+  #       - "-c"
+  #       - "import arq; from arq.connections import ArqRedis; ArqRedis.from_url('redis://redis-plumber:6379').ping()"
+  #     interval: 30s
+  #   networks: [default]
 
 networks:
   default:

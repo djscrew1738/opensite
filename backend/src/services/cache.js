@@ -6,31 +6,40 @@ import logger from './logger.js';
 
 class CacheService {
   constructor() {
-    // Main cache — 10 min TTL, 500 max keys (was 5000)
+    // Cache limits from environment variables with defaults
+    const maxMainKeys = parseInt(process.env.CACHE_MAX_MAIN, 10) || 500;
+    const maxApiKeys = parseInt(process.env.CACHE_MAX_API, 10) || 200;
+    const maxStaticKeys = parseInt(process.env.CACHE_MAX_STATIC, 10) || 200;
+
+    // Main cache — 10 min TTL, configurable max keys (default 500)
     this.cache = new NodeCache({
       stdTTL: 600,
       checkperiod: 120,
       useClones: false,
-      maxKeys: 500
+      maxKeys: maxMainKeys
     });
 
-    // API response cache — 1 min TTL, 200 max keys (was 2000)
+    // API response cache — 1 min TTL, configurable max keys (default 200)
     this.apiCache = new NodeCache({
       stdTTL: 60,
       checkperiod: 30,
       useClones: false,
-      maxKeys: 200
+      maxKeys: maxApiKeys
     });
 
-    // Static cache — 1 hour TTL, 200 max keys (was 1000)
+    // Static cache — 1 hour TTL, configurable max keys (default 200)
     this.staticCache = new NodeCache({
       stdTTL: 3600,
       checkperiod: 300,
       useClones: false,
-      maxKeys: 200
+      maxKeys: maxStaticKeys
     });
 
-    logger.info('Cache service initialized (low-memory mode)');
+    logger.info('Cache service initialized', {
+      maxMainKeys,
+      maxApiKeys,
+      maxStaticKeys
+    });
   }
 
   // Main cache operations

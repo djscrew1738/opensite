@@ -1,7 +1,7 @@
-import { Calculator, FileEdit, Save, CheckCircle2 } from 'lucide-react';
+import { Calculator, FileEdit, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import { FIXTURE_PRICE, PHASE_CONFIG } from './constants';
 
-export default function PlansCommandHeader({ totalFixtures, totalPrice, projectName, onProjectNameChange }) {
+export default function PlansCommandHeader({ totalFixtures, totalPrice, projectName, onProjectNameChange, isDirty, isSaving }) {
   const hasProjectName = !!projectName;
   const hasFixtures = totalFixtures > 0;
 
@@ -23,7 +23,11 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
               </div>
               {/* Fixed: Removed font-display, kept standard font-bold */}
               <h1 className="text-2xl font-bold tracking-tight">Estimate</h1>
-              {hasFixtures && hasProjectName && (
+              {isDirty ? (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium animate-pulse">
+                  <AlertCircle className="w-3 h-3" /> Unsaved
+                </span>
+              ) : hasFixtures && hasProjectName && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
                   <CheckCircle2 className="w-3 h-3" /> Ready
                 </span>

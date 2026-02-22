@@ -143,7 +143,8 @@ const StatCard = memo(({ label, value, subtext, icon: Icon, color = 'text-accent
 const RecentEstimateRow = memo(({ estimate, onClick }) => {
   const total = estimate.total || 0;
   const fixtureCount = estimate.fixtureCount || 0;
-  const date = new Date(estimate.createdAt || Date.now());
+  // Use a fixed fallback date to avoid impure Date.now() during render
+  const date = new Date(estimate.createdAt || '2000-01-01');
   const isToday = new Date().toDateString() === date.toDateString();
   
   return (

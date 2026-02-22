@@ -5,6 +5,8 @@ import { ollamaService } from './ollama.js';
 import { openclawService } from './openclaw.js';
 import { groqService } from './groq.js';
 import { anthropicService } from './anthropic.js';
+import crypto from 'crypto';
+import logger from './logger.js';
 
 /**
  * Smart cache with TTL for AI responses and metadata
@@ -168,9 +170,9 @@ class AIOptimizer {
       try {
         // Lightweight health check
         await service.healthCheck();
-        console.log(`[ai-optimizer] Warmed up ${name}`);
+        logger.debug(`[ai-optimizer] Warmed up ${name}`);
       } catch (err) {
-        console.warn(`[ai-optimizer] Warmup failed for ${name}:`, err.message);
+        logger.warn(`[ai-optimizer] Warmup failed for ${name}:`, err.message);
       }
     }
   }
@@ -232,7 +234,7 @@ class AIOptimizer {
     if (!options.stream && !options.skipCache) {
       const cached = this.cache.get(cacheKey);
       if (cached) {
-        console.log('[ai-optimizer] Cache hit');
+        logger.debug('[ai-optimizer] Cache hit');
         return { ...cached, cached: true };
       }
     }
@@ -437,14 +439,13 @@ class AIOptimizer {
   clearCaches() {
     this.cache = new AIResponseCache();
     this.healthCache.clear();
-    console.log('[ai-optimizer] All caches cleared');
+    logger.info('[ai-optimizer] All caches cleared');
   }
 
   /**
    * Create hash key for prompt caching
    */
   _hashPrompt(prompt, options) {
-    const crypto = await import('crypto');
     const data = JSON.stringify({ prompt, options });
     return crypto.createHash('md5').update(data).digest('hex');
   }

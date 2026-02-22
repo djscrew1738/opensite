@@ -1,0 +1,461 @@
+// SQLite Database Service - Core Module
+// Base DatabaseService class with initialization and schema creation
+
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Calculate path from backend/src/services/database/core.js to tool/data
+// backend/src/services/database/core.js -> backend/ -> opensite/ -> tool/
+const TOOL_DIR = path.join(__dirname, '../../../../tool');
+const DB_PATH = path.join(TOOL_DIR, 'data', 'opensite.db');
+
+// Ensure directories exist
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+
+/**
+ * Base Database Service class
+ * Handles connection, initialization, and core utilities
+ */
+export class DatabaseService {
+  constructor() {
+    this.db = new Database(DB_PATH);
+    // Performance pragmas — tuned for low memory
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma('cache_size = -8000');     // 8MB page cache
+    this.db.pragma('mmap_size = 67108864');   // 64MB mmap
+    this.db.pragma('temp_store = MEMORY');
+    this.db.pragma('wal_autocheckpoint = 1000');
+    this.initializeTables();
+  }
+
+  /**
+   * Initialize all database tables
+   * This is the central schema definition
+   */
+  initializeTables() {
+    // Leads table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company TEXT,
+        email TEXT,
+        phone TEXT,
+        location TEXT,
+        projectType TEXT,
+        value REAL DEFAULT 0,
+        score INTEGER,
+        status TEXT,
+        notes TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Projects table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        leadId TEXT,
+        phase TEXT DEFAULT 'rough-in',
+        progress INTEGER DEFAULT 0,
+        value REAL DEFAULT 0,
+        startDate TEXT,
+        estimatedCompletion TEXT,
+        status TEXT DEFAULT 'active',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Estimates table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS estimates (
+        id TEXT PRIMARY KEY,
+        leadId TEXT,
+        sqft REAL,
+        bathrooms REAL,
+        units INTEGER,
+        stories INTEGER,
+        lavatories INTEGER DEFAULT 0,
+        barSinks INTEGER DEFAULT 0,
+        tubs INTEGER DEFAULT 0,
+        showerBases INTEGER DEFAULT 0,
+        mudPans INTEGER DEFAULT 0,
+        washingMachines INTEGER DEFAULT 0,
+        toilets INTEGER DEFAULT 0,
+        waterSoftenerPreplumb INTEGER DEFAULT 0,
+        kitchenFaucets INTEGER DEFAULT 0,
+        total REAL,
+        perUnit REAL,
+        breakdown TEXT,
+        margin TEXT,
+        analysis TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Conversations table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        messages TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Blueprints table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS blueprints (
+        id TEXT PRIMARY KEY,
+        fileName TEXT NOT NULL,
+        filePath TEXT,
+        extractedData TEXT,
+        aiAnalysis TEXT,
+        estimateId TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (estimateId) REFERENCES estimates(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Materials catalog table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS materials (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        unit TEXT NOT NULL,
+        unitCost REAL DEFAULT 0,
+        supplier TEXT,
+        partNumber TEXT,
+        description TEXT,
+        notes TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Takeoffs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS takeoffs (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        blueprintId TEXT,
+        projectId TEXT,
+        status TEXT DEFAULT 'draft',
+        measurements TEXT,
+        scale TEXT,
+        canvasData TEXT,
+        notes TEXT,
+        totalCost REAL DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (blueprintId) REFERENCES blueprints(id) ON DELETE SET NULL,
+        FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Takeoff line items
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS takeoff_items (
+        id TEXT PRIMARY KEY,
+        takeoffId TEXT NOT NULL,
+        materialId TEXT,
+        measurementType TEXT NOT NULL,
+        label TEXT,
+        quantity REAL DEFAULT 0,
+        unit TEXT,
+        unitCost REAL DEFAULT 0,
+        totalCost REAL DEFAULT 0,
+        measurementData TEXT,
+        notes TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (takeoffId) REFERENCES takeoffs(id) ON DELETE CASCADE,
+        FOREIGN KEY (materialId) REFERENCES materials(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Price history table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS price_history (
+        id TEXT PRIMARY KEY,
+        materialId TEXT NOT NULL,
+        oldPrice REAL NOT NULL,
+        newPrice REAL NOT NULL,
+        changedAt TEXT NOT NULL,
+        FOREIGN KEY (materialId) REFERENCES materials(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Permits table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS permits (
+        id TEXT PRIMARY KEY,
+        permitNumber TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT DEFAULT 'TX',
+        zip TEXT,
+        contractor TEXT,
+        contractorPhone TEXT,
+        estimatedCost REAL DEFAULT 0,
+        issuedDate TEXT,
+        status TEXT DEFAULT 'new',
+        description TEXT,
+        sourceId TEXT,
+        tier TEXT DEFAULT 'unscored',
+        leadScore INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Data sources table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS data_sources (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT,
+        config TEXT,
+        createdAt TEXT NOT NULL
+      )
+    `);
+
+    // Discovery runs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS discovery_runs (
+        id TEXT PRIMARY KEY,
+        keyword TEXT,
+        city TEXT,
+        lat REAL,
+        lng REAL,
+        radius REAL,
+        zone TEXT,
+        totalFound INTEGER DEFAULT 0,
+        enriched INTEGER DEFAULT 0,
+        scored INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'pending',
+        stage TEXT DEFAULT 'pending',
+        progress INTEGER DEFAULT 0,
+        jobId TEXT,
+        error TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Discovery leads table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS discovery_leads (
+        id TEXT PRIMARY KEY,
+        runId TEXT NOT NULL,
+        businessName TEXT,
+        address TEXT,
+        website TEXT,
+        phone TEXT,
+        rating REAL,
+        reviewCount INTEGER,
+        category TEXT,
+        placeId TEXT,
+        domainHash TEXT,
+        emails TEXT,
+        extractedPhones TEXT,
+        servicesOffered TEXT,
+        aboutSummary TEXT,
+        icpScore INTEGER DEFAULT 0,
+        icpTier TEXT DEFAULT 'unscored',
+        icpReasoning TEXT,
+        plumbingRelevance INTEGER DEFAULT 0,
+        outreachSubject TEXT,
+        outreachBody TEXT,
+        enrichmentStatus TEXT DEFAULT 'pending',
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (runId) REFERENCES discovery_runs(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Email alerts table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS email_alerts (
+        id TEXT PRIMARY KEY,
+        messageId TEXT,
+        fromAddress TEXT,
+        fromName TEXT,
+        subject TEXT,
+        matchedKeywords TEXT,
+        snippet TEXT,
+        smsSent INTEGER DEFAULT 0,
+        smsExternalId TEXT,
+        receivedAt TEXT NOT NULL
+      )
+    `);
+
+    // Add new columns to materials if they don't exist
+    this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
+    this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');
+    this.safeAddColumn('materials', 'lastUsedAt', 'TEXT');
+    this.safeAddColumn('materials', 'markup', 'REAL DEFAULT 0');
+
+    // Create indexes
+    this.createIndexes();
+    
+    // Add constraints
+    this.addConstraints();
+    
+    // Initialize settings table (from settings.js mixin)
+    if (this.initializeSettingsTable) {
+      this.initializeSettingsTable();
+    }
+  }
+
+  /**
+   * Create database indexes for performance
+   */
+  createIndexes() {
+    this.db.exec(`
+      -- Leads indexes
+      CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+      CREATE INDEX IF NOT EXISTS idx_leads_updated ON leads(updatedAt);
+      CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
+      CREATE INDEX IF NOT EXISTS idx_leads_createdAt ON leads(createdAt);
+      
+      -- Projects indexes
+      CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+      CREATE INDEX IF NOT EXISTS idx_projects_leadId ON projects(leadId);
+      
+      -- Estimates indexes
+      CREATE INDEX IF NOT EXISTS idx_estimates_leadId ON estimates(leadId);
+      CREATE INDEX IF NOT EXISTS idx_estimates_createdAt ON estimates(createdAt);
+      
+      -- Materials indexes
+      CREATE INDEX IF NOT EXISTS idx_materials_category ON materials(category);
+      CREATE INDEX IF NOT EXISTS idx_materials_name ON materials(name);
+      
+      -- Takeoff indexes
+      CREATE INDEX IF NOT EXISTS idx_takeoffs_status ON takeoffs(status);
+      CREATE INDEX IF NOT EXISTS idx_takeoffs_projectId ON takeoffs(projectId);
+      CREATE INDEX IF NOT EXISTS idx_takeoff_items_takeoffId ON takeoff_items(takeoffId);
+      
+      -- Price history
+      CREATE INDEX IF NOT EXISTS idx_price_history_materialId ON price_history(materialId);
+      
+      -- Blueprints
+      CREATE INDEX IF NOT EXISTS idx_blueprints_estimateId ON blueprints(estimateId);
+      
+      -- Conversations
+      CREATE INDEX IF NOT EXISTS idx_conversations_updatedAt ON conversations(updatedAt);
+      
+      -- Permits (only if table exists with columns)
+      CREATE INDEX IF NOT EXISTS idx_permits_city ON permits(city);
+      CREATE INDEX IF NOT EXISTS idx_permits_status ON permits(status);
+      CREATE INDEX IF NOT EXISTS idx_permits_issuedDate ON permits(issuedDate);
+      
+      -- Discovery (only if tables exist)
+      CREATE INDEX IF NOT EXISTS idx_discovery_leads_runId ON discovery_leads(runId);
+      
+      -- Email alerts (only if table exists)
+      CREATE INDEX IF NOT EXISTS idx_email_alerts_receivedAt ON email_alerts(receivedAt);
+    `);
+    
+    // Create conditional indexes separately to handle missing columns gracefully
+    try {
+      this.db.exec('CREATE INDEX IF NOT EXISTS idx_permits_tier ON permits(tier)');
+    } catch (e) {
+      // Column may not exist in older databases
+    }
+    
+    try {
+      this.db.exec('CREATE INDEX IF NOT EXISTS idx_discovery_leads_domainHash ON discovery_leads(domainHash)');
+    } catch (e) {
+      // Column may not exist
+    }
+    
+    try {
+      this.db.exec('CREATE INDEX IF NOT EXISTS idx_email_alerts_messageId ON email_alerts(messageId)');
+    } catch (e) {
+      // Column may not exist
+    }
+  }
+
+  /**
+   * Add uniqueness constraints and foreign key updates
+   * Run after table creation to ensure data integrity
+   */
+  addConstraints() {
+    // SQLite doesn't support ALTER TABLE ADD CONSTRAINT for unique constraints
+    // We create unique indexes instead
+    this.db.exec(`
+      -- Unique constraints (using unique indexes)
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email_unique ON leads(email) WHERE email IS NOT NULL AND email != '';
+      
+      -- Note: For pricing_tiers unique constraint on tier identifier,
+      -- add: CREATE UNIQUE INDEX IF NOT EXISTS idx_pricing_tiers_tier ON pricing_tiers(tier);
+      -- when that table is created
+    `);
+  }
+
+  /**
+   * Helper to safely add a column if it doesn't exist
+   */
+  safeAddColumn(table, column, type) {
+    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all();
+    const exists = columns.some(c => c.name === column);
+    if (!exists) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+      console.log(`Added column ${column} to ${table}`);
+    }
+  }
+
+  /**
+   * Close the database connection
+   */
+  close() {
+    this.db.close();
+  }
+
+  /**
+   * Backup the database
+   */
+  backup() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(TOOL_DIR, 'data', `opensite-backup-${timestamp}.db`);
+    this.db.backup(backupPath);
+    return backupPath;
+  }
+
+  /**
+   * Execute SQL directly (for backward compatibility)
+   * @param {string} sql - SQL statement to execute
+   */
+  exec(sql) {
+    return this.db.exec(sql);
+  }
+
+  /**
+   * Prepare a SQL statement (for backward compatibility)
+   * @param {string} sql - SQL statement to prepare
+   */
+  prepare(sql) {
+    return this.db.prepare(sql);
+  }
+
+  /**
+   * Create a transaction (for backward compatibility)
+   * @param {Function} fn - Function to wrap in a transaction
+   */
+  transaction(fn) {
+    return this.db.transaction(fn);
+  }
+}
+
+export default DatabaseService;

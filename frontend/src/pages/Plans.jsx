@@ -10,7 +10,8 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { useModelPreference } from '../hooks/useModelPreference';
-import { LayoutDashboard, Calculator, Save } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+import { LayoutDashboard, Calculator, Save, AlertCircle } from 'lucide-react';
 
 import PlansHome from '../components/plans/PlansHome';
 import PlansCommandHeader from '../components/plans/PlansCommandHeader';
@@ -74,12 +75,56 @@ export default function Plans() {
     if (data.projectInfo) setProjectInfo(prev => ({ ...prev, ...data.projectInfo }));
   }, []);
 
-  const { clearSaved } = useFormPersistence('plans-v3', persistedData, setPersisted, {
+  const { clearSaved, hasRestored } = useFormPersistence('plans-v3', persistedData, setPersisted, {
     shouldSave: useCallback((data) => {
       const f = data.fixtures || {};
       return Object.values(f).some(v => v > 0);
     }, []),
   });
+
+  // --- Unsaved Changes Tracking ---
+  const { success } = useToast();
+  
+  // Track if user has made any changes
+  const [isDirty, setIsDirty] = useState(false);
+  const initialDataRef = useRef(null);
+  
+  // Store initial data after first load to detect changes
+  useEffect(() => {
+    if (!initialDataRef.current && hasRestored !== undefined) {
+      initialDataRef.current = JSON.stringify({ fixtures, projectInfo });
+    }
+  }, [fixtures, projectInfo, hasRestored]);
+  
+  // Detect changes from initial state
+  useEffect(() => {
+    if (initialDataRef.current) {
+      const current = JSON.stringify({ fixtures, projectInfo });
+      const hasChanges = current !== initialDataRef.current;
+      setIsDirty(hasChanges && totalFixtures > 0);
+    }
+  }, [fixtures, projectInfo, totalFixtures]);
+  
+  // Browser beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+  
+  // Show restore notification
+  useEffect(() => {
+    if (hasRestored) {
+      success('Previous estimate restored from auto-save');
+    }
+  }, [hasRestored, success]);
 
   // --- Computed Values (memoized) ---
   const totalFixtures = useMemo(() => 
@@ -337,6 +382,8 @@ export default function Plans() {
                 totalPrice={totalPrice}
                 projectName={projectInfo.projectName}
                 onProjectNameChange={handleProjectNameChange}
+                isDirty={isDirty}
+                isSaving={calculateMutation.isPending || analyzeMutation.isPending}
               />
 
               {/* Fixture Grid */}

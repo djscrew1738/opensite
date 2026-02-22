@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { X, Building2, MapPin, TrendingUp, Wrench, Calendar, DollarSign, FileText, Phone, Mail, Globe } from 'lucide-react';
-import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 
 export default function BuilderProfileModal({ builderId, onClose, onViewPermit }) {
   const { data: builder, isLoading } = useQuery({

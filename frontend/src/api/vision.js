@@ -19,11 +19,16 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     let message = 'An error occurred';
-    if (error.response?.data?.error?.message) {
+    
+    // Handle 413 Payload Too Large
+    if (error.response?.status === 413) {
+      message = error.response?.data?.error || 'File too large. Maximum upload size is 100MB.';
+    } else if (error.response?.data?.error?.message) {
       message = error.response.data.error.message;
     } else if (error.message) {
       message = error.message;
     }
+    
     return Promise.reject(new Error(message));
   }
 );
@@ -42,6 +47,12 @@ export const visionApi = {
       const data = res.data;
       if (data && typeof data === 'object' && 'success' in data) return data.data;
       return data;
+    }).catch(err => {
+      // Handle 413 Payload Too Large
+      if (err.response?.status === 413) {
+        throw new Error(err.response?.data?.error || 'File too large. Maximum upload size is 100MB.');
+      }
+      throw err;
     });
   },
 

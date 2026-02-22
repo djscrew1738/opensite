@@ -29,9 +29,13 @@ router.get('/forecast', async (req, res) => {
       return res.success(weatherCache.data, 'Weather forecast (cached)');
     }
 
-    // Fort Worth, TX — NWS grid point FWD/78,97
+    // NWS grid configuration - defaults to Fort Worth, TX (FWD/78,97)
+    const nwsOffice = process.env.NWS_OFFICE || 'FWD';
+    const nwsGridX = process.env.NWS_GRID_X || '78';
+    const nwsGridY = process.env.NWS_GRID_Y || '97';
+    
     const response = await fetch(
-      'https://api.weather.gov/gridpoints/FWD/78,97/forecast',
+      `https://api.weather.gov/gridpoints/${nwsOffice}/${nwsGridX},${nwsGridY}/forecast`,
       { headers: { 'User-Agent': '(OpenSite CTL Plumbing, admin@ctlplumbing.com)' } }
     );
 

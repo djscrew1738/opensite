@@ -1,30 +1,18 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './hooks/useTheme';
+import { FieldModeProvider } from './hooks/useFieldMode';
 import { ToastProvider } from './hooks/useToast';
 import { ToastContainer } from './components/shared';
 import Layout from './components/layout/Layout';
+import { pageImports, routePrefetchMap, prefetchRoute } from './routes/prefetch';
 
 // Lazy load pages — store import functions for prefetching
-const pageImports = {
-  dashboard: () => import('./pages/Dashboard'),
-  leads: () => import('./pages/LeadFinder'),
-  plans: () => import('./pages/Plans'),
-  ai: () => import('./pages/AIAssistant'),
-  history: () => import('./pages/History'),
-  vision: () => import('./pages/Vision'),
-  settings: () => import('./pages/Settings'),
-  plumbing: () => import('./plumbing-visualizer/PlumbingVisualizer'),
-  documents: () => import('./pages/Documents'),
-  canvas: () => import('./pages/Canvas'),
-  alerts: () => import('./pages/Alerts'),
-};
-
 const Dashboard = lazy(pageImports.dashboard);
 const LeadFinder = lazy(pageImports.leads);
+const Jobs = lazy(pageImports.jobs);
 const Plans = lazy(pageImports.plans);
-const AIAssistant = lazy(pageImports.ai);
 const History = lazy(pageImports.history);
 const Vision = lazy(pageImports.vision);
 const Settings = lazy(pageImports.settings);
@@ -32,38 +20,7 @@ const PlumbingVisualizer = lazy(pageImports.plumbing);
 const Documents = lazy(pageImports.documents);
 const Canvas = lazy(pageImports.canvas);
 const Alerts = lazy(pageImports.alerts);
-
-// Map routes to prefetch keys
-const routePrefetchMap = {
-  '/': 'dashboard',
-  '/leads': 'leads',
-  '/plans': 'plans',
-  '/ai': 'ai',
-  '/history': 'history',
-  '/vision': 'vision',
-  '/settings': 'settings',
-  '/plumbing': 'plumbing',
-  '/documents': 'documents',
-  '/canvas': 'canvas',
-  '/alerts': 'alerts',
-};
-
-// Track which chunks have been prefetched
-const prefetched = new Set();
-
-/** Prefetch a page chunk by route path */
-export function prefetchRoute(path) {
-  const key = routePrefetchMap[path];
-  if (!key || prefetched.has(key)) return;
-  prefetched.add(key);
-  // Fire-and-forget — just triggers the dynamic import so the browser caches it
-  pageImports[key]?.();
-}
-
-/** Eager prefetch — loads immediately but quietly */
-export function eagerPrefetch(path) {
-  prefetchRoute(path);
-}
+const AIAssistant = lazy(pageImports.ai);
 
 // Dark Forge page loader
 function PageLoader() {
@@ -102,28 +59,28 @@ function PageLoader() {
 function PageTransition({ children }) {
   const location = useLocation();
   const [displayChildren, setDisplayChildren] = useState(children);
+  const [prevPath, setPrevPath] = useState(location.pathname);
   const [transitionClass, setTransitionClass] = useState('page-transition-wrapper');
-  const prevPath = useRef(location.pathname);
 
   useEffect(() => {
-    if (location.pathname !== prevPath.current) {
-      // Determine direction based on route order
-      const paths = Object.keys(routePrefetchMap);
-      const currentIdx = paths.indexOf(location.pathname);
-      const prevIdx = paths.indexOf(prevPath.current);
-      
-      const direction = currentIdx > prevIdx ? 'page-slide-left' : 'page-slide-right';
-      setTransitionClass(direction);
-      
-      // Small delay to allow transition to start
-      const timer = setTimeout(() => {
-        setDisplayChildren(children);
-        prevPath.current = location.pathname;
-      }, 30);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [location.pathname, children]);
+    if (location.pathname === prevPath) return;
+
+    const paths = Object.keys(routePrefetchMap);
+    const currentIdx = paths.indexOf(location.pathname);
+    const prevIdx = paths.indexOf(prevPath);
+    const direction = currentIdx > prevIdx ? 'page-slide-left' : 'page-slide-right';
+    const nextClass = currentIdx === -1 || prevIdx === -1
+      ? 'page-transition-wrapper'
+      : direction;
+
+    const timer = setTimeout(() => {
+      setTransitionClass(nextClass);
+      setDisplayChildren(children);
+      setPrevPath(location.pathname);
+    }, 30);
+    
+    return () => clearTimeout(timer);
+  }, [location.pathname, children, prevPath]);
 
   return (
     <div className={`tab-content-wrapper ${transitionClass}`} key={location.pathname}>
@@ -148,28 +105,38 @@ function RoutePrefetcher() {
     prefetchedAdjacent.current.add(location.pathname);
 
     // After current page renders, prefetch likely next pages (idle callback)
-    const id = requestIdleCallback?.(() => {
-      const paths = Object.keys(routePrefetchMap);
-      const currentIdx = paths.indexOf(location.pathname);
+    let idleId = null;
+    let timeoutId = null;
+    if (typeof requestIdleCallback === 'function') {
+      idleId = requestIdleCallback(() => {
+        const paths = Object.keys(routePrefetchMap);
+        const currentIdx = paths.indexOf(location.pathname);
 
-      // Prefetch neighbors and the most common destinations
-      const toPrefetch = new Set(['/', '/settings']); // always-useful pages
-      if (currentIdx >= 0) {
-        if (paths[currentIdx - 1]) toPrefetch.add(paths[currentIdx - 1]);
-        if (paths[currentIdx + 1]) toPrefetch.add(paths[currentIdx + 1]);
-      }
+        // Prefetch neighbors and the most common destinations
+        const toPrefetch = new Set(['/', '/settings']); // always-useful pages
+        if (currentIdx >= 0) {
+          if (paths[currentIdx - 1]) toPrefetch.add(paths[currentIdx - 1]);
+          if (paths[currentIdx + 1]) toPrefetch.add(paths[currentIdx + 1]);
+        }
 
-      toPrefetch.forEach(p => {
-        if (p !== location.pathname) prefetchRoute(p);
-      });
-    }, { timeout: 2000 }) ?? setTimeout(() => {
-      // Fallback for browsers without requestIdleCallback
-      prefetchRoute('/');
-      prefetchRoute('/settings');
-    }, 2000);
+        toPrefetch.forEach(p => {
+          if (p !== location.pathname) prefetchRoute(p);
+        });
+      }, { timeout: 2000 });
+    } else {
+      timeoutId = setTimeout(() => {
+        prefetchRoute('/');
+        prefetchRoute('/settings');
+      }, 2000);
+    }
 
     return () => {
-      if (typeof id === 'number' && cancelIdleCallback) cancelIdleCallback(id);
+      if (idleId !== null && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [location.pathname]);
 
@@ -197,32 +164,49 @@ function PageWrapper({ children }) {
   );
 }
 
+// Legacy route redirect component
+function RedirectToJobs({ tab }) {
+  return <Navigate to={`/jobs${tab ? `?tab=${tab}` : ''}`} replace />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
+      <FieldModeProvider>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <RoutePrefetcher />
             <Routes>
               <Route path="/" element={<Layout />}>
+                {/* Core Pages */}
                 <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
+                <Route path="jobs" element={<PageWrapper><Jobs /></PageWrapper>} />
                 <Route path="leads" element={<PageWrapper><LeadFinder /></PageWrapper>} />
-                <Route path="plans" element={<PageWrapper><Plans /></PageWrapper>} />
-                <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
-                <Route path="history" element={<PageWrapper><History /></PageWrapper>} />
-                <Route path="vision" element={<PageWrapper><Vision /></PageWrapper>} />
-                <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />
-                <Route path="plumbing" element={<PageWrapper><PlumbingVisualizer /></PageWrapper>} />
                 <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
-                <Route path="alerts" element={<PageWrapper><Alerts /></PageWrapper>} />
+                
+                {/* AI Assistant */}
+                <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
+                
+                {/* System */}
+                <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />
+                
+                {/* Legacy Redirects */}
+                <Route path="plans" element={<RedirectToJobs tab="estimating" />} />
+                <Route path="plumbing" element={<RedirectToJobs tab="plumbing" />} />
+                <Route path="vision" element={<Navigate to="/documents?tab=vision" replace />} />
+                <Route path="alerts" element={<Navigate to="/?view=alerts" replace />} />
+                <Route path="history" element={<Navigate to="/" replace />} />
               </Route>
+              
+              {/* Canvas - Full screen, no layout */}
               <Route path="canvas" element={<Canvas />} />
             </Routes>
           </BrowserRouter>
           <ToastContainer />
         </ToastProvider>
       </QueryClientProvider>
+    </FieldModeProvider>
     </ThemeProvider>
   );
 }

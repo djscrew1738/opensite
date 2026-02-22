@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/home/djscrew/opensite/tool/logs/.6e40ee70a617c9ed088a41bf8165bb82b0cc995c-audit.json",
+    "files": [
+        {
+            "date": 1771794736553,
+            "name": "/home/djscrew/opensite/tool/logs/error-2026-02-22.log",
+            "hash": "284f16d596b3cee70ad7e213863a059cad22932e8fb867cd3991fb0414710d42"
+        }
+    ],
+    "hashType": "sha256"
+}

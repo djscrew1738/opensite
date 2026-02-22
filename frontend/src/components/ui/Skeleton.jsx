@@ -235,7 +235,7 @@ export const CardSkeleton = ({ hasHeader = true, hasFooter = false, rows = 3 }) 
     )}
     <div className="space-y-3">
       {[...Array(rows)].map((_, i) => (
-        <Skeleton key={i} width={`${80 + Math.random() * 20}%`} height={16} />
+        <Skeleton key={i} width={`${85 - (i % 3) * 10}%`} height={16} />
       ))}
     </div>
     {hasFooter && (
@@ -293,7 +293,7 @@ export const DetailPanelSkeleton = () => (
     </div>
     <div className="space-y-3">
       {[...Array(5)].map((_, i) => (
-        <Skeleton key={i} width={`${70 + Math.random() * 30}%`} height={14} />
+        <Skeleton key={i} width={`${75 + (i % 2) * 15}%`} height={14} />
       ))}
     </div>
   </div>

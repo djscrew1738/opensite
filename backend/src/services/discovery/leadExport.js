@@ -23,15 +23,52 @@ function ensureExportDir() {
 }
 
 /**
- * Escape CSV field value
+ * Validate that a filename is safe and resolves within EXPORT_DIR.
+ * Rejects path separators, null bytes, and traversal sequences.
+ * @param {string} filename
+ * @returns {{ safe: boolean, filePath?: string }}
+ */
+function validateExportFilename(filename) {
+  if (!filename || typeof filename !== 'string') {
+    return { safe: false };
+  }
+  // Allow only alphanumerics, hyphens, underscores, and a single dot extension
+  if (!/^[\w-]+\.(csv|json)$/.test(filename)) {
+    return { safe: false };
+  }
+  const resolvedBase = path.resolve(EXPORT_DIR);
+  const filePath = path.resolve(resolvedBase, filename);
+  if (!filePath.startsWith(resolvedBase + path.sep) && filePath !== resolvedBase) {
+    return { safe: false };
+  }
+  return { safe: true, filePath };
+}
+
+/**
+ * Escape CSV field value and prevent formula injection
+ * Prefixes cells starting with =, +, -, or @ with a single quote
  */
 function escapeCsv(value) {
   if (value === null || value === undefined) return '';
-  const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
+  
+  // Don't modify numbers
+  if (typeof value === 'number') {
+    return String(value);
   }
-  return str;
+  
+  const str = String(value);
+  
+  // Prefix formula-triggering characters with single quote to prevent injection
+  let sanitized = str;
+  if (/^[\+\-=\@\t\r\n]/.test(str)) {
+    sanitized = "'" + str;
+  }
+  
+  // Handle quotes and commas for CSV format
+  if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n')) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
 }
 
 /**
@@ -322,7 +359,10 @@ export function listExports() {
  */
 export function readExport(filename) {
   try {
-    const filePath = path.join(EXPORT_DIR, filename);
+    const { safe, filePath } = validateExportFilename(filename);
+    if (!safe) {
+      return { success: false, error: 'Invalid filename' };
+    }
     if (!fs.existsSync(filePath)) {
       return { success: false, error: 'File not found' };
     }
@@ -343,7 +383,10 @@ export function readExport(filename) {
  */
 export function deleteExport(filename) {
   try {
-    const filePath = path.join(EXPORT_DIR, filename);
+    const { safe, filePath } = validateExportFilename(filename);
+    if (!safe) {
+      return { success: false, error: 'Invalid filename' };
+    }
     if (!fs.existsSync(filePath)) {
       return { success: false, error: 'File not found' };
     }

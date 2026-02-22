@@ -1,6 +1,7 @@
 import { Mail, Phone, MapPin, Sparkles, Edit2, Trash2, MoreHorizontal, Copy, Check, TrendingUp, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import { useLeadScoring } from '../../hooks/useLeadScoring';
+import { LeadCardSkeleton } from '../shared/LoadingStates';
 
 const TIER_CONFIG = {
   hot: {
@@ -37,7 +38,12 @@ const TIER_CONFIG = {
   }
 };
 
-export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect, selectionMode }) {
+export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect, selectionMode, isLoading = false }) {
+  // Show skeleton during loading
+  if (isLoading) {
+    return <LeadCardSkeleton count={1} />;
+  }
+  
   const scoreLead = useLeadScoring();
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);

@@ -1,0 +1,277 @@
+/* Plumbing Visualizer Styles - Dark Theme */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0B0D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2D3548;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #1F2430;
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3B82F6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #0A0B0D;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3B82F6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #0A0B0D;
+}
+
+/* Canvas container */
+.canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-container canvas {
+  display: block;
+  outline: none;
+}
+
+/* Tool button animations */
+.tool-button {
+  transition: all 0.2s ease;
+}
+
+.tool-button:active {
+  transform: scale(0.95);
+}
+
+/* Pipe type indicators */
+.pipe-indicator {
+  position: relative;
+}
+
+.pipe-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.pipe-indicator.cold::before { background-color: #3B82F6; }
+.pipe-indicator.hot::before { background-color: #EF4444; }
+.pipe-indicator.dwv::before { background-color: #10B981; }
+.pipe-indicator.vent::before { background-color: #F59E0B; }
+.pipe-indicator.gas::before { background-color: #F97316; }
+
+/* Phase timeline animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.phase-active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+/* Grid background pattern */
+.grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(31, 36, 48, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 36, 48, 0.5) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Hover effects */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Focus states */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Fade animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Tooltip styles */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: #181C24;
+  color: #F1F5F9;
+  font-size: 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  pointer-events: none;
+  border: 1px solid #2D3548;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Material list table */
+.material-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.material-table th,
+.material-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #1F2430;
+}
+
+.material-table th {
+  background: #111318;
+  font-weight: 600;
+  color: #94A3B8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.material-table tr:hover {
+  background: #181C24;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 50vh;
+    z-index: 50;
+  }
+  
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .toolbar button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Print styles for material lists */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: #0A0B0D;
+    color: #F1F5F9;
+  }
+  
+  .material-table {
+    border: 1px solid #1F2430;
+  }
+  
+  .material-table th {
+    background: #111318;
+    color: #94A3B8;
+  }
+}

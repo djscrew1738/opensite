@@ -11,12 +11,29 @@ import { tryCatch } from '../utils/response.js';
 
 const router = express.Router();
 
+/**
+ * Validate temperature value
+ * Temperature must be a number between 0 and 2 (inclusive)
+ * @param {any} value - The temperature value to validate
+ * @returns {object} - { valid: boolean, value: number|null, error: string|null }
+ */
+function validateTemperature(value) {
+  const temp = parseFloat(value);
+  if (isNaN(temp)) {
+    return { valid: false, value: null, error: 'Temperature must be a number' };
+  }
+  if (temp < 0 || temp > 2) {
+    return { valid: false, value: null, error: 'Temperature must be between 0.0 and 2.0' };
+  }
+  return { valid: true, value: temp, error: null };
+}
+
 // Get all settings
 router.get('/', tryCatch(async (req, res) => {
   const settings = db.getAllSettings();
 
   // Mask API keys for security
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key', 'microsoft_client_id', 'microsoft_client_secret', 'google_client_id', 'google_client_secret', 'telegram_bot_token']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -40,37 +57,22 @@ router.put('/', tryCatch(async (req, res) => {
     return res.error('No settings provided', 'VALIDATION_ERROR', null, 400);
   }
 
-  // Validate specific settings
-  if (updates.ollama_temperature !== undefined) {
-    const temp = parseFloat(updates.ollama_temperature);
-    if (isNaN(temp) || temp < 0 || temp > 1) {
-      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
+  // Validate temperature settings for all AI providers
+  const tempFields = [
+    'ollama_temperature',
+    'groq_temperature',
+    'openclaw_temperature',
+    'anthropic_temperature'
+  ];
+  
+  for (const field of tempFields) {
+    if (updates[field] !== undefined) {
+      const result = validateTemperature(updates[field]);
+      if (!result.valid) {
+        return res.error(result.error, 'VALIDATION_ERROR', null, 400);
+      }
+      updates[field] = String(result.value);
     }
-    updates.ollama_temperature = String(temp);
-  }
-
-  if (updates.groq_temperature !== undefined) {
-    const temp = parseFloat(updates.groq_temperature);
-    if (isNaN(temp) || temp < 0 || temp > 1) {
-      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
-    }
-    updates.groq_temperature = String(temp);
-  }
-
-  if (updates.openclaw_temperature !== undefined) {
-    const temp = parseFloat(updates.openclaw_temperature);
-    if (isNaN(temp) || temp < 0 || temp > 1) {
-      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
-    }
-    updates.openclaw_temperature = String(temp);
-  }
-
-  if (updates.anthropic_temperature !== undefined) {
-    const temp = parseFloat(updates.anthropic_temperature);
-    if (isNaN(temp) || temp < 0 || temp > 1) {
-      return res.error('Temperature must be between 0.0 and 1.0', 'VALIDATION_ERROR', null, 400);
-    }
-    updates.anthropic_temperature = String(temp);
   }
 
   if (updates.openclaw_url) {
@@ -141,7 +143,7 @@ router.put('/', tryCatch(async (req, res) => {
 
   const settings = db.getAllSettings();
   // Mask API keys
-  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key']) {
+  for (const keyName of ['serper_api_key', 'google_places_api_key', 'groq_api_key', 'openclaw_token', 'anthropic_api_key', 'openai_api_key', 'twilio_account_sid', 'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 'google_maps_api_key', 'microsoft_client_id', 'microsoft_client_secret', 'google_client_id', 'google_client_secret', 'telegram_bot_token']) {
     if (settings[keyName]) {
       const key = settings[keyName];
       settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
@@ -458,6 +460,125 @@ router.get('/metrics', tryCatch(async (req, res) => {
   const metrics = aiProvider.getMetrics();
   const config = aiProvider.getConfig();
   res.success({ metrics, config });
+}));
+
+// Test Microsoft OAuth credentials
+router.post('/test-microsoft', tryCatch(async (req, res) => {
+  const { clientId, clientSecret } = req.body;
+  const msClientId = clientId || db.getSetting('microsoft_client_id');
+  const msClientSecret = clientSecret || db.getSetting('microsoft_client_secret');
+
+  if (!msClientId || !msClientSecret) {
+    return res.success({ valid: false, error: 'Client ID and Client Secret are required' });
+  }
+
+  try {
+    // Test by attempting to get an app-only token
+    const { default: axios } = await import('axios');
+    const tokenResponse = await axios.post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      client_id: msClientId,
+      client_secret: msClientSecret,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials',
+    }, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
+    });
+
+    res.success({
+      valid: true,
+      tokenType: tokenResponse.data?.token_type,
+      expiresIn: tokenResponse.data?.expires_in,
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    const errorDesc = error.response?.data?.error_description || error.message;
+    res.success({
+      valid: false,
+      error: status === 401 ? 'Invalid credentials' : errorDesc,
+    });
+  }
+}));
+
+// Test Google OAuth credentials
+router.post('/test-google', tryCatch(async (req, res) => {
+  const { clientId, clientSecret } = req.body;
+  const googleClientId = clientId || db.getSetting('google_client_id');
+  const googleClientSecret = clientSecret || db.getSetting('google_client_secret');
+
+  if (!googleClientId || !googleClientSecret) {
+    return res.success({ valid: false, error: 'Client ID and Client Secret are required' });
+  }
+
+  try {
+    // Test by checking if we can construct a valid auth URL (client ID format check)
+    // Google doesn't have a simple token endpoint test like Microsoft
+    // We'll validate the format and try to get token endpoint info
+    const { default: axios } = await import('axios');
+    
+    // Try to get Google's OAuth discovery document
+    const discoveryResponse = await axios.get('https://accounts.google.com/.well-known/openid-configuration', {
+      timeout: 10000,
+    });
+
+    // Basic validation - check if client ID looks like a Google OAuth client ID
+    const isValidFormat = googleClientId.endsWith('.apps.googleusercontent.com') || 
+                          googleClientId.endsWith('.apps.googleusercontent.com/');
+
+    if (!isValidFormat) {
+      return res.success({
+        valid: false,
+        error: 'Client ID format appears invalid. Should end with .apps.googleusercontent.com',
+        hint: 'Example: 123456789-abc123def456ghi789jkl012mno345p.apps.googleusercontent.com',
+      });
+    }
+
+    res.success({
+      valid: true,
+      message: 'Credentials format is valid. Complete OAuth flow to fully verify.',
+      authorizationEndpoint: discoveryResponse.data?.authorization_endpoint,
+    });
+  } catch (error) {
+    res.success({
+      valid: false,
+      error: error.message,
+    });
+  }
+}));
+
+// Test Telegram Bot token
+router.post('/test-telegram', tryCatch(async (req, res) => {
+  const { token } = req.body;
+  const botToken = token || db.getSetting('telegram_bot_token');
+
+  if (!botToken) {
+    return res.success({ valid: false, error: 'Bot token is required' });
+  }
+
+  try {
+    const { default: axios } = await import('axios');
+    const response = await axios.get(`https://api.telegram.org/bot${botToken}/getMe`, {
+      timeout: 10000,
+    });
+
+    if (response.data?.ok) {
+      const bot = response.data.result;
+      res.success({
+        valid: true,
+        botName: bot.first_name,
+        botUsername: bot.username,
+        canJoinGroups: bot.can_join_groups,
+        canReadMessages: bot.can_read_all_group_messages,
+      });
+    } else {
+      res.success({ valid: false, error: 'Invalid bot token' });
+    }
+  } catch (error) {
+    res.success({
+      valid: false,
+      error: error.response?.status === 401 ? 'Invalid bot token' : error.message,
+    });
+  }
 }));
 
 export default router;

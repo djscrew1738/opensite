@@ -1,6 +1,19 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUALIFYING_FIXTURES, FIXTURE_PRICE, PHASE_CONFIG } from './constants';
 
+// Custom tooltip component defined outside main component to avoid recreation on render
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-white dark:bg-surface-800 shadow-lg rounded-lg px-3 py-2 border border-surface-200 dark:border-surface-700 text-sm">
+      <p className="font-semibold text-surface-900 dark:text-surface-100">{d.name}</p>
+      {d.count != null && <p className="text-surface-500 dark:text-surface-400">{d.count} fixtures</p>}
+      <p className="font-bold text-surface-900 dark:text-surface-100">${(d.value || d.amount || 0).toLocaleString()}</p>
+    </div>
+  );
+};
+
 export default function PricingDashboard({ fixtures, totalPrice }) {
   // Donut chart data: fixture distribution
   const donutData = QUALIFYING_FIXTURES
@@ -18,18 +31,6 @@ export default function PricingDashboard({ fixtures, totalPrice }) {
     amount: Math.round(totalPrice * p.pct / 100),
     fill: p.color,
   }));
-
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload?.length) return null;
-    const d = payload[0].payload;
-    return (
-      <div className="bg-white dark:bg-surface-800 shadow-lg rounded-lg px-3 py-2 border border-surface-200 dark:border-surface-700 text-sm">
-        <p className="font-semibold text-surface-900 dark:text-surface-100">{d.name}</p>
-        {d.count != null && <p className="text-surface-500 dark:text-surface-400">{d.count} fixtures</p>}
-        <p className="font-bold text-surface-900 dark:text-surface-100">${(d.value || d.amount || 0).toLocaleString()}</p>
-      </div>
-    );
-  };
 
   if (totalPrice === 0) {
     return (
@@ -60,8 +61,8 @@ export default function PricingDashboard({ fixtures, totalPrice }) {
               paddingAngle={2}
               dataKey="value"
             >
-              {donutData.map((entry, i) => (
-                <Cell key={i} fill={entry.color} stroke="none" />
+              {donutData.map((entry, idx) => (
+                <Cell key={`cell-${idx}`} fill={entry.color} stroke="none" />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
@@ -87,8 +88,8 @@ export default function PricingDashboard({ fixtures, totalPrice }) {
             <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 12, fill: '#6b7280' }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="amount" radius={[0, 6, 6, 0]} barSize={28}>
-              {phaseData.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
+              {phaseData.map((entry, idx) => (
+                <Cell key={`phase-${idx}`} fill={entry.fill} />
               ))}
             </Bar>
           </BarChart>
@@ -98,7 +99,6 @@ export default function PricingDashboard({ fixtures, totalPrice }) {
           {phaseData.map(p => (
             <div key={p.name} className="text-center">
               <p className="text-xs font-bold text-surface-900 dark:text-surface-100">${p.amount.toLocaleString()}</p>
-              <p className="text-[10px] text-surface-500 dark:text-surface-400">{p.name}</p>
             </div>
           ))}
         </div>

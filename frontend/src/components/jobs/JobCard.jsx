@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { ArrowRight, Flag, Eye, Check } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { motion as Motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { ArrowRight, Flag, Eye, Check, AlertCircle } from 'lucide-react';
 import PhaseTrack from './PhaseTrack';
 import BuilderBadge from './BuilderBadge';
-import { PHASES, PHASE_MAP } from '../../styles/tokens';
+import { colors, PHASES, PHASE_MAP } from '../../styles/tokens';
+import { JobCardSkeleton } from '../shared/LoadingStates';
 
 /**
  * JobCard — The most-used element in Job Pulse.
@@ -11,6 +12,11 @@ import { PHASES, PHASE_MAP } from '../../styles/tokens';
  * Swipe right → Update Phase (green reveal)
  * Swipe left  → Flag (red reveal)
  * Tap body    → Open detail
+ * 
+ * Accessibility:
+ * - Keyboard: ArrowRight to update phase, ArrowLeft to flag, Enter to view detail
+ * - Screen readers: Announces job status and available actions
+ * - Focus management: Visible focus indicators on all interactive elements
  */
 export default function JobCard({
   job,
@@ -19,7 +25,13 @@ export default function JobCard({
   onViewDetail,
   onFlag,
   onClick,
+  loading = false,
 }) {
+  // Show skeleton during loading
+  if (loading) {
+    return <JobCardSkeleton count={1} />;
+  }
+  
   const {
     id,
     address,
@@ -34,47 +46,102 @@ export default function JobCard({
   const phaseInfo = PHASE_MAP[phase] || PHASES[0];
   const phaseColor = phaseInfo.color;
   const [swiped, setSwiped] = useState(null); // 'left' | 'right' | null
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const x = useMotionValue(0);
   const cardRef = useRef(null);
 
-  // Background reveal colors based on swipe direction
+  // Background reveal colors based on swipe direction - using design tokens
   const bgLeft = useTransform(x, [-120, 0], [1, 0]);
   const bgRight = useTransform(x, [0, 120], [0, 1]);
 
-  // Status-based left border glow
+  // Status-based left border glow - using design tokens
   const borderGlow = {
-    overdue: `0 0 12px rgba(239, 68, 68, 0.4), inset 3px 0 0 #EF4444`,
-    'due-today': `0 0 12px rgba(245, 158, 11, 0.4), inset 3px 0 0 #F59E0B`,
+    overdue: `0 0 12px ${colors.danger.glow}, inset 3px 0 0 ${colors.danger.DEFAULT}`,
+    'due-today': `0 0 12px ${colors.warning.glow}, inset 3px 0 0 ${colors.warning.DEFAULT}`,
     healthy: `inset 3px 0 0 ${phaseColor}`,
   };
 
   const formattedAddress = [address, city, zip].filter(Boolean).join(', ');
 
-  const handleDragEnd = (_, info) => {
+  // Handle keyboard navigation for accessibility
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      handleUpdatePhase();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      handleFlag();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.(job);
+    }
+  }, [job, onClick]);
+
+  const handleDragEnd = useCallback(async (_, info) => {
     const threshold = 80;
     const velocity = info.velocity.x;
+    const isRight = info.offset.x > threshold || velocity > 500;
+    const isLeft = info.offset.x < -threshold || velocity < -500;
 
-    if (info.offset.x > threshold || velocity > 500) {
-      // Swipe right → Update Phase
-      animate(x, 120, { type: 'spring', stiffness: 300, damping: 30 });
-      setSwiped('right');
-      setTimeout(() => {
-        animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
-        setSwiped(null);
-        onUpdatePhase?.(job);
-      }, 400);
-    } else if (info.offset.x < -threshold || velocity < -500) {
-      // Swipe left → Flag
-      animate(x, -120, { type: 'spring', stiffness: 300, damping: 30 });
-      setSwiped('left');
-      setTimeout(() => {
-        animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
-        setSwiped(null);
-        onFlag?.(job);
-      }, 400);
-    } else {
+    if (!isRight && !isLeft) {
       animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
+      return;
+    }
+
+    // Animate reveal then reset + fire action in one flow
+    const target = isRight ? 120 : -120;
+    animate(x, target, { type: 'spring', stiffness: 300, damping: 30 });
+    setSwiped(isRight ? 'right' : 'left');
+
+    setTimeout(async () => {
+      animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
+      setSwiped(null);
+      if (isRight) await handleUpdatePhase();
+      else await handleFlag();
+    }, 400);
+  }, [x, handleUpdatePhase, handleFlag]);
+
+  const handleUpdatePhase = async (e) => {
+    e?.stopPropagation();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await onUpdatePhase?.(job);
+    } catch (err) {
+      setError('Failed to update phase');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFlag = async (e) => {
+    e?.stopPropagation();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await onFlag?.(job);
+    } catch (err) {
+      setError('Failed to flag job');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleViewDetail = (e) => {
+    e?.stopPropagation();
+    onViewDetail?.(job);
+  };
+
+  // Determine status label for screen readers
+  const getStatusLabel = () => {
+    switch (status) {
+      case 'overdue': return 'Overdue job';
+      case 'due-today': return 'Due today';
+      default: return 'Active job';
     }
   };
 
@@ -89,37 +156,61 @@ export default function JobCard({
       }}
     >
       {/* Swipe-right background: Update Phase (green) */}
-      <motion.div
+      <Motion.div
         className="absolute inset-0 flex items-center pl-5 rounded-xl"
         style={{
-          background: '#10B981',
+          background: colors.success.DEFAULT,
           opacity: bgRight,
           borderRadius: '12px',
         }}
+        aria-hidden="true"
       >
-        <div className="flex items-center gap-2 text-white font-semibold text-sm">
+        <div 
+          className="flex items-center gap-2 font-semibold text-sm"
+          style={{ color: colors.text.inverse }}
+        >
           <Check className="w-5 h-5" />
           <span>Update Phase</span>
         </div>
-      </motion.div>
+      </Motion.div>
 
       {/* Swipe-left background: Flag (red) */}
-      <motion.div
+      <Motion.div
         className="absolute inset-0 flex items-center justify-end pr-5 rounded-xl"
         style={{
-          background: '#EF4444',
+          background: colors.danger.DEFAULT,
           opacity: bgLeft,
           borderRadius: '12px',
         }}
+        aria-hidden="true"
       >
-        <div className="flex items-center gap-2 text-white font-semibold text-sm">
+        <div 
+          className="flex items-center gap-2 font-semibold text-sm"
+          style={{ color: colors.text.inverse }}
+        >
           <span>Flag</span>
           <Flag className="w-5 h-5" />
         </div>
-      </motion.div>
+      </Motion.div>
+
+      {/* Error Toast */}
+      {error && (
+        <div
+          className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+          style={{
+            background: colors.danger.muted,
+            color: colors.danger.DEFAULT,
+            border: `1px solid ${colors.danger.border || 'rgba(239, 68, 68, 0.2)'}`,
+          }}
+          role="alert"
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Draggable card body */}
-      <motion.div
+      <Motion.div
         ref={cardRef}
         drag="x"
         dragConstraints={{ left: -140, right: 140 }}
@@ -127,15 +218,17 @@ export default function JobCard({
         dragDirectionLock
         onDragEnd={handleDragEnd}
         style={{ x }}
-        className="relative cursor-pointer touch-pan-y active:scale-[0.99]"
+        className="relative cursor-pointer touch-pan-y active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary"
         onClick={() => !swiped && onClick?.(job)}
+        onKeyDown={handleKeyDown}
         role="article"
-        aria-label={`Job ${id} at ${address}`}
+        aria-label={`${getStatusLabel()} ${id} at ${formattedAddress || 'No address'}. Current phase: ${phaseInfo.label}. Use arrow keys to update phase or flag, Enter to view details.`}
+        tabIndex={0}
       >
         <div
           style={{
-            background: '#111318',
-            border: '1px solid #1F2430',
+            background: colors.surface.card,
+            border: `1px solid ${colors.border.default}`,
             borderRadius: '12px',
             boxShadow: borderGlow[status] || borderGlow.healthy,
             padding: '14px 16px',
@@ -146,7 +239,7 @@ export default function JobCard({
             <BuilderBadge builder={builder} size="xs" />
             <span
               className="font-mono text-xs tabular-nums"
-              style={{ color: '#475569', fontWeight: 500 }}
+              style={{ color: colors.text.muted, fontWeight: 500 }}
             >
               #{id}
             </span>
@@ -155,7 +248,7 @@ export default function JobCard({
           {/* Row 2: Address */}
           <p
             className="font-medium truncate mb-3"
-            style={{ color: '#F1F5F9', fontSize: '15px', lineHeight: 1.4 }}
+            style={{ color: colors.text.primary, fontSize: '15px', lineHeight: 1.4 }}
           >
             {formattedAddress || 'No address'}
           </p>
@@ -172,7 +265,7 @@ export default function JobCard({
               </span>
               <span
                 className="font-mono text-xs tabular-nums"
-                style={{ color: '#475569' }}
+                style={{ color: colors.text.muted }}
               >
                 {daysInPhase}d
               </span>
@@ -182,34 +275,45 @@ export default function JobCard({
           {/* Row 4: Action buttons */}
           <div className="flex items-center gap-2">
             <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97]"
-              style={{ color: '#94A3B8', height: '36px' }}
-              onClick={(e) => { e.stopPropagation(); onUpdatePhase?.(job); }}
+              type="button"
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+              style={{ color: colors.text.secondary, height: '36px' }}
+              onClick={handleUpdatePhase}
+              aria-label="Update job phase"
             >
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Update</span>
             </button>
 
             <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97]"
-              style={{ color: '#94A3B8', height: '36px' }}
-              onClick={(e) => { e.stopPropagation(); onViewDetail?.(job); }}
+              type="button"
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+              style={{ color: colors.text.secondary, height: '36px' }}
+              onClick={handleViewDetail}
+              aria-label="View job details"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Detail</span>
             </button>
 
             <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-red-500/10 active:scale-[0.97]"
-              style={{ color: '#475569', height: '36px' }}
-              onClick={(e) => { e.stopPropagation(); onFlag?.(job); }}
+              type="button"
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-red-500/10 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
+              style={{ color: colors.text.muted, height: '36px' }}
+              onClick={handleFlag}
+              aria-label="Flag job for review"
             >
-              <Flag className="w-3.5 h-3.5" />
+              <Flag className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Flag</span>
             </button>
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }
+
+

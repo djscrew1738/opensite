@@ -10,48 +10,45 @@ import {
 } from 'lucide-react';
 import { JobCard } from '../jobs';
 import { PHASES, PHASE_MAP } from '../../styles/tokens';
+import { DashboardSkeleton } from '../shared/LoadingStates';
 
-/* ────────────────────────────────────────────────
-   Mock data — DFW construction jobs for CTL Plumbing
-   ──────────────────────────────────────────────── */
-const MOCK_JOBS = [
-  { id: 'CTL-1041', address: '2914 Ridgewood Dr', city: 'Aubrey', zip: '76227', builder: 'DR Horton', phase: 'underground', daysInPhase: 4, status: 'healthy' },
-  { id: 'CTL-1042', address: '5103 Copper Canyon Trl', city: 'Fort Worth', zip: '76244', builder: 'Horizon Homes', phase: 'roughin', daysInPhase: 7, status: 'due-today' },
-  { id: 'CTL-1043', address: '810 Bluebonnet Blvd', city: 'Celina', zip: '75009', builder: 'DR Horton', phase: 'topout', daysInPhase: 12, status: 'overdue' },
-  { id: 'CTL-1044', address: '3321 Harvest Bend Ln', city: 'Prosper', zip: '75078', builder: 'DR Horton', phase: 'trim', daysInPhase: 3, status: 'healthy' },
-  { id: 'CTL-1045', address: '1204 Prairie Wind Dr', city: 'Sanger', zip: '76266', builder: 'Horizon Homes', phase: 'final', daysInPhase: 2, status: 'due-today' },
-  { id: 'CTL-1046', address: '7750 Stampede Dr', city: 'Haslet', zip: '76052', builder: 'DR Horton', phase: 'underground', daysInPhase: 1, status: 'healthy' },
-  { id: 'CTL-1047', address: '4460 Ridgepoint Ct', city: 'Denton', zip: '76210', builder: 'Horizon Homes', phase: 'roughin', daysInPhase: 9, status: 'overdue' },
-  { id: 'CTL-1048', address: '990 Twin Creeks Pkwy', city: 'Allen', zip: '75013', builder: 'DR Horton', phase: 'topout', daysInPhase: 5, status: 'healthy' },
-  { id: 'CTL-1049', address: '6622 Elm Fork Dr', city: 'Frisco', zip: '75033', builder: 'Horizon Homes', phase: 'trim', daysInPhase: 6, status: 'healthy' },
-  { id: 'CTL-1050', address: '1180 Cattlemen Dr', city: 'Pilot Point', zip: '76258', builder: 'DR Horton', phase: 'underground', daysInPhase: 11, status: 'overdue' },
-];
-
-const METRICS = [
-  { label: 'Active Jobs', value: '12', icon: HardHat, color: 'text-accent', bg: 'bg-accent/10' },
-  { label: 'Inspections', value: '3', icon: Calendar, color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { label: 'Overdue', value: '2', icon: AlertTriangle, color: 'text-accent-red', bg: 'bg-accent-red/10' },
-  { label: 'Revenue', value: '$47.2K', icon: DollarSign, color: 'text-accent-green', bg: 'bg-accent-green/10' },
-  { label: 'Pipeline', value: '8', icon: TrendingUp, color: 'text-accent-amber', bg: 'bg-accent-amber/10' },
-];
-
-const FOCUS_ITEMS = [
-  { job: MOCK_JOBS[2], reason: 'Overdue 12 days', reasonColor: 'text-accent-red' },
-  { job: MOCK_JOBS[6], reason: 'Overdue 9 days', reasonColor: 'text-accent-red' },
-  { job: MOCK_JOBS[1], reason: 'Inspection today', reasonColor: 'text-accent-amber' },
-  { job: MOCK_JOBS[4], reason: 'Due today', reasonColor: 'text-accent-amber' },
-];
+// Icon mapping for metrics
+const iconMap = {
+  HardHat,
+  Calendar,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
+};
 
 const PHASE_TABS = [
   { key: 'all', label: 'All', color: '#3B82F6' },
   ...PHASES,
 ];
 
-/* ────────────────────────────────────────────────
-   Component
-   ──────────────────────────────────────────────── */
-export default function JobPulseHome({ jobs = MOCK_JOBS, onJobClick }) {
+/**
+ * JobPulseHome - Dashboard view for job management
+ * 
+ * Props:
+ * - jobs: Array of job objects from API
+ * - metrics: Array of metric objects { label, value, icon, color, bg }
+ * - focusItems: Array of focus items { job, reason, reasonColor }
+ * - isLoading: Boolean loading state
+ * - onJobClick: Function(job) called when a job is clicked
+ */
+export default function JobPulseHome({ 
+  jobs = [], 
+  metrics = [],
+  focusItems = [],
+  isLoading = false,
+  onJobClick 
+}) {
   const [activePhase, setActivePhase] = useState('all');
+  
+  // Show skeleton during loading
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const filteredJobs = useMemo(
     () => activePhase === 'all' ? jobs : jobs.filter(j => j.phase === activePhase),
@@ -66,60 +63,65 @@ export default function JobPulseHome({ jobs = MOCK_JOBS, onJobClick }) {
   }, [jobs]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-8">
       {/* ── 1. METRICS STRIP ─────────────────────── */}
       <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
         <div className="flex gap-3 w-max">
-          {METRICS.map(m => (
-            <div
-              key={m.label}
-              className="snap-start flex-shrink-0 w-[140px] rounded-xl border border-border bg-surface-card p-3.5 transition-colors hover:border-border-strong"
-            >
-              <div className={`${m.bg} ${m.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}>
-                <m.icon size={18} />
+          {metrics.map(m => {
+            const Icon = iconMap[m.icon] || HardHat;
+            return (
+              <div
+                key={m.label}
+                className="snap-start flex-shrink-0 w-[140px] rounded-xl border border-border bg-surface-card p-3.5 transition-colors hover:border-border-strong"
+              >
+                <div className={`${m.bg} ${m.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}>
+                  <Icon size={18} />
+                </div>
+                <p className="font-mono text-2xl font-extrabold tabular-nums text-text-primary leading-none">
+                  {m.value}
+                </p>
+                <p className="text-xs text-text-muted mt-1 truncate">{m.label}</p>
               </div>
-              <p className="font-mono text-2xl font-extrabold tabular-nums text-text-primary leading-none">
-                {m.value}
-              </p>
-              <p className="text-xs text-text-muted mt-1 truncate">{m.label}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* ── 2. TODAY'S FOCUS ──────────────────────── */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Target size={18} className="text-accent-amber" />
-          <h2 className="text-label font-bold text-text-primary">Today's Focus</h2>
-        </div>
+      {focusItems.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Target size={18} className="text-accent-amber" />
+            <h2 className="text-label font-bold text-text-primary">Today's Focus</h2>
+          </div>
 
-        <div className="space-y-2">
-          {FOCUS_ITEMS.map(({ job, reason, reasonColor }) => {
-            const phase = PHASE_MAP[job.phase] || PHASES[0];
-            return (
-              <button
-                key={job.id}
-                type="button"
-                onClick={() => onJobClick?.(job)}
-                className="w-full flex items-center gap-3 rounded-lg border border-border bg-surface-card h-14 px-3 text-left transition-colors hover:border-border-strong active:scale-[0.99]"
-              >
-                <span
-                  className="w-[3px] self-stretch rounded-full flex-shrink-0"
-                  style={{ backgroundColor: phase.color }}
-                />
-                <span className="flex-1 min-w-0">
-                  <p className="text-sm text-text-primary truncate">{job.address}</p>
-                  <p className="text-xs text-text-muted truncate">{job.city}, TX {job.zip}</p>
-                </span>
-                <span className={`text-xs font-semibold flex-shrink-0 ${reasonColor}`}>
-                  {reason}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+          <div className="space-y-2">
+            {focusItems.map(({ job, reason, reasonColor }) => {
+              const phase = PHASE_MAP[job.phase] || PHASES[0];
+              return (
+                <button
+                  key={job.id}
+                  type="button"
+                  onClick={() => onJobClick?.(job)}
+                  className="w-full flex items-center gap-3 rounded-lg border border-border bg-surface-card h-14 px-3 text-left transition-colors hover:border-border-strong active:scale-[0.99]"
+                >
+                  <span
+                    className="w-[3px] self-stretch rounded-full flex-shrink-0"
+                    style={{ backgroundColor: phase.color }}
+                  />
+                  <span className="flex-1 min-w-0">
+                    <p className="text-sm text-text-primary truncate">{job.address}</p>
+                    <p className="text-xs text-text-muted truncate">{job.city}, TX {job.zip}</p>
+                  </span>
+                  <span className={`text-xs font-semibold flex-shrink-0 ${reasonColor}`}>
+                    {reason}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── 3. PHASE TAB SWITCHER + JOB BOARD ─────── */}
       <section>

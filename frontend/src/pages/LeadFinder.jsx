@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import {
   Plus, Search, Filter, X, Command, Trash2,
   ArrowUpDown, CheckSquare, Square, Building2,
   MapPin, Users, Compass, FileText, Download, Sparkles,
-  LayoutDashboard, Building
+  LayoutDashboard, Building, AlertCircle, RefreshCw
 } from 'lucide-react';
 import LeadPulseHome from '../components/leads/LeadPulseHome';
 import LeadCard from '../components/leads/LeadCard';
@@ -20,6 +21,12 @@ import UnifiedSearch from '../components/leads/UnifiedSearch';
 import LeadFunnel from '../components/leads/LeadFunnel';
 import StatusProgressBar from '../components/leads/StatusProgressBar';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import { 
+  NoLeadsEmpty, 
+  NoPermitsEmpty, 
+  NoSearchResultsEmpty,
+  NoDiscoveryResultsEmpty 
+} from '../components/empty-states';
 import { useBulkSelect } from '../hooks/useBulkSelect';
 import { useSorting } from '../hooks/useSorting';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -38,10 +45,18 @@ const tabs = [
 const TAB_ORDER = { cities: 0, permits: 1, builders: 2, discovery: 3, manual: 4, home: 5 };
 
 export default function LeadFinder() {
-  const [activeTab, setActiveTab] = useState('cities');
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [tierFilter, setTierFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // URL-persisted state
+  const activeTab = searchParams.get('tab') || 'cities';
+  const search = searchParams.get('q') || '';
+  const statusFilter = searchParams.get('status') || '';
+  const tierFilter = searchParams.get('tier') || '';
+  const permitCityFilter = searchParams.get('city') || '';
+  const sortField = searchParams.get('sort') || 'score';
+  const sortOrder = searchParams.get('order') || 'desc';
+  
+  // Local state (not persisted in URL)
   const [showModal, setShowModal] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -49,22 +64,62 @@ export default function LeadFinder() {
   const [showUnifiedSearch, setShowUnifiedSearch] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selectionMode, setSelectionMode] = useState(false);
-  const [permitCityFilter, setPermitCityFilter] = useState('');
 
   const queryClient = useQueryClient();
+  
+  // Helper to update URL params
+  const updateParams = (updates) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined) {
+        next.delete(key);
+      } else {
+        next.set(key, String(value));
+      }
+    });
+    setSearchParams(next);
+  };
 
-  // Sorting
-  const leadSort = useSorting('score', 'desc');
-  const permitSort = useSorting('leadScore', 'desc');
+  // Sorting (from URL params)
+  const leadSort = {
+    sortField,
+    sortOrder,
+    setSortField: (field) => updateParams({ sort: field }),
+    setSortOrder: (order) => updateParams({ order: order }),
+    sortData: (data) => {
+      if (!sortField) return data;
+      return [...data].sort((a, b) => {
+        const aVal = a[sortField] ?? 0;
+        const bVal = b[sortField] ?? 0;
+        const modifier = sortOrder === 'asc' ? 1 : -1;
+        return (aVal > bVal ? 1 : -1) * modifier;
+      });
+    }
+  };
+  const permitSort = leadSort;
 
   // Queries
-  const { data: manualData, isLoading: manualLoading } = useQuery({
+  const { 
+    data: manualData, 
+    isLoading: manualLoading, 
+    isError: manualIsError, 
+    error: manualError,
+    refetch: refetchManual 
+  } = useQuery({
     queryKey: ['leads', { status: statusFilter, search }],
     queryFn: () => api.leads.getAll({ status: statusFilter || undefined, search: search || undefined }),
     enabled: activeTab === 'manual' || activeTab === 'home',
+    staleTime: 5 * 60_000, // 5 min — lead data doesn't change fast
+    gcTime: 30 * 60_000,   // keep 30 min in cache
   });
 
-  const { data: permitData, isLoading: permitLoading } = useQuery({
+  const { 
+    data: permitData, 
+    isLoading: permitLoading,
+    isError: permitIsError,
+    error: permitError,
+    refetch: refetchPermits
+  } = useQuery({
     queryKey: ['permits', { tier: tierFilter, status: statusFilter, search }],
     queryFn: () => api.permits.getAll({
       tier: tierFilter || undefined,
@@ -72,6 +127,8 @@ export default function LeadFinder() {
       search: search || undefined,
     }),
     enabled: activeTab === 'permits',
+    staleTime: 5 * 60_000, // 5 min — permit data changes infrequently
+    gcTime: 30 * 60_000,
   });
 
   const manualLeads = manualData?.leads || [];
@@ -166,14 +223,31 @@ export default function LeadFinder() {
   const handleViewPermitDetails = (permit) => setSelectedPermit(permit);
 
   const handleSearchNavigate = (type, id, item) => {
-    if (type === 'permit') { setActiveTab('permits'); setSelectedPermit(item); }
-    else if (type === 'lead') { setActiveTab('manual'); handleEditLead(item); }
-    else if (type === 'builder') { setActiveTab('builders'); }
+    if (type === 'permit') { updateParams({ tab: 'permits' }); setSelectedPermit(item); }
+    else if (type === 'lead') { updateParams({ tab: 'manual' }); handleEditLead(item); }
+    else if (type === 'builder') { updateParams({ tab: 'builders' }); }
   };
 
   const handleViewLead = (lead) => {
     setEditingLead(lead);
     setShowModal(true);
+  };
+  
+  // Search handler
+  const handleSearchChange = (e) => {
+    updateParams({ q: e.target.value });
+  };
+  
+  // Clear all filters
+  const handleClearFilters = () => {
+    updateParams({ 
+      q: '', 
+      status: '', 
+      tier: '', 
+      city: '',
+      sort: '',
+      order: ''
+    });
   };
 
   // Tab transition animation
@@ -185,7 +259,7 @@ export default function LeadFinder() {
     const direction = TAB_ORDER[newTab] > TAB_ORDER[prevTab.current] ? 'left' : 'right';
     setTabDirection(direction);
     prevTab.current = newTab;
-    setActiveTab(newTab);
+    updateParams({ tab: newTab });
     if (selectionMode) { setSelectionMode(false); bulk.clearSelection(); }
   };
   
@@ -196,6 +270,9 @@ export default function LeadFinder() {
   }, [activeTab]);
 
   const isLoading = activeTab === 'manual' ? manualLoading : permitLoading;
+  const isError = activeTab === 'manual' ? manualIsError : permitIsError;
+  const error = activeTab === 'manual' ? manualError : permitError;
+  const refetch = activeTab === 'manual' ? refetchManual : refetchPermits;
   const hasActiveFilters = search || statusFilter || tierFilter || permitCityFilter;
 
   return (
@@ -319,7 +396,7 @@ export default function LeadFinder() {
                           : 'Search by name, company, location...'
                       }
                       value={search}
-                      onChange={(e) => setSearch(e.target.value)}
+                      onChange={handleSearchChange}
                       className="input pl-12"
                     />
                   </div>
@@ -391,7 +468,7 @@ export default function LeadFinder() {
                   {activeTab === 'permits' && (
                     <div>
                       <label className="label text-xs">Tier</label>
-                      <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} className="input">
+                      <select value={tierFilter} onChange={(e) => updateParams({ tier: e.target.value })} className="input">
                         <option value="">All Tiers</option>
                         <option value="hot">Hot</option>
                         <option value="warm">Warm</option>
@@ -402,7 +479,7 @@ export default function LeadFinder() {
 
                   <div>
                     <label className="label text-xs">Status</label>
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input">
+                    <select value={statusFilter} onChange={(e) => updateParams({ status: e.target.value })} className="input">
                       <option value="">All Status</option>
                       {activeTab === 'manual' ? (
                         <>
@@ -437,7 +514,7 @@ export default function LeadFinder() {
 
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setSearch(''); setStatusFilter(''); setTierFilter(''); setPermitCityFilter(''); }}
+                    onClick={handleClearFilters}
                     className="btn-ghost text-sm mt-3 w-full"
                   >
                     Clear All Filters
@@ -483,7 +560,28 @@ export default function LeadFinder() {
           )}
 
           {/* Results */}
-          {isLoading ? (
+          {isError ? (
+            <div className="card border-l-4 border-l-red-500">
+              <div className="card-body p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  Failed to load {activeTab === 'manual' ? 'leads' : 'permits'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md mx-auto">
+                  {error?.message || 'Something went wrong while fetching the data. Please try again.'}
+                </p>
+                <button 
+                  onClick={() => refetch()}
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3, 4, 5, 6].map(i => (
                 <div key={i} className="card">
@@ -534,24 +632,9 @@ export default function LeadFinder() {
                 </div>
               </>
             ) : (
-              <div className="card">
-                <div className="card-body text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-br from-concrete-100 to-concrete-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                    <Search className="w-10 h-10 text-gray-400" strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-xl font-display font-bold text-surface-900 dark:text-surface-100 mb-2">
-                    No leads found
-                  </h3>
-                  <p className="text-surface-600 dark:text-surface-400 mb-6">
-                    {hasActiveFilters ? 'Try adjusting your filters' : 'Get started by adding your first lead'}
-                  </p>
-                  {!hasActiveFilters && (
-                    <button onClick={handleAddNew} className="btn-primary">
-                      <Plus className="w-5 h-5" /> Add Your First Lead
-                    </button>
-                  )}
-                </div>
-              </div>
+              <NoLeadsEmpty 
+              onAdd={handleAddNew}
+            />
             )
           ) : (
             // Permit Leads
@@ -576,21 +659,10 @@ export default function LeadFinder() {
                 </div>
               </>
             ) : (
-              <div className="card">
-                <div className="card-body text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                    <Search className="w-10 h-10 text-blue-500" strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-xl font-display font-bold text-surface-900 dark:text-surface-100 mb-2">
-                    {hasActiveFilters ? 'No permits match your filters' : 'No permit leads found'}
-                  </h3>
-                  <p className="text-surface-600 dark:text-surface-400 text-sm max-w-md mx-auto">
-                    {hasActiveFilters
-                      ? 'Try adjusting your search criteria or filters'
-                      : 'Permit leads are automatically ingested daily from Fort Worth and other sources.'}
-                  </p>
-                </div>
-              </div>
+              <NoPermitsEmpty 
+              hasFilters={hasActiveFilters}
+              onSearch={handleClearFilters}
+            />
             )
           )}
         </>

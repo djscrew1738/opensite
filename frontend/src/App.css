@@ -86,13 +86,9 @@
 
 /* Toolbar tool active state */
 .tool-active {
-  background-color: rgb(219 234 254);
-  color: rgb(29 78 216);
-}
-
-.dark .tool-active {
-  background-color: rgba(29, 78, 216, 0.2);
-  color: rgb(147, 197, 253);
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60A5FA;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 /* Layer visibility transitions */

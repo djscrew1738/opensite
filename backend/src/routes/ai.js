@@ -6,6 +6,15 @@ import { aiOptimizer } from '../services/ai-optimizer.js';
 import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
+import crypto from 'crypto';
+
+/**
+ * Generate a unique conversation ID
+ * Uses timestamp + random bytes to prevent collisions under concurrent requests
+ */
+function generateConversationId() {
+  return `conv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+}
 
 const router = express.Router();
 
@@ -65,7 +74,7 @@ router.post('/chat', tryCatch(async (req, res) => {
   const conversation = conversationId ? db.getConversation(conversationId) : null;
   const history = conversation?.messages || [];
 
-  const newConvId = conversationId || `conv-${Date.now()}`;
+  const newConvId = conversationId || generateConversationId();
   const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
   // Use structured chat generation (system + messages array)
@@ -100,7 +109,7 @@ router.post('/chat/stream', async (req, res) => {
   const { message, conversationId, model } = req.body;
 
   if (!message?.trim()) {
-    return res.status(400).json({ error: 'Message is required' });
+    return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
   }
 
   // SSE headers
@@ -118,7 +127,7 @@ router.post('/chat/stream', async (req, res) => {
   try {
     const conversation = conversationId ? db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
-    const newConvId = conversationId || `conv-${Date.now()}`;
+    const newConvId = conversationId || generateConversationId();
     const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
     // Save user message first
@@ -191,7 +200,7 @@ router.get('/health', tryCatch(async (req, res) => {
 router.post('/models/pull', async (req, res) => {
   const { name } = req.body;
   if (!name) {
-    return res.status(400).json({ error: 'Model name is required' });
+    return res.error('Model name is required', 'VALIDATION_ERROR', null, 400);
   }
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -212,6 +221,12 @@ router.post('/models/pull', async (req, res) => {
 
 /* ── DELETE /api/ai/models/:name ────────────────────────────────────── */
 router.delete('/models/:name', tryCatch(async (req, res) => {
+  // Validate model name to prevent injection
+  const MODEL_NAME_REGEX = /^[a-zA-Z0-9._:\-\/]+$/;
+  if (!MODEL_NAME_REGEX.test(req.params.name)) {
+    return res.error('Invalid model name. Only alphanumeric characters, dots, underscores, colons, hyphens, and slashes are allowed.', 'VALIDATION_ERROR', null, 400);
+  }
+
   const result = await aiProvider.deleteModel(req.params.name);
 
   if (!result.success) {

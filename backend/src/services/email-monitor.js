@@ -3,6 +3,8 @@
 import { ImapFlow } from 'imapflow';
 import twilio from 'twilio';
 import { db } from './database.js';
+import { decrypt } from '../utils/encryption.js';
+import logger from './logger.js';
 
 // Default keywords — permit, inspection, plumbing, schedule-related
 const DEFAULT_KEYWORDS = [
@@ -14,12 +16,22 @@ const DEFAULT_KEYWORDS = [
   'building department', 'punch list', 'warranty', 'callback',
 ];
 
-const logger = {
+// Use imported logger from services/logger.js
+// Local fallback only if imported logger is not available
+const localLogger = {
   info: (msg, meta) => console.log(`[email-monitor] ${msg}`, meta || ''),
   warn: (msg, meta) => console.warn(`[email-monitor] ${msg}`, meta || ''),
   error: (msg, meta) => console.error(`[email-monitor] ${msg}`, meta || ''),
   debug: (msg, meta) => console.log(`[email-monitor] DEBUG: ${msg}`, meta || ''),
 };
+
+// Use the imported logger if available, otherwise fallback to local
+const log = logger || localLogger;
+
+// Check encryption key configuration at module load (after log is defined)
+if (!process.env.ENCRYPTION_KEY) {
+  log.warn('[email-monitor] ENCRYPTION_KEY environment variable not set. IMAP passwords will be stored but encryption security depends on environment configuration.');
+}
 
 // Track monitor state
 let lastCheckTime = null;
@@ -30,10 +42,19 @@ let isChecking = false;
  * Get IMAP config from database settings or environment
  */
 function getImapConfig() {
-  const host = db.getSetting('imap_host') || process.env.IMAP_HOST || 'outlook.office365.com';
-  const port = parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || '993');
+  const host = db.getSetting('imap_host') || process.env.IMAP_HOST || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
+  const port = parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || process.env.IMAP_DEFAULT_PORT || '993');
   const user = db.getSetting('imap_user') || process.env.IMAP_USER || '';
-  const pass = db.getSetting('imap_pass') || process.env.IMAP_PASS || '';
+  const encryptedPass = db.getSetting('imap_pass') || process.env.IMAP_PASS || '';
+  
+  // Decrypt password if it's encrypted
+  let pass = encryptedPass;
+  try {
+    pass = decrypt(encryptedPass) || encryptedPass;
+  } catch (e) {
+    // If decryption fails, use as-is (might be legacy plaintext)
+    pass = encryptedPass;
+  }
 
   return { host, port, user, pass };
 }
@@ -85,7 +106,7 @@ async function sendEmailAlertSms(emailData, matchedKeywords) {
   const { accountSid, authToken, fromPhone, toPhone } = getTwilioConfig();
 
   if (!accountSid || !authToken || !fromPhone || !toPhone) {
-    logger.warn('Twilio not fully configured — skipping SMS');
+    log.warn('Twilio not fully configured — skipping SMS');
     return null;
   }
 
@@ -106,10 +127,10 @@ async function sendEmailAlertSms(emailData, matchedKeywords) {
       from: fromPhone,
       to: toPhone,
     });
-    logger.info(`SMS sent: ${result.sid}`);
+    log.info(`SMS sent: ${result.sid}`);
     return result.sid;
   } catch (err) {
-    logger.error(`SMS send failed: ${err.message}`);
+    log.error(`SMS send failed: ${err.message}`);
     return null;
   }
 }
@@ -150,18 +171,18 @@ export async function testImapConnection(config) {
  */
 export async function checkEmails() {
   if (isChecking) {
-    logger.warn('Email check already in progress — skipping');
+    log.warn('Email check already in progress — skipping');
     return { skipped: true };
   }
 
   if (!isEnabled()) {
-    logger.debug('Email monitor disabled');
+    log.debug('Email monitor disabled');
     return { disabled: true };
   }
 
   const { host, port, user, pass } = getImapConfig();
   if (!user || !pass) {
-    logger.warn('IMAP credentials not configured');
+    log.warn('IMAP credentials not configured');
     return { error: 'IMAP credentials not configured' };
   }
 
@@ -188,13 +209,13 @@ export async function checkEmails() {
       const unseenMessages = await client.search({ seen: false });
 
       if (!unseenMessages || unseenMessages.length === 0) {
-        logger.debug('No unseen messages');
+        log.debug('No unseen messages');
         lastCheckTime = new Date().toISOString();
         lastCheckResult = { processed: 0, matched: 0, smsSent: 0 };
         return lastCheckResult;
       }
 
-      logger.info(`Found ${unseenMessages.length} unseen messages to scan`);
+      log.info(`Found ${unseenMessages.length} unseen messages to scan`);
 
       for (const uid of unseenMessages) {
         try {
@@ -268,14 +289,14 @@ export async function checkEmails() {
               receivedAt,
             });
 
-            logger.info(`Match: "${subject}" from ${fromName} — keywords: ${allMatches.join(', ')}`);
+            log.info(`Match: "${subject}" from ${fromName} — keywords: ${allMatches.join(', ')}`);
           }
 
           // Mark as SEEN so we don't process again
           await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
 
         } catch (msgErr) {
-          logger.error(`Failed to process message uid ${uid}: ${msgErr.message}`);
+          log.error(`Failed to process message uid ${uid}: ${msgErr.message}`);
         }
       }
 
@@ -286,7 +307,7 @@ export async function checkEmails() {
     await client.logout();
 
   } catch (err) {
-    logger.error(`Email check failed: ${err.message}`);
+    log.error(`Email check failed: ${err.message}`);
     isChecking = false;
     lastCheckTime = new Date().toISOString();
     lastCheckResult = { error: err.message };
@@ -296,7 +317,7 @@ export async function checkEmails() {
   isChecking = false;
   lastCheckTime = new Date().toISOString();
   lastCheckResult = { processed, matched, smsSent };
-  logger.info(`Check complete: ${processed} processed, ${matched} matched, ${smsSent} SMS sent`);
+  log.info(`Check complete: ${processed} processed, ${matched} matched, ${smsSent} SMS sent`);
   return lastCheckResult;
 }
 

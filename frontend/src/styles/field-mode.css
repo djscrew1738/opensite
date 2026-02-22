@@ -1,0 +1,573 @@
+/* ═══════════════════════════════════════════════════════════════
+   FIELD MODE — Ultra High Contrast for Direct Sunlight
+   Optimized for mobile field operations with gloved hands
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Field Mode CSS Custom Properties ───────────────────────── */
+:root.field-mode {
+  /* High-contrast surface colors */
+  --field-surface-bg: #0a0a0a;
+  --field-surface-card: #111111;
+  --field-surface-elevated: #1a1a1a;
+  --field-surface-hover: #222222;
+  
+  /* Ultra-bright accent colors for visibility in sunlight */
+  --field-accent-primary: #00d4ff;
+  --field-accent-success: #00ff88;
+  --field-accent-warning: #ffaa00;
+  --field-accent-danger: #ff4444;
+  --field-accent-hot: #ff4444;
+  --field-accent-info: #00d4ff;
+  
+  /* High-contrast text colors (WCAG AAA) */
+  --field-text-primary: #ffffff;
+  --field-text-secondary: #e0e0e0;
+  --field-text-muted: #a0a0a0;
+  
+  /* Bright borders for visibility */
+  --field-border-default: #333333;
+  --field-border-strong: #555555;
+  --field-border-focus: #00d4ff;
+  
+  /* Touch targets - minimum 48px */
+  --field-touch-min: 48px;
+  --field-touch-comfortable: 56px;
+  --field-touch-large: 64px;
+  
+  /* Increased font sizes */
+  --field-font-base: 18px;
+  --field-font-small: 16px;
+  --field-font-large: 20px;
+  --field-font-xl: 24px;
+  
+  /* Extra padding for gloved hands */
+  --field-padding-sm: 16px;
+  --field-padding-md: 20px;
+  --field-padding-lg: 24px;
+  
+  /* Border radius - slightly larger for visibility */
+  --field-radius-sm: 8px;
+  --field-radius-md: 12px;
+  --field-radius-lg: 16px;
+}
+
+/* ── Base Field Mode Styles ─────────────────────────────────── */
+.field-mode body {
+  font-size: var(--field-font-base);
+  background-color: var(--field-surface-bg);
+  color: var(--field-text-primary);
+}
+
+.field-mode * {
+  /* Ensure all interactive elements meet touch target minimum */
+  --min-touch: var(--field-touch-min);
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+.field-mode {
+  font-size: var(--field-font-base);
+}
+
+.field-mode h1, 
+.field-mode .field-h1 {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--field-text-primary);
+}
+
+.field-mode h2, 
+.field-mode .field-h2 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--field-text-primary);
+}
+
+.field-mode h3, 
+.field-mode .field-h3 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--field-text-primary);
+}
+
+.field-mode p,
+.field-mode .field-text {
+  font-size: var(--field-font-base);
+  line-height: 1.6;
+  color: var(--field-text-secondary);
+}
+
+.field-mode .field-text-small {
+  font-size: var(--field-font-small);
+  color: var(--field-text-muted);
+}
+
+.field-mode .field-text-large {
+  font-size: var(--field-font-large);
+  font-weight: 600;
+}
+
+/* ── Touch Targets ──────────────────────────────────────────── */
+.field-mode button,
+.field-mode .field-btn,
+.field-mode [role="button"] {
+  min-height: var(--field-touch-min);
+  min-width: var(--field-touch-min);
+  padding: 12px 20px;
+}
+
+.field-mode .field-btn-large {
+  min-height: var(--field-touch-comfortable);
+  min-width: var(--field-touch-comfortable);
+  padding: 16px 24px;
+}
+
+.field-mode .field-btn-xl {
+  min-height: var(--field-touch-large);
+  min-width: var(--field-touch-large);
+  padding: 20px 32px;
+  font-size: var(--field-font-large);
+  font-weight: 700;
+}
+
+.field-mode a,
+.field-mode .field-link {
+  min-height: var(--field-touch-min);
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.field-mode input,
+.field-mode select,
+.field-mode textarea {
+  min-height: var(--field-touch-comfortable);
+  font-size: var(--field-font-base);
+  padding: 12px 16px;
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.field-mode .field-card {
+  background: var(--field-surface-card);
+  border: 2px solid var(--field-border-default);
+  border-radius: var(--field-radius-md);
+  padding: var(--field-padding-md);
+  margin-bottom: var(--field-padding-md);
+}
+
+.field-mode .field-card:hover {
+  border-color: var(--field-border-strong);
+}
+
+.field-mode .field-card-critical {
+  border-color: var(--field-accent-danger);
+  box-shadow: 0 0 0 1px var(--field-accent-danger);
+}
+
+.field-mode .field-card-warning {
+  border-color: var(--field-accent-warning);
+  box-shadow: 0 0 0 1px var(--field-accent-warning);
+}
+
+.field-mode .field-card-success {
+  border-color: var(--field-accent-success);
+  box-shadow: 0 0 0 1px var(--field-accent-success);
+}
+
+/* ── Status Badges ──────────────────────────────────────────── */
+.field-mode .field-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--field-radius-sm);
+  font-size: var(--field-font-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px solid transparent;
+}
+
+.field-mode .field-badge-hot {
+  background: rgba(255, 68, 68, 0.2);
+  color: var(--field-accent-hot);
+  border-color: var(--field-accent-hot);
+}
+
+.field-mode .field-badge-warm {
+  background: rgba(255, 170, 0, 0.2);
+  color: var(--field-accent-warning);
+  border-color: var(--field-accent-warning);
+}
+
+.field-mode .field-badge-success {
+  background: rgba(0, 255, 136, 0.15);
+  color: var(--field-accent-success);
+  border-color: var(--field-accent-success);
+}
+
+.field-mode .field-badge-info {
+  background: rgba(0, 212, 255, 0.15);
+  color: var(--field-accent-info);
+  border-color: var(--field-accent-info);
+}
+
+/* ── Phase Indicators ───────────────────────────────────────── */
+.field-mode .field-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--field-radius-sm);
+  font-size: var(--field-font-small);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 2px solid;
+}
+
+.field-mode .field-phase-underground {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-color: #818cf8;
+}
+
+.field-mode .field-phase-roughin {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-color: #60a5fa;
+}
+
+.field-mode .field-phase-topout {
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+  border-color: #22d3ee;
+}
+
+.field-mode .field-phase-trim {
+  background: rgba(0, 255, 136, 0.15);
+  color: var(--field-accent-success);
+  border-color: var(--field-accent-success);
+}
+
+.field-mode .field-phase-final {
+  background: rgba(255, 170, 0, 0.2);
+  color: var(--field-accent-warning);
+  border-color: var(--field-accent-warning);
+}
+
+/* ── Critical Data Display ─────────────────────────────────── */
+.field-mode .field-critical-data {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-mode .field-critical-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--field-text-muted);
+}
+
+.field-mode .field-critical-value {
+  font-size: var(--field-font-xl);
+  font-weight: 800;
+  color: var(--field-text-primary);
+  line-height: 1.2;
+}
+
+.field-mode .field-critical-value-hot {
+  color: var(--field-accent-hot);
+}
+
+.field-mode .field-critical-value-warning {
+  color: var(--field-accent-warning);
+}
+
+.field-mode .field-critical-value-success {
+  color: var(--field-accent-success);
+}
+
+/* ── Expandable Sections ───────────────────────────────────── */
+.field-mode .field-expandable {
+  border: 2px solid var(--field-border-default);
+  border-radius: var(--field-radius-md);
+  overflow: hidden;
+}
+
+.field-mode .field-expandable-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--field-padding-md);
+  background: var(--field-surface-card);
+  cursor: pointer;
+  min-height: var(--field-touch-comfortable);
+}
+
+.field-mode .field-expandable-header:hover {
+  background: var(--field-surface-hover);
+}
+
+.field-mode .field-expandable-content {
+  padding: var(--field-padding-md);
+  background: var(--field-surface-bg);
+  border-top: 1px solid var(--field-border-default);
+}
+
+.field-mode .field-expandable-icon {
+  transition: transform 0.2s ease;
+  width: 24px;
+  height: 24px;
+}
+
+.field-mode .field-expandable[data-expanded="true"] .field-expandable-icon {
+  transform: rotate(180deg);
+}
+
+/* ── Action Buttons ─────────────────────────────────────────── */
+.field-mode .field-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-radius: var(--field-radius-md);
+  font-size: var(--field-font-base);
+  font-weight: 700;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: var(--field-touch-comfortable);
+}
+
+.field-mode .field-action-primary {
+  background: var(--field-accent-primary);
+  color: #000;
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.field-mode .field-action-primary:hover {
+  background: #33ddff;
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+}
+
+.field-mode .field-action-success {
+  background: var(--field-accent-success);
+  color: #000;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.field-mode .field-action-success:hover {
+  background: #33ff9f;
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+}
+
+.field-mode .field-action-danger {
+  background: var(--field-accent-danger);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+}
+
+.field-mode .field-action-danger:hover {
+  background: #ff6666;
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+}
+
+.field-mode .field-action-secondary {
+  background: var(--field-surface-elevated);
+  color: var(--field-text-primary);
+  border-color: var(--field-border-strong);
+}
+
+.field-mode .field-action-secondary:hover {
+  background: var(--field-surface-hover);
+  border-color: var(--field-text-secondary);
+}
+
+/* ── Navigation in Field Mode ───────────────────────────────── */
+.field-mode .field-nav {
+  background: var(--field-surface-card);
+  border-bottom: 2px solid var(--field-border-default);
+}
+
+.field-mode .field-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--field-text-secondary);
+  font-size: var(--field-font-base);
+  font-weight: 600;
+  min-height: var(--field-touch-comfortable);
+  border-left: 4px solid transparent;
+}
+
+.field-mode .field-nav-item:hover {
+  background: var(--field-surface-hover);
+  color: var(--field-text-primary);
+}
+
+.field-mode .field-nav-item-active {
+  background: var(--field-surface-elevated);
+  color: var(--field-accent-primary);
+  border-left-color: var(--field-accent-primary);
+}
+
+/* ── Lists and Items ────────────────────────────────────────── */
+.field-mode .field-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--field-padding-md);
+  padding: var(--field-padding-md);
+  background: var(--field-surface-card);
+  border: 2px solid var(--field-border-default);
+  border-radius: var(--field-radius-md);
+  margin-bottom: 12px;
+  min-height: var(--field-touch-large);
+}
+
+.field-mode .field-list-item:hover {
+  border-color: var(--field-border-strong);
+  background: var(--field-surface-hover);
+}
+
+.field-mode .field-list-item:active {
+  transform: scale(0.99);
+}
+
+/* ── Form Elements ──────────────────────────────────────────── */
+.field-mode .field-input {
+  width: 100%;
+  min-height: var(--field-touch-comfortable);
+  padding: 12px 16px;
+  font-size: var(--field-font-base);
+  background: var(--field-surface-card);
+  border: 2px solid var(--field-border-default);
+  border-radius: var(--field-radius-sm);
+  color: var(--field-text-primary);
+}
+
+.field-mode .field-input:focus {
+  outline: none;
+  border-color: var(--field-accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+}
+
+.field-mode .field-label {
+  display: block;
+  font-size: var(--field-font-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--field-text-muted);
+  margin-bottom: 8px;
+}
+
+/* ── Toggle Switch ──────────────────────────────────────────── */
+.field-mode .field-toggle {
+  position: relative;
+  width: 64px;
+  height: 36px;
+  background: var(--field-surface-elevated);
+  border: 2px solid var(--field-border-default);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.field-mode .field-toggle[data-active="true"] {
+  background: var(--field-accent-success);
+  border-color: var(--field-accent-success);
+}
+
+.field-mode .field-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  background: var(--field-text-primary);
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.field-mode .field-toggle[data-active="true"] .field-toggle-thumb {
+  transform: translateX(28px);
+  background: #000;
+}
+
+/* ── Divider ────────────────────────────────────────────────── */
+.field-mode .field-divider {
+  height: 2px;
+  background: var(--field-border-default);
+  margin: var(--field-padding-md) 0;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+.field-mode ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.field-mode ::-webkit-scrollbar-track {
+  background: var(--field-surface-card);
+}
+
+.field-mode ::-webkit-scrollbar-thumb {
+  background: var(--field-border-strong);
+  border-radius: 5px;
+}
+
+.field-mode ::-webkit-scrollbar-thumb:hover {
+  background: var(--field-text-muted);
+}
+
+/* ── Selection ───────────────────────────────────────────────── */
+.field-mode ::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: var(--field-text-primary);
+}
+
+/* ── Mobile Optimizations ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .field-mode {
+    --field-font-base: 18px;
+    --field-padding-md: 20px;
+  }
+  
+  .field-mode .field-card {
+    margin-left: -8px;
+    margin-right: -8px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
+  .field-mode .field-critical-value {
+    font-size: 22px;
+  }
+  
+  /* Ensure touch targets are at least 48px */
+  .field-mode button,
+  .field-mode a,
+  .field-mode [role="button"],
+  .field-mode input,
+  .field-mode select,
+  .field-mode textarea {
+    min-height: 48px;
+  }
+}
+
+/* ── Reduced Motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .field-mode * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

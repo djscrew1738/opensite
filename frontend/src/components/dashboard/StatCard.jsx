@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { StatCardSkeleton } from '../shared/LoadingStates';
 
 const palette = {
   primary: { bar: '#3B82F6', accent: '#3B82F6', bg: 'rgba(59,130,246,0.07)' },
@@ -20,7 +21,13 @@ export default function StatCard({
   color = 'primary',
   onClick,
   edgeBar = false,
+  isLoading = false,
 }) {
+  // Show skeleton during loading
+  if (isLoading) {
+    return <StatCardSkeleton count={1} />;
+  }
+  
   const c = palette[color] || palette.primary;
 
   return (

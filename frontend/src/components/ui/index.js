@@ -42,6 +42,53 @@ export {
   NoBlueprintsEmptyState,
   NoHistoryEmptyState,
 } from './EmptyState';
+
+// New comprehensive empty states (also available from empty-states module)
+export {
+  // Jobs & Projects
+  NoJobsEmpty,
+  NoEstimatesEmpty,
+  NoBlueprintsEmpty as NoBlueprintsEmptyNew,
+  NoProjectSelectedEmpty,
+  
+  // Leads
+  NoLeadsEmpty as NoLeadsEmptyNew,
+  NoPermitsEmpty as NoPermitsEmptyNew,
+  NoBuildersEmpty,
+  NoSearchResultsEmpty as NoSearchResultsEmptyNew,
+  ColdLeadsEmpty,
+  NoDiscoveryResultsEmpty,
+  
+  // Documents
+  NoDocumentsEmpty as NoDocumentsEmptyNew,
+  NoAnalysisEmpty,
+  UploadPromptEmpty,
+  NoMatchingDocumentsEmpty,
+  
+  // Dashboard
+  NoActivityEmpty,
+  NoInsightsEmpty,
+  DashboardWelcomeEmpty,
+  
+  // History
+  NoHistoryEmpty as NoHistoryEmptyNew,
+  
+  // AI
+  NoAIInsightsEmpty,
+  NoChatHistoryEmpty,
+  AIAnalysisPendingEmpty,
+  
+  // Canvas
+  NoCanvasItemsEmpty,
+  NoVisionProjectsEmpty,
+  NoConnectionsEmpty,
+  
+  // Generic
+  ErrorEmpty,
+  ComingSoonEmpty,
+  NoDataEmpty,
+  LoadingEmpty,
+} from '../empty-states';
 export { ErrorBoundary, SectionErrorBoundary, useAsyncError } from './ErrorBoundary';
 export {
   BottomSheet,

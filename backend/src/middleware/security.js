@@ -63,17 +63,39 @@ export const uploadLimiter = rateLimit({
   }
 });
 
+// Rate limiting for AI chat — expensive LLM calls
+export const aiChatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per minute per IP
+  message: 'AI rate limit reached, please slow down',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for discovery pipeline — long-running scrape jobs
+export const discoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 pipeline runs per 15 min
+  message: 'Discovery rate limit reached, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Request size limiter
 export const requestSizeLimiter = (req, res, next) => {
   const contentLength = req.get('content-length');
+  const MAX_SIZE = 100 * 1024 * 1024; // 100MB to match vision upload limit
 
-  if (contentLength && parseInt(contentLength) > 110 * 1024 * 1024) {
+  if (contentLength && parseInt(contentLength) > MAX_SIZE) {
     logger.warn('Request size exceeded', {
       ip: req.ip,
-      size: contentLength
+      size: contentLength,
+      max: MAX_SIZE
     });
     return res.status(413).json({
-      error: 'Request size too large. Maximum 50MB allowed.'
+      error: 'Request size too large. Maximum 100MB allowed.',
+      maxSize: '100MB',
+      code: 'PAYLOAD_TOO_LARGE'
     });
   }
 
@@ -81,8 +103,13 @@ export const requestSizeLimiter = (req, res, next) => {
 };
 
 // CORS configuration
+// In production CORS_ORIGIN must be set explicitly — never default to wildcard
+// with credentials: true (browsers reject it and it's a security risk).
+const corsOrigin = process.env.CORS_ORIGIN
+  || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : false);
+
 export const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: corsOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,

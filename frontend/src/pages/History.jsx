@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   MessageSquare, Calculator, Search, Trash2, X, Clock,
   ChevronRight, User, Bot, FileText, Hash, Building2,
@@ -173,7 +174,12 @@ function EstimateModal({ estimate, onClose }) {
 
 // ─── Main History Page ───
 export default function History() {
-  const [activeTab, setActiveTab] = useState('conversations');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // URL-persisted state
+  const activeTab = searchParams.get('tab') || 'conversations';
+  
+  // Local state
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedConv, setSelectedConv] = useState(null);
@@ -181,6 +187,22 @@ export default function History() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  
+  // Tab change handler with URL persistence
+  const handleTabChange = (tabId) => {
+    const next = new URLSearchParams(searchParams);
+    if (tabId === 'conversations') {
+      next.delete('tab');
+    } else {
+      next.set('tab', tabId);
+    }
+    // Clear search when switching tabs
+    next.delete('q');
+    setSearchParams(next);
+    setSearch('');
+    setDebouncedSearch('');
+  };
 
   const debouncedSetSearch = useDebounce((val) => setDebouncedSearch(val), 300);
   const handleSearch = (e) => {
@@ -234,6 +256,10 @@ export default function History() {
     else deleteEst.mutate(deleteTarget.id);
   };
 
+  const handleOpenInAssistant = (conversationId) => {
+    navigate(`/ai?id=${conversationId}`);
+  };
+
   const conversations = convQuery.data || [];
   const estimates = estQuery.data || [];
 
@@ -250,7 +276,7 @@ export default function History() {
             return (
               <button
                 key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setSearch(''); setDebouncedSearch(''); }}
+                onClick={() => handleTabChange(tab.id)}
                 className={`
                   flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-all duration-200
                   ${isActive
@@ -297,6 +323,7 @@ export default function History() {
             loading={convQuery.isLoading}
             onSelect={setSelectedConv}
             onDelete={(id, label) => setDeleteTarget({ type: 'conversation', id, label })}
+            onOpenInAssistant={handleOpenInAssistant}
           />
         )}
         {activeTab === 'estimates' && (
@@ -333,7 +360,7 @@ export default function History() {
 }
 
 // ─── Conversations Tab ───
-function ConversationsTab({ data, loading, onSelect, onDelete }) {
+function ConversationsTab({ data, loading, onSelect, onDelete, onOpenInAssistant }) {
   if (loading) return <CardSkeleton count={4} />;
   if (data.length === 0) return (
     <EmptyState 
@@ -363,12 +390,22 @@ function ConversationsTab({ data, loading, onSelect, onDelete }) {
           }
           onClick={() => onSelect(conv.id)}
           actions={
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(conv.id, conv.preview?.slice(0, 40)); }}
-              className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenInAssistant(conv.id); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-all"
+                title="Open in AI Assistant"
+              >
+                Open in Assistant
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(conv.id, conv.preview?.slice(0, 40)); }}
+                className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           }
           style={{ animationDelay: `${i * 40}ms` }}
         />

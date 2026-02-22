@@ -30,11 +30,16 @@ export const colors = {
 
   // ── Accent Colors ──────────────────────────────
   accent: {
-    blue:    '#3B82F6',
-    green:   '#10B981',
-    amber:   '#F59E0B',
-    red:     '#EF4444',
-    purple:  '#8B5CF6',
+    DEFAULT:  '#3B82F6',
+    blue:     '#3B82F6',
+    light:    '#60A5FA',
+    hover:    '#2563EB',
+    muted:    'rgba(59, 130, 246, 0.12)',
+    glow:     'rgba(59, 130, 246, 0.15)',
+    green:    '#10B981',
+    amber:    '#F59E0B',
+    red:      '#EF4444',
+    purple:   '#8B5CF6',
   },
 
   // ── Phase Colors ───────────────────────────────
@@ -56,10 +61,38 @@ export const colors = {
   },
 
   // ── Semantic Colors ────────────────────────────
-  success: { DEFAULT: '#10B981', light: '#34D399', dark: '#059669', muted: 'rgba(16, 185, 129, 0.12)' },
-  warning: { DEFAULT: '#F59E0B', light: '#FBBF24', dark: '#D97706', muted: 'rgba(245, 158, 11, 0.12)' },
-  danger:  { DEFAULT: '#EF4444', light: '#F87171', dark: '#DC2626', muted: 'rgba(239, 68, 68, 0.12)' },
-  info:    { DEFAULT: '#3B82F6', light: '#60A5FA', dark: '#2563EB', muted: 'rgba(59, 130, 246, 0.12)' },
+  success: { 
+    DEFAULT: '#10B981', 
+    light: '#34D399', 
+    dark: '#059669', 
+    muted: 'rgba(16, 185, 129, 0.12)',
+    glow: 'rgba(16, 185, 129, 0.4)',
+    border: 'rgba(16, 185, 129, 0.2)',
+  },
+  warning: { 
+    DEFAULT: '#F59E0B', 
+    light: '#FBBF24', 
+    dark: '#D97706', 
+    muted: 'rgba(245, 158, 11, 0.12)',
+    glow: 'rgba(245, 158, 11, 0.4)',
+    border: 'rgba(245, 158, 11, 0.2)',
+  },
+  danger:  { 
+    DEFAULT: '#EF4444', 
+    light: '#F87171', 
+    dark: '#DC2626', 
+    muted: 'rgba(239, 68, 68, 0.12)',
+    glow: 'rgba(239, 68, 68, 0.4)',
+    border: 'rgba(239, 68, 68, 0.2)',
+  },
+  info:    { 
+    DEFAULT: '#3B82F6', 
+    light: '#60A5FA', 
+    dark: '#2563EB', 
+    muted: 'rgba(59, 130, 246, 0.12)',
+    glow: 'rgba(59, 130, 246, 0.4)',
+    border: 'rgba(59, 130, 246, 0.2)',
+  },
 
   // ── Builder Colors ─────────────────────────────
   builder: {

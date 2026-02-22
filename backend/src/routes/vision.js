@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 import { db } from '../services/database.js';
 import { visionService } from '../services/vision.js';
 import { visionAIService } from '../services/vision-ai.js';
-import { jobQueue } from '../services/jobQueue.js';
+import { jobQueue } from '../services/jobQueuePersistent.js';
 import { tryCatch } from '../utils/response.js';
 import { uploadLimiter } from '../middleware/security.js';
 import logger from '../services/logger.js';
@@ -317,6 +317,8 @@ router.post('/projects/:id/layers', tryCatch(async (req, res) => {
 /**
  * Update a layer
  * PUT /api/vision/projects/:projectId/layers/:layerId
+ * 
+ * Uses parameterized queries with column whitelist to prevent SQL injection
  */
 router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => {
   const { layerId } = req.params;
@@ -325,19 +327,86 @@ router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => 
     return res.error('Layer not found', 'NOT_FOUND', null, 404);
   }
 
+  // Whitelist of allowed columns for update
+  const ALLOWED_COLUMNS = {
+    name: { type: 'string', column: 'name' },
+    color: { type: 'string', column: 'color' },
+    visible: { type: 'boolean', column: 'visible' },
+    opacity: { type: 'number', column: 'opacity' },
+    minZoom: { type: 'number', column: 'minZoom' },
+    maxZoom: { type: 'number', column: 'maxZoom' },
+    data: { type: 'json', column: 'data' },
+    style: { type: 'json', column: 'style' }
+  };
+
   const updates = [];
   const params = [];
 
-  if (req.body.name !== undefined) { updates.push('name = ?'); params.push(req.body.name); }
-  if (req.body.visible !== undefined) { updates.push('visible = ?'); params.push(req.body.visible ? 1 : 0); }
-  if (req.body.minZoom !== undefined) { updates.push('minZoom = ?'); params.push(req.body.minZoom); }
-  if (req.body.maxZoom !== undefined) { updates.push('maxZoom = ?'); params.push(req.body.maxZoom); }
-  if (req.body.data !== undefined) { updates.push('data = ?'); params.push(JSON.stringify(req.body.data)); }
-  if (req.body.style !== undefined) { updates.push('style = ?'); params.push(JSON.stringify(req.body.style)); }
+  // Validate and build update from whitelist only
+  for (const [key, value] of Object.entries(req.body)) {
+    const columnDef = ALLOWED_COLUMNS[key];
+    if (!columnDef) {
+      // Reject unknown fields
+      return res.error(
+        `Invalid field: "${key}". Allowed fields: ${Object.keys(ALLOWED_COLUMNS).join(', ')}`,
+        'VALIDATION_ERROR',
+        null,
+        400
+      );
+    }
+
+    // Validate and transform value based on type
+    let processedValue;
+    switch (columnDef.type) {
+      case 'boolean':
+        processedValue = value ? 1 : 0;
+        break;
+      case 'number':
+        if (typeof value !== 'number' || isNaN(value)) {
+          return res.error(
+            `Field "${key}" must be a number`,
+            'VALIDATION_ERROR',
+            null,
+            400
+          );
+        }
+        processedValue = value;
+        break;
+      case 'json':
+        try {
+          processedValue = JSON.stringify(value);
+        } catch (e) {
+          return res.error(
+            `Field "${key}" must be valid JSON`,
+            'VALIDATION_ERROR',
+            null,
+            400
+          );
+        }
+        break;
+      case 'string':
+      default:
+        if (typeof value !== 'string') {
+          return res.error(
+            `Field "${key}" must be a string`,
+            'VALIDATION_ERROR',
+            null,
+            400
+          );
+        }
+        processedValue = value;
+    }
+
+    // Use parameterized placeholders - column name from whitelist is safe
+    updates.push(`${columnDef.column} = ?`);
+    params.push(processedValue);
+  }
 
   if (updates.length > 0) {
     params.push(layerId);
-    db.db.prepare(`UPDATE vision_layers SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    // Build query with whitelist-verified column names only
+    const query = `UPDATE vision_layers SET ${updates.join(', ')} WHERE id = ?`;
+    db.db.prepare(query).run(...params);
   }
 
   const layer = db.db.prepare('SELECT * FROM vision_layers WHERE id = ?').get(layerId);

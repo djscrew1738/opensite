@@ -9,6 +9,7 @@ import {
   DEFAULT_KEYWORDS,
 } from '../services/email-monitor.js';
 import { db } from '../services/database.js';
+import { encrypt, isEncrypted } from '../utils/encryption.js';
 
 const router = express.Router();
 
@@ -66,7 +67,11 @@ router.put('/settings', (req, res) => {
   if (host) db.setSetting('imap_host', host);
   if (port) db.setSetting('imap_port', String(port));
   if (user) db.setSetting('imap_user', user);
-  if (pass) db.setSetting('imap_pass', pass);
+  if (pass) {
+    // Encrypt password before storing
+    const encryptedPass = isEncrypted(pass) ? pass : encrypt(pass);
+    db.setSetting('imap_pass', encryptedPass);
+  }
   if (keywords !== undefined) db.setSetting('email_monitor_keywords', keywords);
 
   res.success({ saved: true }, 'Email monitor settings saved');
@@ -76,17 +81,19 @@ router.put('/settings', (req, res) => {
 router.get('/settings', (req, res) => {
   const user = db.getSetting('imap_user') || '';
   const pass = db.getSetting('imap_pass') || '';
-  const host = db.getSetting('imap_host') || 'outlook.office365.com';
-  const port = db.getSetting('imap_port') || '993';
+  const host = db.getSetting('imap_host') || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
+  const port = db.getSetting('imap_port') || process.env.IMAP_DEFAULT_PORT || '993';
   const enabled = db.getSetting('email_monitor_enabled') === 'true';
   const keywords = db.getSetting('email_monitor_keywords') || DEFAULT_KEYWORDS.join(', ');
 
+  // Always mask password as '••••••••' regardless of encryption state
+  // Never expose any part of the actual password or encrypted value
   res.success({
     enabled,
     host,
     port: parseInt(port),
     user,
-    passMasked: pass ? `${'*'.repeat(Math.max(0, pass.length - 4))}${pass.slice(-4)}` : '',
+    passMasked: pass ? '••••••••' : '',
     passConfigured: !!pass,
     keywords,
   });

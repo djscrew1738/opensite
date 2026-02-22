@@ -1,10 +1,20 @@
 // Job status polling routes for background tasks
 
 import express from 'express';
-import { jobQueue } from '../services/jobQueue.js';
+import { jobQueue } from '../services/jobQueuePersistent.js';
 import { tryCatch } from '../utils/response.js';
 
 const router = express.Router();
+
+/**
+ * Get queue statistics
+ * @route GET /api/jobs/queue/stats
+ * IMPORTANT: This route must be defined BEFORE /:jobId to avoid being captured as a jobId parameter
+ */
+router.get('/queue/stats', tryCatch(async (req, res) => {
+  const stats = jobQueue.getStats();
+  res.success(stats);
+}));
 
 /**
  * Get job status
@@ -20,15 +30,6 @@ router.get('/:jobId', tryCatch(async (req, res) => {
   }
 
   res.success(job);
-}));
-
-/**
- * Get queue statistics
- * @route GET /api/jobs/queue/stats
- */
-router.get('/queue/stats', tryCatch(async (req, res) => {
-  const stats = jobQueue.getStats();
-  res.success(stats);
 }));
 
 /**

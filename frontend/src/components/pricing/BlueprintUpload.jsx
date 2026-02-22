@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { 
   Upload, FileText, Loader, CheckCircle, XCircle, AlertCircle, Clock, 
   Wrench, ClipboardList, ChevronDown, ChevronUp, Download 

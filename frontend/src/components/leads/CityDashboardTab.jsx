@@ -22,7 +22,8 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
   // Auto-select first city
   useEffect(() => {
     if (cities.length > 0 && !selectedCity) {
-      setSelectedCity(cities[0].city);
+      const timer = setTimeout(() => setSelectedCity(cities[0].city), 0);
+      return () => clearTimeout(timer);
     }
   }, [cities, selectedCity]);
 

@@ -1,103 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Ruler } from 'lucide-react';
+
 import {
-  ZoomIn, ZoomOut, Maximize, Move, Ruler, Square, Hash, MousePointer,
-  Undo2, Redo2, Trash2, RotateCcw, Grid3X3, Circle, RectangleHorizontal,
-  Type, Download, Copy, Crosshair, Magnet
-} from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const TOOL_TYPES = {
-  SELECT: 'select',
-  PAN: 'pan',
-  LENGTH: 'length',
-  AREA: 'area',
-  COUNT: 'count',
-  RECTANGLE: 'rectangle',
-  CIRCLE: 'circle',
-  ANNOTATION: 'annotation'
-};
-
-const COLORS = {
-  length: '#2563eb',
-  area: '#16a34a',
-  count: '#dc2626',
-  rectangle: '#7c3aed',
-  circle: '#0891b2',
-  annotation: '#64748b',
-  selected: '#f59e0b',
-  hover: '#fb923c',
-  calibration: '#a855f7',
-  snap: '#ec4899'
-};
-
-const SNAP_THRESHOLD = 12; // pixels on screen
-const HANDLE_SIZE = 5; // pixels on screen
-const MINIMAP_SIZE = 160;
-const MINIMAP_MARGIN = 12;
-const MAX_HISTORY = 50;
-
-// ---------------------------------------------------------------------------
-// Geometry Helpers
-// ---------------------------------------------------------------------------
-
-function dist(p1, p2) {
-  return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-}
-
-function polygonArea(points) {
-  let area = 0;
-  const n = points.length;
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    area += points[i].x * points[j].y;
-    area -= points[j].x * points[i].y;
-  }
-  return Math.abs(area / 2);
-}
-
-function rectFromTwoPoints(p1, p2) {
-  const x = Math.min(p1.x, p2.x);
-  const y = Math.min(p1.y, p2.y);
-  const w = Math.abs(p2.x - p1.x);
-  const h = Math.abs(p2.y - p1.y);
-  return { x, y, w, h };
-}
-
-function pointInRect(pt, p1, p2, tolerance) {
-  const { x, y, w, h } = rectFromTwoPoints(p1, p2);
-  return pt.x >= x - tolerance && pt.x <= x + w + tolerance &&
-         pt.y >= y - tolerance && pt.y <= y + h + tolerance;
-}
-
-function pointNearLine(pt, a, b, threshold) {
-  const len = dist(a, b);
-  if (len === 0) return dist(pt, a) < threshold;
-  let t = ((pt.x - a.x) * (b.x - a.x) + (pt.y - a.y) * (b.y - a.y)) / (len * len);
-  t = Math.max(0, Math.min(1, t));
-  const proj = { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) };
-  return dist(pt, proj) < threshold;
-}
-
-function pointInPolygon(pt, polygon) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].x, yi = polygon[i].y;
-    const xj = polygon[j].x, yj = polygon[j].y;
-    const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
-      (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-function centroid(points) {
-  const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
-  const cy = points.reduce((s, p) => s + p.y, 0) / points.length;
-  return { x: cx, y: cy };
-}
+  TOOL_TYPES, COLORS,
+  SNAP_THRESHOLD, HANDLE_SIZE,
+  dist, polygonArea, rectFromTwoPoints, pointInRect, pointNearLine,
+  pointInPolygon, centroid
+} from './canvasUtils';
+import useCanvasHistory from './useCanvasHistory';
+import BlueprintToolbar from './BlueprintToolbar';
+import BlueprintMinimap from './BlueprintMinimap';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -128,9 +40,8 @@ export default function BlueprintCanvas({
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [crosshairEnabled, setCrosshairEnabled] = useState(false);
 
-  // History (undo/redo)
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // History (undo/redo) via custom hook
+  const { pushHistory, undo, redo, canUndo, canRedo } = useCanvasHistory(onMeasurementsChange);
 
   // Calibration
   const [calibrating, setCalibrating] = useState(false);
@@ -184,14 +95,6 @@ export default function BlueprintCanvas({
     };
   }, [zoom, offset]);
 
-  // Note: imageToScreen is currently unused but kept for potential future use
-  // const imageToScreen = useCallback((imgX, imgY) => {
-  //   return {
-  //     x: imgX * zoom + offset.x,
-  //     y: imgY * zoom + offset.y
-  //   };
-  // }, [zoom, offset]);
-
   // ---------------------------------------------------------------------------
   // Snap logic
   // ---------------------------------------------------------------------------
@@ -230,47 +133,8 @@ export default function BlueprintCanvas({
   }, [measurements, snapEnabled, zoom]);
 
   // ---------------------------------------------------------------------------
-  // History management
-  // ---------------------------------------------------------------------------
-
-  const pushHistory = useCallback((newMeasurements) => {
-    setHistory(prev => {
-      const trimmed = prev.slice(0, historyIndex + 1);
-      const next = [...trimmed, JSON.parse(JSON.stringify(newMeasurements))];
-      if (next.length > MAX_HISTORY) next.shift();
-      return next;
-    });
-    setHistoryIndex(prev => {
-      const idx = Math.min(prev + 1, MAX_HISTORY - 1);
-      return idx;
-    });
-  }, [historyIndex]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
-      setHistoryIndex(historyIndex - 1);
-      onMeasurementsChange(prev);
-    }
-  }, [history, historyIndex, onMeasurementsChange]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
-      setHistoryIndex(historyIndex + 1);
-      onMeasurementsChange(next);
-    }
-  }, [history, historyIndex, onMeasurementsChange]);
-
-  // ---------------------------------------------------------------------------
   // Measurement formatting
   // ---------------------------------------------------------------------------
-
-  // Note: pixelsToReal is currently unused but kept for potential future use
-  // const pixelsToReal = useCallback((pixels) => {
-  //   if (!scale || !scale.pixelsPerUnit) return pixels;
-  //   return pixels / scale.pixelsPerUnit;
-  // }, [scale]);
 
   const formatLength = useCallback((px) => {
     if (!scale || !scale.pixelsPerUnit) return `${Math.round(px)}px`;
@@ -827,54 +691,8 @@ export default function BlueprintCanvas({
 
     ctx.restore();
 
-    // ---- Minimap (drawn in screen space) ----
-    if (showMinimap && image && imageSize.width > 0) {
-      const mx = width - MINIMAP_SIZE - MINIMAP_MARGIN;
-      const my = height - MINIMAP_SIZE - MINIMAP_MARGIN;
-      const mmScale = Math.min(MINIMAP_SIZE / imageSize.width, MINIMAP_SIZE / imageSize.height);
-      const mmW = imageSize.width * mmScale;
-      const mmH = imageSize.height * mmScale;
-      const mmX = mx + (MINIMAP_SIZE - mmW) / 2;
-      const mmY = my + (MINIMAP_SIZE - mmH) / 2;
-
-      // Minimap background
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(mx - 4, my - 4, MINIMAP_SIZE + 8, MINIMAP_SIZE + 8, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      // Minimap image
-      ctx.drawImage(image, mmX, mmY, mmW, mmH);
-
-      // Viewport rectangle
-      const vpLeft = -offset.x / zoom;
-      const vpTop = -offset.y / zoom;
-      const vpW = width / zoom;
-      const vpH = height / zoom;
-
-      const vx = mmX + vpLeft * mmScale;
-      const vy = mmY + vpTop * mmScale;
-      const vw = vpW * mmScale;
-      const vh = vpH * mmScale;
-
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        Math.max(mmX, vx), Math.max(mmY, vy),
-        Math.min(vw, mmW), Math.min(vh, mmH)
-      );
-      ctx.fillStyle = 'rgba(37, 99, 235, 0.08)';
-      ctx.fillRect(
-        Math.max(mmX, vx), Math.max(mmY, vy),
-        Math.min(vw, mmW), Math.min(vh, mmH)
-      );
-    }
-
   }, [image, imageSize, measurements, currentPoints, calibrationPoints, zoom, offset,
-      selectedId, hoveredId, showGrid, showMinimap, tool, calibrating, formatLength,
+      selectedId, hoveredId, showGrid, tool, calibrating, formatLength,
       formatArea, scale, mouseImg, snapPoint, crosshairEnabled]);
 
   // ---------------------------------------------------------------------------
@@ -924,31 +742,6 @@ export default function BlueprintCanvas({
       setIsDragging(true);
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       return;
-    }
-
-    // Check minimap click
-    if (e.button === 0 && showMinimap && image) {
-      const canvas = canvasRef.current;
-      const rect = canvas.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const mx = canvas.width - MINIMAP_SIZE - MINIMAP_MARGIN;
-      const my = canvas.height - MINIMAP_SIZE - MINIMAP_MARGIN;
-      if (cx >= mx - 4 && cx <= mx + MINIMAP_SIZE + 4 && cy >= my - 4 && cy <= my + MINIMAP_SIZE + 4) {
-        const mmScale = Math.min(MINIMAP_SIZE / imageSize.width, MINIMAP_SIZE / imageSize.height);
-        const mmW = imageSize.width * mmScale;
-        const mmH = imageSize.height * mmScale;
-        const mmX = mx + (MINIMAP_SIZE - mmW) / 2;
-        const mmY = my + (MINIMAP_SIZE - mmH) / 2;
-        const imgX = (cx - mmX) / mmScale;
-        const imgY = (cy - mmY) / mmScale;
-        // Center viewport on clicked image point
-        setOffset({
-          x: canvas.width / 2 - imgX * zoom,
-          y: canvas.height / 2 - imgY * zoom
-        });
-        return;
-      }
     }
 
     if (e.button !== 0) return;
@@ -1195,153 +988,140 @@ export default function BlueprintCanvas({
   const exportImage = useCallback(() => {
     if (!image) return;
     // Create an off-screen canvas at full image resolution
-    const exp = document.createElement('canvas');
-    exp.width = imageSize.width;
-    exp.height = imageSize.height;
-    const ectx = exp.getContext('2d');
+    const tmp = document.createElement('canvas');
+    tmp.width = imageSize.width;
+    tmp.height = imageSize.height;
+    const tctx = tmp.getContext('2d');
 
     // Draw blueprint
-    ectx.drawImage(image, 0, 0);
+    tctx.drawImage(image, 0, 0);
 
-    // Draw measurements at 1:1 scale by temporarily setting zoom=1 offset=0
-    // We re-render to the export canvas by directly calling a mini draw
-    // For simplicity, capture current canvas with measurements
-    const srcCanvas = canvasRef.current;
-    if (srcCanvas) {
-      // Use a temporary full-res render
-      const tmp = document.createElement('canvas');
-      tmp.width = imageSize.width;
-      tmp.height = imageSize.height;
-      const tctx = tmp.getContext('2d');
-      tctx.drawImage(image, 0, 0);
+    // Render measurements at 1:1
+    measurements.forEach(m => {
+      const color = COLORS[m.type] || '#666';
+      const lw = 2;
 
-      // Render measurements at 1:1
-      measurements.forEach(m => {
-        const color = COLORS[m.type] || '#666';
-        const lw = 2;
+      if (m.type === 'length' && m.points?.length === 2) {
+        const [p1, p2] = m.points;
+        tctx.beginPath();
+        tctx.strokeStyle = color;
+        tctx.lineWidth = lw;
+        tctx.moveTo(p1.x, p1.y);
+        tctx.lineTo(p2.x, p2.y);
+        tctx.stroke();
 
-        if (m.type === 'length' && m.points?.length === 2) {
-          const [p1, p2] = m.points;
-          tctx.beginPath();
-          tctx.strokeStyle = color;
-          tctx.lineWidth = lw;
-          tctx.moveTo(p1.x, p1.y);
-          tctx.lineTo(p2.x, p2.y);
-          tctx.stroke();
+        const d = dist(p1, p2);
+        const label = m.label || formatLength(d);
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        tctx.font = 'bold 14px sans-serif';
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'bottom';
+        const tw = tctx.measureText(label).width;
+        tctx.fillStyle = 'rgba(255,255,255,0.9)';
+        tctx.fillRect(midX - tw / 2 - 4, midY - 18, tw + 8, 18);
+        tctx.fillStyle = color;
+        tctx.fillText(label, midX, midY - 2);
+      }
 
-          const d = dist(p1, p2);
-          const label = m.label || formatLength(d);
-          const midX = (p1.x + p2.x) / 2;
-          const midY = (p1.y + p2.y) / 2;
-          tctx.font = 'bold 14px sans-serif';
-          tctx.textAlign = 'center';
-          tctx.textBaseline = 'bottom';
-          const tw = tctx.measureText(label).width;
-          tctx.fillStyle = 'rgba(255,255,255,0.9)';
-          tctx.fillRect(midX - tw / 2 - 4, midY - 18, tw + 8, 18);
-          tctx.fillStyle = color;
-          tctx.fillText(label, midX, midY - 2);
-        }
+      if (m.type === 'area' && m.points?.length >= 3) {
+        tctx.beginPath();
+        tctx.moveTo(m.points[0].x, m.points[0].y);
+        m.points.forEach((p, i) => { if (i > 0) tctx.lineTo(p.x, p.y); });
+        tctx.closePath();
+        tctx.fillStyle = color + '20';
+        tctx.fill();
+        tctx.strokeStyle = color;
+        tctx.lineWidth = lw;
+        tctx.stroke();
 
-        if (m.type === 'area' && m.points?.length >= 3) {
-          tctx.beginPath();
-          tctx.moveTo(m.points[0].x, m.points[0].y);
-          m.points.forEach((p, i) => { if (i > 0) tctx.lineTo(p.x, p.y); });
-          tctx.closePath();
-          tctx.fillStyle = color + '20';
-          tctx.fill();
-          tctx.strokeStyle = color;
-          tctx.lineWidth = lw;
-          tctx.stroke();
+        const c = centroid(m.points);
+        const area = polygonArea(m.points);
+        const label = m.label || formatArea(area);
+        tctx.font = 'bold 14px sans-serif';
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'middle';
+        tctx.fillStyle = color;
+        tctx.fillText(label, c.x, c.y);
+      }
 
-          const c = centroid(m.points);
-          const area = polygonArea(m.points);
-          const label = m.label || formatArea(area);
-          tctx.font = 'bold 14px sans-serif';
-          tctx.textAlign = 'center';
-          tctx.textBaseline = 'middle';
-          tctx.fillStyle = color;
-          tctx.fillText(label, c.x, c.y);
-        }
+      if (m.type === 'rectangle' && m.points?.length === 2) {
+        const { x, y, w, h } = rectFromTwoPoints(m.points[0], m.points[1]);
+        tctx.beginPath();
+        tctx.rect(x, y, w, h);
+        tctx.fillStyle = color + '18';
+        tctx.fill();
+        tctx.strokeStyle = color;
+        tctx.lineWidth = lw;
+        tctx.stroke();
 
-        if (m.type === 'rectangle' && m.points?.length === 2) {
-          const { x, y, w, h } = rectFromTwoPoints(m.points[0], m.points[1]);
-          tctx.beginPath();
-          tctx.rect(x, y, w, h);
-          tctx.fillStyle = color + '18';
-          tctx.fill();
-          tctx.strokeStyle = color;
-          tctx.lineWidth = lw;
-          tctx.stroke();
+        const area = w * h;
+        const label = m.label || formatArea(area);
+        tctx.font = 'bold 14px sans-serif';
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'middle';
+        tctx.fillStyle = color;
+        tctx.fillText(label, x + w / 2, y + h / 2);
+      }
 
-          const area = w * h;
-          const label = m.label || formatArea(area);
-          tctx.font = 'bold 14px sans-serif';
-          tctx.textAlign = 'center';
-          tctx.textBaseline = 'middle';
-          tctx.fillStyle = color;
-          tctx.fillText(label, x + w / 2, y + h / 2);
-        }
+      if (m.type === 'circle' && m.points?.length === 2) {
+        const center = m.points[0];
+        const radius = dist(m.points[0], m.points[1]);
+        tctx.beginPath();
+        tctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        tctx.fillStyle = color + '18';
+        tctx.fill();
+        tctx.strokeStyle = color;
+        tctx.lineWidth = lw;
+        tctx.stroke();
 
-        if (m.type === 'circle' && m.points?.length === 2) {
-          const center = m.points[0];
-          const radius = dist(m.points[0], m.points[1]);
-          tctx.beginPath();
-          tctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-          tctx.fillStyle = color + '18';
-          tctx.fill();
-          tctx.strokeStyle = color;
-          tctx.lineWidth = lw;
-          tctx.stroke();
+        const area = Math.PI * radius * radius;
+        const label = m.label || formatArea(area);
+        tctx.font = 'bold 14px sans-serif';
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'middle';
+        tctx.fillStyle = color;
+        tctx.fillText(label, center.x, center.y);
+      }
 
-          const area = Math.PI * radius * radius;
-          const label = m.label || formatArea(area);
-          tctx.font = 'bold 14px sans-serif';
-          tctx.textAlign = 'center';
-          tctx.textBaseline = 'middle';
-          tctx.fillStyle = color;
-          tctx.fillText(label, center.x, center.y);
-        }
+      if (m.type === 'count' && m.points?.[0]) {
+        const p = m.points[0];
+        tctx.beginPath();
+        tctx.fillStyle = color + '30';
+        tctx.strokeStyle = color;
+        tctx.lineWidth = 2;
+        tctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+        tctx.fill();
+        tctx.stroke();
+        tctx.font = 'bold 12px sans-serif';
+        tctx.fillStyle = color;
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'middle';
+        tctx.fillText(String(m.count || 1), p.x, p.y);
+      }
 
-        if (m.type === 'count' && m.points?.[0]) {
-          const p = m.points[0];
-          tctx.beginPath();
-          tctx.fillStyle = color + '30';
-          tctx.strokeStyle = color;
-          tctx.lineWidth = 2;
-          tctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
-          tctx.fill();
-          tctx.stroke();
-          tctx.font = 'bold 12px sans-serif';
-          tctx.fillStyle = color;
-          tctx.textAlign = 'center';
-          tctx.textBaseline = 'middle';
-          tctx.fillText(String(m.count || 1), p.x, p.y);
-        }
+      if (m.type === 'annotation' && m.points?.[0]) {
+        const p = m.points[0];
+        const text = m.text || m.label || 'Note';
+        tctx.font = '500 14px sans-serif';
+        const tw = tctx.measureText(text).width;
+        tctx.fillStyle = '#fffbeb';
+        tctx.strokeStyle = '#94a3b8';
+        tctx.lineWidth = 1;
+        tctx.fillRect(p.x - 6, p.y - 6, tw + 12, 26);
+        tctx.strokeRect(p.x - 6, p.y - 6, tw + 12, 26);
+        tctx.fillStyle = '#1e293b';
+        tctx.textAlign = 'left';
+        tctx.textBaseline = 'top';
+        tctx.fillText(text, p.x, p.y);
+      }
+    });
 
-        if (m.type === 'annotation' && m.points?.[0]) {
-          const p = m.points[0];
-          const text = m.text || m.label || 'Note';
-          tctx.font = '500 14px sans-serif';
-          const tw = tctx.measureText(text).width;
-          tctx.fillStyle = '#fffbeb';
-          tctx.strokeStyle = '#94a3b8';
-          tctx.lineWidth = 1;
-          tctx.fillRect(p.x - 6, p.y - 6, tw + 12, 26);
-          tctx.strokeRect(p.x - 6, p.y - 6, tw + 12, 26);
-          tctx.fillStyle = '#1e293b';
-          tctx.textAlign = 'left';
-          tctx.textBaseline = 'top';
-          tctx.fillText(text, p.x, p.y);
-        }
-      });
-
-      // Download
-      const link = document.createElement('a');
-      link.download = `blueprint-takeoff-${Date.now()}.png`;
-      link.href = tmp.toDataURL('image/png');
-      link.click();
-    }
+    // Download
+    const link = document.createElement('a');
+    link.download = `blueprint-takeoff-${Date.now()}.png`;
+    link.href = tmp.toDataURL('image/png');
+    link.click();
   }, [image, imageSize, measurements, formatLength, formatArea]);
 
   // ---------------------------------------------------------------------------
@@ -1403,21 +1183,49 @@ export default function BlueprintCanvas({
   }, [selectedId, measurements, undo, redo, deleteSelected, duplicateSelected]);
 
   // ---------------------------------------------------------------------------
-  // Toolbar config
+  // Toolbar callbacks (stable references for memoized toolbar)
   // ---------------------------------------------------------------------------
 
-  const toolButtons = [
-    { id: TOOL_TYPES.SELECT, icon: MousePointer, label: 'Select (V)', section: 'tools' },
-    { id: TOOL_TYPES.PAN, icon: Move, label: 'Pan (H)', section: 'tools' },
-    { id: 'sep1', separator: true },
-    { id: TOOL_TYPES.LENGTH, icon: Ruler, label: 'Length (L)', section: 'measure' },
-    { id: TOOL_TYPES.AREA, icon: Square, label: 'Area Polygon (A)', section: 'measure' },
-    { id: TOOL_TYPES.RECTANGLE, icon: RectangleHorizontal, label: 'Rectangle (R)', section: 'measure' },
-    { id: TOOL_TYPES.CIRCLE, icon: Circle, label: 'Circle (O)', section: 'measure' },
-    { id: TOOL_TYPES.COUNT, icon: Hash, label: 'Count (C)', section: 'measure' },
-    { id: 'sep2', separator: true },
-    { id: TOOL_TYPES.ANNOTATION, icon: Type, label: 'Annotation (T)', section: 'annotate' },
-  ];
+  const handleToolChange = useCallback((newTool) => {
+    setTool(newTool);
+    setCurrentPoints([]);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom(z => Math.min(8, z * 1.25));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(z => Math.max(0.05, z * 0.8));
+  }, []);
+
+  const handleToggleGrid = useCallback(() => {
+    setShowGrid(g => !g);
+  }, []);
+
+  const handleToggleSnap = useCallback(() => {
+    setSnapEnabled(s => !s);
+  }, []);
+
+  const handleToggleCrosshair = useCallback(() => {
+    setCrosshairEnabled(c => !c);
+  }, []);
+
+  const handleStartCalibration = useCallback(() => {
+    setCalibrating(true);
+    setCalibrationPoints([]);
+    setCurrentPoints([]);
+  }, []);
+
+  // Minimap pan handler — center the viewport on the clicked image point
+  const handleMinimapPan = useCallback((imgX, imgY) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setOffset({
+      x: canvas.width / 2 - imgX * zoom,
+      y: canvas.height / 2 - imgY * zoom
+    });
+  }, [zoom]);
 
   const getCursorStyle = () => {
     if (isDragging) return 'grabbing';
@@ -1435,190 +1243,34 @@ export default function BlueprintCanvas({
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 bg-white border-b border-gray-200 flex-wrap">
-        {/* Tool buttons */}
-        <div className="flex items-center gap-0.5">
-          {toolButtons.map(btn => {
-            if (btn.separator) {
-              return <div key={btn.id} className="w-px h-6 bg-gray-200 mx-1" />;
-            }
-            const Icon = btn.icon;
-            const isActive = tool === btn.id;
-            const typeColor = COLORS[btn.id];
-            return (
-              <button
-                key={btn.id}
-                onClick={() => { setTool(btn.id); setCurrentPoints([]); }}
-                className={`p-1.5 rounded transition-all ${
-                  isActive
-                    ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-300'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                }`}
-                title={btn.label}
-              >
-                <Icon className="w-4 h-4" style={isActive && typeColor ? { color: typeColor } : undefined} />
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="w-px h-6 bg-gray-200 mx-1.5" />
-
-        {/* Zoom controls */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setZoom(z => Math.min(8, z * 1.25))}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-            title="Zoom In (+)"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setZoom(z => Math.max(0.05, z * 0.8))}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-            title="Zoom Out (-)"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <span className="text-[11px] text-gray-500 w-10 text-center font-mono tabular-nums select-none">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            onClick={fitToScreen}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-            title="Fit to Screen"
-          >
-            <Maximize className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-gray-200 mx-1.5" />
-
-        {/* Undo/Redo/Delete */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={undo}
-            disabled={historyIndex <= 0}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={historyIndex >= history.length - 1}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
-            title="Redo (Ctrl+Y)"
-          >
-            <Redo2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={duplicateSelected}
-            disabled={!selectedId}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
-            title="Duplicate (Ctrl+D)"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-          <button
-            onClick={deleteSelected}
-            disabled={!selectedId}
-            className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded disabled:opacity-25 disabled:cursor-not-allowed"
-            title="Delete (Del)"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={clearAll}
-            className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded"
-            title="Clear All"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-gray-200 mx-1.5" />
-
-        {/* Toggles */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setShowGrid(g => !g)}
-            className={`p-1.5 rounded transition-colors ${
-              showGrid ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:bg-gray-100'
-            }`}
-            title="Toggle Grid (G)"
-          >
-            <Grid3X3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setSnapEnabled(s => !s)}
-            className={`p-1.5 rounded transition-colors ${
-              snapEnabled ? 'bg-pink-100 text-pink-700' : 'text-gray-500 hover:bg-gray-100'
-            }`}
-            title="Snap to Points (S)"
-          >
-            <Magnet className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setCrosshairEnabled(c => !c)}
-            className={`p-1.5 rounded transition-colors ${
-              crosshairEnabled ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:bg-gray-100'
-            }`}
-            title="Crosshair Guide (X)"
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-gray-200 mx-1.5" />
-
-        {/* Scale and Export */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => {
-              setCalibrating(true);
-              setCalibrationPoints([]);
-              setCurrentPoints([]);
-            }}
-            className={`px-2 py-1 text-[11px] font-medium rounded transition-colors ${
-              calibrating
-                ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {calibrating ? 'Click 2 pts...' : 'Set Scale'}
-          </button>
-          {scale && scale.pixelsPerUnit && (
-            <span className="text-[11px] text-gray-500 tabular-nums">
-              1{scale.unit}={Math.round(scale.pixelsPerUnit)}px
-            </span>
-          )}
-          <button
-            onClick={exportImage}
-            disabled={!image}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
-            title="Export as PNG"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Measurement counter */}
-        <div className="ml-auto flex items-center gap-2 text-[11px] text-gray-500">
-          {measurements.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              {Object.entries(
-                measurements.reduce((acc, m) => { acc[m.type] = (acc[m.type] || 0) + 1; return acc; }, {})
-              ).map(([type, count]) => (
-                <span key={type} className="flex items-center gap-0.5">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[type] || '#666' }} />
-                  <span>{count}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <BlueprintToolbar
+        tool={tool}
+        onToolChange={handleToolChange}
+        zoom={zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onFitToScreen={fitToScreen}
+        showGrid={showGrid}
+        onToggleGrid={handleToggleGrid}
+        snapEnabled={snapEnabled}
+        onToggleSnap={handleToggleSnap}
+        crosshairEnabled={crosshairEnabled}
+        onToggleCrosshair={handleToggleCrosshair}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        selectedId={selectedId}
+        onDuplicate={duplicateSelected}
+        onDelete={deleteSelected}
+        onClearAll={clearAll}
+        calibrating={calibrating}
+        onStartCalibration={handleStartCalibration}
+        scale={scale}
+        onExport={exportImage}
+        hasImage={!!image}
+        measurements={measurements}
+      />
 
       {/* Canvas area */}
       <div
@@ -1645,6 +1297,19 @@ export default function BlueprintCanvas({
             onWheel={handleWheel}
             style={{ cursor: getCursorStyle() }}
             className="absolute inset-0"
+          />
+        )}
+
+        {/* Minimap */}
+        {showMinimap && image && imageSize.width > 0 && canvasRef.current && (
+          <BlueprintMinimap
+            image={image}
+            imageSize={imageSize}
+            zoom={zoom}
+            offset={offset}
+            canvasWidth={canvasRef.current.width || 0}
+            canvasHeight={canvasRef.current.height || 0}
+            onPan={handleMinimapPan}
           />
         )}
 
@@ -1676,7 +1341,6 @@ export default function BlueprintCanvas({
           </div>
         )}
 
-        {/* Keyboard shortcut hint - shown briefly or on ? key */}
         {/* Coordinates display */}
         {mouseImg && image && (
           <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded px-2 py-1 text-[10px] font-mono text-gray-500 tabular-nums select-none">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ScanEye, Plus, Trash2, FileImage, Calendar, Maximize,
@@ -11,16 +11,6 @@ import VisionUpload from '../components/vision/VisionUpload';
 import VisionHome from '../components/vision/VisionHome';
 import { PageHeader, EmptyState, ListItemCard, InlineLoader } from '../components/shared';
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diff = now - d;
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 function formatDimensions(w, h) {
   if (!w || !h) return '';
   return `${w.toLocaleString()} × ${h.toLocaleString()}`;
@@ -32,7 +22,6 @@ export default function Vision() {
   const [showUpload, setShowUpload] = useState(false);
   const [showHome, setShowHome] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeJobId, setAnalyzeJobId] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
 
   const { data: projects = [], isLoading } = useQuery({
@@ -48,7 +37,8 @@ export default function Vision() {
 
   useEffect(() => {
     if (!selectedId && projects.length > 0 && !showUpload) {
-      setSelectedId(projects[0].id);
+      const timer = setTimeout(() => setSelectedId(projects[0].id), 0);
+      return () => clearTimeout(timer);
     }
   }, [projects, selectedId, showUpload]);
 
@@ -73,7 +63,6 @@ export default function Vision() {
 
     try {
       const result = await visionApi.analyze(selectedId, model || selectedModel);
-      setAnalyzeJobId(result.jobId);
 
       const poll = setInterval(async () => {
         try {
@@ -81,12 +70,11 @@ export default function Vision() {
           if (status.status === 'completed' || status.status === 'failed') {
             clearInterval(poll);
             setAnalyzing(false);
-            setAnalyzeJobId(null);
             refetchProject();
           }
-        } catch (err) { /* keep polling */ }
+        } catch { /* keep polling */ }
       }, 2000);
-    } catch (err) {
+    } catch {
       setAnalyzing(false);
     }
   }, [selectedId, analyzing, selectedModel, refetchProject]);

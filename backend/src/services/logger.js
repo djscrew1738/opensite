@@ -5,12 +5,61 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-const TOOL_DIR = path.join(process.cwd(), '../../tool');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Calculate path from backend/src/services/logger.js to tool/logs
+// backend/src/services/logger.js -> backend/ -> opensite/ -> tool/
+const TOOL_DIR = path.join(__dirname, '../../../tool');
 const LOGS_DIR = path.join(TOOL_DIR, 'logs');
 
 // Ensure logs directory exists
 fs.mkdirSync(LOGS_DIR, { recursive: true });
+
+// Sensitive field patterns to redact from logs
+const SENSITIVE_FIELD_PATTERNS = [
+  /password/i,
+  /apiKey/i,
+  /api_key/i,
+  /token/i,
+  /secret/i,
+  /authorization/i,
+  /pass/i,  // matches 'pass', 'imap_pass', etc.
+  /key/i,   // matches 'key', 'apiKey', etc.
+  /credential/i,
+  /auth/i,
+];
+
+/**
+ * Sanitize an object for logging by redacting sensitive fields
+ * @param {object} obj - The object to sanitize
+ * @returns {object} - Sanitized copy of the object
+ */
+export function sanitizeForLog(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Check if key matches any sensitive pattern
+    const isSensitive = SENSITIVE_FIELD_PATTERNS.some(pattern => pattern.test(key));
+    
+    if (isSensitive && value !== undefined && value !== null) {
+      // Redact sensitive value
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursively sanitize nested objects
+      sanitized[key] = sanitizeForLog(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  
+  return sanitized;
+}
 
 // Custom format
 const customFormat = winston.format.combine(
@@ -87,14 +136,21 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Add request logging helper
 logger.logRequest = (req, res, duration) => {
-  logger.info('HTTP Request', {
+  const logData = {
     method: req.method,
     url: req.url,
     status: res.statusCode,
     duration: `${duration}ms`,
     ip: req.ip,
     userAgent: req.get('user-agent')
-  });
+  };
+  
+  // Sanitize request body if present
+  if (req.body && typeof req.body === 'object') {
+    logData.body = sanitizeForLog(req.body);
+  }
+  
+  logger.info('HTTP Request', logData);
 };
 
 // Add error logging helper

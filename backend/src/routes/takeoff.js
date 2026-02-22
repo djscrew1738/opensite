@@ -8,6 +8,33 @@ import logger from '../services/logger.js';
 
 const router = express.Router();
 
+/**
+ * Sanitize a CSV cell value to prevent formula injection
+ * Prefixes cells starting with =, +, -, or @ with a single quote
+ * Does not modify numeric values
+ * @param {any} value - The cell value to sanitize
+ * @returns {string} - Sanitized cell value
+ */
+function sanitizeCsvCell(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  
+  // Don't modify numbers
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  
+  const strValue = String(value);
+  
+  // Prefix formula-triggering characters with single quote
+  if (/^[\+\-=\@\t\r\n]/.test(strValue)) {
+    return "'" + strValue;
+  }
+  
+  return strValue;
+}
+
 // ==================== Materials ====================
 
 // Get all materials (with advanced filtering)
@@ -76,8 +103,15 @@ router.get('/materials/export/csv', tryCatch(async (req, res) => {
 
   const header = ['Name', 'Category', 'Unit', 'Unit Cost', 'Supplier', 'Part Number', 'Description', 'Notes', 'Markup %'];
   const rows = materials.map(m => [
-    m.name, m.category, m.unit, m.unitCost,
-    m.supplier || '', m.partNumber || '', m.description || '', m.notes || '', m.markup || 0
+    sanitizeCsvCell(m.name),
+    sanitizeCsvCell(m.category),
+    sanitizeCsvCell(m.unit),
+    m.unitCost, // numeric, no sanitization needed
+    sanitizeCsvCell(m.supplier),
+    sanitizeCsvCell(m.partNumber),
+    sanitizeCsvCell(m.description),
+    sanitizeCsvCell(m.notes),
+    m.markup || 0 // numeric, no sanitization needed
   ]);
 
   const csvContent = [header, ...rows]

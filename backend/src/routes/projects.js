@@ -2,86 +2,72 @@
 
 import express from 'express';
 import { db } from '../services/database.js';
+import { tryCatch } from '../utils/response.js';
 
 const router = express.Router();
 
 // Get all projects
-router.get('/', (req, res) => {
-  try {
-    const projects = db.getAllProjects();
-    res.json({ projects, total: projects.length });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.get('/', tryCatch(async (req, res) => {
+  const projects = db.getAllProjects();
+  res.success({ projects, total: projects.length });
+}));
 
 // Get single project
-router.get('/:id', (req, res) => {
-  try {
-    const project = db.getProject(req.params.id);
+router.get('/:id', tryCatch(async (req, res) => {
+  const project = db.getProject(req.params.id);
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    res.json({ project });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!project) {
+    return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
-});
+
+  res.success({ project });
+}));
 
 // Create new project
-router.post('/', (req, res) => {
-  try {
-    const project = db.createProject(req.body);
-    res.status(201).json({ project });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.post('/', tryCatch(async (req, res) => {
+  const project = db.createProject(req.body);
+  res.success({ project }, 'Project created successfully', 201);
+}));
 
 // Update project phase
-router.put('/:id/phase', (req, res) => {
-  try {
-    const { phase, progress } = req.body;
+router.put('/:id/phase', tryCatch(async (req, res) => {
+  const { phase, progress } = req.body;
 
-    if (!phase) {
-      return res.status(400).json({ error: 'Phase is required' });
-    }
-
-    const validPhases = ['rough-in', 'top-out', 'trim', 'complete'];
-    if (!validPhases.includes(phase)) {
-      return res.status(400).json({ error: 'Invalid phase' });
-    }
-
-    const project = db.updateProject(req.params.id, {
-      phase,
-      progress: progress !== undefined ? progress : null
-    });
-
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    res.json({ project });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!phase) {
+    return res.error('Phase is required', 'VALIDATION_ERROR', null, 400);
   }
-});
+
+  const validPhases = ['rough-in', 'top-out', 'trim', 'complete'];
+  if (!validPhases.includes(phase)) {
+    return res.error(
+      `Invalid phase. Must be one of: ${validPhases.join(', ')}`,
+      'VALIDATION_ERROR',
+      null,
+      400
+    );
+  }
+
+  const project = db.updateProject(req.params.id, {
+    phase,
+    progress: progress !== undefined ? progress : null
+  });
+
+  if (!project) {
+    return res.error('Project not found', 'NOT_FOUND', null, 404);
+  }
+
+  res.success({ project }, 'Project phase updated successfully');
+}));
 
 // Update project
-router.put('/:id', (req, res) => {
-  try {
-    const project = db.updateProject(req.params.id, req.body);
+router.put('/:id', tryCatch(async (req, res) => {
+  const project = db.updateProject(req.params.id, req.body);
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    res.json({ project });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!project) {
+    return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
-});
+
+  res.success({ project }, 'Project updated successfully');
+}));
 
 export default router;

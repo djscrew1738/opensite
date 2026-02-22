@@ -17,7 +17,6 @@ const TIER_CONFIG = {
 
 export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
   const [copiedField, setCopiedField] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
 
   if (!lead) return null;
 
@@ -28,7 +27,6 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
   };
 
   const tier = TIER_CONFIG[lead.icpTier] || TIER_CONFIG.cold;
-  const status = STATUS_CONFIG[lead.contactStatus] || STATUS_CONFIG.new;
 
   // Email verification
   const hasVerifiedEmail = lead.emailVerificationStatus === 'verified' && lead.bestEmailScore >= 80;
@@ -139,8 +137,6 @@ export default function DiscoveryLeadDetail({ lead, onClose, onStatusUpdate }) {
                     {(lead.verifiedEmails || lead.emails).slice(0, 3).map((email, i) => {
                       const emailStr = typeof email === 'string' ? email : email.email;
                       const score = typeof email === 'object' ? email.score : null;
-                      const isVerified = typeof email === 'object' ? email.score >= 80 : false;
-                      
                       return (
                         <div key={i} className="flex items-center gap-2 group">
                           <a href={`mailto:${emailStr}`} className="text-sm text-accent-600 hover:underline truncate flex-1">

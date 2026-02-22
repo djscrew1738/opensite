@@ -16,13 +16,19 @@ export default defineConfig({
   build: {
     // Target modern browsers for smaller output
     target: 'es2020',
+    // Output to dist folder
+    outDir: 'dist',
+    // Generate SPA fallback
+    emptyOutDir: true,
     // Split vendors for better caching — large libs get their own chunks
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
+          'vendor-motion': ['framer-motion'],
           'vendor-charts': ['recharts'],
+          'vendor-icons': ['lucide-react'],
           'vendor-axios': ['axios'],
         }
       }

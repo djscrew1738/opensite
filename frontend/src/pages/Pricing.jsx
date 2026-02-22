@@ -7,6 +7,7 @@ import BlueprintUpload from '../components/pricing/BlueprintUpload';
 import ModelSelector from '../components/ai/ModelSelector';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { useModelPreference } from '../hooks/useModelPreference';
+import { AlertCircle, RefreshCw, X } from 'lucide-react';
 
 export default function Pricing() {
   const [formData, setFormData] = useState({
@@ -44,7 +45,11 @@ export default function Pricing() {
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;
 
-  useQuery({
+  const { 
+    isError: modelsIsError, 
+    error: modelsError,
+    refetch: refetchModels
+  } = useQuery({
     queryKey: ['ollama-models'],
     queryFn: () => api.ai.getModels(),
     retry: false
@@ -56,6 +61,9 @@ export default function Pricing() {
       setEstimate(data);
       setAnalysis(null); // Clear previous analysis
       clearSaved(); // Clear auto-saved form data after successful calculation
+    },
+    onError: (error) => {
+      console.error('Calculate error:', error);
     }
   });
 
@@ -162,6 +170,45 @@ export default function Pricing() {
           />
         </div>
       </div>
+
+      {/* Error Display */}
+      {modelsIsError && (
+        <div className="mb-6 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Failed to load AI models</h3>
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{modelsError?.message || 'Could not connect to AI service.'}</p>
+          </div>
+          <button 
+            onClick={() => refetchModels()}
+            className="btn-secondary text-sm inline-flex items-center gap-1"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {(calculateMutation.isError || analyzeMutation.isError) && (
+        <div className="mb-6 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Calculation failed</h3>
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {calculateMutation.error?.message || analyzeMutation.error?.message || 'An error occurred while processing your request.'}
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              calculateMutation.reset();
+              analyzeMutation.reset();
+            }}
+            className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Blueprint Upload */}
       <div className="mb-6">

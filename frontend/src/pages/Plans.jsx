@@ -94,6 +94,14 @@ export default function Plans() {
     analyzeMutation.mutate({ ...buildPayload(), model: effectiveModel });
   };
 
+  const handleReset = () => {
+    setFixtures({ ...DEFAULT_FIXTURES });
+    setEstimate(null);
+    setAnalysis(null);
+    setExtractedData(null);
+    clearSaved();
+  };
+
   const handleExport = () => {
     // Build CSV
     const rows = [
@@ -164,6 +172,7 @@ export default function Plans() {
         <PlansCommandHeader
           totalFixtures={totalFixtures}
           totalPrice={totalPrice}
+          phaseBreakdown={phaseBreakdown}
           projectName={projectInfo.projectName}
           onProjectNameChange={(name) => setProjectInfo(prev => ({ ...prev, projectName: name }))}
         />
@@ -207,12 +216,54 @@ export default function Plans() {
           onSave={handleSave}
           onAnalyze={handleAnalyze}
           onExport={handleExport}
+          onReset={handleReset}
           isSaving={calculateMutation.isPending}
           isAnalyzing={analyzeMutation.isPending}
           totalFixtures={totalFixtures}
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}
         />
+
+        {/* Save success feedback */}
+        {calculateMutation.isSuccess && !calculateMutation.isError && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-green-500 dark:text-green-400 text-lg leading-none">&#10003;</span>
+            <p className="text-sm font-semibold text-green-700 dark:text-green-300 flex-1">
+              Estimate saved successfully
+              {estimate?.estimateId && (
+                <span className="ml-2 text-xs font-normal text-green-600 dark:text-green-400">
+                  ID: {estimate.estimateId}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Mutation error feedback */}
+        {(calculateMutation.isError || analyzeMutation.isError) && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-red-500 dark:text-red-400 text-lg leading-none mt-0.5">&#9888;</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                {calculateMutation.isError ? 'Save failed' : 'Analysis failed'}
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                {(calculateMutation.error || analyzeMutation.error)?.message || 'Something went wrong. Please try again.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                calculateMutation.reset();
+                analyzeMutation.reset();
+              }}
+              className="text-red-400 hover:text-red-600 dark:hover:text-red-300 text-lg leading-none flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* Estimate result display */}
         {estimate && (

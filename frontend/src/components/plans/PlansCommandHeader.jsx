@@ -1,6 +1,6 @@
 import { FIXTURE_PRICE, PHASE_CONFIG } from './constants';
 
-export default function PlansCommandHeader({ totalFixtures, totalPrice, projectName, onProjectNameChange }) {
+export default function PlansCommandHeader({ totalFixtures, totalPrice, phaseBreakdown, projectName, onProjectNameChange }) {
   return (
     <div className="bg-gradient-to-r from-[#001a4d] via-[#003594] to-[#002266] rounded-2xl p-6 text-white">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -35,7 +35,7 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
         </div>
 
         {/* Right: Phase mini-bar */}
-        <div className="lg:w-48">
+        <div className="lg:w-56">
           <p className="text-[10px] uppercase tracking-widest text-blue-300/70 font-semibold mb-2">Phase Breakdown</p>
           <div className="flex rounded-full overflow-hidden h-2.5">
             {PHASE_CONFIG.map(phase => (
@@ -47,12 +47,22 @@ export default function PlansCommandHeader({ totalFixtures, totalPrice, projectN
               />
             ))}
           </div>
-          <div className="flex justify-between mt-1.5">
-            {PHASE_CONFIG.map(phase => (
-              <span key={phase.key} className="text-[10px] text-blue-200/60">
-                {phase.label} {phase.pct}%
-              </span>
-            ))}
+          <div className="flex justify-between mt-2 gap-1">
+            {PHASE_CONFIG.map(phase => {
+              const amount = phaseBreakdown
+                ? (phase.key === 'roughIn' ? phaseBreakdown.roughIn : phase.key === 'topOut' ? phaseBreakdown.topOut : phaseBreakdown.trim)
+                : null;
+              return (
+                <div key={phase.key} className="text-center">
+                  <p className="text-[10px] text-blue-200/60">{phase.label}</p>
+                  {amount != null && amount > 0 ? (
+                    <p className="text-[11px] font-semibold text-white/80">${amount.toLocaleString()}</p>
+                  ) : (
+                    <p className="text-[10px] text-blue-200/40">{phase.pct}%</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -5,8 +5,9 @@ export default function FixtureCard({ fixture, count, onChange }) {
   const Icon = fixture.icon;
   const subtotal = count * FIXTURE_PRICE;
 
+  const MAX_COUNT = 100;
   const decrement = () => onChange(Math.max(0, count - 1));
-  const increment = () => onChange(count + 1);
+  const increment = () => onChange(Math.min(MAX_COUNT, count + 1));
 
   return (
     <div
@@ -47,8 +48,10 @@ export default function FixtureCard({ fixture, count, onChange }) {
         <button
           type="button"
           onClick={increment}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-white transition-colors"
+          disabled={count >= MAX_COUNT}
+          className="w-8 h-8 rounded-md flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: fixture.color }}
+          title={count >= MAX_COUNT ? `Maximum ${MAX_COUNT} per fixture` : undefined}
         >
           <Plus className="w-3.5 h-3.5" />
         </button>

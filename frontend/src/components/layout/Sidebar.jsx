@@ -3,11 +3,12 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, HardHat, Files, MessageSquare,
   Network, Settings, ChevronLeft, ChevronRight, Wifi,
-  Command
+  Command, LogOut, User, Sparkles
 } from 'lucide-react';
 import ThemeToggle from '../shared/ThemeToggle';
 import { prefetchRoute } from '../../routes/prefetch';
 import { NotificationBell } from '../notifications';
+import { useAuth } from '../../hooks/useAuth';
 
 // New simplified navigation structure
 const navGroups = {
@@ -16,9 +17,10 @@ const navGroups = {
     { path: '/jobs',      icon: HardHat,         label: 'Jobs',         shortcut: '2', badge: null },
     { path: '/leads',     icon: Users,           label: 'Lead Finder',  shortcut: '3', badge: null },
     { path: '/documents', icon: Files,           label: 'Documents',    shortcut: '4', badge: null },
+    { path: '/ai',        icon: Sparkles,        label: 'AI Assistant', shortcut: '5', badge: null },
   ],
   tools: [
-    { path: '/canvas',    icon: Network,         label: 'Canvas',       shortcut: '5', badge: null },
+    { path: '/canvas',    icon: Network,         label: 'Canvas',       shortcut: '6', badge: null },
   ],
 };
 
@@ -136,13 +138,13 @@ function NavItem({ item, expanded, onClick }) {
   );
 }
 
-function NavGroup({ title, items, expanded }) {
+function NavGroup({ title, items, expanded, onItemClick }) {
   if (!expanded) {
     // When sidebar is collapsed, just show items without group headers
     return (
       <ul className="space-y-0.5">
         {items.map((item) => (
-          <NavItem key={item.path} item={item} expanded={false} />
+          <NavItem key={item.path} item={item} expanded={false} onClick={onItemClick} />
         ))}
       </ul>
     );
@@ -158,7 +160,7 @@ function NavGroup({ title, items, expanded }) {
       </div>
       <ul className="space-y-0.5">
         {items.map((item) => (
-          <NavItem key={item.path} item={item} expanded={true} />
+          <NavItem key={item.path} item={item} expanded={true} onClick={onItemClick} />
         ))}
       </ul>
     </div>
@@ -168,12 +170,14 @@ function NavGroup({ title, items, expanded }) {
 export default function Sidebar({ 
   onCommandPaletteOpen, 
   onNotificationsOpen, 
+  onItemClick,
   notificationCount = 0,
   hasUrgent = false,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [pinned, setPinned] = useState(false);
   const isExpanded = expanded || pinned;
+  const { user, logout } = useAuth();
 
   // Keyboard shortcut to toggle sidebar pin
   useEffect(() => {
@@ -323,6 +327,7 @@ export default function Sidebar({
           title="Core"
           items={navGroups.core}
           expanded={isExpanded}
+          onItemClick={onItemClick}
         />
         
         {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
@@ -332,6 +337,7 @@ export default function Sidebar({
           title="Tools"
           items={navGroups.tools}
           expanded={isExpanded}
+          onItemClick={onItemClick}
         />
 
         {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
@@ -339,7 +345,7 @@ export default function Sidebar({
         {/* Settings */}
         <ul className="space-y-0.5">
           {bottomNav.map((item) => (
-            <NavItem key={item.path} item={item} expanded={isExpanded} />
+            <NavItem key={item.path} item={item} expanded={isExpanded} onClick={onItemClick} />
           ))}
         </ul>
       </nav>
@@ -361,33 +367,44 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Company card */}
-        {isExpanded && (
+        {/* User Card */}
+        <div
+          className={`mx-1 rounded-lg p-2.5 flex items-center gap-2.5 transition-all duration-200 ${
+            isExpanded ? 'bg-white/0.02 border border-[#1F2430]' : 'justify-center'
+          }`}
+        >
           <div
-            className="mx-1 rounded-lg p-2.5 flex items-center gap-2.5"
+            className={`rounded-md flex items-center justify-center font-bold text-white flex-shrink-0 ${
+              isExpanded ? 'w-7 h-7 text-[9px]' : 'w-8 h-8 text-[10px]'
+            }`}
             style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid #1F2430',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
             }}
           >
-            <div
-              className="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              }}
-            >
-              CTL
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold truncate" style={{ color: 'rgba(241,245,249,0.6)' }}>
-                CTL Plumbing LLC
-              </p>
-              <p className="text-[9px] mt-0.5" style={{ color: 'rgba(148,163,184,0.3)' }}>
-                DFW Metroplex
-              </p>
-            </div>
+            {user?.username?.charAt(0) || <User className="w-4 h-4" />}
           </div>
-        )}
+          
+          {isExpanded && (
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold truncate text-slate-300">
+                {user?.username || 'Guest User'}
+              </p>
+              <p className="text-[9px] mt-0.5 text-slate-500 capitalize">
+                {user?.role || 'Viewer'}
+              </p>
+            </div>
+          )}
+
+          {isExpanded && (
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-md hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
         {/* Time */}
         {isExpanded && (

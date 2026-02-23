@@ -175,9 +175,13 @@ export function KeyInput({
             placeholder={placeholder}
             aria-invalid={showError}
           />
-          <button type="button" onClick={onToggleShow}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          <button 
+            type="button" 
+            onClick={onToggleShow}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            aria-label={show ? `Hide ${label}` : `Show ${label}`}
+          >
+            {show ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
           </button>
         </div>
         {onTest && (

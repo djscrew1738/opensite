@@ -4,14 +4,18 @@ import express from 'express';
 import { db } from '../services/database.js';
 import { pricingService } from '../services/pricing.js';
 import { dbOptimizations } from '../services/dbOptimizations.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 import { tryCatch } from '../utils/response.js';
 
 const router = express.Router();
 
+// Apply authentication to all dashboard routes
+router.use(authenticateToken);
+
 // Get dashboard statistics (optimized)
 router.get('/stats', tryCatch(async (req, res) => {
   // Use optimized single-query approach with caching
-  const stats = await dbOptimizations.getDashboardStatsOptimized();
+  const stats = await dbOptimizations.getDashboardStatsOptimized(req.user.id);
 
   res.success({
     pipelineValue: stats.pipelineValue,

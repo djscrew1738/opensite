@@ -9,6 +9,11 @@
             "date": 1771794736554,
             "name": "/home/djscrew/opensite/tool/logs/rejections-2026-02-22.log",
             "hash": "e6f745340be47f98a3cb43cf60f3cbf1b442681cb09ceb404bd32e2f192f7240"
+        },
+        {
+            "date": 1771818364551,
+            "name": "/home/djscrew/opensite/tool/logs/rejections-2026-02-23.log",
+            "hash": "a603b0576f654d631f04061d597775a6bf3f2e8d7ca312172a334be8bb37d339"
         }
     ],
     "hashType": "sha256"

@@ -36,12 +36,12 @@ const variantStyles = {
 };
 
 const sizeStyles = {
-  sm: 'h-8 px-3 text-xs gap-1.5',
-  DEFAULT: 'h-10 px-4 text-sm gap-2',
-  lg: 'h-12 px-6 text-base gap-2',
-  icon: 'h-10 w-10 p-0',
-  'icon-sm': 'h-8 w-8 p-0',
-  'icon-lg': 'h-12 w-12 p-0',
+  sm: 'h-10 px-4 text-xs gap-1.5',
+  DEFAULT: 'h-12 px-6 text-sm gap-2',
+  lg: 'h-14 px-8 text-base gap-2',
+  icon: 'h-12 w-12 p-0',
+  'icon-sm': 'h-10 w-10 p-0',
+  'icon-lg': 'h-14 w-14 p-0',
 };
 
 export const Button = forwardRef(({

@@ -7,6 +7,7 @@ import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 import crypto from 'crypto';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 
 /**
  * Generate a unique conversation ID
@@ -17,6 +18,9 @@ function generateConversationId() {
 }
 
 const router = express.Router();
+
+// Apply authentication to all AI routes
+router.use(authenticateToken);
 
 /* ── GET /api/ai/models ─────────────────────────────────────────────── */
 router.get('/models', tryCatch(async (req, res) => {
@@ -37,8 +41,9 @@ router.get('/models', tryCatch(async (req, res) => {
 
 /* ── GET /api/ai/providers ──────────────────────────────────────────── */
 router.get('/providers', tryCatch(async (req, res) => {
+  const providers = await aiProvider.getAvailableProviders();
   res.success({
-    providers: aiProvider.getAvailableProviders(),
+    providers,
     active: aiProvider.activeProviderName,
   });
 }));
@@ -51,7 +56,7 @@ router.post('/providers/switch', tryCatch(async (req, res) => {
   }
 
   aiProvider.setProvider(provider);
-  db.setSetting('ai_provider', provider);
+  await db.setSetting('ai_provider', provider);
 
   const health = await aiProvider.healthCheck();
   logger.info('AI provider switched', { provider, connected: health.connected });
@@ -71,7 +76,7 @@ router.post('/chat', tryCatch(async (req, res) => {
   }
 
   // Load conversation history from DB
-  const conversation = conversationId ? db.getConversation(conversationId) : null;
+  const conversation = conversationId ? await db.getConversation(conversationId) : null;
   const history = conversation?.messages || [];
 
   const newConvId = conversationId || generateConversationId();
@@ -86,8 +91,8 @@ router.post('/chat', tryCatch(async (req, res) => {
   }
 
   // Persist conversation
-  db.createConversation({ conversationId: newConvId, role: 'user', content: message.trim() });
-  db.createConversation({ conversationId: newConvId, role: 'assistant', content: result.response });
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: result.response });
 
   logger.info('AI chat completed', {
     provider: aiProvider.activeProviderName,
@@ -125,24 +130,28 @@ router.post('/chat/stream', async (req, res) => {
   req.on('close', cleanup);
 
   try {
-    const conversation = conversationId ? db.getConversation(conversationId) : null;
+    const conversation = conversationId ? await db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
     const newConvId = conversationId || generateConversationId();
     const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
     // Save user message first
-    db.createConversation({ conversationId: newConvId, role: 'user', content: message.trim() });
+    await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
 
     let fullResponse = '';
 
-    for await (const chunk of aiProvider.generateChatStream(message.trim(), history, { model: modelToUse })) {
-      fullResponse += chunk;
-      res.write(`data: ${JSON.stringify({ chunk, done: false })}\n\n`);
+    for await (const result of aiProvider.generateChatStream(message.trim(), history, { model: modelToUse })) {
+      // Handle both object format { chunk, provider } and string format
+      const chunkText = typeof result === 'string' ? result : result?.chunk;
+      if (chunkText && typeof chunkText === 'string') {
+        fullResponse += chunkText;
+        res.write(`data: ${JSON.stringify({ chunk: chunkText, done: false })}\n\n`);
+      }
     }
 
     // Save assistant response
     if (fullResponse) {
-      db.createConversation({ conversationId: newConvId, role: 'assistant', content: fullResponse });
+      await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: fullResponse });
     }
 
     res.write(`data: ${JSON.stringify({

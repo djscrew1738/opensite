@@ -75,10 +75,12 @@ export function startPermitJobs() {
     try {
       // Get hot leads created today that haven't been notified via SMS
       const today = new Date().toISOString().split('T')[0];
-      const hotLeads = db.db.prepare(`
+      
+      // Refactored to use async all method
+      const hotLeads = await db.all(`
         SELECT p.*
         FROM permits p
-        WHERE p.leadTier = 'hot'
+        WHERE p.tier = 'hot'
           AND DATE(p.createdAt) = ?
           AND NOT EXISTS (
             SELECT 1 FROM permit_notifications pn
@@ -86,7 +88,7 @@ export function startPermitJobs() {
           )
         ORDER BY p.leadScore DESC
         LIMIT 10
-      `).all(today);
+      `, [today]);
 
       for (const lead of hotLeads) {
         await sendLeadAlert(lead, db, logger);

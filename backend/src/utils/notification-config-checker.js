@@ -14,15 +14,15 @@ const logger = {
 /**
  * Check Email (IMAP) Configuration
  */
-export function checkEmailConfig() {
+export async function checkEmailConfig() {
   const config = {
-    host: db.getSetting('imap_host') || process.env.IMAP_HOST || 'outlook.office365.com',
-    port: parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || '993'),
-    user: db.getSetting('imap_user') || process.env.IMAP_USER || '',
-    pass: db.getSetting('imap_pass') || process.env.IMAP_PASS || '',
+    host: (await db.getSetting('imap_host')) || process.env.IMAP_HOST || 'outlook.office365.com',
+    port: parseInt((await db.getSetting('imap_port')) || process.env.IMAP_PORT || '993'),
+    user: (await db.getSetting('imap_user')) || process.env.IMAP_USER || '',
+    pass: (await db.getSetting('imap_pass')) || process.env.IMAP_PASS || '',
   };
 
-  const enabled = db.getSetting('email_monitor_enabled') === 'true';
+  const enabled = (await db.getSetting('email_monitor_enabled')) === 'true';
   
   const results = {
     enabled,
@@ -65,12 +65,12 @@ export function checkEmailConfig() {
 /**
  * Check Twilio SMS Configuration
  */
-export function checkTwilioConfig() {
+export async function checkTwilioConfig() {
   const config = {
-    accountSid: db.getSetting('twilio_account_sid') || process.env.TWILIO_ACCOUNT_SID,
-    authToken: db.getSetting('twilio_auth_token') || process.env.TWILIO_AUTH_TOKEN,
-    fromPhone: db.getSetting('twilio_from_phone') || process.env.TWILIO_FROM_NUMBER,
-    toPhone: db.getSetting('notify_phone') || process.env.NOTIFY_PHONE_NUMBER,
+    accountSid: (await db.getSetting('twilio_account_sid')) || process.env.TWILIO_ACCOUNT_SID,
+    authToken: (await db.getSetting('twilio_auth_token')) || process.env.TWILIO_AUTH_TOKEN,
+    fromPhone: (await db.getSetting('twilio_from_phone')) || process.env.TWILIO_FROM_NUMBER,
+    toPhone: (await db.getSetting('notify_phone')) || process.env.NOTIFY_PHONE_NUMBER,
   };
 
   const results = {
@@ -176,9 +176,9 @@ export function checkSMTPConfig() {
 /**
  * Run all configuration checks
  */
-export function checkAllNotificationConfigs() {
-  const email = checkEmailConfig();
-  const twilio = checkTwilioConfig();
+export async function checkAllNotificationConfigs() {
+  const email = await checkEmailConfig();
+  const twilio = await checkTwilioConfig();
   const smtp = checkSMTPConfig();
 
   const report = {
@@ -214,8 +214,8 @@ export function checkAllNotificationConfigs() {
 /**
  * Print configuration status to console
  */
-export function printConfigStatus() {
-  const report = checkAllNotificationConfigs();
+export async function printConfigStatus() {
+  const report = await checkAllNotificationConfigs();
 
   console.log('\n' + '='.repeat(60));
   console.log('NOTIFICATION CONFIGURATION STATUS');

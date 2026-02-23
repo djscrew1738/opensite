@@ -136,7 +136,7 @@ class OllamaService {
 
     return this._withRetry(async () => {
       try {
-        const response = await this.client.post('/api/generate', {
+        const payload = {
           model,
           prompt,
           stream: false,
@@ -144,7 +144,14 @@ class OllamaService {
             temperature: options.temperature ?? this.temperature,
             num_predict: options.maxTokens || 2048,
           },
-        });
+        };
+
+        // Add support for images (vision models like llava)
+        if (options.images && Array.isArray(options.images)) {
+          payload.images = options.images;
+        }
+
+        const response = await this.client.post('/api/generate', payload);
 
         this._cbRecordSuccess();
 
@@ -264,22 +271,38 @@ class OllamaService {
 
   /**
    * List available models
+   * Returns standardized format matching other AI providers
    */
   async listAvailableModels() {
     try {
       const response = await this.client.get('/api/tags');
-      return response.data.models.map(m => ({
-        id: m.name,
-        name: m.name,
-        size: m.size,
-        modified: m.modified_at,
-        parameterSize: m.details?.parameter_size,
-      }));
+      const models = response.data?.models || [];
+      
+      return {
+        success: true,
+        models: models.map(m => ({
+          id: m.name,
+          name: m.name,
+          size: m.size,
+          modified: m.modified_at,
+          parameterSize: m.details?.parameter_size,
+          provider: 'ollama',
+        })),
+        defaultModel: this.defaultModel,
+        provider: 'ollama',
+      };
     } catch (error) {
-      return [
-        { id: 'llama3.1', name: 'Llama 3.1', parameterSize: '8B' },
-        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', parameterSize: '7B' },
-      ];
+      logger.warn('[ollama] Failed to list models:', error.message);
+      return {
+        success: true,
+        models: [
+          { id: 'llama3.1', name: 'Llama 3.1', parameterSize: '8B', provider: 'ollama' },
+          { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', parameterSize: '7B', provider: 'ollama' },
+        ],
+        defaultModel: this.defaultModel,
+        provider: 'ollama',
+        cached: true,
+      };
     }
   }
 
@@ -303,6 +326,16 @@ class OllamaService {
     }
     prompt += `User: ${message}\nAssistant:`;
     return prompt;
+  }
+
+  /**
+   * Get chat messages in standardized format
+   * Ollama uses prompt-based format but this method provides consistency
+   * with other providers for the AI provider manager
+   */
+  getChatMessages(message, history = []) {
+    const prompt = this.getChatPrompt(message, history);
+    return { system: '', messages: [{ role: 'user', content: prompt }] };
   }
 
   getLeadScoringPrompt(lead) {

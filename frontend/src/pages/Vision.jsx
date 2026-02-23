@@ -9,7 +9,7 @@ import { visionApi } from '../api/vision';
 import VisionViewer from '../components/vision/VisionViewer';
 import VisionUpload from '../components/vision/VisionUpload';
 import VisionHome from '../components/vision/VisionHome';
-import { PageHeader, EmptyState, ListItemCard, InlineLoader } from '../components/shared';
+import { PageHeader, EmptyState, ListItemCard, InlineLoader, ConfirmDialog } from '../components/shared';
 
 function formatDimensions(w, h) {
   if (!w || !h) return '';
@@ -23,6 +23,7 @@ export default function Vision() {
   const [showHome, setShowHome] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['vision-projects'],
@@ -49,20 +50,26 @@ export default function Vision() {
     queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
   }, [queryClient]);
 
-  const handleDelete = useCallback(async (id, e) => {
+  const handleDelete = useCallback((id, e) => {
     e.stopPropagation();
-    if (!confirm('Delete this project and all its tiles?')) return;
-    await visionApi.deleteProject(id);
-    if (selectedId === id) setSelectedId(null);
-    queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
-  }, [selectedId, queryClient]);
+    const project = projects.find(p => p.id === id);
+    setProjectToDelete(project || { id });
+  }, [projects]);
 
-  const handleAnalyze = useCallback(async (model) => {
+  const confirmDelete = async () => {
+    if (!projectToDelete) return;
+    await visionApi.deleteProject(projectToDelete.id);
+    if (selectedId === projectToDelete.id) setSelectedId(null);
+    queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+    setProjectToDelete(null);
+  };
+
+  const handleAnalyze = useCallback(async (model, type = 'global') => {
     if (!selectedId || analyzing) return;
     setAnalyzing(true);
 
     try {
-      const result = await visionApi.analyze(selectedId, model || selectedModel);
+      const result = await visionApi.analyze(selectedId, model || selectedModel, type);
 
       const poll = setInterval(async () => {
         try {
@@ -84,6 +91,24 @@ export default function Vision() {
     await visionApi.updateLayer(selectedId, layerId, updates);
     refetchProject();
   }, [selectedId, refetchProject]);
+
+  const handleUpdateScale = useCallback(async (scale) => {
+    if (!selectedId) return;
+    await visionApi.updateScale(selectedId, scale);
+    refetchProject();
+  }, [selectedId, refetchProject]);
+
+  const handleConvertToTakeoff = useCallback(async (analysisId) => {
+    if (!selectedId || !analysisId) return;
+    try {
+      const takeoff = await visionApi.convertToTakeoff(selectedId, analysisId);
+      queryClient.invalidateQueries({ queryKey: ['takeoffs'] });
+      return takeoff;
+    } catch (err) {
+      console.error('Conversion failed:', err);
+      throw err;
+    }
+  }, [selectedId, queryClient]);
 
   const renderSidebar = () => (
     <div className="w-72 flex-shrink-0 flex flex-col border-r border-surface-200 dark:border-surface-700
@@ -247,7 +272,10 @@ export default function Vision() {
           <VisionViewer
             project={projectDetail}
             layers={projectDetail.layers || []}
+            analyses={projectDetail.analyses || []}
             onLayerUpdate={handleLayerUpdate}
+            onUpdateScale={handleUpdateScale}
+            onConvertToTakeoff={handleConvertToTakeoff}
             onAnalyze={handleAnalyze}
             analyzing={analyzing}
             selectedModel={selectedModel}
@@ -272,6 +300,18 @@ export default function Vision() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      {projectToDelete && (
+        <ConfirmDialog
+          title="Delete Project?"
+          message={`Are you sure you want to delete "${projectToDelete.name || 'this project'}"? All uploaded blueprints and AI analysis results will be permanently removed.`}
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setProjectToDelete(null)}
+          variant="danger"
+        />
+      )}
     </div>
   );
 }

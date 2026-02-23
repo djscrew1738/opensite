@@ -8,6 +8,18 @@ const apiClient = axios.create({
   timeout: 30000
 });
 
+// Request interceptor - Add authorization token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Reuse the same response interceptor pattern
 apiClient.interceptors.response.use(
   (response) => {
@@ -40,19 +52,9 @@ export const visionApi = {
     formData.append('file', file);
     if (name) formData.append('name', name);
 
-    return axios.post('/api/vision/upload', formData, {
+    return apiClient.post('/vision/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000
-    }).then(res => {
-      const data = res.data;
-      if (data && typeof data === 'object' && 'success' in data) return data.data;
-      return data;
-    }).catch(err => {
-      // Handle 413 Payload Too Large
-      if (err.response?.status === 413) {
-        throw new Error(err.response?.data?.error || 'File too large. Maximum upload size is 100MB.');
-      }
-      throw err;
     });
   },
 
@@ -63,7 +65,11 @@ export const visionApi = {
 
   // AI Analysis
   getModels: () => apiClient.get('/vision/models'),
-  analyze: (projectId, model) => apiClient.post(`/vision/projects/${projectId}/analyze`, { model }),
+  analyze: (projectId, model, type = 'global') => apiClient.post(`/vision/projects/${projectId}/analyze`, { model, type }),
+  convertToTakeoff: (projectId, analysisId) => apiClient.post(`/vision/projects/${projectId}/analyses/${analysisId}/convert`),
+
+  // Scale
+  updateScale: (projectId, scale) => apiClient.put(`/vision/projects/${projectId}/scale`, { scale }),
 
   // Layers
   createLayer: (projectId, data) => apiClient.post(`/vision/projects/${projectId}/layers`, data),

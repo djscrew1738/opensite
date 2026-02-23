@@ -64,6 +64,32 @@ export { Toast, ToastContainer } from './Toast';
 // Data Table
 export { DataTable } from './DataTable';
 
+// Success Animations & Micro-interactions
+export { 
+  SuccessAnimation, 
+  SuccessToast, 
+  UploadSuccess 
+} from './SuccessAnimation';
+
+// Loading Skeletons (Enhanced versions)
+export {
+  TextSkeleton,
+  FormSkeleton,
+  PageSkeleton,
+  ImageSkeleton
+} from './LoadingSkeleton';
+
+// Optimized Images
+export {
+  OptimizedImage,
+  LazyImage,
+  Avatar,
+  BackgroundImage
+} from './OptimizedImage';
+
+// Quick Add FAB
+export { QuickAddFAB } from './QuickAddFAB';
+
 // Field Mode components
 export { FieldModeToggle } from './FieldModeToggle';
 export { 

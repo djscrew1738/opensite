@@ -437,7 +437,7 @@ const BlueprintResults = memo(({
       { key: 'washingMachines', label: 'W/M' },
       { key: 'waterSoftenerPreplumb', label: 'WS Pre' },
       { key: 'waterSoftener', label: 'WS Pre' },
-    ];
+    ].map(f => ({ ...f, count: ai[f.key] || ex[f.key] || 0 }));
     
     const hasFixtures = fixtureList.some(f => (ai[f.key] || ex[f.key]) > 0);
     const total = ai.total || fixtureList.reduce((s, f) => s + (ai[f.key] || ex[f.key] || 0), 0);

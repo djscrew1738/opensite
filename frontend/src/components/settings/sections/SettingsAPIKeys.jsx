@@ -137,8 +137,13 @@ function SettingsAPIKeys({
                 <input type="text" value={twilioSid} onChange={e => setTwilioSid(e.target.value)} className="input font-mono text-sm" placeholder={settings.twilio_account_sid_masked || 'Account SID (AC...)'} />
                 <div className="relative">
                   <input type={showTwilioToken ? 'text' : 'password'} value={twilioToken} onChange={e => setTwilioToken(e.target.value)} className="input pr-10 font-mono text-sm" placeholder={settings.twilio_auth_token_masked || 'Auth Token'} />
-                  <button type="button" onClick={() => setShowTwilioToken(!showTwilioToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showTwilioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <button 
+                    type="button" 
+                    onClick={() => setShowTwilioToken(!showTwilioToken)} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showTwilioToken ? 'Hide auth token' : 'Show auth token'}
+                  >
+                    {showTwilioToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
                 <input type="text" value={twilioPhone} onChange={e => setTwilioPhone(e.target.value)} className="input font-mono text-sm" placeholder={settings.twilio_from_phone || 'From Number (+1...)'} />
@@ -172,8 +177,13 @@ function SettingsAPIKeys({
                         className="input pr-10 font-mono text-sm"
                         placeholder={settings.telegram_bot_token_masked || 'Enter bot token'}
                       />
-                      <button type="button" onClick={() => setShowTelegramToken(!showTelegramToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showTelegramToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <button 
+                        type="button" 
+                        onClick={() => setShowTelegramToken(!showTelegramToken)} 
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={showTelegramToken ? 'Hide bot token' : 'Show bot token'}
+                      >
+                        {showTelegramToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                       </button>
                     </div>
                     <button onClick={handleTestTelegram} disabled={testingTelegram} className="btn-secondary text-sm whitespace-nowrap">

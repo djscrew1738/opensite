@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useToast } from '../../hooks/useToast';
-import {
+import { 
   Plus, Edit3, Trash2, Search, Package, X, Save, Filter,
   Star, Copy, Download, Upload, ChevronDown, ChevronRight,
   DollarSign, TrendingUp, TrendingDown, BarChart3, Grid3X3,
@@ -11,9 +11,9 @@ import {
   Eye, History, Hash, ExternalLink
 } from 'lucide-react';
 import MaterialDetailModal from './MaterialDetailModal';
+import ConfirmDialog from '../shared/ConfirmDialog';
 
-const CATEGORY_LABELS = {
-  pipe: 'Pipe',
+const CATEGORY_LABELS = {  pipe: 'Pipe',
   fittings: 'Fittings',
   fixtures: 'Fixtures',
   valves: 'Valves',
@@ -96,6 +96,9 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   // Detail modal
   const [detailMaterialId, setDetailMaterialId] = useState(null);
+
+  // Deletion state
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
@@ -181,6 +184,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       queryClient.invalidateQueries({ queryKey: ['material-categories'] });
       queryClient.invalidateQueries({ queryKey: ['material-suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['material-stats'] });
+      setDeleteConfirm(null);
       showNotification('Material deleted');
     }
   });
@@ -211,6 +215,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       queryClient.invalidateQueries({ queryKey: ['material-stats'] });
       setSelectedIds(new Set());
       setShowBulkActions(false);
+      setDeleteConfirm(null);
       showNotification(`${data.deleted} materials deleted`);
     }
   });
@@ -298,9 +303,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
   };
 
   const handleDelete = (id, name) => {
-    if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
-      deleteMutation.mutate(id);
-    }
+    setDeleteConfirm({ type: 'single', id, name });
   };
 
   const handleSelectAll = () => {
@@ -322,10 +325,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
   };
 
   const handleBulkDelete = () => {
-    const count = selectedIds.size;
-    if (window.confirm(`Delete ${count} selected material${count !== 1 ? 's' : ''}? This cannot be undone.`)) {
-      bulkDeleteMutation.mutate([...selectedIds]);
-    }
+    setDeleteConfirm({ type: 'bulk', count: selectedIds.size, ids: [...selectedIds] });
   };
 
   const handleBulkPriceUpdate = () => {
@@ -1455,6 +1455,32 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             setDetailMaterialId(null);
             handleDelete(id, name);
           }}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <ConfirmDialog
+          title={deleteConfirm.type === 'bulk' ? 'Bulk Delete Materials?' : 'Delete Material?'}
+          message={
+            deleteConfirm.type === 'bulk'
+              ? `Are you sure you want to delete ${deleteConfirm.count} selected materials? This action cannot be undone.`
+              : `Are you sure you want to delete "${deleteConfirm.name}"? This action cannot be undone.`
+          }
+          confirmLabel={
+            (deleteMutation.isPending || bulkDeleteMutation.isPending)
+              ? 'Deleting...'
+              : deleteConfirm.type === 'bulk' ? 'Delete Selected' : 'Delete'
+          }
+          onConfirm={() => {
+            if (deleteConfirm.type === 'bulk') {
+              bulkDeleteMutation.mutate(deleteConfirm.ids);
+            } else {
+              deleteMutation.mutate(deleteConfirm.id);
+            }
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+          variant="danger"
         />
       )}
     </div>

@@ -24,31 +24,35 @@ const PROVIDER_COLORS = {
 
 /* -- COMPONENTS -- */
 
-const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', description, badge = null }) => (
-  <button
-    onClick={onClick}
-    className={`flex flex-col items-center gap-2 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 transition-all duration-200 min-w-[90px] hover:border-accent-300 hover:shadow-md active:scale-95`}
-  >
-    <div className="relative">
-      <Icon className={`w-6 h-6 ${color}`} />
-      {badge && (
-        <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1">
-          {badge}
-        </span>
-      )}
-    </div>
-    <span className="text-xs font-medium text-surface-600 dark:text-surface-400">{label}</span>
-    {description && <span className="text-[10px] text-surface-400">{description}</span>}
-  </button>
-);
+const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', description, badge = null }) => {
+  if (!Icon) return null;
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center gap-2 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 transition-all duration-200 min-w-[90px] hover:border-accent-300 hover:shadow-md active:scale-95`}
+    >
+      <div className="relative">
+        <Icon className={`w-6 h-6 ${color}`} />
+        {badge && (
+          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1">
+            {badge}
+          </span>
+        )}
+      </div>
+      <span className="text-xs font-medium text-surface-600 dark:text-surface-400">{label}</span>
+      {description && <span className="text-[10px] text-surface-400">{description}</span>}
+    </button>
+  );
+};
 
 const StatusCard = ({ title, status, message, icon: Icon, color, onAction, actionLabel }) => {
+  if (!Icon) return null;
   const colors = {
     success: { border: 'border-emerald-200', bg: 'bg-emerald-50/80', iconColor: 'text-emerald-500', text: 'text-emerald-700' },
     warning: { border: 'border-amber-200', bg: 'bg-amber-50/80', iconColor: 'text-amber-500', text: 'text-amber-700' },
     error: { border: 'border-red-200', bg: 'bg-red-50/80', iconColor: 'text-red-500', text: 'text-red-700' },
     info: { border: 'border-blue-200', bg: 'bg-blue-50/80', iconColor: 'text-blue-500', text: 'text-blue-700' },
-  }[status];
+  }[status || 'info'];
 
   return (
     <div className={`p-4 rounded-xl border ${colors.border} ${colors.bg} dark:bg-opacity-10`}>
@@ -68,28 +72,32 @@ const StatusCard = ({ title, status, message, icon: Icon, color, onAction, actio
   );
 };
 
-const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600', onClick }) => (
-  <div 
-    onClick={onClick}
-    className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 transition-all cursor-pointer group"
-  >
-    <div className="flex items-start justify-between mb-2">
-      <div className={`p-2 rounded-lg ${color.replace('text-', 'bg-').replace('600', '100')}`}>
-        <Icon className={`w-4 h-4 ${color}`} />
+const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600', onClick }) => {
+  if (!Icon) return null;
+  return (
+    <div 
+      onClick={onClick}
+      className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 transition-all cursor-pointer group"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div className={`p-2 rounded-lg ${color.replace('text-', 'bg-').replace('600', '100')}`}>
+          <Icon className={`w-4 h-4 ${color}`} />
+        </div>
       </div>
+      <div className="text-2xl font-bold text-surface-900 dark:text-surface-100">{value}</div>
+      <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">{label}</div>
+      {subtext && <div className="text-xs text-surface-400 mt-1">{subtext}</div>}
     </div>
-    <div className="text-2xl font-bold text-surface-900 dark:text-surface-100">{value}</div>
-    <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">{label}</div>
-    {subtext && <div className="text-xs text-surface-400 mt-1">{subtext}</div>}
-  </div>
-);
+  );
+};
 
 const ConfigCategory = ({ icon: Icon, title, description, status, onClick, configured = false }) => {
+  if (!Icon) return null;
   const statusColors = {
     configured: { dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Configured' },
     partial: { dot: 'bg-amber-500', text: 'text-amber-600', label: 'Partial' },
     empty: { dot: 'bg-slate-300', text: 'text-slate-400', label: 'Not Configured' },
-  }[status];
+  }[status || 'empty'];
 
   return (
     <button
@@ -115,11 +123,12 @@ const ConfigCategory = ({ icon: Icon, title, description, status, onClick, confi
 };
 
 const HealthItem = ({ label, value, status, icon: Icon }) => {
+  if (!Icon) return null;
   const colors = {
     good: 'text-emerald-600 bg-emerald-50',
     warning: 'text-amber-600 bg-amber-50',
     error: 'text-red-600 bg-red-50',
-  }[status];
+  }[status || 'good'];
 
   return (
     <div className="flex items-center justify-between py-3 border-b border-surface-100 dark:border-surface-700 last:border-0">
@@ -142,7 +151,7 @@ export default function SettingsHome({
   settings = {},
   metrics = {},
   config = {},
-  activeProvider = 'ollama',
+  activeProvider = 'openclaw',
   connected = false,
   availableModels = [],
   onTabChange,

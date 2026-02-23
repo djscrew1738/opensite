@@ -215,14 +215,14 @@ export async function scoreAllUnscored(db, logger, config = {}, batchSize = 50) 
   logger.info('Starting permit scoring job...');
 
   while (true) {
-    const permits = db.getAllPermits({ tier: 'unscored', limit: batchSize });
+    const permits = await db.getAllPermits({ tier: 'unscored', limit: batchSize });
     if (permits.length === 0) break;
 
     for (const permit of permits) {
       try {
         const classification = await scorePermit(permit, logger, config);
 
-        db.updatePermit(permit.id, {
+        await db.updatePermit(permit.id, {
           leadScore: classification.score,
           leadTier: classification.tier,
           aiClassification: classification,

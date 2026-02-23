@@ -12,7 +12,7 @@ class DatabaseOptimizations {
    * @param {Array} records - Array of records
    * @returns {Array} Inserted records
    */
-  batchInsert(table, records, columns) {
+  async batchInsert(table, records, columns) {
     if (!records || records.length === 0) {
       return [];
     }
@@ -20,17 +20,22 @@ class DatabaseOptimizations {
     const placeholders = columns.map(() => '?').join(', ');
     const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
 
-    const stmt = db.db.prepare(sql);
-
-    const transaction = db.db.transaction((recs) => {
-      for (const record of recs) {
-        stmt.run(...columns.map(col => record[col]));
+    if (db.db && db.db.transaction) {
+      const stmt = db.db.prepare(sql);
+      const transaction = db.db.transaction((recs) => {
+        for (const record of recs) {
+          stmt.run(...columns.map(col => record[col]));
+        }
+      });
+      transaction(records);
+    } else {
+      // Async-native (Postgres)
+      for (const record of records) {
+        await db.run(sql, columns.map(col => record[col]));
       }
-    });
+    }
 
-    transaction(records);
     logger.info('Batch insert completed', { table, count: records.length });
-
     return records;
   }
 
@@ -76,9 +81,15 @@ class DatabaseOptimizations {
    * @param {Function} fn - Transaction function
    * @returns {*} Transaction result
    */
-  transaction(fn) {
-    const transaction = db.db.transaction(fn);
-    return transaction();
+  async transaction(fn) {
+    if (db.db && db.db.transaction) {
+      const transaction = db.db.transaction(fn);
+      return transaction();
+    } else {
+      // Basic async implementation for Postgres
+      // In a real app, you'd want proper BEGIN/COMMIT/ROLLBACK here
+      return await fn();
+    }
   }
 
   /**
@@ -86,10 +97,10 @@ class DatabaseOptimizations {
    * @param {object} filters - Query filters
    * @returns {Array} Leads with related data
    */
-  getLeadsWithEstimates(filters = {}) {
+  async getLeadsWithEstimates(filters = {}) {
     const cacheKey = `leads:with-estimates:${JSON.stringify(filters)}`;
 
-    return this.getCached(cacheKey, () => {
+    return this.getCached(cacheKey, async () => {
       let sql = `
         SELECT
           l.*,
@@ -120,8 +131,7 @@ class DatabaseOptimizations {
         params.push(filters.limit);
       }
 
-      const stmt = db.db.prepare(sql);
-      return stmt.all(...params);
+      return await db.all(sql, params);
     }, 30);
   }
 
@@ -129,28 +139,33 @@ class DatabaseOptimizations {
    * Get dashboard stats (optimized single query)
    * @returns {object} Dashboard statistics
    */
-  getDashboardStatsOptimized() {
-    const cacheKey = 'dashboard:stats:optimized';
+  async getDashboardStatsOptimized(userId = null) {
+    const cacheKey = `dashboard:stats:optimized:${userId || 'global'}`;
 
-    return this.getCached(cacheKey, () => {
+    return this.getCached(cacheKey, async () => {
+      // Include records owned by user OR unassigned (userId IS NULL or empty)
+      const userFilter = userId ? 'WHERE (userId = ? OR userId IS NULL OR userId = \'\')' : '';
+      const userFilterAnd = userId ? 'AND (userId = ? OR userId IS NULL OR userId = \'\')' : '';
+      const params = userId ? [userId] : [];
+
       // Single query to get all stats
-      const stats = db.db.prepare(`
+      const stats = await db.get(`
         SELECT
-          (SELECT COUNT(*) FROM leads) as totalLeads,
-          (SELECT COUNT(*) FROM leads WHERE status = 'hot') as hotLeadsCount,
-          (SELECT COALESCE(SUM(value), 0) FROM leads WHERE status = 'hot') as pipelineValue,
-          (SELECT COUNT(*) FROM projects WHERE status = 'active') as activeProjectsCount
-      `).get();
+          (SELECT COUNT(*) FROM leads ${userFilter}) as totalLeads,
+          (SELECT COUNT(*) FROM leads WHERE status = 'hot' ${userFilterAnd}) as hotLeadsCount,
+          (SELECT COALESCE(SUM(value), 0) FROM leads WHERE status = 'hot' ${userFilterAnd}) as pipelineValue,
+          (SELECT COUNT(*) FROM projects WHERE status = 'active' ${userFilterAnd}) as activeProjectsCount
+      `, userId ? [userId, userId, userId, userId] : []);
 
       // Get top leads
-      const hotLeads = db.db.prepare(`
-        SELECT * FROM leads WHERE status = 'hot' ORDER BY score DESC LIMIT 3
-      `).all();
+      const hotLeads = await db.all(`
+        SELECT * FROM leads WHERE status = 'hot' ${userFilterAnd} ORDER BY score DESC LIMIT 3
+      `, params);
 
       // Get active projects
-      const activeProjects = db.db.prepare(`
-        SELECT * FROM projects WHERE status = 'active' ORDER BY updatedAt DESC LIMIT 5
-      `).all();
+      const activeProjects = await db.all(`
+        SELECT * FROM projects WHERE status = 'active' ${userFilterAnd} ORDER BY updatedAt DESC LIMIT 5
+      `, params);
 
       return {
         ...stats,
@@ -165,23 +180,23 @@ class DatabaseOptimizations {
    * @param {string} query - Search query
    * @returns {object} Search results
    */
-  globalSearch(query) {
+  async globalSearch(query) {
     const searchPattern = `%${query}%`;
 
     const results = {
-      leads: db.db.prepare(`
+      leads: await db.all(`
         SELECT id, name, company, location, 'lead' as type
         FROM leads
         WHERE name LIKE ? OR company LIKE ? OR location LIKE ?
         LIMIT 10
-      `).all(searchPattern, searchPattern, searchPattern),
+      `, [searchPattern, searchPattern, searchPattern]),
 
-      projects: db.db.prepare(`
+      projects: await db.all(`
         SELECT id, name, status, 'project' as type
         FROM projects
         WHERE name LIKE ?
         LIMIT 10
-      `).all(searchPattern)
+      `, [searchPattern])
     };
 
     return results;
@@ -192,26 +207,36 @@ class DatabaseOptimizations {
    * @param {string} table - Table name
    * @param {Array} updates - Array of {id, data} objects
    */
-  bulkUpdate(table, updates) {
+  async bulkUpdate(table, updates) {
     if (!updates || updates.length === 0) {
       return;
     }
 
-    const transaction = db.db.transaction((items) => {
-      for (const item of items) {
+    if (db.db && db.db.transaction) {
+      const transaction = db.db.transaction((items) => {
+        for (const item of items) {
+          const keys = Object.keys(item.data);
+          const values = Object.values(item.data);
+          const setClause = keys.map(k => `${k} = ?`).join(', ');
+
+          const stmt = db.db.prepare(`
+            UPDATE ${table} SET ${setClause}, updatedAt = ? WHERE id = ?
+          `);
+
+          stmt.run(...values, new Date().toISOString(), item.id);
+        }
+      });
+      transaction(updates);
+    } else {
+      // Async-native (Postgres)
+      for (const item of updates) {
         const keys = Object.keys(item.data);
         const values = Object.values(item.data);
         const setClause = keys.map(k => `${k} = ?`).join(', ');
-
-        const stmt = db.db.prepare(`
-          UPDATE ${table} SET ${setClause}, updatedAt = ? WHERE id = ?
-        `);
-
-        stmt.run(...values, new Date().toISOString(), item.id);
+        await db.run(`UPDATE ${table} SET ${setClause}, updatedAt = ? WHERE id = ?`, [...values, new Date().toISOString(), item.id]);
       }
-    });
-
-    transaction(updates);
+    }
+    
     logger.info('Bulk update completed', { table, count: updates.length });
   }
 
@@ -220,14 +245,14 @@ class DatabaseOptimizations {
    * @param {string} table - Table name
    * @returns {object} Table stats
    */
-  getTableStats(table) {
-    const stats = db.db.prepare(`
+  async getTableStats(table) {
+    const stats = await db.get(`
       SELECT
         COUNT(*) as count,
         MIN(createdAt) as oldestRecord,
         MAX(createdAt) as newestRecord
       FROM ${table}
-    `).get();
+    `);
 
     return stats;
   }
@@ -235,18 +260,22 @@ class DatabaseOptimizations {
   /**
    * Vacuum database (optimize)
    */
-  vacuum() {
+  async vacuum() {
     logger.info('Vacuuming database...');
-    db.db.exec('VACUUM');
+    if (db.db && typeof db.db.exec === 'function') {
+      await db.exec('VACUUM');
+    } else {
+      await db.exec('VACUUM FULL'); // Postgres equivalent or similar
+    }
     logger.info('Database vacuumed');
   }
 
   /**
    * Analyze database (update stats)
    */
-  analyze() {
+  async analyze() {
     logger.info('Analyzing database...');
-    db.db.exec('ANALYZE');
+    await db.exec('ANALYZE');
     logger.info('Database analyzed');
   }
 }

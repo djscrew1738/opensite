@@ -24,12 +24,12 @@ router.post('/export', tryCatch(async (req, res) => {
     return res.error('Run ID is required', 'VALIDATION_ERROR', null, 400);
   }
 
-  const run = db.getDiscoveryRun(runId);
+  const run = await db.getDiscoveryRun(runId);
   if (!run) {
     return res.error('Run not found', 'NOT_FOUND', null, 404);
   }
 
-  const leads = db.getDiscoveryLeadsByRun(runId, { tier });
+  const leads = await db.getDiscoveryLeadsByRun(runId, { tier });
   const filteredLeads = minScore ? leads.filter(l => (l.icpScore || 0) >= minScore) : leads;
 
   let result;
@@ -59,7 +59,7 @@ router.post('/export/by-tier', tryCatch(async (req, res) => {
     return res.error('Run ID is required', 'VALIDATION_ERROR', null, 400);
   }
 
-  const leads = db.getDiscoveryLeadsByRun(runId);
+  const leads = await db.getDiscoveryLeadsByRun(runId);
   const results = leadExport.exportByTier(leads);
 
   res.success(results, 'Tier exports created');
@@ -115,7 +115,7 @@ router.delete('/exports/:filename', tryCatch(async (req, res) => {
  * POST /api/discovery/leads/:id/schedule
  */
 router.post('/leads/:id/schedule', tryCatch(async (req, res) => {
-  const lead = db.getDiscoveryLead(req.params.id);
+  const lead = await db.getDiscoveryLead(req.params.id);
   if (!lead) {
     return res.error('Lead not found', 'NOT_FOUND', null, 404);
   }
@@ -156,12 +156,12 @@ router.get('/follow-ups/upcoming', tryCatch(async (req, res) => {
  * GET /api/discovery/runs/:runId/analytics
  */
 router.get('/runs/:runId/analytics', tryCatch(async (req, res) => {
-  const run = db.getDiscoveryRun(req.params.runId);
+  const run = await db.getDiscoveryRun(req.params.runId);
   if (!run) {
     return res.error('Run not found', 'NOT_FOUND', null, 404);
   }
 
-  const leads = db.getDiscoveryLeadsByRun(req.params.runId);
+  const leads = await db.getDiscoveryLeadsByRun(req.params.runId);
   const analytics = sourceAnalytics.analyzeDiscoveryRun(run, leads);
 
   res.success(analytics);
@@ -180,9 +180,9 @@ router.post('/analytics/compare-runs', tryCatch(async (req, res) => {
 
   const analyses = [];
   for (const runId of runIds) {
-    const run = db.getDiscoveryRun(runId);
+    const run = await db.getDiscoveryRun(runId);
     if (run) {
-      const leads = db.getDiscoveryLeadsByRun(runId);
+      const leads = await db.getDiscoveryLeadsByRun(runId);
       analyses.push(sourceAnalytics.analyzeDiscoveryRun(run, leads));
     }
   }
@@ -200,10 +200,10 @@ router.get('/analytics/progression', tryCatch(async (req, res) => {
   const days = Math.min(Math.max(parseInt(daysParam) || 30, 1), 365);
 
   // Get all discovery leads
-  const runs = db.getAllDiscoveryRuns();
+  const runs = await db.getAllDiscoveryRuns();
   let allLeads = [];
   for (const run of runs) {
-    const leads = db.getDiscoveryLeadsByRun(run.id);
+    const leads = await db.getDiscoveryLeadsByRun(run.id);
     allLeads = allLeads.concat(leads);
   }
 
@@ -216,11 +216,11 @@ router.get('/analytics/progression', tryCatch(async (req, res) => {
  * GET /api/discovery/analytics/permit-sources
  */
 router.get('/analytics/permit-sources', tryCatch(async (req, res) => {
-  const dataSources = db.getAllDataSources();
+  const dataSources = await db.getAllDataSources();
   const analyses = [];
 
   for (const source of dataSources) {
-    const permits = db.getAllPermits({ sourceId: source.id });
+    const permits = await db.getAllPermits({ sourceId: source.id });
     if (permits.length > 0) {
       analyses.push(sourceAnalytics.analyzePermitSource(permits, source.name));
     }
@@ -237,12 +237,12 @@ router.get('/analytics/permit-sources', tryCatch(async (req, res) => {
 router.get('/analytics/report', tryCatch(async (req, res) => {
   const { startDate, endDate } = req.query;
 
-  const runs = db.getAllDiscoveryRuns();
-  const dataSources = db.getAllDataSources();
+  const runs = await db.getAllDiscoveryRuns();
+  const dataSources = await db.getAllDataSources();
 
   const permitSources = [];
   for (const source of dataSources) {
-    const permits = db.getAllPermits({ sourceId: source.id });
+    const permits = await db.getAllPermits({ sourceId: source.id });
     if (permits.length > 0) {
       permitSources.push(sourceAnalytics.analyzePermitSource(permits, source.name));
     }
@@ -263,7 +263,7 @@ router.get('/analytics/report', tryCatch(async (req, res) => {
 router.post('/runs/:runId/deduplicate', tryCatch(async (req, res) => {
   const { threshold = 0.7 } = req.body;
 
-  const leads = db.getDiscoveryLeadsByRun(req.params.runId);
+  const leads = await db.getDiscoveryLeadsByRun(req.params.runId);
   const result = deduplication.deduplicateLeads(leads, threshold);
 
   res.success({
@@ -283,8 +283,8 @@ router.post('/runs/:runId/deduplicate', tryCatch(async (req, res) => {
 router.post('/deduplicate-cross-source', tryCatch(async (req, res) => {
   const { runIdA, runIdB, threshold = 0.7 } = req.body;
 
-  const leadsA = db.getDiscoveryLeadsByRun(runIdA);
-  const leadsB = db.getDiscoveryLeadsByRun(runIdB);
+  const leadsA = await db.getDiscoveryLeadsByRun(runIdA);
+  const leadsB = await db.getDiscoveryLeadsByRun(runIdB);
 
   const result = deduplication.crossSourceDeduplicate(leadsA, leadsB, threshold);
 

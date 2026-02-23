@@ -25,7 +25,7 @@ export async function runIngestion(db, logger, options = {}) {
 
   try {
     // 1. Load active sources
-    let sources = db.getActiveDataSources();
+    let sources = await db.getActiveDataSources();
 
     if (sourceFilter) {
       sources = sources.filter(s => s.name === sourceFilter);
@@ -60,11 +60,12 @@ export async function runIngestion(db, logger, options = {}) {
         for (const permit of permits) {
           try {
             // Check if permit already exists
-            const existing = db.db.prepare(
-              'SELECT id FROM permits WHERE sourceId = ? AND sourcePermitId = ?'
-            ).get(permit.sourceId, permit.sourcePermitId);
+            const existing = await db.get(
+              'SELECT id FROM permits WHERE sourceId = ? AND sourcePermitId = ?',
+              [permit.sourceId, permit.sourcePermitId]
+            );
 
-            const result = db.upsertPermit(permit);
+            const result = await db.upsertPermit(permit);
             const permitId = result.id;
             const isNew = !existing;
 
@@ -78,33 +79,33 @@ export async function runIngestion(db, logger, options = {}) {
 
             // 5. Link builders
             if (permit.contractorName) {
-              const builder = db.upsertBuilder({
+              const builder = await db.upsertBuilder({
                 name: permit.contractorName,
                 company: permit.contractorName,
                 licenseNumber: permit.contractorLicense
               });
               if (builder) {
-                db.linkPermitBuilder(permitId, builder.id, 'contractor');
+                await db.linkPermitBuilder(permitId, builder.id, 'contractor');
                 stats.buildersLinked++;
               }
             }
 
             if (permit.applicantName && permit.applicantName !== permit.contractorName) {
-              const builder = db.upsertBuilder({
+              const builder = await db.upsertBuilder({
                 name: permit.applicantName
               });
               if (builder) {
-                db.linkPermitBuilder(permitId, builder.id, 'applicant');
+                await db.linkPermitBuilder(permitId, builder.id, 'applicant');
                 stats.buildersLinked++;
               }
             }
 
             if (permit.ownerName && permit.ownerName !== permit.contractorName && permit.ownerName !== permit.applicantName) {
-              const builder = db.upsertBuilder({
+              const builder = await db.upsertBuilder({
                 name: permit.ownerName
               });
               if (builder) {
-                db.linkPermitBuilder(permitId, builder.id, 'owner');
+                await db.linkPermitBuilder(permitId, builder.id, 'owner');
                 stats.buildersLinked++;
               }
             }
@@ -116,13 +117,13 @@ export async function runIngestion(db, logger, options = {}) {
         }
 
         // Update source fetch status
-        db.updateDataSourceFetchStatus(source.id, permits.length, false);
+        await db.updateDataSourceFetchStatus(source.id, permits.length, false);
 
         logger.info(`[${source.name}] Complete: ${sourceNew} new, ${sourceUpdated} updated`);
 
       } catch (err) {
         stats.errors++;
-        db.updateDataSourceFetchStatus(source.id, 0, true);
+        await db.updateDataSourceFetchStatus(source.id, 0, true);
         logger.error(`[${source.name}] Ingestion failed: ${err.message}`);
       }
     }

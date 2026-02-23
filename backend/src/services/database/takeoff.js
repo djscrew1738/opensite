@@ -11,14 +11,14 @@ export function addTakeoffOperations(DatabaseService) {
   // ==================== Material Operations ====================
   
   // Create new material
-  DatabaseService.prototype.createMaterial = function(data) {
+  DatabaseService.prototype.createMaterial = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO materials (id, name, category, unit, unitCost, supplier, partNumber, description, notes, markup, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.name,
       data.category,
@@ -31,18 +31,18 @@ export function addTakeoffOperations(DatabaseService) {
       data.markup || 0,
       now,
       now
-    );
+    ]);
     
-    return this.getMaterial(id);
+    return await this.getMaterial(id);
   };
 
   // Get single material
-  DatabaseService.prototype.getMaterial = function(id) {
-    return this.db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+  DatabaseService.prototype.getMaterial = async function(id) {
+    return await this.get('SELECT * FROM materials WHERE id = ?', [id]);
   };
 
   // Get all materials with optional filtering
-  DatabaseService.prototype.getAllMaterials = function(filters = {}) {
+  DatabaseService.prototype.getAllMaterials = async function(filters = {}) {
     let query = 'SELECT * FROM materials WHERE 1=1';
     const params = [];
     
@@ -59,22 +59,22 @@ export function addTakeoffOperations(DatabaseService) {
     
     query += ' ORDER BY name';
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Update material
-  DatabaseService.prototype.updateMaterial = function(id, data) {
-    const existing = this.getMaterial(id);
+  DatabaseService.prototype.updateMaterial = async function(id, data) {
+    const existing = await this.getMaterial(id);
     if (!existing) return null;
     
     // Log price change if unitCost is being updated
     if (data.unitCost !== undefined && data.unitCost !== existing.unitCost) {
-      this.logPriceChange(id, existing.unitCost, data.unitCost);
+      await this.logPriceChange(id, existing.unitCost, data.unitCost);
     }
     
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE materials SET
         name = COALESCE(?, name),
         category = COALESCE(?, category),
@@ -87,7 +87,7 @@ export function addTakeoffOperations(DatabaseService) {
         markup = COALESCE(?, markup),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.name,
       data.category,
       data.unit,
@@ -99,134 +99,173 @@ export function addTakeoffOperations(DatabaseService) {
       data.markup,
       now,
       id
-    );
+    ]);
     
-    return this.getMaterial(id);
+    return await this.getMaterial(id);
   };
 
   // Delete material
-  DatabaseService.prototype.deleteMaterial = function(id) {
-    const result = this.db.prepare('DELETE FROM materials WHERE id = ?').run(id);
+  DatabaseService.prototype.deleteMaterial = async function(id) {
+    const result = await this.run('DELETE FROM materials WHERE id = ?', [id]);
     return result.changes > 0;
   };
 
   // Get material categories
-  DatabaseService.prototype.getMaterialCategories = function() {
-    const rows = this.db.prepare('SELECT DISTINCT category FROM materials ORDER BY category').all();
+  DatabaseService.prototype.getMaterialCategories = async function() {
+    const rows = await this.all('SELECT DISTINCT category FROM materials ORDER BY category');
     return rows.map(r => r.category);
   };
 
   // Get material suppliers
-  DatabaseService.prototype.getMaterialSuppliers = function() {
-    const rows = this.db.prepare('SELECT DISTINCT supplier FROM materials WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier').all();
+  DatabaseService.prototype.getMaterialSuppliers = async function() {
+    const rows = await this.all('SELECT DISTINCT supplier FROM materials WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier');
     return rows.map(r => r.supplier);
   };
 
   // Log a price change
-  DatabaseService.prototype.logPriceChange = function(materialId, oldPrice, newPrice) {
+  DatabaseService.prototype.logPriceChange = async function(materialId, oldPrice, newPrice) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO price_history (id, materialId, oldPrice, newPrice, changedAt)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, materialId, oldPrice, newPrice, now);
+    `, [id, materialId, oldPrice, newPrice, now]);
   };
 
   // Get price history for a material
-  DatabaseService.prototype.getPriceHistory = function(materialId, limit = 50) {
-    return this.db.prepare(`
+  DatabaseService.prototype.getPriceHistory = async function(materialId, limit = 50) {
+    return await this.all(`
       SELECT * FROM price_history 
       WHERE materialId = ? 
       ORDER BY changedAt DESC 
       LIMIT ?
-    `).all(materialId, limit);
+    `, [materialId, limit]);
   };
 
   // Bulk create materials (transaction)
-  DatabaseService.prototype.bulkCreateMaterials = function(items) {
+  DatabaseService.prototype.bulkCreateMaterials = async function(items) {
+    // Note: For now, keeping transactions synchronous for SQLite but making the method async
+    // This will need careful handling when fully porting to PostgreSQL
     const now = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      INSERT INTO materials (id, name, category, unit, unitCost, supplier, partNumber, description, notes, markup, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    
+    if (this.db && this.db.transaction) {
+      const stmt = this.db.prepare(`
+        INSERT INTO materials (id, name, category, unit, unitCost, supplier, partNumber, description, notes, markup, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-    const insertMany = this.db.transaction((materials) => {
+      const insertMany = this.db.transaction((materials) => {
+        const created = [];
+        for (const m of materials) {
+          const id = uuidv4();
+          stmt.run(
+            id, m.name, m.category || 'misc', m.unit || 'ea',
+            Number(m.unitCost) || 0, m.supplier || '', m.partNumber || '',
+            m.description || '', m.notes || '', Number(m.markup) || 0, now, now
+          );
+          created.push(id);
+        }
+        return created;
+      });
+
+      const ids = insertMany(items);
+      const results = [];
+      for (const id of ids) {
+        results.push(await this.getMaterial(id));
+      }
+      return results;
+    } else {
+      // PostgreSQL or other async-native implementation
       const created = [];
-      for (const m of materials) {
-        const id = uuidv4();
-        stmt.run(
-          id, m.name, m.category || 'misc', m.unit || 'ea',
-          Number(m.unitCost) || 0, m.supplier || '', m.partNumber || '',
-          m.description || '', m.notes || '', Number(m.markup) || 0, now, now
-        );
-        created.push(id);
+      for (const m of items) {
+        created.push(await this.createMaterial(m));
       }
       return created;
-    });
-
-    const ids = insertMany(items);
-    return ids.map(id => this.getMaterial(id));
+    }
   };
 
   // Bulk delete materials (transaction)
-  DatabaseService.prototype.bulkDeleteMaterials = function(ids) {
-    const deleteMany = this.db.transaction((materialIds) => {
+  DatabaseService.prototype.bulkDeleteMaterials = async function(ids) {
+    if (this.db && this.db.transaction) {
+      const deleteMany = this.db.transaction((materialIds) => {
+        let totalDeleted = 0;
+        const deleteStmt = this.db.prepare('DELETE FROM materials WHERE id = ?');
+        for (const id of materialIds) {
+          const result = deleteStmt.run(id);
+          totalDeleted += result.changes;
+        }
+        return totalDeleted;
+      });
+      
+      return deleteMany(ids);
+    } else {
       let totalDeleted = 0;
-      const deleteStmt = this.db.prepare('DELETE FROM materials WHERE id = ?');
-      for (const id of materialIds) {
-        const result = deleteStmt.run(id);
-        totalDeleted += result.changes;
+      for (const id of ids) {
+        if (await this.deleteMaterial(id)) totalDeleted++;
       }
       return totalDeleted;
-    });
-    
-    return deleteMany(ids);
+    }
   };
 
   // Bulk update prices (transaction)
-  DatabaseService.prototype.bulkUpdatePrices = function(ids, percentageChange) {
+  DatabaseService.prototype.bulkUpdatePrices = async function(ids, percentageChange) {
     const now = new Date().toISOString();
     const multiplier = 1 + (percentageChange / 100);
 
-    const updateMany = this.db.transaction((materialIds) => {
+    if (this.db && this.db.transaction) {
+      const updateMany = this.db.transaction((materialIds) => {
+        const histories = [];
+        for (const id of materialIds) {
+          // Note: getMaterial is now async in prototype but db.prepare is sync
+          const material = this.db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+          if (!material) continue;
+          const oldPrice = material.unitCost;
+          const newPrice = Math.round(oldPrice * multiplier * 100) / 100;
+
+          // Log price change
+          this.db.prepare(
+            'INSERT INTO price_history (id, materialId, oldPrice, newPrice, changedAt) VALUES (?, ?, ?, ?, ?)'
+          ).run(uuidv4(), id, oldPrice, newPrice, now);
+
+          // Update price
+          this.db.prepare(
+            'UPDATE materials SET unitCost = ?, updatedAt = ? WHERE id = ?'
+          ).run(newPrice, now, id);
+
+          histories.push({ id, oldPrice, newPrice });
+        }
+        return histories;
+      });
+
+      return updateMany(ids);
+    } else {
       const histories = [];
-      for (const id of materialIds) {
-        const material = this.getMaterial(id);
+      for (const id of ids) {
+        const material = await this.getMaterial(id);
         if (!material) continue;
         const oldPrice = material.unitCost;
         const newPrice = Math.round(oldPrice * multiplier * 100) / 100;
-
-        // Log price change
-        this.db.prepare(
-          'INSERT INTO price_history (id, materialId, oldPrice, newPrice, changedAt) VALUES (?, ?, ?, ?, ?)'
-        ).run(uuidv4(), id, oldPrice, newPrice, now);
-
-        // Update price
-        this.db.prepare(
-          'UPDATE materials SET unitCost = ?, updatedAt = ? WHERE id = ?'
-        ).run(newPrice, now, id);
-
+        await this.updateMaterial(id, { unitCost: newPrice });
         histories.push({ id, oldPrice, newPrice });
       }
       return histories;
-    });
-
-    return updateMany(ids);
+    }
   };
 
   // ==================== Takeoff Operations ====================
 
   // Create new takeoff
-  DatabaseService.prototype.createTakeoff = function(data) {
+  DatabaseService.prototype.createTakeoff = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
-      INSERT INTO takeoffs (id, name, blueprintId, projectId, status, notes, totalCost, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    await this.run(`
+      INSERT INTO takeoffs (id, userId, name, blueprintId, projectId, status, notes, totalCost, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
       id,
+      data.userId || null,
       data.name,
       data.blueprintId || null,
       data.projectId || null,
@@ -235,14 +274,14 @@ export function addTakeoffOperations(DatabaseService) {
       data.totalCost || 0,
       now,
       now
-    );
+    ]);
     
-    return this.getTakeoff(id);
+    return await this.getTakeoff(id);
   };
 
   // Get single takeoff
-  DatabaseService.prototype.getTakeoff = function(id) {
-    const takeoff = this.db.prepare('SELECT * FROM takeoffs WHERE id = ?').get(id);
+  DatabaseService.prototype.getTakeoff = async function(id) {
+    const takeoff = await this.get('SELECT * FROM takeoffs WHERE id = ?', [id]);
     if (takeoff && takeoff.measurements) {
       try { takeoff.measurements = JSON.parse(takeoff.measurements); } catch (e) {}
     }
@@ -253,10 +292,15 @@ export function addTakeoffOperations(DatabaseService) {
   };
 
   // Get all takeoffs with optional filtering
-  DatabaseService.prototype.getAllTakeoffs = function(filters = {}) {
+  DatabaseService.prototype.getAllTakeoffs = async function(filters = {}) {
     let query = 'SELECT * FROM takeoffs WHERE 1=1';
     const params = [];
     
+    if (filters.userId) {
+      query += ' AND userId = ?';
+      params.push(filters.userId);
+    }
+
     if (filters.status) {
       query += ' AND status = ?';
       params.push(filters.status);
@@ -269,17 +313,17 @@ export function addTakeoffOperations(DatabaseService) {
     
     query += ' ORDER BY updatedAt DESC';
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Update takeoff
-  DatabaseService.prototype.updateTakeoff = function(id, data) {
-    const existing = this.getTakeoff(id);
+  DatabaseService.prototype.updateTakeoff = async function(id, data) {
+    const existing = await this.getTakeoff(id);
     if (!existing) return null;
     
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE takeoffs SET
         name = COALESCE(?, name),
         blueprintId = COALESCE(?, blueprintId),
@@ -292,7 +336,7 @@ export function addTakeoffOperations(DatabaseService) {
         totalCost = COALESCE(?, totalCost),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.name,
       data.blueprintId,
       data.projectId,
@@ -304,28 +348,28 @@ export function addTakeoffOperations(DatabaseService) {
       data.totalCost,
       now,
       id
-    );
+    ]);
     
-    return this.getTakeoff(id);
+    return await this.getTakeoff(id);
   };
 
   // Delete takeoff
-  DatabaseService.prototype.deleteTakeoff = function(id) {
-    const result = this.db.prepare('DELETE FROM takeoffs WHERE id = ?').run(id);
+  DatabaseService.prototype.deleteTakeoff = async function(id) {
+    const result = await this.run('DELETE FROM takeoffs WHERE id = ?', [id]);
     return result.changes > 0;
   };
 
   // ==================== Takeoff Item Operations ====================
 
   // Create takeoff item
-  DatabaseService.prototype.createTakeoffItem = function(data) {
+  DatabaseService.prototype.createTakeoffItem = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO takeoff_items (id, takeoffId, materialId, measurementType, label, quantity, unit, unitCost, totalCost, measurementData, notes, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.takeoffId,
       data.materialId || null,
@@ -338,17 +382,17 @@ export function addTakeoffOperations(DatabaseService) {
       data.measurementData ? JSON.stringify(data.measurementData) : null,
       data.notes || '',
       now
-    );
+    ]);
     
     // Update takeoff total
-    this.recalculateTakeoffTotal(data.takeoffId);
+    await this.recalculateTakeoffTotal(data.takeoffId);
     
-    return this.getTakeoffItem(id);
+    return await this.getTakeoffItem(id);
   };
 
   // Get single takeoff item
-  DatabaseService.prototype.getTakeoffItem = function(id) {
-    const item = this.db.prepare('SELECT * FROM takeoff_items WHERE id = ?').get(id);
+  DatabaseService.prototype.getTakeoffItem = async function(id) {
+    const item = await this.get('SELECT * FROM takeoff_items WHERE id = ?', [id]);
     if (item && item.measurementData) {
       try { item.measurementData = JSON.parse(item.measurementData); } catch (e) {}
     }
@@ -356,8 +400,8 @@ export function addTakeoffOperations(DatabaseService) {
   };
 
   // Get all items for a takeoff
-  DatabaseService.prototype.getTakeoffItems = function(takeoffId) {
-    const items = this.db.prepare('SELECT * FROM takeoff_items WHERE takeoffId = ?').all(takeoffId);
+  DatabaseService.prototype.getTakeoffItems = async function(takeoffId) {
+    const items = await this.all('SELECT * FROM takeoff_items WHERE takeoffId = ?', [takeoffId]);
     return items.map(item => {
       if (item.measurementData) {
         try { item.measurementData = JSON.parse(item.measurementData); } catch (e) {}
@@ -367,11 +411,11 @@ export function addTakeoffOperations(DatabaseService) {
   };
 
   // Update takeoff item
-  DatabaseService.prototype.updateTakeoffItem = function(id, data) {
-    const existing = this.getTakeoffItem(id);
+  DatabaseService.prototype.updateTakeoffItem = async function(id, data) {
+    const existing = await this.getTakeoffItem(id);
     if (!existing) return null;
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE takeoff_items SET
         materialId = COALESCE(?, materialId),
         measurementType = COALESCE(?, measurementType),
@@ -383,7 +427,7 @@ export function addTakeoffOperations(DatabaseService) {
         measurementData = COALESCE(?, measurementData),
         notes = COALESCE(?, notes)
       WHERE id = ?
-    `).run(
+    `, [
       data.materialId,
       data.measurementType,
       data.label,
@@ -394,40 +438,40 @@ export function addTakeoffOperations(DatabaseService) {
       data.measurementData ? JSON.stringify(data.measurementData) : null,
       data.notes,
       id
-    );
+    ]);
     
     // Recalculate takeoff total
-    const item = this.getTakeoffItem(id);
-    this.recalculateTakeoffTotal(item.takeoffId);
+    const item = await this.getTakeoffItem(id);
+    await this.recalculateTakeoffTotal(item.takeoffId);
     
-    return this.getTakeoffItem(id);
+    return await this.getTakeoffItem(id);
   };
 
   // Delete takeoff item
-  DatabaseService.prototype.deleteTakeoffItem = function(id) {
-    const item = this.getTakeoffItem(id);
+  DatabaseService.prototype.deleteTakeoffItem = async function(id) {
+    const item = await this.getTakeoffItem(id);
     if (!item) return false;
     
-    const result = this.db.prepare('DELETE FROM takeoff_items WHERE id = ?').run(id);
+    const result = await this.run('DELETE FROM takeoff_items WHERE id = ?', [id]);
     
     // Recalculate takeoff total
-    this.recalculateTakeoffTotal(item.takeoffId);
+    await this.recalculateTakeoffTotal(item.takeoffId);
     
     return result.changes > 0;
   };
 
   // Recalculate takeoff total from items
-  DatabaseService.prototype.recalculateTakeoffTotal = function(takeoffId) {
-    const result = this.db.prepare(`
+  DatabaseService.prototype.recalculateTakeoffTotal = async function(takeoffId) {
+    const result = await this.get(`
       SELECT COALESCE(SUM(totalCost), 0) as total FROM takeoff_items WHERE takeoffId = ?
-    `).get(takeoffId);
+    `, [takeoffId]);
     
-    this.db.prepare('UPDATE takeoffs SET totalCost = ? WHERE id = ?').run(result.total, takeoffId);
+    await this.run('UPDATE takeoffs SET totalCost = ? WHERE id = ?', [result.total, takeoffId]);
   };
 
   // Generate takeoff summary
-  DatabaseService.prototype.generateTakeoffSummary = function(takeoffId) {
-    const items = this.getTakeoffItems(takeoffId);
+  DatabaseService.prototype.generateTakeoffSummary = async function(takeoffId) {
+    const items = await this.getTakeoffItems(takeoffId);
     
     const byCategory = {};
     let totalCost = 0;
@@ -447,6 +491,100 @@ export function addTakeoffOperations(DatabaseService) {
       totalCost,
       byCategory
     };
+  };
+
+  // Find material by name (fuzzy match)
+  DatabaseService.prototype.findMaterialByName = async function(name) {
+    if (!name) return null;
+    
+    // 1. Try exact match
+    let material = await this.get('SELECT * FROM materials WHERE name = ?', [name]);
+    if (material) return material;
+    
+    // 2. Try LIKE match
+    material = await this.get('SELECT * FROM materials WHERE name LIKE ?', [`%${name}%`]);
+    if (material) return material;
+    
+    // 3. Try partial word match
+    const words = name.split(/\s+/).filter(w => w.length > 2);
+    if (words.length > 0) {
+      material = await this.get('SELECT * FROM materials WHERE name LIKE ?', [`%${words[0]}%`]);
+    }
+    
+    return material;
+  };
+
+  // Convert AI analysis to Takeoff
+  DatabaseService.prototype.convertAnalysisToTakeoff = async function(projectId, analysisId, userId) {
+    const project = await this.get('SELECT * FROM vision_projects WHERE id = ?', [projectId]);
+    const analysis = await this.get('SELECT * FROM vision_analyses WHERE id = ?', [analysisId]);
+    
+    if (!project || !analysis) throw new Error('Project or Analysis not found');
+    
+    const analysisData = JSON.parse(analysis.result || '{}');
+    const scale = project.scale || 1.0; // Defaults to 1:1 if not set
+    
+    // Create new takeoff
+    const takeoff = await this.createTakeoff({
+      name: `${project.name} - AI Takeoff (${analysis.passType})`,
+      blueprintId: projectId,
+      status: 'draft',
+      userId: userId
+    });
+    
+    const items = [];
+    
+    if (analysisData.systems) {
+      for (const system of analysisData.systems) {
+        for (const region of (system.regions || [])) {
+          let quantity = 1;
+          let unit = 'EA';
+          let measurementType = 'count';
+          let measurementData = {};
+          
+          if (region.type === 'path' && region.points) {
+            // Calculate linear distance
+            let totalDist = 0;
+            for (let i = 0; i < region.points.length - 1; i++) {
+              const p1 = region.points[i];
+              const p2 = region.points[i+1];
+              // normalized distance * scale
+              const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+              totalDist += dist;
+            }
+            // totalDist is normalized (0-1). We need real units.
+            // If scale is pixels per foot, we need image dimensions.
+            quantity = totalDist * scale;
+            unit = 'LF';
+            measurementType = 'length';
+            measurementData = { points: region.points, normalizedDistance: totalDist };
+          } else {
+            // Point based (fixture)
+            measurementData = { x: region.x, y: region.y };
+          }
+          
+          // Match material
+          const material = await this.findMaterialByName(region.label || region.type);
+          
+          const item = await this.createTakeoffItem({
+            takeoffId: takeoff.id,
+            materialId: material?.id || null,
+            measurementType,
+            label: region.label || region.type,
+            quantity: Math.round(quantity * 100) / 100,
+            unit: material?.unit || unit,
+            unitCost: material?.unitCost || 0,
+            totalCost: (Math.round(quantity * 100) / 100) * (material?.unitCost || 0),
+            measurementData,
+            notes: region.details || `AI Detected in ${analysis.passType} pass`
+          });
+          
+          items.push(item);
+        }
+      }
+    }
+    
+    return { ...takeoff, items };
   };
 }
 

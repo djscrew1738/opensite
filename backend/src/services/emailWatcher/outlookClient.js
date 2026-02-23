@@ -18,9 +18,6 @@ class OutlookClient {
     this.baseUrl = 'https://graph.microsoft.com/v1.0';
     this.authUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0';
     
-    // OAuth2 credentials from env or settings
-    this.clientId = process.env.MICROSOFT_CLIENT_ID || db.getSetting('microsoft_client_id');
-    this.clientSecret = process.env.MICROSOFT_CLIENT_SECRET || db.getSetting('microsoft_client_secret');
     this.redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5001/api/email-alerts/auth/callback';
     
     // Scopes needed for reading emails
@@ -36,24 +33,28 @@ class OutlookClient {
    * Load account credentials from database
    */
   async loadAccount() {
+    // OAuth2 credentials from env or settings
+    this.clientId = process.env.MICROSOFT_CLIENT_ID || (await db.getSetting('microsoft_client_id'));
+    this.clientSecret = process.env.MICROSOFT_CLIENT_SECRET || (await db.getSetting('microsoft_client_secret'));
+
     if (!this.accountId) {
       // Use default/first active account
-      const accounts = db.getActiveEmailWatcherAccounts();
-      if (accounts.length === 0) {
+      const allAccounts = await db.getActiveEmailWatcherAccounts();
+      if (allAccounts.length === 0) {
         throw new Error('No active email watcher accounts configured');
       }
-      this.accountId = accounts[0].id;
+      this.accountId = allAccounts[0].id;
     }
 
-    const accounts = db.getActiveEmailWatcherAccounts();
-    const account = accounts.find(a => a.id === this.accountId);
+    const allAccounts = await db.getActiveEmailWatcherAccounts();
+    const account = allAccounts.find(a => a.id === this.accountId);
     
     if (!account) {
       throw new Error(`Email watcher account ${this.accountId} not found`);
     }
 
     // Get full account data with tokens
-    const fullAccount = db.db.prepare('SELECT * FROM email_watcher_accounts WHERE id = ?').get(this.accountId);
+    const fullAccount = await db.get('SELECT * FROM email_watcher_accounts WHERE id = ?', [this.accountId]);
     
     this.accessToken = fullAccount.access_token;
     this.refreshToken = fullAccount.refresh_token;
@@ -71,7 +72,11 @@ class OutlookClient {
   /**
    * Get OAuth2 authorization URL
    */
-  getAuthUrl() {
+  async getAuthUrl() {
+    if (!this.clientId) {
+      this.clientId = process.env.MICROSOFT_CLIENT_ID || (await db.getSetting('microsoft_client_id'));
+    }
+    
     if (!this.clientId) {
       throw new Error('Microsoft Client ID not configured');
     }
@@ -92,6 +97,13 @@ class OutlookClient {
    * Exchange authorization code for tokens
    */
   async exchangeCodeForTokens(code) {
+    if (!this.clientId) {
+      this.clientId = process.env.MICROSOFT_CLIENT_ID || (await db.getSetting('microsoft_client_id'));
+    }
+    if (!this.clientSecret) {
+      this.clientSecret = process.env.MICROSOFT_CLIENT_SECRET || (await db.getSetting('microsoft_client_secret'));
+    }
+
     if (!this.clientId || !this.clientSecret) {
       throw new Error('Microsoft OAuth credentials not configured');
     }
@@ -132,6 +144,13 @@ class OutlookClient {
       throw new Error('No refresh token available');
     }
 
+    if (!this.clientId) {
+      this.clientId = process.env.MICROSOFT_CLIENT_ID || (await db.getSetting('microsoft_client_id'));
+    }
+    if (!this.clientSecret) {
+      this.clientSecret = process.env.MICROSOFT_CLIENT_SECRET || (await db.getSetting('microsoft_client_secret'));
+    }
+
     try {
       const response = await axios.post(`${this.authUrl}/token`, {
         client_id: this.clientId,
@@ -154,7 +173,7 @@ class OutlookClient {
 
       // Update database
       if (this.accountId) {
-        db.updateEmailWatcherAccountTokens(this.accountId, {
+        await db.updateEmailWatcherAccountTokens(this.accountId, {
           access_token: this.accessToken,
           refresh_token: this.refreshToken,
           expires_at: this.tokenExpiresAt,

@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { ensureArray } from '../utils/safeArray';
 import { useOllama } from '../hooks/useOllama';
 import { useModelPreference } from '../hooks/useModelPreference';
 import { useTheme } from '../hooks/useTheme';
 import { useToast } from '../hooks/useToast';
 import {
   Building2, Cpu, Key, Activity, Bell, Search, Calculator,
-  Gauge, Palette, Database, Loader2, ChevronRight, LayoutDashboard
+  Gauge, Palette, Database, Loader2, ChevronRight, LayoutDashboard, AlertCircle,
+  CreditCard
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -27,20 +29,30 @@ function StatusPill({ connected, label }) {
 }
 
 /* ─────────────────────────────────────────────
-   LAZY TAB COMPONENTS
+   LAZY TAB COMPONENTS with error handling
 ───────────────────────────────────────────── */
-const SettingsOverview = lazy(() => import('../components/settings/sections/SettingsOverview'));
-const SettingsAI = lazy(() => import('../components/settings/sections/SettingsAI'));
-const SettingsBusiness = lazy(() => import('../components/settings/sections/SettingsBusiness'));
-const SettingsEstimating = lazy(() => import('../components/settings/sections/SettingsEstimating'));
-const SettingsDiscovery = lazy(() => import('../components/settings/sections/SettingsDiscovery'));
-const SettingsJobPulse = lazy(() => import('../components/settings/sections/SettingsJobPulse'));
-const SettingsNotifications = lazy(() => import('../components/settings/sections/SettingsNotifications'));
-const SettingsAPIKeys = lazy(() => import('../components/settings/sections/SettingsAPIKeys'));
-const SettingsPerformance = lazy(() => import('../components/settings/sections/SettingsPerformance'));
-const SettingsAppearance = lazy(() => import('../components/settings/sections/SettingsAppearance'));
-const SettingsData = lazy(() => import('../components/settings/sections/SettingsData'));
-const SettingsSystem = lazy(() => import('../components/settings/sections/SettingsSystem'));
+const lazyWithError = (importFn, name) => {
+  return lazy(() => 
+    importFn().catch(err => {
+      console.error(`Failed to load ${name}:`, err);
+      return { default: () => <div className="p-4 text-red-500">Error loading {name}</div> };
+    })
+  );
+};
+
+const SettingsOverview = lazyWithError(() => import('../components/settings/sections/SettingsOverview'), 'SettingsOverview');
+const SettingsAI = lazyWithError(() => import('../components/settings/sections/SettingsAI'), 'SettingsAI');
+const SettingsBusiness = lazyWithError(() => import('../components/settings/sections/SettingsBusiness'), 'SettingsBusiness');
+const SettingsEstimating = lazyWithError(() => import('../components/settings/sections/SettingsEstimating'), 'SettingsEstimating');
+const SettingsDiscovery = lazyWithError(() => import('../components/settings/sections/SettingsDiscovery'), 'SettingsDiscovery');
+const SettingsJobPulse = lazyWithError(() => import('../components/settings/sections/SettingsJobPulse'), 'SettingsJobPulse');
+const SettingsNotifications = lazyWithError(() => import('../components/settings/sections/SettingsNotifications'), 'SettingsNotifications');
+const SettingsAPIKeys = lazyWithError(() => import('../components/settings/sections/SettingsAPIKeys'), 'SettingsAPIKeys');
+const SettingsPerformance = lazyWithError(() => import('../components/settings/sections/SettingsPerformance'), 'SettingsPerformance');
+const SettingsAppearance = lazyWithError(() => import('../components/settings/sections/SettingsAppearance'), 'SettingsAppearance');
+const SettingsData = lazyWithError(() => import('../components/settings/sections/SettingsData'), 'SettingsData');
+const SettingsQuickBooks = lazyWithError(() => import('../components/settings/sections/SettingsQuickBooks'), 'SettingsQuickBooks');
+const SettingsSystem = lazyWithError(() => import('../components/settings/sections/SettingsSystem'), 'SettingsSystem');
 
 /* ─────────────────────────────────────────────
    SUSPENSE FALLBACK
@@ -54,6 +66,44 @@ function TabFallback() {
 }
 
 /* ─────────────────────────────────────────────
+   ERROR BOUNDARY
+───────────────────────────────────────────── */
+class TabErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Settings tab error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <h3 className="text-lg font-semibold text-red-700 mb-2">Failed to load section</h3>
+          <p className="text-sm text-gray-500 mb-4">{this.state.error?.message || 'Unknown error'}</p>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+/* ─────────────────────────────────────────────
    NAV
 ───────────────────────────────────────────── */
 const NAV_ITEMS = [
@@ -64,6 +114,7 @@ const NAV_ITEMS = [
   { id: 'discovery',     icon: Search,           label: 'Discovery' },
   { id: 'jobpulse',      icon: Activity,         label: 'Job Pulse' },
   { id: 'notifications', icon: Bell,             label: 'Notifications' },
+  { id: 'quickbooks',    icon: CreditCard,       label: 'QuickBooks' },
   { id: 'apikeys',       icon: Key,              label: 'API Keys' },
   { id: 'performance',   icon: Gauge,            label: 'Performance' },
   { id: 'appearance',    icon: Palette,          label: 'Appearance' },
@@ -115,6 +166,9 @@ export default function Settings() {
   const [groqKey, setGroqKey] = useState('');
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [groqTemperature, setGroqTemperature] = useState(0.7);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [openaiTemperature, setOpenaiTemperature] = useState(0.7);
   const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
   const [openclawToken, setOpenclawToken] = useState('');
   const [showOpenclawToken, setShowOpenclawToken] = useState(false);
@@ -192,20 +246,6 @@ export default function Settings() {
   const [showSerperKey, setShowSerperKey] = useState(false);
   const [placesKey, setPlacesKey] = useState('');
   const [showPlacesKey, setShowPlacesKey] = useState(false);
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
-  const [twilioSid, setTwilioSid] = useState('');
-  const [twilioToken, setTwilioToken] = useState('');
-  const [showTwilioToken, setShowTwilioToken] = useState(false);
-  const [twilioPhone, setTwilioPhone] = useState('');
-  const [sendgridKey, setSendgridKey] = useState('');
-  const [showSendgridKey, setShowSendgridKey] = useState(false);
-  const [stripeKey, setStripeKey] = useState('');
-  const [showStripeKey, setShowStripeKey] = useState(false);
-  const [googleMapsKey, setGoogleMapsKey] = useState('');
-  const [showGoogleMapsKey, setShowGoogleMapsKey] = useState(false);
 
   /* ── Email Watcher (Microsoft Graph) ── */
   const [msClientId, setMsClientId] = useState('');
@@ -260,10 +300,10 @@ export default function Settings() {
   /* ── Loading states ── */
   const [testingOllama, setTestingOllama] = useState(false);
   const [testingGroq, setTestingGroq] = useState(false);
+  const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingOpenClaw, setTestingOpenClaw] = useState(false);
   const [testingSerper, setTestingSerper] = useState(false);
   const [testingAnthropic, setTestingAnthropic] = useState(false);
-  const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
   const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [testingStripe, setTestingStripe] = useState(false);
@@ -312,10 +352,11 @@ export default function Settings() {
     refetchInterval: 30000,
   });
 
-  const availableModels = modelsData?.models || [];
-  const settings = settingsData || {};
-  const metrics = metricsData?.metrics || {};
-  const config = metricsData?.config || {};
+  // Defensive: ensure arrays are actually arrays
+  const availableModels = ensureArray(modelsData?.models);
+  const settings = settingsData && typeof settingsData === 'object' ? settingsData : {};
+  const metrics = metricsData?.metrics && typeof metricsData.metrics === 'object' ? metricsData.metrics : {};
+  const config = metricsData?.config && typeof metricsData.config === 'object' ? metricsData.config : {};
 
   /* ─────────────────────────────────────────────
      SYNC SETTINGS → STATE
@@ -331,6 +372,7 @@ export default function Settings() {
     setOllamaUrl(s.ollama_url || 'http://localhost:11434');
     setTemperature(num(s.ollama_temperature, 0.7));
     setGroqTemperature(num(s.groq_temperature, 0.7));
+    setOpenaiTemperature(num(s.openai_temperature, 0.7));
     setOpenclawUrl(s.openclaw_url || 'http://localhost:18789');
     setOpenclawTemperature(num(s.openclaw_temperature, 0.7));
 
@@ -397,7 +439,9 @@ export default function Settings() {
       }
     }).catch(() => {});
     api.emailMonitor.getStatus().then(st => setEmStatus(st)).catch(() => {});
-    api.emailMonitor.getAlerts({ limit: 10 }).then(d => setEmAlerts(d?.alerts || [])).catch(() => {});
+    api.emailMonitor.getAlerts({ limit: 10 }).then(d => {
+      setEmAlerts(ensureArray(d?.alerts));
+    }).catch(() => setEmAlerts([]));
 
     // Performance
     setPerfCacheTtl(num(s.perf_cache_ttl, 5));
@@ -442,6 +486,8 @@ export default function Settings() {
         ? { openclaw_url: openclawUrl, openclaw_temperature: String(openclawTemperature) }
         : activeProvider === 'groq'
         ? { groq_temperature: String(groqTemperature) }
+        : activeProvider === 'openai'
+        ? { openai_temperature: String(openaiTemperature) }
         : { ollama_url: ollamaUrl, ollama_temperature: String(temperature) };
       await api.settings.update({
         ...base,
@@ -486,12 +532,36 @@ export default function Settings() {
     }
   };
 
+  const handleTestOpenai = async () => {
+    setTestingOpenai(true);
+    try {
+      const result = await api.settings.testOpenai(openaiKey || undefined);
+      if (result.valid) showToast(`OpenAI API valid (${result.modelCount} models available)`);
+      else showToast(result.error || 'Invalid API key', 'error');
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingOpenai(false);
+    }
+  };
+
   const handleSaveGroqKey = async () => {
     try {
       await api.settings.update({ groq_api_key: groqKey });
       setGroqKey('');
       refetchSettings();
       showToast('Groq API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
+  const handleSaveOpenaiKey = async () => {
+    try {
+      await api.settings.update({ openai_api_key: openaiKey });
+      setOpenaiKey('');
+      refetchSettings();
+      showToast('OpenAI API key saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     }
@@ -743,7 +813,7 @@ export default function Settings() {
         showToast(`Checked: ${result.processed} emails, ${result.matched} matches, ${result.smsSent} SMS sent`);
       }
       const alerts = await api.emailMonitor.getAlerts({ limit: 10 });
-      setEmAlerts(alerts?.alerts || []);
+      setEmAlerts(ensureArray(alerts?.alerts));
       const st = await api.emailMonitor.getStatus();
       setEmStatus(st);
     } catch (err) {
@@ -754,91 +824,8 @@ export default function Settings() {
   };
 
   /* ─────────────────────────────────────────────
-     HANDLERS — API KEYS
+     HANDLERS — OAUTH
   ───────────────────────────────────────────── */
-  const handleSaveSerperKey = async () => {
-    try { await api.settings.update({ serper_api_key: serperKey }); setSerperKey(''); refetchSettings(); showToast('API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSavePlacesKey = async () => {
-    try { await api.settings.update({ google_places_api_key: placesKey }); setPlacesKey(''); refetchSettings(); showToast('Google Places API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveAnthropicKey = async () => {
-    try { await api.settings.update({ anthropic_api_key: anthropicKey }); setAnthropicKey(''); refetchSettings(); showToast('Anthropic API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveOpenaiKey = async () => {
-    try { await api.settings.update({ openai_api_key: openaiKey }); setOpenaiKey(''); refetchSettings(); showToast('OpenAI API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveTwilio = async () => {
-    try {
-      const u = {};
-      if (twilioSid) u.twilio_account_sid = twilioSid;
-      if (twilioToken) u.twilio_auth_token = twilioToken;
-      if (twilioPhone) u.twilio_from_phone = twilioPhone;
-      await api.settings.update(u);
-      setTwilioSid(''); setTwilioToken(''); setTwilioPhone('');
-      refetchSettings(); showToast('Twilio credentials saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveSendgridKey = async () => {
-    try { await api.settings.update({ sendgrid_api_key: sendgridKey }); setSendgridKey(''); refetchSettings(); showToast('SendGrid API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveStripeKey = async () => {
-    try { await api.settings.update({ stripe_api_key: stripeKey }); setStripeKey(''); refetchSettings(); showToast('Stripe API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-  const handleSaveGoogleMapsKey = async () => {
-    try { await api.settings.update({ google_maps_api_key: googleMapsKey }); setGoogleMapsKey(''); refetchSettings(); showToast('Google Maps API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-
-  const handleTestSerper = async () => {
-    setTestingSerper(true);
-    try { const r = await api.settings.testSerper(serperKey || undefined); if (r.valid) showToast(`Serper valid (credits: ${r.credits})`); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingSerper(false); }
-  };
-  const handleTestAnthropic = async () => {
-    setTestingAnthropic(true);
-    try { const r = await api.settings.testAnthropic(anthropicKey || undefined); if (r.valid) showToast('Anthropic key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingAnthropic(false); }
-  };
-  const handleTestOpenai = async () => {
-    setTestingOpenai(true);
-    try { const r = await api.settings.testOpenai(openaiKey || undefined); if (r.valid) showToast(`OpenAI valid (${r.modelCount} models)`); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingOpenai(false); }
-  };
-  const handleTestTwilio = async () => {
-    setTestingTwilio(true);
-    try { const r = await api.settings.testTwilio(twilioSid || undefined, twilioToken || undefined); if (r.valid) showToast(`Twilio connected (${r.friendlyName})`); else showToast(r.error || 'Invalid credentials', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingTwilio(false); }
-  };
-  const handleTestSendgrid = async () => {
-    setTestingSendgrid(true);
-    try { const r = await api.settings.testSendgrid(sendgridKey || undefined); if (r.valid) showToast('SendGrid key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingSendgrid(false); }
-  };
-  const handleTestStripe = async () => {
-    setTestingStripe(true);
-    try { const r = await api.settings.testStripe(stripeKey || undefined); if (r.valid) showToast(`Stripe valid (${r.currency || 'USD'})`); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingStripe(false); }
-  };
-  const handleTestGoogleMaps = async () => {
-    setTestingGoogleMaps(true);
-    try { const r = await api.settings.testGoogleMaps(googleMapsKey || undefined); if (r.valid) showToast('Google Maps key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingGoogleMaps(false); }
-  };
-
   const handleSaveMicrosoft = async () => {
     try {
       const u = {};
@@ -1038,6 +1025,7 @@ export default function Settings() {
             switchingProvider={switchingProvider}
             testingOllama={testingOllama}
             testingGroq={testingGroq}
+            testingOpenai={testingOpenai}
             testingOpenClaw={testingOpenClaw}
             savingAI={savingAI}
             maxTokens={maxTokens}
@@ -1056,6 +1044,8 @@ export default function Settings() {
             deletingModel={deletingModel}
             showGroqKey={showGroqKey}
             setShowGroqKey={setShowGroqKey}
+            showOpenaiKey={showOpenaiKey}
+            setShowOpenaiKey={setShowOpenaiKey}
             showOpenclawToken={showOpenclawToken}
             setShowOpenclawToken={setShowOpenclawToken}
             temperature={temperature}
@@ -1064,6 +1054,10 @@ export default function Settings() {
             setGroqKey={setGroqKey}
             groqTemperature={groqTemperature}
             setGroqTemperature={setGroqTemperature}
+            openaiKey={openaiKey}
+            setOpenaiKey={setOpenaiKey}
+            openaiTemperature={openaiTemperature}
+            setOpenaiTemperature={setOpenaiTemperature}
             ollamaUrl={ollamaUrl}
             setOllamaUrl={setOllamaUrl}
             openclawUrl={openclawUrl}
@@ -1072,12 +1066,13 @@ export default function Settings() {
             setOpenclawToken={setOpenclawToken}
             openclawTemperature={openclawTemperature}
             setOpenclawTemperature={setOpenclawTemperature}
-            model={model}
             handleSwitchProvider={handleSwitchProvider}
             handleSaveAIConfig={handleSaveAIConfig}
             handleTestOllama={handleTestOllama}
             handleTestGroq={handleTestGroq}
             handleSaveGroqKey={handleSaveGroqKey}
+            handleTestOpenai={handleTestOpenai}
+            handleSaveOpenaiKey={handleSaveOpenaiKey}
             handleTestOpenClaw={handleTestOpenClaw}
             handleSaveOpenclawToken={handleSaveOpenclawToken}
             handleSetDefaultModel={handleSetDefaultModel}
@@ -1263,6 +1258,14 @@ export default function Settings() {
             handleSaveEmailWatcher={handleSaveEmailWatcher}
           />
         );
+      case 'quickbooks':
+        return (
+          <SettingsQuickBooks
+            settings={settings}
+            showToast={showToast}
+            refetchSettings={refetchSettings}
+          />
+        );
       case 'apikeys':
         return (
           <SettingsAPIKeys
@@ -1398,7 +1401,7 @@ export default function Settings() {
             metrics={metrics}
             config={config}
             activeProvider={activeProvider}
-            model={model}
+            defaultModel={defaultModel}
             successRate={successRate}
             uptimeFormatted={uptimeFormatted}
             cbState={cbState}
@@ -1491,9 +1494,18 @@ export default function Settings() {
             `}
             style={{ willChange: 'transform, opacity' }}
           >
-            <Suspense fallback={<TabFallback />}>
-              {renderActiveTab()}
-            </Suspense>
+            <TabErrorBoundary key={activeTab}>
+              <Suspense fallback={<TabFallback />}>
+                {renderActiveTab()}
+              </Suspense>
+            </TabErrorBoundary>
+          </div>
+
+          {/* Subtle attribution */}
+          <div className="flex justify-end pt-6 mt-4 border-t border-gray-200 dark:border-gray-800">
+            <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40 tracking-wide">
+              by Cory
+            </span>
           </div>
         </div>
       </div>

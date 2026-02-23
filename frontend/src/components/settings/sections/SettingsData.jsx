@@ -3,6 +3,7 @@ import {
   FileDown, Database, RotateCcw, AlertOctagon, Loader2
 } from 'lucide-react';
 import { Section } from '../primitives';
+import ConfirmDialog from '../../shared/ConfirmDialog';
 
 function SettingsData({
   exportingData,
@@ -66,19 +67,26 @@ function SettingsData({
         <div className="p-4 border-2 border-red-200 dark:border-red-900/60 rounded-xl bg-red-50/50 dark:bg-red-950/10">
           <p className="text-sm font-bold text-red-800 dark:text-red-200 mb-1">Factory Reset</p>
           <p className="text-xs text-red-700 dark:text-red-300 mb-4">Permanently deletes all settings, leads, estimates, and AI history. This action cannot be undone.</p>
-          {!resetConfirm ? (
-            <button onClick={() => setResetConfirm(true)} className="btn-danger text-sm">
-              <AlertOctagon className="w-4 h-4" /> Reset All Data
-            </button>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">Are you absolutely sure?</p>
-              <button onClick={() => { showToast('Factory reset requires manual database deletion for safety', 'warning'); setResetConfirm(false); }} className="btn-danger text-sm">Yes, Reset</button>
-              <button onClick={() => setResetConfirm(false)} className="btn-secondary text-sm">Cancel</button>
-            </div>
-          )}
+          <button onClick={() => setResetConfirm(true)} className="btn-danger text-sm">
+            <AlertOctagon className="w-4 h-4" /> Reset All Data
+          </button>
         </div>
       </Section>
+
+      {/* Reset Confirmation */}
+      {resetConfirm && (
+        <ConfirmDialog
+          title="Factory Reset?"
+          message="Are you absolutely sure you want to reset all data? This will permanently delete all settings, leads, estimates, and AI history. This action cannot be undone."
+          confirmLabel="Yes, Reset Everything"
+          onConfirm={() => { 
+            showToast('Factory reset requires manual database deletion for safety', 'warning'); 
+            setResetConfirm(false); 
+          }}
+          onCancel={() => setResetConfirm(false)}
+          variant="danger"
+        />
+      )}
     </div>
   );
 }

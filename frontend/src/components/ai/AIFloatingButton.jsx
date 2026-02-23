@@ -42,21 +42,23 @@ export default function AIFloatingButton({ onClick, isOpen }) {
   if (isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+    <div className="fixed bottom-6 right-6 z-40 hidden md:flex flex-col items-end gap-2">
       {/* Tooltip */}
       {showTooltip && (
-        <div className="mb-2 px-4 py-2 bg-surface-elevated border border-border rounded-xl shadow-lg max-w-[200px] animate-slideInBottom">
+        <div className="mb-2 px-4 py-2 bg-surface-elevated border border-border rounded-xl shadow-lg max-w-[200px] animate-slideInBottom relative">
           <p className="text-sm text-text-primary">
-            💡 Tap to chat with your AI assistant
+            Tap to chat with your AI assistant
           </p>
           <div className="absolute -bottom-2 right-6 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-surface-elevated" />
         </div>
       )}
 
       {/* Context indicator */}
-      <div className="mb-1 px-3 py-1 bg-accent-muted/80 backdrop-blur-sm rounded-full text-xs text-accent-blue font-medium animate-fadeIn">
-        Ask about {pageContext.title}
-      </div>
+      {pageContext.title && (
+        <div className="mb-1 px-3 py-1 bg-accent-muted/80 backdrop-blur-sm rounded-full text-[10px] uppercase tracking-wider text-accent-blue font-bold animate-fadeIn border border-accent-blue/20">
+          Ask about {pageContext.title}
+        </div>
+      )}
 
       {/* FAB */}
       <button

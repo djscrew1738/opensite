@@ -2,8 +2,14 @@
 // ====================
 // Centralized, standardized UI components for the entire application.
 
-export { Button } from './Button';
+export { Button, IconButton, ButtonGroup } from './Button';
 export { Card, CardHeader, CardContent, CardFooter } from './Card';
+export { 
+  AccessibleCard, 
+  AccessibleCardHeader, 
+  AccessibleCardContent, 
+  AccessibleCardFooter 
+} from './AccessibleCard';
 export { Badge, StatusBadge, PhaseBadge } from './Badge';
 export { Input, TextArea, Select } from './Input';
 export { Modal, ConfirmModal, Drawer } from './Modal';

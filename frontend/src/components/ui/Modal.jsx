@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from './Button';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useBodyScrollLock } from '../../hooks/useScrollLock';
 
 export const Modal = ({
   isOpen,
@@ -15,25 +17,13 @@ export const Modal = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  id,
 }) => {
-  // Handle escape key
-  useEffect(() => {
-    if (!closeOnEscape) return;
-    
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, closeOnEscape, onClose]);
+  // Trap focus within modal when open
+  const focusTrapRef = useFocusTrap(isOpen, closeOnEscape ? onClose : null);
+  
+  // Lock body scroll when modal is open
+  useBodyScrollLock(isOpen);
   
   const sizeClasses = {
     sm: 'max-w-md',
@@ -58,14 +48,22 @@ export const Modal = ({
           />
           
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            role="presentation"
+          >
             <motion.div
+              ref={focusTrapRef}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
               className={`w-full ${sizeClasses[size]} pointer-events-auto`}
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={title ? `${id || 'modal'}-title` : undefined}
+              aria-describedby={description ? `${id || 'modal'}-description` : undefined}
             >
               <div className="bg-surface-700 border border-border-medium rounded-2xl shadow-dark-xl overflow-hidden">
                 {/* Header */}
@@ -73,12 +71,18 @@ export const Modal = ({
                   <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border">
                     <div className="flex-1 min-w-0">
                       {title && (
-                        <h2 className="text-lg font-semibold text-text-primary">
+                        <h2 
+                          id={`${id || 'modal'}-title`}
+                          className="text-lg font-semibold text-text-primary"
+                        >
                           {title}
                         </h2>
                       )}
                       {description && (
-                        <p className="text-sm text-text-secondary mt-1">
+                        <p 
+                          id={`${id || 'modal'}-description`}
+                          className="text-sm text-text-secondary mt-1"
+                        >
                           {description}
                         </p>
                       )}
@@ -87,9 +91,9 @@ export const Modal = ({
                       <button
                         onClick={onClose}
                         className="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-600 transition-colors flex-shrink-0"
-                        aria-label="Close modal"
+                        aria-label={`Close ${title || 'modal'}`}
                       >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -213,8 +217,9 @@ export const Drawer = ({
                 <button
                   onClick={onClose}
                   className="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-600 transition-colors"
+                  aria-label={`Close ${title}`}
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
             )}

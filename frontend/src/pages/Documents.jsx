@@ -15,6 +15,7 @@ import VisionCanvas from '../components/vision/VisionCanvas';
 import BlueprintSelector from '../components/vision/BlueprintSelector';
 import { TabSystem, Tab } from '../components/tabs';
 import { NoDocumentsEmpty, NoAnalysisEmpty } from '../components/empty-states';
+import { ConfirmDialog } from '../components/shared';
 
 // Document types configuration
 const FILE_TYPES = {
@@ -528,6 +529,7 @@ export default function Documents() {
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showCanvas, setShowCanvas] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
 
   // Fetch projects
   const { data: projects = [], isLoading } = useQuery({
@@ -535,11 +537,17 @@ export default function Documents() {
     queryFn: () => visionApi.getProjects(),
   });
 
-  const handleDelete = async (id, e) => {
+  const handleDelete = (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Delete this document?')) return;
-    await visionApi.deleteProject(id);
+    const project = projects.find(p => p.id === id);
+    setDocumentToDelete(project || { id });
+  };
+
+  const confirmDelete = async () => {
+    if (!documentToDelete) return;
+    await visionApi.deleteProject(documentToDelete.id);
     queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+    setDocumentToDelete(null);
   };
 
   const handleSelectProject = (project) => {
@@ -616,6 +624,18 @@ export default function Documents() {
             />
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {documentToDelete && (
+        <ConfirmDialog
+          title="Delete Document?"
+          message={`Are you sure you want to delete "${documentToDelete.name || 'this document'}"? All associated vision analysis data will be lost.`}
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setDocumentToDelete(null)}
+          variant="danger"
+        />
       )}
     </div>
   );

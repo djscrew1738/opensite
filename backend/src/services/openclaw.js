@@ -109,14 +109,22 @@ class OpenClawService {
    * Health check - try API first, fallback to CLI
    */
   async healthCheck() {
+    const startTime = Date.now();
+    
     // Try API health endpoint first
     try {
       const response = await this.client.get('/api/tags', { timeout: 5000 });
+      const models = response.data?.models || [];
+      const availableModels = models.map(m => m.name);
+      
       return {
         connected: true,
         model: this.defaultModel,
-        available: response.data?.models?.length || 0,
+        available: models.length,
+        availableModels,
         method: 'api',
+        responseTime: Date.now() - startTime,
+        status: 'healthy',
       };
     } catch (apiError) {
       logger.debug('[openclaw] API health check failed:', apiError.message);
@@ -128,13 +136,18 @@ class OpenClawService {
       const status = JSON.parse(stdout);
       
       // Verify Ollama is still accessible
-      await this.client.get('/api/tags', { timeout: 5000 });
+      const response = await this.client.get('/api/tags', { timeout: 5000 });
+      const models = response.data?.models || [];
       
       return {
         connected: true,
         model: status.model || this.defaultModel,
+        available: models.length,
+        availableModels: models.map(m => m.name),
         version: status.version,
         method: 'cli',
+        responseTime: Date.now() - startTime,
+        status: 'healthy',
       };
     } catch (cliError) {
       logger.debug('[openclaw] CLI health check failed:', cliError.message);
@@ -142,19 +155,29 @@ class OpenClawService {
 
     // Try basic Ollama connectivity
     try {
-      await this.client.get('/api/tags', { timeout: 3000 });
+      const response = await this.client.get('/api/tags', { timeout: 3000 });
+      const models = response.data?.models || [];
+      
       return {
         connected: true,
         model: this.defaultModel,
+        available: models.length,
+        availableModels: models.map(m => m.name),
         partial: true,
         note: 'Ollama accessible but OpenClaw gateway may not be fully initialized',
         method: 'direct',
+        responseTime: Date.now() - startTime,
+        status: 'degraded',
       };
     } catch (directError) {
       return {
         connected: false,
         model: null,
+        available: 0,
+        availableModels: [],
         error: 'OpenClaw gateway not accessible',
+        status: 'unhealthy',
+        responseTime: Date.now() - startTime,
       };
     }
   }
@@ -242,6 +265,45 @@ class OpenClawService {
   }
 
   /**
+   * Generate chat response with conversation history
+   */
+  async generateChat(message, history = [], options = {}) {
+    const prompt = this._buildChatPrompt(message, history, options.system);
+    return this.generate(prompt, options);
+  }
+
+  /**
+   * Stream chat response with conversation history
+   */
+  async *generateChatStream(message, history = [], options = {}) {
+    const prompt = this._buildChatPrompt(message, history, options.system);
+    yield* this.generateStream(prompt, options);
+  }
+
+  /**
+   * Build chat prompt from message and history
+   */
+  _buildChatPrompt(message, history = [], systemPrompt = null) {
+    let prompt = '';
+    
+    // Add system prompt if provided
+    if (systemPrompt) {
+      prompt += `System: ${systemPrompt}\n\n`;
+    }
+    
+    // Add conversation history
+    for (const msg of history) {
+      const role = msg.role === 'user' ? 'User' : 'Assistant';
+      prompt += `${role}: ${msg.content}\n\n`;
+    }
+    
+    // Add current message
+    prompt += `User: ${message}\nAssistant:`;
+    
+    return prompt;
+  }
+
+  /**
    * Parse NDJSON stream
    */
   async *_parseStream(stream) {
@@ -322,17 +384,32 @@ class OpenClawService {
   async listAvailableModels() {
     try {
       const response = await this.client.get('/api/tags');
-      return response.data.models.map(m => ({
-        id: m.name,
-        name: m.name,
-        size: m.size,
-        modified: m.modified_at,
-      }));
+      const models = response.data?.models || [];
+      
+      return {
+        success: true,
+        models: models.map(m => ({
+          id: m.name,
+          name: m.name,
+          size: m.size,
+          modified: m.modified_at,
+          provider: 'openclaw',
+        })),
+        defaultModel: this.defaultModel,
+        provider: 'openclaw',
+      };
     } catch (error) {
-      return [
-        { id: 'llama3.1', name: 'Llama 3.1' },
-        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B' },
-      ];
+      logger.warn('[openclaw] Failed to list models:', error.message);
+      return {
+        success: true,
+        models: [
+          { id: 'llama3.1', name: 'Llama 3.1', provider: 'openclaw' },
+          { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'openclaw' },
+        ],
+        defaultModel: this.defaultModel,
+        provider: 'openclaw',
+        cached: true,
+      };
     }
   }
 

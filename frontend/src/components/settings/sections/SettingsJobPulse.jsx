@@ -22,7 +22,7 @@ function SettingsJobPulse({
   emChecking,
   emSaving,
   emStatus,
-  emAlerts,
+  emAlerts: rawEmAlerts,
   handleTestEmailMonitor,
   handleCheckNow,
   handleSaveEmailMonitor,
@@ -31,6 +31,8 @@ function SettingsJobPulse({
   notifyAdminPhone,
   setNotifyAdminPhone,
 }) {
+  // Defensive: ensure emAlerts is always an array
+  const emAlerts = Array.isArray(rawEmAlerts) ? rawEmAlerts : [];
   return (
     <div className="space-y-6">
       <Section icon={Activity} title="Job Pulse Email Login"

@@ -22,3 +22,6 @@ export { useStreamingResponse } from './useStreamingResponse';
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useScrollReset } from './useScrollReset';
 export { usePageHeader, PageHeaderContext } from './usePageHeader';
+export { useFocusTrap } from './useFocusTrap';
+export { useScrollLock, useBodyScrollLock } from './useScrollLock';
+export { useSwipe, useSwipeable } from './useSwipe';

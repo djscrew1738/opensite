@@ -135,7 +135,7 @@ export function PlumbingVisualizer() {
   }, [setActiveTool, drawingState.isDrawing, setDrawingState]);
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: '#0A0B0D' }}>
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#0A0B0D' }}>
       {/* Top Toolbar */}
       <Toolbar />
 

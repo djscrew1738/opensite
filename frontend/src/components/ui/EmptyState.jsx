@@ -2,7 +2,7 @@ import {
   Inbox, Search, FileX, FolderOpen, Users, Building2,
   ClipboardList, ImageOff, MapPin, AlertCircle, Plus,
   LayoutGrid, Bell, Radar, CalendarCheck, Layers,
-  ShieldCheck, SearchSlash, Crane,
+  ShieldCheck, SearchSlash, HardHat,
 } from 'lucide-react';
 import { colors } from '../../styles/tokens';
 
@@ -29,7 +29,7 @@ export const EmptyState = ({
     image: ImageOff, location: MapPin, alert: AlertCircle,
     grid: LayoutGrid, bell: Bell, radar: Radar,
     calendarCheck: CalendarCheck, layers: Layers,
-    shieldCheck: ShieldCheck, searchSlash: SearchSlash, crane: Crane,
+    shieldCheck: ShieldCheck, searchSlash: SearchSlash, crane: HardHat,
   };
 
   const Icon = IconProp || iconMap[iconName] || Inbox;

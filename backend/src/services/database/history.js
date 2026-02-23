@@ -11,10 +11,16 @@ export function addHistoryOperations(DatabaseService) {
   // ==================== Conversation Operations ====================
   
   // Get all conversations with optional search
-  DatabaseService.prototype.getAllConversations = function(search) {
+  DatabaseService.prototype.getAllConversations = async function(filters = {}) {
+    const { search, userId } = filters;
     let query = 'SELECT * FROM conversations WHERE 1=1';
     const params = [];
     
+    if (userId) {
+      query += ' AND userId = ?';
+      params.push(userId);
+    }
+
     if (search) {
       query += ' AND messages LIKE ?';
       params.push(`%${search}%`);
@@ -22,12 +28,12 @@ export function addHistoryOperations(DatabaseService) {
     
     query += ' ORDER BY updatedAt DESC';
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Get single conversation
-  DatabaseService.prototype.getConversation = function(id) {
-    const conv = this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(id);
+  DatabaseService.prototype.getConversation = async function(id) {
+    const conv = await this.get('SELECT * FROM conversations WHERE id = ?', [id]);
     if (conv && conv.messages) {
       try {
         conv.messages = JSON.parse(conv.messages);
@@ -39,69 +45,70 @@ export function addHistoryOperations(DatabaseService) {
   };
 
   // Create conversation
-  DatabaseService.prototype.createConversation = function(data) {
+  DatabaseService.prototype.createConversation = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
-      INSERT INTO conversations (id, messages, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?)
-    `).run(
+    await this.run(`
+      INSERT INTO conversations (id, userId, messages, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
       id,
+      data.userId || null,
       JSON.stringify(data.messages || []),
       now,
       now
-    );
+    ]);
     
-    return this.getConversation(id);
+    return await this.getConversation(id);
   };
 
   // Update conversation
-  DatabaseService.prototype.updateConversation = function(id, data) {
+  DatabaseService.prototype.updateConversation = async function(id, data) {
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE conversations SET
         messages = COALESCE(?, messages),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.messages ? JSON.stringify(data.messages) : null,
       now,
       id
-    );
+    ]);
     
-    return this.getConversation(id);
+    return await this.getConversation(id);
   };
 
   // Delete conversation
-  DatabaseService.prototype.deleteConversation = function(id) {
-    const result = this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
+  DatabaseService.prototype.deleteConversation = async function(id) {
+    const result = await this.run('DELETE FROM conversations WHERE id = ?', [id]);
     return result.changes > 0;
   };
 
   // ==================== Email Alert Operations ====================
   
   // Get all email alerts
-  DatabaseService.prototype.getAllEmailAlerts = function(limit = 100) {
-    return this.db.prepare('SELECT * FROM email_alerts ORDER BY receivedAt DESC LIMIT ?').all(limit);
+  DatabaseService.prototype.getAllEmailAlerts = async function(limit = 100) {
+    return await this.all('SELECT * FROM email_alerts ORDER BY receivedAt DESC LIMIT ?', [limit]);
   };
 
   // Get email alert by ID
-  DatabaseService.prototype.getEmailAlert = function(id) {
-    return this.db.prepare('SELECT * FROM email_alerts WHERE id = ?').get(id);
+  DatabaseService.prototype.getEmailAlert = async function(id) {
+    return await this.get('SELECT * FROM email_alerts WHERE id = ?', [id]);
   };
 
   // Create email alert
-  DatabaseService.prototype.createEmailAlert = function(data) {
+  DatabaseService.prototype.createEmailAlert = async function(data) {
     const id = uuidv4();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO email_alerts (
         id, messageId, fromAddress, fromName, subject,
         matchedKeywords, snippet, smsSent, smsExternalId, receivedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.messageId || null,
       data.fromAddress || null,
@@ -112,35 +119,35 @@ export function addHistoryOperations(DatabaseService) {
       data.smsSent ? 1 : 0,
       data.smsExternalId || null,
       data.receivedAt || new Date().toISOString()
-    );
+    ]);
     
-    return this.getEmailAlert(id);
+    return await this.getEmailAlert(id);
   };
 
   // Check if email alert exists by message ID
-  DatabaseService.prototype.emailAlertExists = function(messageId) {
-    const result = this.db.prepare('SELECT 1 as exists_flag FROM email_alerts WHERE messageId = ?').get(messageId);
+  DatabaseService.prototype.emailAlertExists = async function(messageId) {
+    const result = await this.get('SELECT 1 as exists_flag FROM email_alerts WHERE messageId = ?', [messageId]);
     return !!result;
   };
 
   // Get email alert stats
-  DatabaseService.prototype.getEmailAlertStats = function() {
-    return this.db.prepare(`
+  DatabaseService.prototype.getEmailAlertStats = async function() {
+    return await this.get(`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN smsSent = 1 THEN 1 ELSE 0 END) as smsSentCount,
         MAX(receivedAt) as lastCheck
       FROM email_alerts
-    `).get();
+    `);
   };
 
   // Get recent email alerts
-  DatabaseService.prototype.getRecentEmailAlerts = function(limit = 20, offset = 0) {
-    return this.db.prepare(`
+  DatabaseService.prototype.getRecentEmailAlerts = async function(limit = 20, offset = 0) {
+    return await this.all(`
       SELECT * FROM email_alerts 
       ORDER BY receivedAt DESC 
       LIMIT ? OFFSET ?
-    `).all(limit, offset);
+    `, [limit, offset]);
   };
 }
 

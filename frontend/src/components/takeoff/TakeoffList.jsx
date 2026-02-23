@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import {
   Plus, FileText, Trash2, Clock, DollarSign, ChevronRight, Loader
 } from 'lucide-react';
+import ConfirmDialog from '../shared/ConfirmDialog';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-100 text-gray-700',
@@ -15,6 +16,7 @@ export default function TakeoffList({ onSelectTakeoff, selectedId }) {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
+  const [takeoffToDelete, setTakeoffToDelete] = useState(null);
 
   const { data: takeoffsData, isLoading } = useQuery({
     queryKey: ['takeoffs'],
@@ -35,6 +37,7 @@ export default function TakeoffList({ onSelectTakeoff, selectedId }) {
     mutationFn: (id) => api.takeoff.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['takeoffs'] });
+      setTakeoffToDelete(null);
     }
   });
 
@@ -45,11 +48,9 @@ export default function TakeoffList({ onSelectTakeoff, selectedId }) {
     createMutation.mutate({ name: newName.trim() });
   };
 
-  const handleDelete = (e, id) => {
+  const handleDelete = (e, takeoff) => {
     e.stopPropagation();
-    if (window.confirm('Delete this takeoff?')) {
-      deleteMutation.mutate(id);
-    }
+    setTakeoffToDelete(takeoff);
   };
 
   return (
@@ -137,7 +138,7 @@ export default function TakeoffList({ onSelectTakeoff, selectedId }) {
                 </div>
                 <div className="flex items-center gap-1 ml-2">
                   <button
-                    onClick={(e) => handleDelete(e, takeoff.id)}
+                    onClick={(e) => handleDelete(e, takeoff)}
                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                     title="Delete"
                   >
@@ -149,6 +150,18 @@ export default function TakeoffList({ onSelectTakeoff, selectedId }) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {takeoffToDelete && (
+        <ConfirmDialog
+          title="Delete Takeoff?"
+          message={`Are you sure you want to delete "${takeoffToDelete.name}"? All measurements and items will be permanently removed.`}
+          confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+          onConfirm={() => deleteMutation.mutate(takeoffToDelete.id)}
+          onCancel={() => setTakeoffToDelete(null)}
+          variant="danger"
+        />
       )}
     </div>
   );

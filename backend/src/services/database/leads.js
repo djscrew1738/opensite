@@ -9,15 +9,16 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export function addLeadOperations(DatabaseService) {
   // Create new lead
-  DatabaseService.prototype.createLead = function(data) {
+  DatabaseService.prototype.createLead = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
-      INSERT INTO leads (id, name, company, email, phone, location, projectType, value, score, status, notes, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    await this.run(`
+      INSERT INTO leads (id, userId, name, company, email, phone, location, projectType, value, score, status, notes, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
       id,
+      data.userId || null,
       data.name,
       data.company || null,
       data.email || null,
@@ -30,21 +31,27 @@ export function addLeadOperations(DatabaseService) {
       data.notes || null,
       now,
       now
-    );
+    ]);
     
-    return this.getLead(id);
+    return await this.getLead(id);
   };
 
   // Get single lead
-  DatabaseService.prototype.getLead = function(id) {
-    return this.db.prepare('SELECT * FROM leads WHERE id = ?').get(id);
+  DatabaseService.prototype.getLead = async function(id) {
+    return await this.get('SELECT * FROM leads WHERE id = ?', [id]);
   };
 
   // Get all leads with optional filtering
-  DatabaseService.prototype.getAllLeads = function(filters = {}) {
+  DatabaseService.prototype.getAllLeads = async function(filters = {}) {
     let query = 'SELECT * FROM leads WHERE 1=1';
     const params = [];
     
+    if (filters.userId) {
+      // Include leads owned by user OR unassigned leads (userId IS NULL or empty)
+      query += ' AND (userId = ? OR userId IS NULL OR userId = \'\')';
+      params.push(filters.userId);
+    }
+
     if (filters.status) {
       query += ' AND status = ?';
       params.push(filters.status);
@@ -58,17 +65,17 @@ export function addLeadOperations(DatabaseService) {
     
     query += ' ORDER BY updatedAt DESC';
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Update lead
-  DatabaseService.prototype.updateLead = function(id, data) {
-    const existing = this.getLead(id);
+  DatabaseService.prototype.updateLead = async function(id, data) {
+    const existing = await this.getLead(id);
     if (!existing) return null;
     
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE leads SET
         name = COALESCE(?, name),
         company = COALESCE(?, company),
@@ -82,7 +89,7 @@ export function addLeadOperations(DatabaseService) {
         notes = COALESCE(?, notes),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.name,
       data.company,
       data.email,
@@ -95,14 +102,14 @@ export function addLeadOperations(DatabaseService) {
       data.notes,
       now,
       id
-    );
+    ]);
     
-    return this.getLead(id);
+    return await this.getLead(id);
   };
 
   // Delete lead
-  DatabaseService.prototype.deleteLead = function(id) {
-    const result = this.db.prepare('DELETE FROM leads WHERE id = ?').run(id);
+  DatabaseService.prototype.deleteLead = async function(id) {
+    const result = await this.run('DELETE FROM leads WHERE id = ?', [id]);
     return result.changes > 0;
   };
 }

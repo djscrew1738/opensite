@@ -5,6 +5,7 @@ import { ollamaService } from './ollama.js';
 import { openclawService } from './openclaw.js';
 import { groqService } from './groq.js';
 import { anthropicService } from './anthropic.js';
+import { openaiService } from './openai.js';
 import crypto from 'crypto';
 import logger from './logger.js';
 
@@ -142,10 +143,11 @@ class AIOptimizer {
       openclaw: openclawService,
       groq: groqService,
       anthropic: anthropicService,
+      openai: openaiService,
     };
 
     // Priority order for fallback
-    this.fallbackOrder = ['openclaw', 'ollama', 'groq', 'anthropic'];
+    this.fallbackOrder = ['openclaw', 'groq', 'openai', 'anthropic', 'ollama'];
     
     this._startWarmupInterval();
   }
@@ -165,7 +167,7 @@ class AIOptimizer {
    */
   async _warmupConnections() {
     for (const [name, service] of Object.entries(this.services)) {
-      if (name === 'groq' || name === 'anthropic') continue; // Skip cloud
+      if (['groq', 'anthropic', 'openai'].includes(name)) continue; // Skip cloud
       
       try {
         // Lightweight health check
@@ -180,7 +182,7 @@ class AIOptimizer {
   /**
    * Get cached health status with TTL
    */
-  async getCachedHealth(serviceName, maxAgeMs = 10000) {
+  async getCachedHealth(serviceName, maxAgeMs = 15000) {
     const cached = this.healthCache.get(serviceName);
     if (cached && Date.now() - cached.timestamp < maxAgeMs) {
       return cached.data;
@@ -250,7 +252,7 @@ class AIOptimizer {
     }
 
     if (provider.isFallback) {
-      console.log(`[ai-optimizer] Fallback to ${provider.name}`);
+      logger.info(`[ai-optimizer] Fallback to ${provider.name}`);
     }
 
     try {
@@ -270,7 +272,7 @@ class AIOptimizer {
         isFallback: provider.isFallback,
       };
     } catch (err) {
-      console.error(`[ai-optimizer] Generation failed:`, err.message);
+      logger.error(`[ai-optimizer] Generation failed:`, err.message);
       return {
         success: false,
         error: err.message,
@@ -301,7 +303,7 @@ class AIOptimizer {
         yield chunk;
       }
     } catch (err) {
-      console.error(`[ai-optimizer] Stream failed:`, err.message);
+      logger.error(`[ai-optimizer] Stream failed:`, err.message);
       yield `Error: ${err.message}`;
     }
   }

@@ -1,0 +1,151 @@
+import { Meta, ColorPalette, ColorItem, Typography } from '@storybook/blocks';
+
+<Meta title="Design System/Overview" />
+
+# OpenSite Design System
+
+## "Dark Forge" Aesthetic
+
+The OpenSite design system uses a dark-themed industrial aesthetic optimized for outdoor/field use with high contrast and reduced eye strain.
+
+---
+
+## Color Palette
+
+### Surface Colors
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `surface-primary` | `#0A0B0D` | Main background |
+| `surface-card` | `#111318` | Card backgrounds |
+| `surface-elevated` | `#181B21` | Elevated surfaces, modals |
+
+### Accent Colors
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `accent-blue` | `#3B82F6` | Primary actions, links |
+| `accent-glow` | `rgba(59, 130, 246, 0.5)` | Glows, borders |
+
+### Semantic Colors
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `success` | `#10B981` | Success states |
+| `warning` | `#F59E0B` | Warnings |
+| `danger` | `#EF4444` | Errors, destructive actions |
+
+---
+
+## Typography
+
+### Type Scale
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `display` | 40px | Page titles |
+| `heading` | 24px | Section headers |
+| `subheading` | 18px | Card titles |
+| `label` | 15px | Form labels, button text |
+| `body` | 15px | Body text |
+| `caption` | 13px | Secondary text |
+
+### Font Stack
+```
+Inter, system-ui, -apple-system, sans-serif
+```
+
+---
+
+## Spacing
+
+### Touch Targets
+
+All interactive elements must meet minimum touch targets:
+
+- **Desktop**: 36px minimum
+- **Mobile/Field**: 48px minimum (`--tap-min`)
+
+### Spacing Scale
+
+| Token | Value |
+|-------|-------|
+| `space-1` | 4px |
+| `space-2` | 8px |
+| `space-3` | 12px |
+| `space-4` | 16px |
+| `space-6` | 24px |
+| `space-8` | 32px |
+
+---
+
+## Component Patterns
+
+### Button Hierarchy
+
+1. **Primary**: Main action, use sparingly
+2. **Secondary**: Alternative actions
+3. **Danger**: Destructive actions
+4. **Ghost**: Low emphasis, icon buttons
+5. **Link**: Navigation-like actions
+
+### Card Patterns
+
+- Use `AccessibleCard` for all interactive cards
+- Always provide `ariaLabel` for interactive cards
+- Group related actions within card footer
+
+### Modal Guidelines
+
+- Always use `useFocusTrap` for accessibility
+- Lock body scroll with `useScrollLock`
+- Provide clear close actions
+- Use consistent header/footer layout
+
+---
+
+## Accessibility Standards
+
+### WCAG 2.1 AA Compliance
+
+- All interactive elements keyboard accessible
+- Focus indicators visible
+- Color contrast ratio ≥ 4.5:1 for text
+- Icon buttons have `aria-label`
+- Forms have proper label association
+
+### Mobile Considerations
+
+- Swipe gestures for common actions
+- Bottom sheet pattern for mobile modals
+- Touch targets ≥ 48px
+- Reduced motion support
+
+---
+
+## Animation
+
+### Timing Functions
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `ease-smooth` | `cubic-bezier(0.22, 1, 0.36, 1)` | UI transitions |
+| `ease-spring` | `cubic-bezier(0.175, 0.885, 0.32, 1.275)` | Bouncy elements |
+
+### Duration Scale
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `fast` | 150ms | Micro-interactions |
+| `normal` | 200ms | Standard transitions |
+| `slow` | 300ms | Page transitions |
+
+---
+
+## Best Practices
+
+1. **Always use design tokens** - No arbitrary values
+2. **Prefer composition** - Use subcomponents (Card.Header, etc.)
+3. **Accessibility first** - Test with keyboard and screen reader
+4. **Mobile-aware** - Design for touch, test on devices
+5. **Consistent patterns** - Reuse established patterns

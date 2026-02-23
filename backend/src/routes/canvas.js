@@ -3,13 +3,15 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as canvasDb from '../services/canvas-database.js';
 import { db } from '../services/database.js';
-// Auth not currently required for canvas routes
-// import { requireAdmin } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 import logger from '../services/logger.js';
 import path from 'path';
 import fs from 'fs/promises';
 
 const router = express.Router();
+
+// Apply authentication to all canvas routes
+router.use(authenticateToken);
 
 // Ensure canvas upload directory exists
 const CANVAS_UPLOAD_DIR = process.env.CANVAS_UPLOAD_DIR || './data/canvas-uploads';
@@ -35,7 +37,7 @@ canvasDb.initCanvasTables();
 router.get('/workspaces', async (req, res) => {
   try {
     const { project_id } = req.query;
-    const workspaces = canvasDb.getWorkspaces(project_id);
+    const workspaces = await canvasDb.getWorkspaces(project_id, req.user.id);
     res.success(workspaces);
   } catch (err) {
     logger.error('Failed to list workspaces', { error: err.message });
@@ -52,15 +54,16 @@ router.post('/workspaces', async (req, res) => {
       return res.error('Workspace name is required', 'VALIDATION_ERROR', null, 400);
     }
     
-    const workspace = canvasDb.createWorkspace({
+    const workspace = await canvasDb.createWorkspace({
       id: `ws_${uuidv4()}`,
+      userId: req.user.id,
       name,
       description,
       project_id,
       view_state: view_state || { x: 0, y: 0, zoom: 1 }
     });
     
-    logger.info('Canvas workspace created', { workspaceId: workspace.id, name });
+    logger.info('Canvas workspace created', { workspaceId: workspace.id, name, userId: req.user.id });
     res.success(workspace, 'Workspace created', 201);
   } catch (err) {
     logger.error('Failed to create workspace', { error: err.message });
@@ -72,10 +75,15 @@ router.post('/workspaces', async (req, res) => {
 router.get('/workspaces/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const canvas = canvasDb.getFullCanvas(id);
+    const canvas = await canvasDb.getFullCanvas(id);
     
     if (!canvas) {
       return res.error('Workspace not found', 'NOT_FOUND', null, 404);
+    }
+
+    // Security check
+    if (canvas.workspace.userId && canvas.workspace.userId !== req.user.id) {
+      return res.error('Access denied', 'FORBIDDEN', null, 403);
     }
     
     res.success(canvas);
@@ -90,13 +98,18 @@ router.put('/workspaces/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, view_state } = req.body;
-    
-    const workspace = canvasDb.updateWorkspace(id, { name, description, view_state });
-    
-    if (!workspace) {
+
+    const canvas = await canvasDb.getWorkspace(id);
+    if (!canvas) {
       return res.error('Workspace not found', 'NOT_FOUND', null, 404);
     }
+
+    // Security check
+    if (canvas.userId && canvas.userId !== req.user.id) {
+      return res.error('Access denied', 'FORBIDDEN', null, 403);
+    }
     
+    const workspace = await canvasDb.updateWorkspace(id, { name, description, view_state });
     res.success(workspace);
   } catch (err) {
     logger.error('Failed to update workspace', { error: err.message, workspaceId: req.params.id });
@@ -108,12 +121,22 @@ router.put('/workspaces/:id', async (req, res) => {
 router.delete('/workspaces/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const canvas = await canvasDb.getWorkspace(id);
+    if (!canvas) {
+      return res.error('Workspace not found', 'NOT_FOUND', null, 404);
+    }
+
+    // Security check
+    if (canvas.userId && canvas.userId !== req.user.id) {
+      return res.error('Access denied', 'FORBIDDEN', null, 403);
+    }
     
     // Get all documents to clean up files
-    const nodes = canvasDb.getNodesByWorkspace(id);
+    const nodes = await canvasDb.getNodesByWorkspace(id);
     for (const node of nodes) {
       if (node.type === 'document') {
-        const doc = canvasDb.getDocumentByNode(node.id);
+        const doc = await canvasDb.getDocumentByNode(node.id);
         if (doc) {
           try {
             await fs.unlink(doc.file_path);
@@ -127,7 +150,7 @@ router.delete('/workspaces/:id', async (req, res) => {
       }
     }
     
-    canvasDb.deleteWorkspace(id);
+    await canvasDb.deleteWorkspace(id);
     logger.info('Canvas workspace deleted', { workspaceId: id });
     res.success({ deleted: true });
   } catch (err) {
@@ -146,7 +169,7 @@ router.post('/workspaces/:id/nodes', async (req, res) => {
     const { id: workspaceId } = req.params;
     const nodeData = req.body;
     
-    const node = canvasDb.createNode({
+    const node = await canvasDb.createNode({
       ...nodeData,
       workspace_id: workspaceId,
       id: `node_${uuidv4()}`
@@ -163,7 +186,7 @@ router.post('/workspaces/:id/nodes', async (req, res) => {
 router.put('/nodes/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const node = canvasDb.updateNode(id, req.body);
+    const node = await canvasDb.updateNode(id, req.body);
     
     if (!node) {
       return res.error('Node not found', 'NOT_FOUND', null, 404);
@@ -186,7 +209,7 @@ router.post('/workspaces/:id/nodes/positions', async (req, res) => {
       return res.error('Nodes array required', 'VALIDATION_ERROR', null, 400);
     }
     
-    canvasDb.updateNodePositions(workspaceId, nodes);
+    await canvasDb.updateNodePositions(workspaceId, nodes);
     res.success({ updated: true });
   } catch (err) {
     logger.error('Failed to update node positions', { error: err.message, workspaceId: req.params.id });
@@ -200,7 +223,7 @@ router.delete('/nodes/:id', async (req, res) => {
     const { id } = req.params;
     
     // Clean up associated document files
-    const doc = canvasDb.getDocumentByNode(id);
+    const doc = await canvasDb.getDocumentByNode(id);
     if (doc) {
       try {
         await fs.unlink(doc.file_path);
@@ -212,7 +235,7 @@ router.delete('/nodes/:id', async (req, res) => {
       }
     }
     
-    canvasDb.deleteNode(id);
+    await canvasDb.deleteNode(id);
     res.success({ deleted: true });
   } catch (err) {
     logger.error('Failed to delete node', { error: err.message, nodeId: req.params.id });
@@ -230,7 +253,7 @@ router.post('/workspaces/:id/edges', async (req, res) => {
     const { id: workspaceId } = req.params;
     const edgeData = req.body;
     
-    const edge = canvasDb.createEdge({
+    const edge = await canvasDb.createEdge({
       ...edgeData,
       workspace_id: workspaceId,
       id: `edge_${uuidv4()}`
@@ -247,7 +270,7 @@ router.post('/workspaces/:id/edges', async (req, res) => {
 router.put('/edges/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const edge = canvasDb.updateEdge(id, req.body);
+    const edge = await canvasDb.updateEdge(id, req.body);
     
     if (!edge) {
       return res.error('Edge not found', 'NOT_FOUND', null, 404);
@@ -264,7 +287,7 @@ router.put('/edges/:id', async (req, res) => {
 router.delete('/edges/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    canvasDb.deleteEdge(id);
+    await canvasDb.deleteEdge(id);
     res.success({ deleted: true });
   } catch (err) {
     logger.error('Failed to delete edge', { error: err.message, edgeId: req.params.id });
@@ -280,7 +303,7 @@ router.delete('/edges/:id', async (req, res) => {
 router.get('/workspaces/:id/findings', async (req, res) => {
   try {
     const { id: workspaceId } = req.params;
-    const findings = canvasDb.getFindingsByWorkspace(workspaceId);
+    const findings = await canvasDb.getFindingsByWorkspace(workspaceId);
     res.success(findings);
   } catch (err) {
     logger.error('Failed to list findings', { error: err.message, workspaceId: req.params.id });
@@ -298,7 +321,7 @@ router.post('/workspaces/:id/findings', async (req, res) => {
       return res.error('Type and title are required', 'VALIDATION_ERROR', null, 400);
     }
     
-    const finding = canvasDb.createFinding({
+    const finding = await canvasDb.createFinding({
       workspace_id: workspaceId,
       node_id,
       type,
@@ -318,7 +341,7 @@ router.post('/workspaces/:id/findings', async (req, res) => {
 router.put('/findings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const finding = canvasDb.updateFinding(id, req.body);
+    const finding = await canvasDb.updateFinding(id, req.body);
     
     if (!finding) {
       return res.error('Finding not found', 'NOT_FOUND', null, 404);
@@ -335,7 +358,7 @@ router.put('/findings/:id', async (req, res) => {
 router.delete('/findings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    canvasDb.deleteFinding(id);
+    await canvasDb.deleteFinding(id);
     res.success({ deleted: true });
   } catch (err) {
     logger.error('Failed to delete finding', { error: err.message, findingId: req.params.id });
@@ -376,7 +399,7 @@ router.post('/workspaces/:id/documents', async (req, res) => {
     
     // Create document node at drop position
     const position = req.body.position ? JSON.parse(req.body.position) : { x: 100, y: 100 };
-    const node = canvasDb.createNode({
+    const node = await canvasDb.createNode({
       workspace_id: workspaceId,
       type: 'document',
       position,
@@ -391,7 +414,7 @@ router.post('/workspaces/:id/documents', async (req, res) => {
     });
     
     // Create document record
-    const document = canvasDb.createDocument({
+    const document = await canvasDb.createDocument({
       node_id: node.id,
       workspace_id: workspaceId,
       filename: file.name,
@@ -420,7 +443,7 @@ router.post('/workspaces/:id/documents', async (req, res) => {
 router.get('/documents/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const document = canvasDb.getDocument(id);
+    const document = await canvasDb.getDocument(id);
     
     if (!document) {
       return res.error('Document not found', 'NOT_FOUND', null, 404);
@@ -437,7 +460,7 @@ router.get('/documents/:id', async (req, res) => {
 router.get('/documents/:id/download', async (req, res) => {
   try {
     const { id } = req.params;
-    const document = canvasDb.getDocument(id);
+    const document = await canvasDb.getDocument(id);
     
     if (!document) {
       return res.error('Document not found', 'NOT_FOUND', null, 404);
@@ -454,7 +477,7 @@ router.get('/documents/:id/download', async (req, res) => {
 router.post('/documents/:id/ocr', async (req, res) => {
   try {
     const { id } = req.params;
-    const document = canvasDb.getDocument(id);
+    const document = await canvasDb.getDocument(id);
     
     if (!document) {
       return res.error('Document not found', 'NOT_FOUND', null, 404);
@@ -464,7 +487,7 @@ router.post('/documents/:id/ocr', async (req, res) => {
     // In production, integrate with Tesseract.js, AWS Textract, or similar
     const ocrResult = await runOCR(document.file_path, document.file_type);
     
-    canvasDb.updateDocument(id, { ocr_text: ocrResult.text });
+    await canvasDb.updateDocument(id, { ocr_text: ocrResult.text });
     
     res.success({ text: ocrResult.text, pages: ocrResult.pages });
   } catch (err) {

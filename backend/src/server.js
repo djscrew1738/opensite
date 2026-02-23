@@ -33,6 +33,7 @@ import { responseWrapper } from './utils/response.js';
 
 // Import routes
 import healthRoutes from './routes/health.js';
+import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import leadsRoutes from './routes/leads.js';
 import estimatesRoutes from './routes/estimates.js';
@@ -49,6 +50,7 @@ import settingsRoutes from './routes/settings.js';
 import historyRoutes from './routes/history.js';
 import visionRoutes from './routes/vision.js';
 import weatherRoutes from './routes/weather.js';
+// import quickbooksRoutes from './routes/quickbooks.js'; // Commented out - requires intuit-oauth package
 import emailMonitorRoutes from './routes/email-monitor.js';
 import emailAlertsRoutes from './routes/emailAlerts/index.js';
 import notificationRoutes from './routes/notifications.js';
@@ -196,6 +198,7 @@ app.use('/api/', apiLimiter);
 
 // Routes
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiChatLimiter, aiRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/estimates', estimatesRoutes);
@@ -212,6 +215,7 @@ app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
 app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
 app.use('/api/weather', weatherRoutes); // Weather forecast (NWS proxy with caching)
+// app.use('/api/quickbooks', quickbooksRoutes); // QuickBooks Online integration - requires intuit-oauth package
 app.use('/api/email-monitor', emailMonitorRoutes); // Legacy email keyword monitoring + SMS alerts
 app.use('/api/email-alerts', emailAlertsRoutes); // New Outlook-based email watcher with keyword rules
 app.use('/api/notifications', notificationRoutes); // Notification config and testing
@@ -355,12 +359,12 @@ setInterval(() => {
 const adminConfigured = checkAdminTokenConfig();
 
 // Start server on all interfaces
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   logger.info('Server started', { port: PORT, adminConfigured });
 
   // Load saved settings and apply to all AI providers
   try {
-    aiProvider.loadFromSettings();
+    await aiProvider.loadFromSettings();
     logger.info('Applied saved settings to AI providers', {
       activeProvider: aiProvider.activeProviderName,
       config: aiProvider.getConfig()
@@ -382,7 +386,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   }
 
   // Print notification configuration status
-  printConfigStatus();
+  await printConfigStatus();
 
   const providerLabel = {
     groq: 'Groq Cloud',

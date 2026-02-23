@@ -9,10 +9,12 @@ export function useStreamingResponse() {
     setStreamingMessage('');
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/ai/chat/stream', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ message, conversationId, model })
       });

@@ -60,31 +60,31 @@ router.get('/alerts', (req, res) => {
 });
 
 // PUT /api/email-monitor/settings — save email monitor settings
-router.put('/settings', (req, res) => {
+router.put('/settings', async (req, res) => {
   const { enabled, host, port, user, pass, keywords } = req.body;
 
-  if (enabled !== undefined) db.setSetting('email_monitor_enabled', enabled ? 'true' : 'false');
-  if (host) db.setSetting('imap_host', host);
-  if (port) db.setSetting('imap_port', String(port));
-  if (user) db.setSetting('imap_user', user);
+  if (enabled !== undefined) await db.setSetting('email_monitor_enabled', enabled ? 'true' : 'false');
+  if (host) await db.setSetting('imap_host', host);
+  if (port) await db.setSetting('imap_port', String(port));
+  if (user) await db.setSetting('imap_user', user);
   if (pass) {
     // Encrypt password before storing
     const encryptedPass = isEncrypted(pass) ? pass : encrypt(pass);
-    db.setSetting('imap_pass', encryptedPass);
+    await db.setSetting('imap_pass', encryptedPass);
   }
-  if (keywords !== undefined) db.setSetting('email_monitor_keywords', keywords);
+  if (keywords !== undefined) await db.setSetting('email_monitor_keywords', keywords);
 
   res.success({ saved: true }, 'Email monitor settings saved');
 });
 
 // GET /api/email-monitor/settings — get email monitor settings (masked)
-router.get('/settings', (req, res) => {
-  const user = db.getSetting('imap_user') || '';
-  const pass = db.getSetting('imap_pass') || '';
-  const host = db.getSetting('imap_host') || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
-  const port = db.getSetting('imap_port') || process.env.IMAP_DEFAULT_PORT || '993';
-  const enabled = db.getSetting('email_monitor_enabled') === 'true';
-  const keywords = db.getSetting('email_monitor_keywords') || DEFAULT_KEYWORDS.join(', ');
+router.get('/settings', async (req, res) => {
+  const user = (await db.getSetting('imap_user')) || '';
+  const pass = (await db.getSetting('imap_pass')) || '';
+  const host = (await db.getSetting('imap_host')) || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
+  const port = (await db.getSetting('imap_port')) || process.env.IMAP_DEFAULT_PORT || '993';
+  const enabled = (await db.getSetting('email_monitor_enabled')) === 'true';
+  const keywords = (await db.getSetting('email_monitor_keywords')) || DEFAULT_KEYWORDS.join(', ');
 
   // Always mask password as '••••••••' regardless of encryption state
   // Never expose any part of the actual password or encrypted value

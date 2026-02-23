@@ -4,11 +4,11 @@ import { db } from './database.js';
 import logger from './logger.js';
 import sharp from 'sharp';
 import fs from 'fs';
+import { ollamaService } from './ollama.js';
 
 /**
- * Run AI vision analysis on a blueprint image
- * Uses Anthropic API (Claude) with vision capabilities
- * Falls back to Groq if Anthropic key not available
+ * Vision AI Service — Multi-pass AI analysis for blueprint understanding
+ * Enhanced with Deep Scan (tiled local AI analysis) and Run Tracing
  */
 class VisionAIService {
   /**
@@ -19,11 +19,15 @@ class VisionAIService {
    * @returns {object} Analysis result with spatial annotations
    */
   async analyzeBlueprint(imagePath, options = {}, progressCallback) {
-    const anthropicKey = db.getSetting('anthropic_api_key');
-    const groqKey = db.getSetting('groq_api_key');
+    const anthropicKey = await db.getSetting('anthropic_api_key');
+    const groqKey = await db.getSetting('groq_api_key');
 
     if (!anthropicKey && !groqKey) {
-      throw new Error('No AI API key configured. Add an Anthropic or Groq API key in Settings.');
+      // If no cloud keys, try local deep scan if model is provided
+      if (options.model && (options.model.includes('llava') || options.model.includes('vision'))) {
+        return this.deepScan(imagePath, options, progressCallback);
+      }
+      throw new Error('No AI API key configured. Add an Anthropic or Groq API key in Settings, or use a local vision model.');
     }
 
     if (progressCallback) progressCallback(10);
@@ -60,6 +64,215 @@ class VisionAIService {
     if (progressCallback) progressCallback(80);
 
     return result;
+  }
+
+  /**
+   * Perform deep tiled scan using local vision model (Ollama)
+   * This handles high-resolution blueprints by processing smaller segments
+   */
+  async deepScan(imagePath, options = {}, progressCallback) {
+    const model = options.model || 'llava:13b';
+    const tileSize = options.tileSize || 1024;
+    const overlap = options.overlap || 128;
+
+    logger.info('Starting Vision Deep Scan', { imagePath, model, tileSize });
+
+    const metadata = await sharp(imagePath).metadata();
+    const { width, height } = metadata;
+
+    const cols = Math.ceil(width / (tileSize - overlap));
+    const rows = Math.ceil(height / (tileSize - overlap));
+    const totalTiles = cols * rows;
+
+    const aggregated = {
+      overview: `Deep Scan analysis using ${model} (${totalTiles} tiles)`,
+      systems: [
+        { name: 'Plumbing', confidence: 0.8, regions: [] }
+      ],
+      notes: [],
+      scale: null
+    };
+
+    let tilesProcessed = 0;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const left = c * (tileSize - overlap);
+        const top = r * (tileSize - overlap);
+        const currentWidth = Math.min(tileSize, width - left);
+        const currentHeight = Math.min(tileSize, height - top);
+
+        if (currentWidth <= 0 || currentHeight <= 0) continue;
+
+        // Extract tile
+        const tileBuffer = await sharp(imagePath)
+          .extract({ left, top, width: currentWidth, height: currentHeight })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+
+        const base64Tile = tileBuffer.toString('base64');
+
+        // Analyze tile with Ollama
+        const prompt = `Analyze this blueprint tile. Identify any plumbing fixtures (toilets, sinks, showers, drains).
+Return JSON only:
+{
+  "fixtures": [
+    {"type": "toilet|sink|shower|drain", "x": 0.0-1.0, "y": 0.0-1.0, "label": "Description"}
+  ]
+}`;
+
+        try {
+          const result = await ollamaService.generate(prompt, {
+            model,
+            images: [base64Tile],
+            temperature: 0.1
+          });
+
+          if (result.success) {
+            const parsed = this.parseAnalysisResult(result.response, model);
+            if (parsed.success && parsed.data.fixtures) {
+              for (const fix of parsed.data.fixtures) {
+                // Transform local tile coordinates to global image coordinates
+                const globalX = (left + (fix.x * currentWidth)) / width;
+                const globalY = (top + (fix.y * currentHeight)) / height;
+
+                aggregated.systems[0].regions.push({
+                  label: fix.label || fix.type,
+                  type: 'fixture',
+                  x: globalX,
+                  y: globalY,
+                  width: 0.01,
+                  height: 0.01,
+                  details: `Detected in tile ${c},${r}`
+                });
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn(`Tile analysis failed at ${c},${r}: ${err.message}`);
+        }
+
+        tilesProcessed++;
+        if (progressCallback) {
+          progressCallback(10 + Math.round((tilesProcessed / totalTiles) * 80));
+        }
+      }
+    }
+
+    aggregated.notes.push(`Deep Scan completed. Processed ${totalTiles} tiles.`);
+    
+    return {
+      success: true,
+      data: aggregated,
+      model,
+      raw: JSON.stringify(aggregated)
+    };
+  }
+
+  /**
+   * Perform deep tiled scan optimized for detecting linear runs (pipes, walls)
+   */
+  async traceRuns(imagePath, options = {}, progressCallback) {
+    const model = options.model || 'llava:13b';
+    const tileSize = options.tileSize || 1024;
+    const overlap = options.overlap || 256; // Higher overlap for better run stitching
+
+    logger.info('Starting Vision Run Tracing', { imagePath, model });
+
+    const metadata = await sharp(imagePath).metadata();
+    const { width, height } = metadata;
+
+    const cols = Math.ceil(width / (tileSize - overlap));
+    const rows = Math.ceil(height / (tileSize - overlap));
+    const totalTiles = cols * rows;
+
+    const aggregated = {
+      overview: `Tracing analysis using ${model} (${totalTiles} tiles)`,
+      systems: [
+        { name: 'Pipe Runs', confidence: 0.7, regions: [] },
+        { name: 'Walls', confidence: 0.7, regions: [] }
+      ],
+      notes: [],
+      scale: null
+    };
+
+    let tilesProcessed = 0;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const left = c * (tileSize - overlap);
+        const top = r * (tileSize - overlap);
+        const currentWidth = Math.min(tileSize, width - left);
+        const currentHeight = Math.min(tileSize, height - top);
+
+        if (currentWidth <= 0 || currentHeight <= 0) continue;
+
+        const tileBuffer = await sharp(imagePath)
+          .extract({ left, top, width: currentWidth, height: currentHeight })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+
+        const base64Tile = tileBuffer.toString('base64');
+
+        const prompt = `Analyze this blueprint segment. Identify all pipe runs and interior wall segments.
+Return JSON only:
+{
+  "runs": [
+    {
+      "type": "pipe|wall",
+      "label": "Description (e.g. 4 inch PVC)",
+      "points": [{"x": 0.0-1.0, "y": 0.0-1.0}, {"x": 0.0-1.0, "y": 0.0-1.0}]
+    }
+  ]
+}`;
+
+        try {
+          const result = await ollamaService.generate(prompt, {
+            model,
+            images: [base64Tile],
+            temperature: 0.1
+          });
+
+          if (result.success) {
+            const parsed = this.parseAnalysisResult(result.response, model);
+            const runs = parsed.data.runs || [];
+            
+            for (const run of runs) {
+              const globalPoints = (run.points || []).map(p => ({
+                x: (left + (p.x * currentWidth)) / width,
+                y: (top + (p.y * currentHeight)) / height
+              }));
+
+              if (globalPoints.length >= 2) {
+                const systemIdx = run.type === 'wall' ? 1 : 0;
+                aggregated.systems[systemIdx].regions.push({
+                  label: run.label || run.type,
+                  type: 'path',
+                  points: globalPoints,
+                  details: `Segment in tile ${c},${r}`
+                });
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn(`Run tracing failed at ${c},${r}: ${err.message}`);
+        }
+
+        tilesProcessed++;
+        if (progressCallback) {
+          progressCallback(10 + Math.round((tilesProcessed / totalTiles) * 80));
+        }
+      }
+    }
+
+    aggregated.notes.push(`Run tracing completed. Processed ${totalTiles} tiles.`);
+    
+    return {
+      success: true,
+      data: aggregated,
+      model,
+      raw: JSON.stringify(aggregated)
+    };
   }
 
   async analyzeWithAnthropic(base64Image, mediaType, apiKey, options = {}) {
@@ -199,14 +412,14 @@ IMPORTANT: All coordinates (x, y, width, height) must be normalized between 0 an
       while ((match = blockRegex.exec(text)) !== null) {
         try {
           const parsed = JSON.parse(match[1]);
-          if (parsed.systems || parsed.overview) {
+          if (parsed.systems || parsed.overview || parsed.runs) {
             return { success: true, data: parsed, model, raw: text };
           }
         } catch (e2) { /* try next block */ }
       }
 
       // Try to find a standalone JSON object with expected keys
-      const objRegex = /\{[^{}]*"(?:systems|overview)"[^{}]*(?:\{[\s\S]*?\}[^{}]*)*\}/g;
+      const objRegex = /\{[^{}]*"(?:systems|overview|runs)"[^{}]*(?:\{[\s\S]*?\}[^{}]*)*\}/g;
       while ((match = objRegex.exec(text)) !== null) {
         try {
           const parsed = JSON.parse(match[0]);
@@ -241,6 +454,8 @@ IMPORTANT: All coordinates (x, y, width, height) must be normalized between 0 an
     // Color palette for systems
     const colors = {
       'Plumbing': '#2196F3',
+      'Pipe Runs': '#00BCD4',
+      'Walls': '#9E9E9E',
       'Electrical': '#FFC107',
       'HVAC': '#4CAF50',
       'Structural': '#9C27B0',
@@ -250,16 +465,26 @@ IMPORTANT: All coordinates (x, y, width, height) must be normalized between 0 an
 
     for (const system of analysisData.systems) {
       const color = colors[system.name] || colors.default;
-      const annotations = (system.regions || []).map((region, i) => ({
-        id: `${system.name.toLowerCase().replace(/\s+/g, '-')}-${i}`,
-        type: region.type || 'other',
-        label: region.label,
-        x: region.x,
-        y: region.y,
-        width: region.width || 0.02,
-        height: region.height || 0.02,
-        details: region.details
-      }));
+      const annotations = (system.regions || []).map((region, i) => {
+        const base = {
+          id: `${system.name.toLowerCase().replace(/\s+/g, '-')}-${i}`,
+          type: region.type || 'other',
+          label: region.label,
+          details: region.details
+        };
+
+        if (region.type === 'path' || region.points) {
+          return { ...base, points: region.points };
+        }
+
+        return {
+          ...base,
+          x: region.x,
+          y: region.y,
+          width: region.width || 0.02,
+          height: region.height || 0.02
+        };
+      });
 
       layers.push({
         name: system.name,
@@ -271,7 +496,7 @@ IMPORTANT: All coordinates (x, y, width, height) must be normalized between 0 an
         style: {
           color,
           opacity: 0.6,
-          strokeWidth: 2,
+          strokeWidth: system.name === 'Walls' ? 4 : 2,
           confidence: system.confidence
         }
       });

@@ -41,3 +41,6 @@ Thumbs.db
 
 # Persistent data volumes used by new plumbing worker
 data/
+
+.gemini/
+gha-creds-*.json

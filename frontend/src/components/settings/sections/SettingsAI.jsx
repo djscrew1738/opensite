@@ -5,17 +5,19 @@ import {
   Loader2, Save, Eye, EyeOff
 } from 'lucide-react';
 import { Section, SliderField, SettingsRow, Toggle } from '../primitives';
+import ConfirmDialog from '../../shared/ConfirmDialog';
 
 function SettingsAI({
   activeProvider,
   settings,
-  availableModels,
+  availableModels: rawAvailableModels,
   connected,
   defaultModel,
   config,
   switchingProvider,
   testingOllama,
   testingGroq,
+  testingOpenai,
   testingOpenClaw,
   savingAI,
   maxTokens,
@@ -34,6 +36,8 @@ function SettingsAI({
   deletingModel,
   showGroqKey,
   setShowGroqKey,
+  showOpenaiKey,
+  setShowOpenaiKey,
   showOpenclawToken,
   setShowOpenclawToken,
   temperature,
@@ -42,6 +46,10 @@ function SettingsAI({
   setGroqKey,
   groqTemperature,
   setGroqTemperature,
+  openaiKey,
+  setOpenaiKey,
+  openaiTemperature,
+  setOpenaiTemperature,
   ollamaUrl,
   setOllamaUrl,
   openclawUrl,
@@ -56,6 +64,8 @@ function SettingsAI({
   handleTestOllama,
   handleTestGroq,
   handleSaveGroqKey,
+  handleTestOpenai,
+  handleSaveOpenaiKey,
   handleTestOpenClaw,
   handleSaveOpenclawToken,
   handleSetDefaultModel,
@@ -63,6 +73,9 @@ function SettingsAI({
   handleDeleteModel,
   temperatureLabel,
 }) {
+  // Defensive: ensure availableModels is always an array
+  const availableModels = Array.isArray(rawAvailableModels) ? rawAvailableModels : [];
+  
   return (
     <div className="space-y-6">
       {/* Provider */}
@@ -71,20 +84,22 @@ function SettingsAI({
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
             activeProvider === 'openclaw' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
             : activeProvider === 'groq' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+            : activeProvider === 'openai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
             : activeProvider === 'anthropic' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
             : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${activeProvider === 'openclaw' ? 'bg-red-500' : activeProvider === 'groq' ? 'bg-orange-500' : activeProvider === 'anthropic' ? 'bg-amber-500' : 'bg-blue-500'}`} />
-            {{ openclaw: 'OpenClaw', groq: 'Groq Cloud', anthropic: 'Anthropic', ollama: 'Ollama Local' }[activeProvider] || activeProvider}
+            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${activeProvider === 'openclaw' ? 'bg-red-500' : activeProvider === 'groq' ? 'bg-orange-500' : activeProvider === 'openai' ? 'bg-emerald-500' : activeProvider === 'anthropic' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+            {{ openclaw: 'OpenClaw', groq: 'Groq Cloud', anthropic: 'Anthropic', openai: 'OpenAI', ollama: 'Ollama Local' }[activeProvider] || activeProvider}
           </span>
         }
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { id: 'ollama', icon: Server, label: 'Ollama', desc: 'Local, private, no limits', accent: 'blue' },
-              { id: 'groq',   icon: Zap,    label: 'Groq',   desc: 'Ultra-fast cloud inference', accent: 'orange' },
-              { id: 'openclaw', icon: Cog,  label: 'OpenClaw', desc: 'Local AI gateway — 200k ctx, no API cost', accent: 'red' },
+              { id: 'ollama',   icon: Server, label: 'Ollama',   desc: 'Local private', accent: 'blue' },
+              { id: 'groq',     icon: Zap,    label: 'Groq',     desc: 'Ultra-fast', accent: 'orange' },
+              { id: 'openai',   icon: Cpu,    label: 'OpenAI',   desc: 'GPT-4o standard', accent: 'emerald' },
+              { id: 'openclaw', icon: Cog,    label: 'OpenClaw', desc: 'Premium local', accent: 'red' },
             ].map(({ id, icon: Icon, label, desc, accent }) => (
               <button key={id} onClick={() => handleSwitchProvider(id)} disabled={switchingProvider}
                 className={`relative p-4 rounded-xl border-2 transition-all text-left ${
@@ -98,7 +113,7 @@ function SettingsAI({
                   <Icon className={`w-4 h-4 text-${accent}-600 dark:text-${accent}-400`} />
                   <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{label}</span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-tight">{desc}</p>
               </button>
             ))}
           </div>
@@ -135,8 +150,13 @@ function SettingsAI({
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input type={showGroqKey ? 'text' : 'password'} value={groqKey} onChange={e => setGroqKey(e.target.value)} className="input pr-10 font-mono text-sm" placeholder={settings.groq_api_key_masked || 'gsk_...'} />
-                    <button type="button" onClick={() => setShowGroqKey(!showGroqKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showGroqKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button 
+                      type="button" 
+                      onClick={() => setShowGroqKey(!showGroqKey)} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label={showGroqKey ? 'Hide API key' : 'Show API key'}
+                    >
+                      {showGroqKey ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                     </button>
                   </div>
                   <button onClick={handleTestGroq} disabled={testingGroq} className="btn-secondary text-sm whitespace-nowrap">
@@ -158,6 +178,42 @@ function SettingsAI({
             </>
           )}
 
+          {/* OpenAI */}
+          {activeProvider === 'openai' && (
+            <>
+              <div>
+                <label className="label">OpenAI API Key</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Get your key at platform.openai.com</p>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input type={showOpenaiKey ? 'text' : 'password'} value={openaiKey} onChange={e => setOpenaiKey(e.target.value)} className="input pr-10 font-mono text-sm" placeholder={settings.openai_api_key_masked || 'sk-...'} />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowOpenaiKey(!showOpenaiKey)} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button onClick={handleTestOpenai} disabled={testingOpenai} className="btn-secondary text-sm whitespace-nowrap">
+                    {testingOpenai ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
+                  </button>
+                  <button onClick={handleSaveOpenaiKey} disabled={!openaiKey.trim()} className="btn-primary text-sm whitespace-nowrap">
+                    <Save className="w-4 h-4" /> Save
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="label">Default Model</label>
+                <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input">
+                  {availableModels.length === 0 && <option>gpt-4o-mini</option>}
+                  {availableModels.map(m => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
+                </select>
+              </div>
+              <SliderField label="Temperature" value={openaiTemperature} onChange={setOpenaiTemperature} min={0} max={1} step={0.05} unit={` — ${temperatureLabel(openaiTemperature)}`} markers={['Precise','Balanced','Creative']} />
+            </>
+          )}
+
           {/* OpenClaw */}
           {activeProvider === 'openclaw' && (
             <>
@@ -175,8 +231,13 @@ function SettingsAI({
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input type={showOpenclawToken ? 'text' : 'password'} value={openclawToken} onChange={e => setOpenclawToken(e.target.value)} className="input pr-10 font-mono text-sm" placeholder={settings.openclaw_token_masked || 'Enter token if configured'} />
-                    <button type="button" onClick={() => setShowOpenclawToken(!showOpenclawToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showOpenclawToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button 
+                      type="button" 
+                      onClick={() => setShowOpenclawToken(!showOpenclawToken)} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label={showOpenclawToken ? 'Hide token' : 'Show token'}
+                    >
+                      {showOpenclawToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                     </button>
                   </div>
                   <button onClick={handleSaveOpenclawToken} disabled={!openclawToken.trim()} className="btn-primary text-sm whitespace-nowrap"><Save className="w-4 h-4" /> Save</button>
@@ -274,16 +335,7 @@ function SettingsAI({
                     <div className="flex items-center gap-2 ml-4">
                       {!isDefault && <button onClick={() => handleSetDefaultModel(m.name)} className="btn-ghost text-xs px-3 py-1.5 min-h-0">Set Default</button>}
                       {!isGroq && !isOC && (
-                        deleteConfirm === m.name ? (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => handleDeleteModel(m.name)} disabled={deletingModel === m.name} className="btn-danger text-xs px-3 py-1.5 min-h-0">
-                              {deletingModel === m.name ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
-                            </button>
-                            <button onClick={() => setDeleteConfirm(null)} className="btn-ghost text-xs px-2 py-1.5 min-h-0">Cancel</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => setDeleteConfirm(m.name)} className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )
+                        <button onClick={() => setDeleteConfirm(m.name)} className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
                     </div>
                   </div>
@@ -291,6 +343,18 @@ function SettingsAI({
               );
             })}
           </div>
+        )}
+
+        {/* Delete Confirmation */}
+        {deleteConfirm && (
+          <ConfirmDialog
+            title="Delete AI Model?"
+            message={`Are you sure you want to delete the model "${deleteConfirm}"? This will remove the model files from your local Ollama storage.`}
+            confirmLabel={deletingModel ? 'Deleting...' : 'Delete Model'}
+            onConfirm={() => handleDeleteModel(deleteConfirm)}
+            onCancel={() => setDeleteConfirm(null)}
+            variant="danger"
+          />
         )}
       </Section>
     </div>

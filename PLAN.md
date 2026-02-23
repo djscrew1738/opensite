@@ -1,79 +1,64 @@
-# Plan: Optimize Ollama Integration + Interactive Settings
+# OpenSite Roadmap: Phase 3 & 4
 
-## A. Ollama Service Optimization (backend/src/services/ollama.js)
+## Phase 3: Production Readiness & Enterprise Features
 
-1. **Retry with exponential backoff** — wrap `generate()` and `generateStream()` with retry logic (3 attempts, 1s/2s/4s backoff). Currently zero retries.
+### 1. PostgreSQL Migration
+- **Goal**: Transition from SQLite to PostgreSQL for better concurrency, reliability, and scaling in production.
+- **Tasks**:
+  - [ ] Set up PostgreSQL container in `docker-compose.prod.yml`.
+  - [ ] Implement `DatabaseServicePostgres` class matching the current modular interface.
+  - [ ] Create data migration script (`scripts/migrate-to-postgres.js`) to move data from `opensite.db` to PG.
+  - [ ] Update `.env` with `DATABASE_URL` and connection pooling settings.
 
-2. **Circuit breaker** — track consecutive failures. After 5 failures, short-circuit requests for 30s before trying again. Prevents hammering a dead Ollama instance.
+### 2. Multi-user Authentication & RBAC
+- **Goal**: Secure the application and support multiple users with different permission levels.
+- **Tasks**:
+  - [ ] Implement JWT-based authentication (using `jsonwebtoken` and `bcrypt`).
+  - [ ] Create `users` table with roles: `admin`, `estimator`, `viewer`.
+  - [ ] Add `userId` to all major entities (`leads`, `projects`, `takeoffs`, `blueprints`).
+  - [ ] Update backend services to scope queries by `userId` or `companyId`.
+  - [ ] Implement Auth UI (Login, Profile, Password Reset).
 
-3. **Persistent axios instance with keep-alive** — create one axios instance with `keepAlive: true` and connection pooling instead of creating fresh connections per request.
+### 3. Multi-tenant Data Scoping
+- **Goal**: Ensure data isolation between different plumbing companies if the platform is used as a SaaS.
+- **Tasks**:
+  - [ ] Add `companyId` to relevant tables.
+  - [ ] Implement middleware to enforce tenant isolation at the service level.
 
-4. **Smarter health polling** — add `getStatus()` method that returns richer data (uptime, request count, avg response time, last error). Track metrics in-memory.
+## Phase 4: Advanced Operations & Integrations
 
-5. **Configurable parameters** — make `baseUrl`, `defaultModel`, `temperature` mutable at runtime via a `configure()` method (called from new settings API).
+### 1. External Data Integrations
+- **Goal**: Enrich leads and projects with third-party data.
+- **Tasks**:
+  - [ ] **Zillow API**: Auto-fetch property details (year built, last sale, square footage) when an address is added.
+  - [ ] **Google Maps Static API**: Generate site map thumbnails for lead overview cards.
+  - [ ] **Weather API**: Integrate local DFW weather forecasts into the Dashboard for project planning.
 
-## B. Backend Settings API (new: backend/src/routes/settings.js)
+### 2. Operational Efficiency
+- **Goal**: Streamline business workflows and accounting.
+- **Tasks**:
+  - [ ] **QuickBooks Integration**: Sync projects and estimates to QuickBooks Online for invoicing.
+  - [ ] **n8n Workflow Automation**: Create n8n triggers for "New Lead" or "Estimate Approved" to automate notifications and data entry.
+  - [ ] **PDF Proposal Generator**: Create professional, brand-aligned PDF proposals with cost breakdowns and company logos.
 
-Create a `settings` table in SQLite for persisting UI-configurable settings:
+### 3. Enhanced Vision-AI (Takeoff v2)
+- **Goal**: Move from manual measurements to AI-assisted detection.
+- **Tasks**:
+  - [ ] **Auto-Fixture Detection**: Train/Tune a model to automatically identify and place "Count" markers for toilets, sinks, and drains.
+  - [ ] **Wall/Pipe Detection**: Auto-trace wall segments to estimate pipe lengths.
+  - [ ] **Global Scaling**: Automatically detect blueprint scale from the legend using OCR.
 
-```
-GET  /api/settings          — get all settings
-PUT  /api/settings          — update settings (partial merge)
-POST /api/ai/models/pull    — pull/download a model from Ollama
-DELETE /api/ai/models/:name — delete a model from Ollama
-```
+## 🏁 Completed Phases (For Context)
 
-Settings stored as key-value pairs:
-- `ollama_url` (default: http://localhost:11434)
-- `ollama_model` (default: llama3.1)
-- `ollama_temperature` (default: 0.7)
-- `company_name` (default: CTL Plumbing LLC)
-- `service_area` (default: DFW Metroplex)
-- `specialization` (default: Commercial and Multi-family Plumbing)
-- `serper_api_key` (default: empty — for discovery pipeline)
+### Phase 1: Core Intelligence (Ollama, Leads, Basic Pricing)
+- [x] Ollama multi-model support.
+- [x] Lead scoring and CRM features.
+- [x] CTL 3-tier pricing calculator.
+- [x] SQLite persistence layer.
 
-On backend startup, load settings from DB and apply to ollamaService.
-
-## C. Rewrite Settings Page (frontend/src/pages/Settings.jsx)
-
-Complete redesign with interactive sections:
-
-### Section 1: AI Configuration
-- Ollama URL input (editable, with test connection button)
-- Default model selector (existing, keep)
-- Temperature slider (0.0 - 1.0 with labels: Precise / Balanced / Creative)
-- Model management: pull new models, delete existing (with confirmation)
-- Connection status badge (existing, improve)
-
-### Section 2: Business Profile
-- Editable company name, service area, specialization inputs
-- Save button with success toast
-
-### Section 3: API Keys
-- Serper.dev API key input (masked, with test button)
-- Status badge showing if key is configured
-
-### Section 4: Model Library
-- Cards for each installed model with size, last modified
-- "Set as Default" button per model
-- "Delete" button per model (with confirmation)
-- "Pull New Model" input + button at top
-
-### Section 5: System Info
-- Version, ports, DB path
-- Cache stats and "Clear Cache" button
-- Ollama metrics (if available): requests served, avg response time
-
-## D. Files to Create/Modify
-
-**Create:**
-- `backend/src/routes/settings.js` — new settings CRUD API
-
-**Modify:**
-- `backend/src/services/ollama.js` — retry, circuit breaker, keep-alive, runtime config, metrics
-- `backend/src/services/database.js` — add settings table + CRUD methods
-- `backend/src/server.js` — mount settings routes, load settings on startup
-- `backend/src/routes/ai.js` — add model pull/delete endpoints
-- `frontend/src/pages/Settings.jsx` — full redesign with interactive controls
-- `frontend/src/api/client.js` — add settings + model management API methods
-- `frontend/src/hooks/useOllama.js` — return richer status data
+### Phase 2: Visual Takeoff & Blueprint Analysis
+- [x] Deep Zoom (DZI) blueprint viewer.
+- [x] Interactive Canvas for measurements (lengths, areas, counts).
+- [x] Material Library and price history tracking.
+- [x] AI-powered blueprint analysis with layer generation.
+- [x] Background job processing for high-res images.

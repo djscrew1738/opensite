@@ -13,6 +13,7 @@ import {
 import { testImapConnection, checkEmails } from '../services/email-monitor.js';
 import twilio from 'twilio';
 import { db } from '../services/database.js';
+import { tryCatch } from '../utils/response.js';
 
 const router = express.Router();
 
@@ -20,10 +21,10 @@ const router = express.Router();
  * GET /api/notifications/config-status
  * Get complete configuration status for email and SMS
  */
-router.get('/config-status', (req, res) => {
-  const status = checkAllNotificationConfigs();
+router.get('/config-status', tryCatch(async (req, res) => {
+  const status = await checkAllNotificationConfigs();
   res.success(status);
-});
+}));
 
 /**
  * POST /api/notifications/test-email-connection
@@ -63,11 +64,11 @@ router.post('/test-email-connection', async (req, res) => {
 router.post('/test-sms', async (req, res) => {
   try {
     const { phone } = req.body;
-    const toPhone = phone || db.getSetting('notify_phone') || process.env.NOTIFY_PHONE_NUMBER;
+    const toPhone = phone || (await db.getSetting('notify_phone')) || process.env.NOTIFY_PHONE_NUMBER;
     
-    const accountSid = db.getSetting('twilio_account_sid') || process.env.TWILIO_ACCOUNT_SID;
-    const authToken = db.getSetting('twilio_auth_token') || process.env.TWILIO_AUTH_TOKEN;
-    const fromPhone = db.getSetting('twilio_from_phone') || process.env.TWILIO_FROM_NUMBER;
+    const accountSid = (await db.getSetting('twilio_account_sid')) || process.env.TWILIO_ACCOUNT_SID;
+    const authToken = (await db.getSetting('twilio_auth_token')) || process.env.TWILIO_AUTH_TOKEN;
+    const fromPhone = (await db.getSetting('twilio_from_phone')) || process.env.TWILIO_FROM_NUMBER;
 
     if (!accountSid || !authToken) {
       return res.error('Twilio credentials not configured', 'TWILIO_NOT_CONFIGURED', null, 400);
@@ -176,20 +177,20 @@ router.post('/send-test-email', async (req, res) => {
  * GET /api/notifications/settings
  * Get all notification settings
  */
-router.get('/settings', (req, res) => {
+router.get('/settings', tryCatch(async (req, res) => {
   const settings = {
     // Email Monitor (IMAP)
     email: {
-      enabled: db.getSetting('email_monitor_enabled') === 'true',
-      host: db.getSetting('imap_host') || process.env.IMAP_HOST || 'outlook.office365.com',
-      port: parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || '993'),
-      user: db.getSetting('imap_user') || process.env.IMAP_USER || '',
+      enabled: (await db.getSetting('email_monitor_enabled')) === 'true',
+      host: (await db.getSetting('imap_host')) || process.env.IMAP_HOST || 'outlook.office365.com',
+      port: parseInt((await db.getSetting('imap_port')) || process.env.IMAP_PORT || '993'),
+      user: (await db.getSetting('imap_user')) || '',
     },
     // Twilio SMS
     twilio: {
-      accountSidConfigured: !!(db.getSetting('twilio_account_sid') || process.env.TWILIO_ACCOUNT_SID),
-      fromPhone: db.getSetting('twilio_from_phone') || process.env.TWILIO_FROM_NUMBER || '',
-      toPhone: db.getSetting('notify_phone') || process.env.NOTIFY_PHONE_NUMBER || '',
+      accountSidConfigured: !!((await db.getSetting('twilio_account_sid')) || process.env.TWILIO_ACCOUNT_SID),
+      fromPhone: (await db.getSetting('twilio_from_phone')) || process.env.TWILIO_FROM_NUMBER || '',
+      toPhone: (await db.getSetting('notify_phone')) || process.env.NOTIFY_PHONE_NUMBER || '',
     },
     // SMTP (Outgoing Email)
     smtp: {
@@ -201,13 +202,13 @@ router.get('/settings', (req, res) => {
   };
 
   res.success(settings);
-});
+}));
 
 /**
  * PUT /api/notifications/settings
  * Update notification settings
  */
-router.put('/settings', (req, res) => {
+router.put('/settings', tryCatch(async (req, res) => {
   const { 
     emailEnabled, 
     imapHost, 
@@ -222,21 +223,21 @@ router.put('/settings', (req, res) => {
 
   // Update email settings
   if (emailEnabled !== undefined) {
-    db.setSetting('email_monitor_enabled', emailEnabled ? 'true' : 'false');
+    await db.setSetting('email_monitor_enabled', emailEnabled ? 'true' : 'false');
   }
-  if (imapHost) db.setSetting('imap_host', imapHost);
-  if (imapPort) db.setSetting('imap_port', String(imapPort));
-  if (imapUser) db.setSetting('imap_user', imapUser);
-  if (imapPass) db.setSetting('imap_pass', imapPass);
+  if (imapHost) await db.setSetting('imap_host', imapHost);
+  if (imapPort) await db.setSetting('imap_port', String(imapPort));
+  if (imapUser) await db.setSetting('imap_user', imapUser);
+  if (imapPass) await db.setSetting('imap_pass', imapPass);
 
   // Update Twilio settings
-  if (twilioAccountSid) db.setSetting('twilio_account_sid', twilioAccountSid);
-  if (twilioAuthToken) db.setSetting('twilio_auth_token', twilioAuthToken);
-  if (twilioFromPhone) db.setSetting('twilio_from_phone', twilioFromPhone);
-  if (notifyPhone) db.setSetting('notify_phone', notifyPhone);
+  if (twilioAccountSid) await db.setSetting('twilio_account_sid', twilioAccountSid);
+  if (twilioAuthToken) await db.setSetting('twilio_auth_token', twilioAuthToken);
+  if (twilioFromPhone) await db.setSetting('twilio_from_phone', twilioFromPhone);
+  if (notifyPhone) await db.setSetting('notify_phone', notifyPhone);
 
   res.success({ saved: true }, 'Notification settings updated');
-});
+}));
 
 /**
  * POST /api/notifications/trigger-email-check

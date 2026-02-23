@@ -9,15 +9,16 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export function addProjectOperations(DatabaseService) {
   // Create new project
-  DatabaseService.prototype.createProject = function(data) {
+  DatabaseService.prototype.createProject = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
-      INSERT INTO projects (id, name, leadId, phase, progress, value, startDate, estimatedCompletion, status, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    await this.run(`
+      INSERT INTO projects (id, userId, name, leadId, phase, progress, value, startDate, estimatedCompletion, status, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
       id,
+      data.userId || null,
       data.name,
       data.leadId || null,
       data.phase || 'rough-in',
@@ -28,29 +29,40 @@ export function addProjectOperations(DatabaseService) {
       data.status || 'active',
       now,
       now
-    );
+    ]);
     
-    return this.getProject(id);
+    return await this.getProject(id);
   };
 
   // Get single project
-  DatabaseService.prototype.getProject = function(id) {
-    return this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  DatabaseService.prototype.getProject = async function(id) {
+    return await this.get('SELECT * FROM projects WHERE id = ?', [id]);
   };
 
   // Get all projects
-  DatabaseService.prototype.getAllProjects = function() {
-    return this.db.prepare('SELECT * FROM projects ORDER BY updatedAt DESC').all();
+  DatabaseService.prototype.getAllProjects = async function(filters = {}) {
+    let query = 'SELECT * FROM projects WHERE 1=1';
+    const params = [];
+
+    if (filters.userId) {
+      // Include projects owned by user OR unassigned projects (userId IS NULL or empty)
+      query += ' AND (userId = ? OR userId IS NULL OR userId = \'\')';
+      params.push(filters.userId);
+    }
+
+    query += ' ORDER BY updatedAt DESC';
+    
+    return await this.all(query, params);
   };
 
   // Update project
-  DatabaseService.prototype.updateProject = function(id, data) {
-    const existing = this.getProject(id);
+  DatabaseService.prototype.updateProject = async function(id, data) {
+    const existing = await this.getProject(id);
     if (!existing) return null;
     
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE projects SET
         name = COALESCE(?, name),
         leadId = COALESCE(?, leadId),
@@ -62,7 +74,7 @@ export function addProjectOperations(DatabaseService) {
         status = COALESCE(?, status),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.name,
       data.leadId,
       data.phase,
@@ -73,14 +85,14 @@ export function addProjectOperations(DatabaseService) {
       data.status,
       now,
       id
-    );
+    ]);
     
-    return this.getProject(id);
+    return await this.getProject(id);
   };
 
   // Delete project
-  DatabaseService.prototype.deleteProject = function(id) {
-    const result = this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+  DatabaseService.prototype.deleteProject = async function(id) {
+    const result = await this.run('DELETE FROM projects WHERE id = ?', [id]);
     return result.changes > 0;
   };
 }

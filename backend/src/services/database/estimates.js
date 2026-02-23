@@ -9,19 +9,20 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export function addEstimateOperations(DatabaseService) {
   // Create new estimate
-  DatabaseService.prototype.createEstimate = function(data) {
+  DatabaseService.prototype.createEstimate = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO estimates (
-        id, leadId, sqft, bathrooms, units, stories,
+        id, userId, leadId, sqft, bathrooms, units, stories,
         lavatories, barSinks, tubs, showerBases, mudPans,
         washingMachines, toilets, waterSoftenerPreplumb, kitchenFaucets,
         total, perUnit, breakdown, margin, analysis, createdAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
       id,
+      data.userId || null,
       data.leadId || null,
       data.sqft || null,
       data.bathrooms || null,
@@ -42,14 +43,14 @@ export function addEstimateOperations(DatabaseService) {
       data.margin ? JSON.stringify(data.margin) : null,
       data.analysis || null,
       now
-    );
+    ]);
     
-    return this.getEstimate(id);
+    return await this.getEstimate(id);
   };
 
   // Get single estimate
-  DatabaseService.prototype.getEstimate = function(id) {
-    const estimate = this.db.prepare('SELECT * FROM estimates WHERE id = ?').get(id);
+  DatabaseService.prototype.getEstimate = async function(id) {
+    const estimate = await this.get('SELECT * FROM estimates WHERE id = ?', [id]);
     if (estimate) {
       if (estimate.breakdown) {
         try { estimate.breakdown = JSON.parse(estimate.breakdown); } catch (e) {}
@@ -62,31 +63,38 @@ export function addEstimateOperations(DatabaseService) {
   };
 
   // Get all estimates with optional search
-  DatabaseService.prototype.getAllEstimates = function(search) {
+  DatabaseService.prototype.getAllEstimates = async function(filters = {}) {
+    const { search, userId } = filters;
     let query = `
       SELECT e.*, GROUP_CONCAT(b.fileName) as blueprintFileNames
       FROM estimates e
       LEFT JOIN blueprints b ON b.estimateId = e.id
+      WHERE 1=1
     `;
     const params = [];
     
+    if (userId) {
+      query += ' AND e.userId = ?';
+      params.push(userId);
+    }
+
     if (search) {
-      query += ' WHERE e.id LIKE ? OR e.leadId LIKE ?';
+      query += ' AND (e.id LIKE ? OR e.leadId LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm);
     }
     
     query += ' GROUP BY e.id ORDER BY e.createdAt DESC';
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Delete estimate
-  DatabaseService.prototype.deleteEstimate = function(id) {
+  DatabaseService.prototype.deleteEstimate = async function(id) {
     // Clear estimateId from associated blueprints first
-    this.db.prepare('UPDATE blueprints SET estimateId = NULL WHERE estimateId = ?').run(id);
+    await this.run('UPDATE blueprints SET estimateId = NULL WHERE estimateId = ?', [id]);
     
-    const result = this.db.prepare('DELETE FROM estimates WHERE id = ?').run(id);
+    const result = await this.run('DELETE FROM estimates WHERE id = ?', [id]);
     return result.changes > 0;
   };
 }

@@ -65,6 +65,40 @@ export default function JobCard({
 
   const formattedAddress = [address, city, zip].filter(Boolean).join(', ');
 
+  // Define handlers first (before they're referenced in callbacks)
+  const handleUpdatePhase = useCallback(async (e) => {
+    e?.stopPropagation();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await onUpdatePhase?.(job);
+    } catch (err) {
+      setError('Failed to update phase');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [job, onUpdatePhase]);
+
+  const handleFlag = useCallback(async (e) => {
+    e?.stopPropagation();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await onFlag?.(job);
+    } catch (err) {
+      setError('Failed to flag job');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [job, onFlag]);
+
+  const handleViewDetail = useCallback((e) => {
+    e?.stopPropagation();
+    onViewDetail?.(job);
+  }, [job, onViewDetail]);
+
   // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'ArrowRight') {
@@ -77,7 +111,7 @@ export default function JobCard({
       e.preventDefault();
       onClick?.(job);
     }
-  }, [job, onClick]);
+  }, [job, onClick, handleUpdatePhase, handleFlag]);
 
   const handleDragEnd = useCallback(async (_, info) => {
     const threshold = 80;
@@ -102,39 +136,6 @@ export default function JobCard({
       else await handleFlag();
     }, 400);
   }, [x, handleUpdatePhase, handleFlag]);
-
-  const handleUpdatePhase = async (e) => {
-    e?.stopPropagation();
-    setIsLoading(true);
-    setError(null);
-    try {
-      await onUpdatePhase?.(job);
-    } catch (err) {
-      setError('Failed to update phase');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFlag = async (e) => {
-    e?.stopPropagation();
-    setIsLoading(true);
-    setError(null);
-    try {
-      await onFlag?.(job);
-    } catch (err) {
-      setError('Failed to flag job');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleViewDetail = (e) => {
-    e?.stopPropagation();
-    onViewDetail?.(job);
-  };
 
   // Determine status label for screen readers
   const getStatusLabel = () => {

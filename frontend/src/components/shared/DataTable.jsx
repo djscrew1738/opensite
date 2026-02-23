@@ -60,10 +60,18 @@ export function DataTable({
   return (
     <div className="space-y-4">
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-700">
+      <div className={`
+        hidden md:block rounded-xl border border-surface-200 dark:border-surface-700
+        ${stickyHeader ? 'max-h-[600px] overflow-auto' : 'overflow-x-auto'}
+      `}>
         <table className="w-full text-sm">
-          <thead className={stickyHeader ? 'sticky top-0 z-10' : ''}>
-            <tr className="bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+          <thead className={stickyHeader ? 'sticky top-0 z-20' : ''}>
+            <tr className={`
+              bg-surface-100/95 dark:bg-surface-800/95 
+              backdrop-blur-sm
+              border-b border-surface-200 dark:border-surface-700
+              ${stickyHeader ? 'shadow-sm shadow-black/5' : ''}
+            `}>
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -115,9 +123,8 @@ export function DataTable({
                 }}
                 className={`
                   bg-white dark:bg-surface-900 
-                  hover:bg-surface-50 dark:hover:bg-surface-800/50
-                  transition-colors
-                  ${onRowClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset' : ''}
+                  table-row-hover
+                  ${onRowClick ? 'cursor-pointer hover:translate-x-0.5 active:translate-x-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset' : ''}
                   ${rowClassName?.(row) || ''}
                 `}
               >
@@ -147,7 +154,8 @@ export function DataTable({
               onClick={() => onRowClick?.(row)}
               className={`
                 card p-4 space-y-3
-                ${onRowClick ? 'cursor-pointer active:scale-[0.99]' : ''}
+                transition-all duration-150 ease-out
+                ${onRowClick ? 'cursor-pointer hover:shadow-lg hover:border-surface-300 dark:hover:border-surface-600 active:scale-[0.98] active:bg-surface-100 dark:active:bg-surface-800' : ''}
                 ${rowClassName?.(row) || ''}
               `}
             >
@@ -179,7 +187,7 @@ export function DataTable({
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="btn-secondary p-2 disabled:opacity-40"
+              className="btn-secondary p-2 disabled:opacity-40 hover:scale-105 active:scale-95 transition-all"
               aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -190,7 +198,7 @@ export function DataTable({
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="btn-secondary p-2 disabled:opacity-40"
+              className="btn-secondary p-2 disabled:opacity-40 hover:scale-105 active:scale-95 transition-all"
               aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />

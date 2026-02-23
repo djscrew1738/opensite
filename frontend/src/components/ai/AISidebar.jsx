@@ -250,21 +250,23 @@ export default function AISidebar({ isOpen, onClose }) {
         </div>
 
         {/* Quick Actions */}
-        <div className="px-4 py-3 border-t border-border bg-surface-card/50">
-          <p className="text-xs text-text-muted mb-2 uppercase tracking-wider font-medium">
-            Quick Actions
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {pageContext.quickActions.map((action, idx) => (
-              <QuickActionChip
-                key={idx}
-                action={action}
-                onClick={() => handleQuickAction(action.prompt)}
-                disabled={isStreaming}
-              />
-            ))}
+        {pageContext?.quickActions?.length > 0 && (
+          <div className="px-4 py-3 border-t border-border bg-surface-card/50">
+            <p className="text-xs text-text-muted mb-2 uppercase tracking-wider font-medium">
+              Quick Actions
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {pageContext.quickActions.map((action, idx) => (
+                <QuickActionChip
+                  key={idx}
+                  action={action}
+                  onClick={() => handleQuickAction(action.prompt)}
+                  disabled={isStreaming}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Input */}
         <div className="p-4 border-t border-border bg-surface-card">

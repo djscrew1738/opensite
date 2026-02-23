@@ -12,6 +12,9 @@ import { useNotifications } from '../../hooks/useNotifications';
 import { AISidebar, AIFloatingButton } from '../ai';
 import { GlobalSearch } from '../search';
 import { PageHeaderContext } from '../../hooks/usePageHeader';
+import { useSwipe } from '../../hooks/useSwipe';
+import { QuickAddFAB } from '../shared/QuickAddFAB';
+import { api } from '../../api/client';
 
 // Import mock data for notifications
 const MOCK_JOBS = [
@@ -142,6 +145,38 @@ export default function Layout() {
     }
   }, []);
 
+  // QuickAddFAB callbacks
+  const handleFileUpload = useCallback(async (file) => {
+    // Navigate to documents/jobs with the file for upload
+    console.log('Upload file:', file.name);
+    // TODO: Implement file upload handling
+    // Could open a modal or navigate to upload page
+  }, []);
+
+  const handleAddLead = useCallback(async (formData) => {
+    try {
+      // Create lead via API
+      await api.leads.create({
+        name: formData.builderName,
+        company: formData.builderName,
+        address: formData.address,
+        permitNumber: formData.permitNumber,
+        phase: formData.phase,
+        notes: formData.notes,
+        status: 'new',
+      });
+      console.log('Lead created:', formData);
+    } catch (err) {
+      console.error('Failed to create lead:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleAddNote = useCallback((note) => {
+    console.log('Note added:', note);
+    // TODO: Implement note storage - could be stored in localStorage or sent to API
+  }, []);
+
   return (
     <ErrorBoundary componentName="App">
       <div className="flex h-screen h-[100dvh] overflow-hidden bg-forge">
@@ -220,7 +255,11 @@ export default function Layout() {
               )}
 
               {/* Page Content */}
-              <div className="flex-1">
+              <div className="flex-1 relative">
+                {/* Edge swipe detector for opening mobile sidebar */}
+                {isMobile && (
+                  <EdgeSwipeDetector onSwipeRight={() => setShowMobileSidebar(true)} />
+                )}
                 <SectionErrorBoundary>
                   <div className="page-transition-wrapper">
                     <Outlet />
@@ -239,6 +278,7 @@ export default function Layout() {
             onCommandPaletteOpen={() => setShowCommandPalette(true)}
             onNotificationsOpen={() => setShowNotifications(true)}
             onAIOpen={() => setShowAI(true)}
+            isAIOpen={showAI}
           />
         )}
 
@@ -269,9 +309,19 @@ export default function Layout() {
         />
 
         {/* AI Floating Button */}
-        <AIFloatingButton
-          onClick={() => setShowAI(true)}
-          isOpen={showAI}
+        {!isMobile && (
+          <AIFloatingButton
+            onClick={() => setShowAI(true)}
+            isOpen={showAI}
+          />
+        )}
+
+        {/* Quick Add FAB - Global */}
+        <QuickAddFAB
+          onUpload={handleFileUpload}
+          onAddLead={handleAddLead}
+          onAddNote={handleAddNote}
+          hasUnprocessedBlueprints={false} // TODO: Connect to actual blueprint processing state
         />
 
         {/* Global Search Overlay */}
@@ -286,6 +336,12 @@ export default function Layout() {
 
 // Mobile sidebar drawer overlay
 function MobileSidebarDrawer({ isOpen, onClose, onCommandPaletteOpen, onNotificationsOpen, notificationCount, hasUrgent }) {
+  // Swipe to close
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: onClose,
+    threshold: 50,
+  });
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -311,9 +367,10 @@ function MobileSidebarDrawer({ isOpen, onClose, onCommandPaletteOpen, onNotifica
         onClick={onClose}
       />
       
-      {/* Sidebar */}
+      {/* Sidebar - with swipe to close */}
       <div 
-        className="absolute left-0 top-0 bottom-0 w-[280px]"
+        {...swipeHandlers}
+        className="absolute left-0 top-0 bottom-0 w-[280px] touch-pan-y"
         style={{
           animation: 'slideIn 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
@@ -327,6 +384,7 @@ function MobileSidebarDrawer({ isOpen, onClose, onCommandPaletteOpen, onNotifica
             onClose();
             setTimeout(onNotificationsOpen, 100);
           }}
+          onItemClick={onClose}
           notificationCount={notificationCount}
           hasUrgent={hasUrgent}
         />
@@ -343,5 +401,62 @@ function MobileSidebarDrawer({ isOpen, onClose, onCommandPaletteOpen, onNotifica
         }
       `}</style>
     </div>
+  );
+}
+
+/**
+ * EdgeSwipeDetector - Invisible edge area that detects right swipes to open sidebar
+ * Only active when touching within 20px of left edge
+ */
+function EdgeSwipeDetector({ onSwipeRight }) {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const EDGE_WIDTH = 20; // px from left edge
+
+  const handleTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    // Only activate if touching within edge width
+    if (touch.clientX <= EDGE_WIDTH) {
+      touchStartX.current = touch.clientX;
+      touchStartY.current = touch.clientY;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (touchStartX.current === null) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+
+    // Trigger if swiped right more than 50px and mostly horizontal
+    if (deltaX > 50 && deltaY < deltaX * 0.5) {
+      onSwipeRight?.();
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [onSwipeRight]);
+
+  const handleTouchMove = useCallback((e) => {
+    // Prevent default if we started on the edge
+    if (touchStartX.current !== null) {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartX.current;
+      if (deltaX > 10) {
+        e.preventDefault();
+      }
+    }
+  }, []);
+
+  return (
+    <div
+      className="fixed left-0 top-0 bottom-0 z-30"
+      style={{ width: `${EDGE_WIDTH}px`, touchAction: 'pan-y' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      aria-hidden="true"
+    />
   );
 }

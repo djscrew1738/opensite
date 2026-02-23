@@ -319,8 +319,13 @@ function SettingsNotifications({
                     className="input pr-10 font-mono text-sm"
                     placeholder={settings.google_client_secret_masked || 'Enter Client Secret'}
                   />
-                  <button type="button" onClick={() => setShowGoogleClientSecret(!showGoogleClientSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showGoogleClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <button 
+                    type="button" 
+                    onClick={() => setShowGoogleClientSecret(!showGoogleClientSecret)} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showGoogleClientSecret ? 'Hide client secret' : 'Show client secret'}
+                  >
+                    {showGoogleClientSecret ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -367,8 +372,13 @@ function SettingsNotifications({
                     className="input pr-10 font-mono text-sm"
                     placeholder={settings.microsoft_client_secret_masked || 'Enter Client Secret'}
                   />
-                  <button type="button" onClick={() => setShowMsClientSecret(!showMsClientSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showMsClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <button 
+                    type="button" 
+                    onClick={() => setShowMsClientSecret(!showMsClientSecret)} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showMsClientSecret ? 'Hide client secret' : 'Show client secret'}
+                  >
+                    {showMsClientSecret ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>

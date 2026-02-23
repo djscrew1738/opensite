@@ -11,7 +11,7 @@ export function addPermitOperations(DatabaseService) {
   // ==================== Permit Operations ====================
   
   // Get all permits with optional filtering
-  DatabaseService.prototype.getAllPermits = function(filters = {}) {
+  DatabaseService.prototype.getAllPermits = async function(filters = {}) {
     let query = 'SELECT * FROM permits WHERE 1=1';
     const params = [];
     
@@ -35,34 +35,34 @@ export function addPermitOperations(DatabaseService) {
       params.push(filters.city);
     }
     
+    query += ' ORDER BY issuedDate DESC';
+
     if (filters.limit) {
       query += ' LIMIT ?';
       params.push(filters.limit);
     }
     
-    query += ' ORDER BY issuedDate DESC';
-    
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Get single permit
-  DatabaseService.prototype.getPermit = function(id) {
-    return this.db.prepare('SELECT * FROM permits WHERE id = ?').get(id);
+  DatabaseService.prototype.getPermit = async function(id) {
+    return await this.get('SELECT * FROM permits WHERE id = ?', [id]);
   };
 
   // Create permit
-  DatabaseService.prototype.createPermit = function(data) {
+  DatabaseService.prototype.createPermit = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO permits (
         id, permitNumber, address, city, state, zip, 
         contractor, contractorPhone, estimatedCost, 
         issuedDate, status, description, sourceId, 
         tier, leadScore, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.permitNumber || null,
       data.address || null,
@@ -80,16 +80,16 @@ export function addPermitOperations(DatabaseService) {
       data.leadScore || 0,
       now,
       now
-    );
+    ]);
     
-    return this.getPermit(id);
+    return await this.getPermit(id);
   };
 
   // Update permit
-  DatabaseService.prototype.updatePermit = function(id, data) {
+  DatabaseService.prototype.updatePermit = async function(id, data) {
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE permits SET
         permitNumber = COALESCE(?, permitNumber),
         address = COALESCE(?, address),
@@ -102,7 +102,7 @@ export function addPermitOperations(DatabaseService) {
         leadScore = COALESCE(?, leadScore),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.permitNumber,
       data.address,
       data.city,
@@ -114,35 +114,35 @@ export function addPermitOperations(DatabaseService) {
       data.leadScore,
       now,
       id
-    );
+    ]);
     
-    return this.getPermit(id);
+    return await this.getPermit(id);
   };
 
   // ==================== Discovery Run Operations ====================
   
   // Get all discovery runs
-  DatabaseService.prototype.getAllDiscoveryRuns = function() {
-    return this.db.prepare('SELECT * FROM discovery_runs ORDER BY createdAt DESC').all();
+  DatabaseService.prototype.getAllDiscoveryRuns = async function() {
+    return await this.all('SELECT * FROM discovery_runs ORDER BY createdAt DESC');
   };
 
   // Get discovery run by ID
-  DatabaseService.prototype.getDiscoveryRun = function(id) {
-    return this.db.prepare('SELECT * FROM discovery_runs WHERE id = ?').get(id);
+  DatabaseService.prototype.getDiscoveryRun = async function(id) {
+    return await this.get('SELECT * FROM discovery_runs WHERE id = ?', [id]);
   };
 
   // Create discovery run
-  DatabaseService.prototype.createDiscoveryRun = function(data) {
+  DatabaseService.prototype.createDiscoveryRun = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO discovery_runs (
         id, keyword, city, lat, lng, radius, zone,
         totalFound, enriched, scored, status, stage, progress,
         jobId, error, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.keyword || null,
       data.city || null,
@@ -160,16 +160,16 @@ export function addPermitOperations(DatabaseService) {
       data.error || null,
       now,
       now
-    );
+    ]);
     
-    return this.getDiscoveryRun(id);
+    return await this.getDiscoveryRun(id);
   };
 
   // Update discovery run
-  DatabaseService.prototype.updateDiscoveryRun = function(id, data) {
+  DatabaseService.prototype.updateDiscoveryRun = async function(id, data) {
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       UPDATE discovery_runs SET
         totalFound = COALESCE(?, totalFound),
         enriched = COALESCE(?, enriched),
@@ -181,7 +181,7 @@ export function addPermitOperations(DatabaseService) {
         error = COALESCE(?, error),
         updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       data.totalFound,
       data.enriched,
       data.scored,
@@ -192,13 +192,13 @@ export function addPermitOperations(DatabaseService) {
       data.error,
       now,
       id
-    );
+    ]);
     
-    return this.getDiscoveryRun(id);
+    return await this.getDiscoveryRun(id);
   };
 
   // Get discovery leads by run
-  DatabaseService.prototype.getDiscoveryLeadsByRun = function(runId, filters = {}) {
+  DatabaseService.prototype.getDiscoveryLeadsByRun = async function(runId, filters = {}) {
     let query = 'SELECT * FROM discovery_leads WHERE runId = ?';
     const params = [runId];
     
@@ -207,20 +207,20 @@ export function addPermitOperations(DatabaseService) {
       params.push(filters.tier);
     }
     
-    return this.db.prepare(query).all(...params);
+    return await this.all(query, params);
   };
 
   // Get discovery lead
-  DatabaseService.prototype.getDiscoveryLead = function(id) {
-    return this.db.prepare('SELECT * FROM discovery_leads WHERE id = ?').get(id);
+  DatabaseService.prototype.getDiscoveryLead = async function(id) {
+    return await this.get('SELECT * FROM discovery_leads WHERE id = ?', [id]);
   };
 
   // Create discovery lead
-  DatabaseService.prototype.createDiscoveryLead = function(data) {
+  DatabaseService.prototype.createDiscoveryLead = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    this.db.prepare(`
+    await this.run(`
       INSERT INTO discovery_leads (
         id, runId, businessName, address, website, phone,
         rating, reviewCount, category, placeId, domainHash,
@@ -229,7 +229,7 @@ export function addPermitOperations(DatabaseService) {
         outreachSubject, outreachBody, enrichmentStatus,
         createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       data.runId,
       data.businessName || null,
@@ -253,14 +253,14 @@ export function addPermitOperations(DatabaseService) {
       data.outreachBody || null,
       data.enrichmentStatus || 'pending',
       now
-    );
+    ]);
     
-    return this.getDiscoveryLead(id);
+    return await this.getDiscoveryLead(id);
   };
 
   // Update discovery lead
-  DatabaseService.prototype.updateDiscoveryLead = function(id, data) {
-    this.db.prepare(`
+  DatabaseService.prototype.updateDiscoveryLead = async function(id, data) {
+    await this.run(`
       UPDATE discovery_leads SET
         emails = COALESCE(?, emails),
         extractedPhones = COALESCE(?, extractedPhones),
@@ -274,7 +274,7 @@ export function addPermitOperations(DatabaseService) {
         outreachSubject = COALESCE(?, outreachSubject),
         outreachBody = COALESCE(?, outreachBody)
       WHERE id = ?
-    `).run(
+    `, [
       data.emails ? JSON.stringify(data.emails) : null,
       data.extractedPhones ? JSON.stringify(data.extractedPhones) : null,
       data.servicesOffered ? JSON.stringify(data.servicesOffered) : null,
@@ -287,19 +287,19 @@ export function addPermitOperations(DatabaseService) {
       data.outreachSubject,
       data.outreachBody,
       id
-    );
+    ]);
     
-    return this.getDiscoveryLead(id);
+    return await this.getDiscoveryLead(id);
   };
 
   // Get discovery lead by domain hash
-  DatabaseService.prototype.getDiscoveryLeadByDomainHash = function(domainHash) {
-    return this.db.prepare('SELECT * FROM discovery_leads WHERE domainHash = ?').get(domainHash);
+  DatabaseService.prototype.getDiscoveryLeadByDomainHash = async function(domainHash) {
+    return await this.get('SELECT * FROM discovery_leads WHERE domainHash = ?', [domainHash]);
   };
 
   // Get all data sources
-  DatabaseService.prototype.getAllDataSources = function() {
-    return this.db.prepare('SELECT * FROM data_sources ORDER BY name').all();
+  DatabaseService.prototype.getAllDataSources = async function() {
+    return await this.all('SELECT * FROM data_sources ORDER BY name');
   };
 }
 

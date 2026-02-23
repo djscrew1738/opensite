@@ -126,7 +126,7 @@ export default function LeadFinder() {
       status: statusFilter || undefined,
       search: search || undefined,
     }),
-    enabled: activeTab === 'permits',
+    enabled: activeTab === 'permits' || activeTab === 'home',
     staleTime: 5 * 60_000, // 5 min — permit data changes infrequently
     gcTime: 30 * 60_000,
   });

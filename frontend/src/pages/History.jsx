@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MessageSquare, Calculator, Search, Trash2, X, Clock,
   ChevronRight, User, Bot, FileText, Hash, Building2,
-  Inbox
+  Inbox, CheckCircle2, CreditCard, Loader2
 } from 'lucide-react';
 import { api } from '../api/client';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
@@ -93,6 +93,23 @@ function ConversationModal({ conversation, onClose }) {
 
 // ─── Estimate Detail Modal ───
 function EstimateModal({ estimate, onClose }) {
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await api.quickbooks.syncEstimate(estimate.id);
+      alert('Estimate synced to QuickBooks!');
+      queryClient.invalidateQueries({ queryKey: ['history', 'estimate', estimate.id] });
+      queryClient.invalidateQueries({ queryKey: ['history', 'estimates'] });
+    } catch (err) {
+      alert(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (!estimate) return null;
   const breakdown = estimate.breakdown || [];
   return (
@@ -108,9 +125,26 @@ function EstimateModal({ estimate, onClose }) {
               {estimate.sqft?.toLocaleString()} sqft · {estimate.units} units · {formatDate(estimate.createdAt)}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!estimate.qboId ? (
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+              >
+                {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                Sync to QBO
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase border border-emerald-100 dark:border-emerald-800">
+                <CheckCircle2 className="w-3 h-3" />
+                QBO Synced
+              </div>
+            )}
+            <button onClick={onClose} className="p-2 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Summary stats */}
@@ -416,6 +450,23 @@ function ConversationsTab({ data, loading, onSelect, onDelete, onOpenInAssistant
 
 // ─── Estimates Tab ───
 function EstimatesTab({ data, loading, onSelect, onDelete }) {
+  const queryClient = useQueryClient();
+  const [syncingId, setSyncingId] = useState(null);
+
+  const handleSync = async (e, estId) => {
+    e.stopPropagation();
+    setSyncingId(estId);
+    try {
+      await api.quickbooks.syncEstimate(estId);
+      alert('Estimate synced to QuickBooks!');
+      queryClient.invalidateQueries({ queryKey: ['history', 'estimates'] });
+    } catch (err) {
+      alert(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   if (loading) return <CardSkeleton count={4} />;
   if (data.length === 0) return (
     <EmptyState 
@@ -447,20 +498,39 @@ function EstimatesTab({ data, loading, onSelect, onDelete }) {
             </div>
           }
           meta={
-            est.margin && (
-              <span className="text-[10px] px-2 py-1 rounded-full bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 font-semibold uppercase">
-                {est.margin}
-              </span>
-            )
+            <div className="flex items-center gap-2">
+              {est.qboId && (
+                <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  QBO Synced
+                </span>
+              )}
+              {est.margin && (
+                <span className="text-[10px] px-2 py-1 rounded-full bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 font-semibold uppercase">
+                  {est.margin}
+                </span>
+              )}
+            </div>
           }
           onClick={() => onSelect(est.id)}
           actions={
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(est.id, `${formatCurrency(est.total)} estimate`); }}
-              className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => handleSync(e, est.id)}
+                disabled={!!syncingId}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex items-center gap-1.5"
+                title="Sync to QuickBooks"
+              >
+                {syncingId === est.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                Sync
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(est.id, `${formatCurrency(est.total)} estimate`); }}
+                className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           }
           style={{ animationDelay: `${i * 40}ms` }}
         />

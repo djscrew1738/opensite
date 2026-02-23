@@ -49,6 +49,7 @@ export default function MobileNav({
   onCommandPaletteOpen,
   onNotificationsOpen,
   onAIOpen,
+  isAIOpen = false,
 }) {
   const [showMore, setShowMore] = useState(false);
   const location = useLocation();
@@ -149,25 +150,28 @@ export default function MobileNav({
           >
             <Sparkles
               className="w-[22px] h-[22px] transition-colors duration-200"
-              strokeWidth={1.75}
-              style={{ color: 'rgba(148, 163, 184, 0.5)' }}
+              strokeWidth={isAIOpen ? 2.5 : 1.75}
+              style={{ color: isAIOpen ? colors.accent.blue : 'rgba(148, 163, 184, 0.5)' }}
+              fill={isAIOpen ? 'rgba(59, 130, 246, 0.15)' : 'none'}
               aria-hidden="true"
             />
             <span
               className="font-semibold leading-none transition-colors duration-200"
               style={{
                 fontSize: '10px',
-                color: 'rgba(148, 163, 184, 0.4)',
+                color: isAIOpen ? colors.accent.blue : 'rgba(148, 163, 184, 0.4)',
               }}
             >
               AI
             </span>
             <div
-              className="rounded-full"
+              className="rounded-full transition-all duration-200"
               style={{
                 width: '3px',
                 height: '3px',
-                background: 'transparent',
+                background: isAIOpen ? colors.accent.blue : 'transparent',
+                transform: isAIOpen ? 'scale(1)' : 'scale(0)',
+                boxShadow: isAIOpen ? `0 0 6px ${colors.accent.glow}` : 'none',
               }}
               aria-hidden="true"
             />

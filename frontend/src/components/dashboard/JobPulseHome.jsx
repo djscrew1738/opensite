@@ -50,24 +50,31 @@ export default function JobPulseHome({
     return <DashboardSkeleton />;
   }
 
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
+
   const filteredJobs = useMemo(
-    () => activePhase === 'all' ? jobs : jobs.filter(j => j.phase === activePhase),
-    [jobs, activePhase],
+    () => activePhase === 'all' ? safeJobs : safeJobs.filter(j => j && j.phase === activePhase),
+    [safeJobs, activePhase],
   );
 
   const phaseCounts = useMemo(() => {
-    const counts = { all: jobs.length };
+    const counts = { all: safeJobs.length };
     for (const p of PHASES) counts[p.key] = 0;
-    for (const j of jobs) if (counts[j.phase] !== undefined) counts[j.phase]++;
+    for (const j of safeJobs) {
+      if (j && j.phase && counts[j.phase] !== undefined) {
+        counts[j.phase]++;
+      }
+    }
     return counts;
-  }, [jobs]);
+  }, [safeJobs]);
 
   return (
     <div className="space-y-6 p-4 md:p-8">
       {/* ── 1. METRICS STRIP ─────────────────────── */}
       <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
         <div className="flex gap-3 w-max">
-          {metrics.map(m => {
+          {Array.isArray(metrics) && metrics.map(m => {
+            if (!m) return null;
             const Icon = iconMap[m.icon] || HardHat;
             return (
               <div
@@ -166,10 +173,11 @@ export default function JobPulseHome({
         {/* Job cards grid */}
         <div className="grid gap-3 stagger-container">
           {filteredJobs.length > 0 ? (
-            filteredJobs.map(job => (
+            filteredJobs.map((job, index) => (
               <JobCard
                 key={job.id}
                 job={job}
+                index={index}
                 onClick={() => onJobClick?.(job)}
               />
             ))
@@ -181,6 +189,13 @@ export default function JobPulseHome({
           )}
         </div>
       </section>
+
+      {/* Subtle attribution */}
+      <div className="flex justify-end pt-4">
+        <span className="text-[10px] text-text-muted/40 tracking-wide">
+          by Cory
+        </span>
+      </div>
     </div>
   );
 }

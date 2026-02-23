@@ -78,7 +78,7 @@ export function SettingsProvider({ children }) {
   }, [activeTab]);
 
   /* ── AI provider ── */
-  const [activeProvider, setActiveProvider] = useState('ollama');
+  const [activeProvider, setActiveProvider] = useState('openclaw');
   const [ollamaUrl, setOllamaUrl] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [groqKey, setGroqKey] = useState('');

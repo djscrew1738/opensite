@@ -160,7 +160,7 @@ export const EmptyState = ({
 
 export const NoJobsEmpty = ({ onCreate }) => (
   <EmptyState
-    icon={Crane}
+    icon={HardHat}
     title="No active jobs"
     description="Add a job to start tracking phases, estimates, and progress"
     primaryAction={{ label: 'Create Job', onClick: onCreate, icon: <Plus className="w-4 h-4" /> }}

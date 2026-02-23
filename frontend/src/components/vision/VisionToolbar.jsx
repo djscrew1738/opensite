@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCw, Fullscreen,
-  Layers, Sparkles, Loader2, ChevronDown, Cpu
+  Layers, Sparkles, Loader2, ChevronDown, Cpu, Network,
+  Ruler
 } from 'lucide-react';
 import { visionApi } from '../../api/vision';
 
 export default function VisionToolbar({
   zoom, maxZoom, onZoomIn, onZoomOut, onFit, onRotate, onFullscreen,
   onToggleLayers, showLayers, onAnalyze, analyzing, hasLayers,
-  selectedModel, onModelChange
+  selectedModel, onModelChange, onCalibrate, calibrating
 }) {
   const [showModelMenu, setShowModelMenu] = useState(false);
   const menuRef = useRef(null);
@@ -50,6 +49,7 @@ export default function VisionToolbar({
     { icon: Maximize2, onClick: onFit, label: 'Fit to screen', key: '0' },
     { icon: RotateCw, onClick: onRotate, label: 'Rotate 90\u00B0', key: 'R' },
     null, // separator
+    { icon: Ruler, onClick: onCalibrate, label: 'Calibrate scale', active: calibrating },
     { icon: Layers, onClick: onToggleLayers, label: 'Toggle layers', active: showLayers },
     null,
     { icon: Fullscreen, onClick: onFullscreen, label: 'Fullscreen', key: 'F' },
@@ -157,9 +157,33 @@ export default function VisionToolbar({
         </div>
       )}
 
+      {/* Trace Runs button */}
+      <button
+        onClick={() => onAnalyze(selectedModel, 'trace')}
+        disabled={analyzing || !hasKeys}
+        title="Trace pipe runs and walls (requires local vision model)"
+        className={`
+          inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
+          transition-all ml-1.5
+          ${analyzing
+            ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-wait'
+            : !hasKeys
+              ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-not-allowed'
+              : 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-sm'
+          }
+        `}
+      >
+        {analyzing ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Network className="w-3.5 h-3.5" />
+        )}
+        {analyzing ? 'Tracing...' : 'Trace Runs'}
+      </button>
+
       {/* AI Analysis button */}
       <button
-        onClick={() => onAnalyze(selectedModel)}
+        onClick={() => onAnalyze(selectedModel, currentModel?.type || 'global')}
         disabled={analyzing || !hasKeys}
         title={!hasKeys ? 'Add an API key in Settings first' : ''}
         className={`
@@ -178,7 +202,7 @@ export default function VisionToolbar({
         ) : (
           <Sparkles className="w-3.5 h-3.5" />
         )}
-        {analyzing ? 'Analyzing...' : 'AI Analyze'}
+        {analyzing ? 'Analyzing...' : currentModel?.type === 'deep' ? 'Deep Scan' : 'AI Analyze'}
       </button>
     </div>
   );

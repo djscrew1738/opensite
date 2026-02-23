@@ -4,10 +4,14 @@ import express from 'express';
 import { pricingService } from '../services/pricing.js';
 import { aiProvider } from '../services/ai-provider.js';
 import { db } from '../services/database.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
+
+// Apply authentication to all estimates routes
+router.use(authenticateToken);
 
 // Calculate estimate
 router.post('/calculate', tryCatch(async (req, res) => {
@@ -15,9 +19,10 @@ router.post('/calculate', tryCatch(async (req, res) => {
   if (req.body.mode === 'fixture-based') {
     const estimate = pricingService.calculateFixtureBased(req.body.fixtures || req.body);
 
-    const saved = db.createEstimate({
+    const saved = await db.createEstimate({
       ...req.body,
-      ...estimate
+      ...estimate,
+      userId: req.user.id
     });
 
     return res.success({
@@ -48,9 +53,10 @@ router.post('/calculate', tryCatch(async (req, res) => {
   });
 
   // Save estimate
-  const saved = db.createEstimate({
+  const saved = await db.createEstimate({
     ...req.body,
-    ...estimate
+    ...estimate,
+    userId: req.user.id
   });
 
   res.success({
@@ -105,10 +111,11 @@ router.post('/analyze', tryCatch(async (req, res) => {
   }
 
   // Save estimate with analysis
-  const saved = db.createEstimate({
+  const saved = await db.createEstimate({
     ...req.body,
     ...estimate,
-    analysis: result.response
+    analysis: result.response,
+    userId: req.user.id
   });
 
   res.success({
@@ -120,10 +127,15 @@ router.post('/analyze', tryCatch(async (req, res) => {
 
 // Get saved estimate
 router.get('/:id', tryCatch(async (req, res) => {
-  const estimate = db.getEstimate(req.params.id);
+  const estimate = await db.getEstimate(req.params.id);
 
   if (!estimate) {
     return res.error('Estimate not found', 'NOT_FOUND', null, 404);
+  }
+
+  // Security: Check if estimate belongs to user
+  if (estimate.userId && estimate.userId !== req.user.id) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
 
   res.success({ estimate });

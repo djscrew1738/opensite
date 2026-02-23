@@ -19,9 +19,6 @@ class GmailClient {
     this.authUrl = 'https://oauth2.googleapis.com';
     this.accountsUrl = 'https://accounts.google.com/o/oauth2/v2';
     
-    // OAuth2 credentials from env or settings
-    this.clientId = process.env.GOOGLE_CLIENT_ID || db.getSetting('google_client_id');
-    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || db.getSetting('google_client_secret');
     this.redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5001/api/email-alerts/auth/google/callback';
     
     // Gmail API scopes
@@ -36,24 +33,29 @@ class GmailClient {
    * Load account credentials from database
    */
   async loadAccount() {
+    // OAuth2 credentials from env or settings
+    this.clientId = process.env.GOOGLE_CLIENT_ID || (await db.getSetting('google_client_id'));
+    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || (await db.getSetting('google_client_secret'));
+
     if (!this.accountId) {
       // Use default/first active Gmail account
-      const accounts = db.getActiveEmailWatcherAccounts().filter(a => a.provider === 'gmail');
+      const allAccounts = await db.getActiveEmailWatcherAccounts();
+      const accounts = allAccounts.filter(a => a.provider === 'gmail');
       if (accounts.length === 0) {
         throw new Error('No active Gmail accounts configured');
       }
       this.accountId = accounts[0].id;
     }
 
-    const accounts = db.getActiveEmailWatcherAccounts();
-    const account = accounts.find(a => a.id === this.accountId && a.provider === 'gmail');
+    const allAccounts = await db.getActiveEmailWatcherAccounts();
+    const account = allAccounts.find(a => a.id === this.accountId && a.provider === 'gmail');
     
     if (!account) {
       throw new Error(`Gmail account ${this.accountId} not found`);
     }
 
     // Get full account data with tokens
-    const fullAccount = db.db.prepare('SELECT * FROM email_watcher_accounts WHERE id = ?').get(this.accountId);
+    const fullAccount = await db.get('SELECT * FROM email_watcher_accounts WHERE id = ?', [this.accountId]);
     
     this.accessToken = fullAccount.access_token;
     this.refreshToken = fullAccount.refresh_token;
@@ -71,7 +73,11 @@ class GmailClient {
   /**
    * Get OAuth2 authorization URL
    */
-  getAuthUrl(state = null) {
+  async getAuthUrl(state = null) {
+    if (!this.clientId) {
+      this.clientId = process.env.GOOGLE_CLIENT_ID || (await db.getSetting('google_client_id'));
+    }
+    
     if (!this.clientId) {
       throw new Error('Google Client ID not configured');
     }
@@ -97,6 +103,13 @@ class GmailClient {
    * Exchange authorization code for tokens
    */
   async exchangeCodeForTokens(code) {
+    if (!this.clientId) {
+      this.clientId = process.env.GOOGLE_CLIENT_ID || (await db.getSetting('google_client_id'));
+    }
+    if (!this.clientSecret) {
+      this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || (await db.getSetting('google_client_secret'));
+    }
+
     if (!this.clientId || !this.clientSecret) {
       throw new Error('Google OAuth credentials not configured');
     }
@@ -137,6 +150,13 @@ class GmailClient {
       throw new Error('No refresh token available');
     }
 
+    if (!this.clientId) {
+      this.clientId = process.env.GOOGLE_CLIENT_ID || (await db.getSetting('google_client_id'));
+    }
+    if (!this.clientSecret) {
+      this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || (await db.getSetting('google_client_secret'));
+    }
+
     try {
       const response = await axios.post(`${this.authUrl}/token`, {
         client_id: this.clientId,
@@ -154,7 +174,7 @@ class GmailClient {
 
       // Update database
       if (this.accountId) {
-        db.updateEmailWatcherAccountTokens(this.accountId, {
+        await db.updateEmailWatcherAccountTokens(this.accountId, {
           access_token: this.accessToken,
           refresh_token: this.refreshToken,
           expires_at: this.tokenExpiresAt,

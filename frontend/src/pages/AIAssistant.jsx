@@ -222,6 +222,7 @@ export default function AIAssistant() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   const { isStreaming, streamingMessage, sendMessage } = useStreamingResponse();
   const { defaultModel } = useModelPreference();
@@ -302,12 +303,17 @@ export default function AIAssistant() {
   
   // Clear current conversation
   const handleClearConversation = useCallback(() => {
-    if (messages.length > 0 && window.confirm('Clear this conversation? You can still find it in History.')) {
-      setMessages([]);
-      setConversationId(null);
-      setConversationTitle('');
+    if (messages.length > 0) {
+      setShowClearConfirm(true);
     }
   }, [messages]);
+
+  const confirmClear = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setConversationTitle('');
+    setShowClearConfirm(false);
+  }, []);
   
   // Export conversation
   const handleExport = useCallback((format) => {
@@ -530,6 +536,18 @@ export default function AIAssistant() {
           </form>
         </div>
       </div>
+
+      {/* Clear Confirmation */}
+      {showClearConfirm && (
+        <ConfirmDialog
+          title="Clear Conversation?"
+          message="Are you sure you want to clear the current messages? You can still find this conversation in your history later."
+          confirmLabel="Clear"
+          onConfirm={confirmClear}
+          onCancel={() => setShowClearConfirm(false)}
+          variant="warning"
+        />
+      )}
     </div>
   );
 }

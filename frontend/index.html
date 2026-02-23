@@ -21,6 +21,7 @@
 
     <!-- OpenSeadragon deep-zoom viewer -->
     <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.1/build/openseadragon/openseadragon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/openseadragon-svg-overlay@0.0.2/openseadragon-svg-overlay.min.js"></script>
 
     <title>Job Pulse — CTL Plumbing</title>
 
@@ -93,6 +94,30 @@
         <div class="loader-text">Job Pulse</div>
       </div>
     </div>
+    <!-- Error reporting for debugging -->
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('[Global Error]', e.message, 'at', e.filename, ':', e.lineno);
+        const root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = '<div style="padding:20px;color:red;background:#0A0B0D;min-height:100vh;">' +
+            '<h2>JavaScript Error</h2>' +
+            '<pre style="white-space:pre-wrap;word-break:break-all;">' + e.message + '</pre>' +
+            '<p>File: ' + (e.filename || 'unknown') + ':' + (e.lineno || '?') + '</p>' +
+            '</div>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[Unhandled Promise Rejection]', e.reason);
+        const root = document.getElementById('root');
+        if (root && !root.querySelector('.initial-loader')) {
+          root.innerHTML = '<div style="padding:20px;color:red;background:#0A0B0D;min-height:100vh;">' +
+            '<h2>Promise Error</h2>' +
+            '<pre style="white-space:pre-wrap;word-break:break-all;">' + (e.reason?.message || e.reason) + '</pre>' +
+            '</div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

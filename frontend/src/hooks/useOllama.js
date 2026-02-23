@@ -9,10 +9,14 @@ export function useOllama() {
     retry: false
   });
 
+  // Backend returns AI status in data.ai with provider field
+  const isOllamaActive = data?.provider === 'ollama' || data?.ai?.provider === 'ollama';
+  
   return {
-    connected: data?.ollama?.connected || false,
-    model: data?.ollama?.model || 'Unknown',
-    available: data?.ollama?.available || false,
+    connected: data?.ai?.connected || data?.ollama?.connected || false,
+    model: data?.ai?.model || data?.ollama?.model || 'Unknown',
+    available: data?.ai?.available !== undefined ? data.ai.available > 0 : data?.ollama?.available || false,
+    isOllamaActive,
     isLoading,
     refetch
   };

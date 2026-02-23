@@ -111,7 +111,7 @@ export const PHASES = [
   { key: 'roughin',     label: 'Rough-In',    color: '#3B82F6', order: 1 },
   { key: 'topout',      label: 'Top-Out',     color: '#06B6D4', order: 2 },
   { key: 'trim',        label: 'Trim',        color: '#10B981', order: 3 },
-  { key: 'final',       label: 'Final',       color: '#F59E0B', order: 4 },
+  { key: 'complete',    label: 'Complete',    color: '#F59E0B', order: 4 },
 ];
 
 export const PHASE_MAP = Object.fromEntries(PHASES.map(p => [p.key, p]));

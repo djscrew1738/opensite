@@ -133,8 +133,8 @@ const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600'
 const PriorityLeadRow = ({ lead, type, onClick }) => {
   const isManual = type === 'manual';
   const tier = TIER_STYLES[lead.status || lead.icpTier] || TIER_STYLES.cold;
-  const TierIcon = tier.icon;
-  const status = STATUS_STYLES[lead.contactStatus || 'new'];
+  const TierIcon = tier.icon || snowflake;
+  const status = STATUS_STYLES[lead.contactStatus || 'new'] || STATUS_STYLES.new;
 
   return (
     <div 
@@ -227,22 +227,27 @@ export default function LeadPulseHome({
 
   // Compute statistics
   const stats = useMemo(() => {
-    const manual = manualLeads;
-    const hot = [...manual.filter(l => l.status === 'hot'), ...permits.filter(p => p.leadTier === 'hot')];
-    const warm = [...manual.filter(l => l.status === 'warm'), ...permits.filter(p => p.leadTier === 'warm')];
-    const totalValue = manual.reduce((s, l) => s + (l.value || 0), 0) + 
-                      permits.reduce((s, p) => s + (p.estimatedCost || 0), 0);
-    const contacted = manual.filter(l => l.contactStatus === 'contacted').length;
-    const newLeads = manual.filter(l => !l.contactStatus || l.contactStatus === 'new').length;
+    const manual = Array.isArray(manualLeads) ? manualLeads : [];
+    const safePermits = Array.isArray(permits) ? permits : [];
+    
+    const hot = [...manual.filter(l => l && l.status === 'hot'), ...safePermits.filter(p => p && p.leadTier === 'hot')];
+    const warm = [...manual.filter(l => l && l.status === 'warm'), ...safePermits.filter(p => p && p.leadTier === 'warm')];
+    const totalValue = manual.reduce((s, l) => s + (l?.value || 0), 0) + 
+                      safePermits.reduce((s, p) => s + (p?.estimatedCost || 0), 0);
+    const contacted = manual.filter(l => l && l.contactStatus === 'contacted').length;
+    const newLeads = manual.filter(l => l && (!l.contactStatus || l.contactStatus === 'new')).length;
 
-    return { hot: hot.length, warm: warm.length, total: manual.length + permits.length, totalValue, contacted, newLeads };
+    return { hot: hot.length, warm: warm.length, total: manual.length + safePermits.length, totalValue, contacted, newLeads };
   }, [manualLeads, permits]);
 
   // Generate smart alerts
   const alerts = useMemo(() => {
     const list = [];
-    const hotNoContact = manualLeads.filter(l => l.status === 'hot' && (!l.contactStatus || l.contactStatus === 'new'));
-    const unassignedPermits = permits.filter(p => p.leadTier === 'hot' && p.leadStatus === 'new');
+    const manual = Array.isArray(manualLeads) ? manualLeads : [];
+    const safePermits = Array.isArray(permits) ? permits : [];
+    
+    const hotNoContact = manual.filter(l => l && l.status === 'hot' && (!l.contactStatus || l.contactStatus === 'new'));
+    const unassignedPermits = safePermits.filter(p => p && p.leadTier === 'hot' && (p.status === 'new' || p.leadStatus === 'new'));
     
     if (hotNoContact.length > 0) {
       list.push({
@@ -273,6 +278,7 @@ export default function LeadPulseHome({
         message: `${stats.warm} warm leads ready for follow-up`,
         action: 'View Warm',
         count: stats.warm,
+        onAction: () => onTabChange('manual'),
       });
     }
 
@@ -281,9 +287,12 @@ export default function LeadPulseHome({
 
   // Get priority leads (hot first, then warm, sorted by score)
   const priorityLeads = useMemo(() => {
+    const manual = Array.isArray(manualLeads) ? manualLeads : [];
+    const safePermits = Array.isArray(permits) ? permits : [];
+    
     const all = [
-      ...manualLeads.map(l => ({ ...l, type: 'manual' })),
-      ...permits.map(p => ({ ...p, type: 'permit', status: p.leadTier, score: p.leadScore }))
+      ...manual.filter(l => l && typeof l === 'object').map(l => ({ ...l, type: 'manual' })),
+      ...safePermits.filter(p => p && typeof p === 'object').map(p => ({ ...p, type: 'permit', status: p.leadTier, score: p.leadScore }))
     ];
     return all
       .filter(l => (l.status === 'hot' || l.icpTier === 'hot') && (l.score || 0) > 0)

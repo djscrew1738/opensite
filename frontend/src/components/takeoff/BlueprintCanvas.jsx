@@ -10,6 +10,7 @@ import {
 import useCanvasHistory from './useCanvasHistory';
 import BlueprintToolbar from './BlueprintToolbar';
 import BlueprintMinimap from './BlueprintMinimap';
+import { ConfirmDialog } from '../shared';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -39,6 +40,7 @@ export default function BlueprintCanvas({
   const [showMinimap, setShowMinimap] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [crosshairEnabled, setCrosshairEnabled] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // History (undo/redo) via custom hook
   const { pushHistory, undo, redo, canUndo, canRedo } = useCanvasHistory(onMeasurementsChange);
@@ -978,13 +980,17 @@ export default function BlueprintCanvas({
 
   const clearAll = () => {
     if (measurements.length === 0) return;
-    if (!window.confirm('Clear all measurements?')) return;
+    setShowClearConfirm(true);
+  };
+
+  const handleConfirmClear = () => {
     onMeasurementsChange([]);
     pushHistory([]);
     setSelectedId(null);
     setCurrentPoints([]);
+    setShowClearConfirm(false);
   };
-
+  
   const exportImage = useCallback(() => {
     if (!image) return;
     // Create an off-screen canvas at full image resolution
@@ -1353,6 +1359,18 @@ export default function BlueprintCanvas({
           </div>
         )}
       </div>
+
+      {/* Clear Confirmation */}
+      {showClearConfirm && (
+        <ConfirmDialog
+          title="Clear Measurements?"
+          message="Are you sure you want to clear all measurements? This action cannot be undone."
+          confirmLabel="Clear All"
+          onConfirm={handleConfirmClear}
+          onCancel={() => setShowClearConfirm(false)}
+          variant="danger"
+        />
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ router.post('/run', tryCatch(async (req, res) => {
  * @route GET /api/discovery/runs
  */
 router.get('/runs', tryCatch(async (req, res) => {
-  const runs = db.getAllDiscoveryRuns();
+  const runs = await db.getAllDiscoveryRuns();
   res.success({ runs, total: runs.length });
 }));
 
@@ -45,7 +45,7 @@ router.get('/runs', tryCatch(async (req, res) => {
  * @route GET /api/discovery/runs/:runId
  */
 router.get('/runs/:runId', tryCatch(async (req, res) => {
-  const run = db.getDiscoveryRun(req.params.runId);
+  const run = await db.getDiscoveryRun(req.params.runId);
   if (!run) {
     return res.error('Run not found', 'NOT_FOUND', null, 404);
   }
@@ -57,7 +57,7 @@ router.get('/runs/:runId', tryCatch(async (req, res) => {
  * @route GET /api/discovery/runs/:runId/leads
  */
 router.get('/runs/:runId/leads', tryCatch(async (req, res) => {
-  const run = db.getDiscoveryRun(req.params.runId);
+  const run = await db.getDiscoveryRun(req.params.runId);
   if (!run) {
     return res.error('Run not found', 'NOT_FOUND', null, 404);
   }
@@ -67,7 +67,7 @@ router.get('/runs/:runId/leads', tryCatch(async (req, res) => {
     status: req.query.status || undefined
   };
 
-  const leads = db.getDiscoveryLeadsByRun(req.params.runId, filters);
+  const leads = await db.getDiscoveryLeadsByRun(req.params.runId, filters);
   res.success({ leads, total: leads.length });
 }));
 
@@ -76,7 +76,7 @@ router.get('/runs/:runId/leads', tryCatch(async (req, res) => {
  * @route GET /api/discovery/leads/:id
  */
 router.get('/leads/:id', tryCatch(async (req, res) => {
-  const lead = db.getDiscoveryLead(req.params.id);
+  const lead = await db.getDiscoveryLead(req.params.id);
   if (!lead) {
     return res.error('Lead not found', 'NOT_FOUND', null, 404);
   }
@@ -98,7 +98,7 @@ router.patch('/leads/:id/status', tryCatch(async (req, res) => {
     );
   }
 
-  const lead = db.updateDiscoveryLead(req.params.id, { contactStatus: status });
+  const lead = await db.updateDiscoveryLead(req.params.id, { contactStatus: status });
   if (!lead) {
     return res.error('Lead not found', 'NOT_FOUND', null, 404);
   }
@@ -111,7 +111,7 @@ router.patch('/leads/:id/status', tryCatch(async (req, res) => {
  * @route DELETE /api/discovery/runs/:runId
  */
 router.delete('/runs/:runId', tryCatch(async (req, res) => {
-  const deleted = db.deleteDiscoveryRun(req.params.runId);
+  const deleted = await db.deleteDiscoveryRun(req.params.runId);
   if (!deleted) {
     return res.error('Run not found', 'NOT_FOUND', null, 404);
   }

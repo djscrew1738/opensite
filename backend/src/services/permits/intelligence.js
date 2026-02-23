@@ -24,16 +24,16 @@ export async function runBuilderRollup(db, logger) {
     const sixtyDaysAgo = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // ── Step 1: Update permit counts and averages ──
-    const builders = db.db.prepare('SELECT id FROM builders').all();
+    const builders = await db.all('SELECT id FROM builders');
 
     for (const builder of builders) {
       // Get all permits for this builder
-      const permits = db.db.prepare(`
+      const permits = await db.all(`
         SELECT p.*
         FROM permits p
         JOIN permit_builder_map pbm ON p.id = pbm.permitId
         WHERE pbm.builderId = ?
-      `).all(builder.id);
+      `, [builder.id]);
 
       if (permits.length === 0) continue;
 
@@ -81,7 +81,7 @@ export async function runBuilderRollup(db, logger) {
       const projectTypes = [...new Set(permits.map(p => p.occupancyType).filter(Boolean))];
 
       // Update builder
-      db.updateBuilder(builder.id, {
+      await db.updateBuilder(builder.id, {
         totalPermits,
         permitsLast30d: permits30d,
         permitsLast90d: permits90d,
@@ -97,17 +97,14 @@ export async function runBuilderRollup(db, logger) {
     logger.info('Updated permit counts, averages, and trends');
 
     // ── Step 2: Detect plumber relationships ──
-    // If a builder has plumbing permits at the same addresses as their
-    // building permits, and those plumbing permits have a different
-    // contractor, that's likely their plumber.
     for (const builder of builders) {
       // Get this builder's new construction permits
-      const buildPermits = db.db.prepare(`
+      const buildPermits = await db.all(`
         SELECT p.*
         FROM permits p
         JOIN permit_builder_map pbm ON p.id = pbm.permitId
         WHERE pbm.builderId = ? AND p.permitCategory = 'new_construction'
-      `).all(builder.id);
+      `, [builder.id]);
 
       if (buildPermits.length === 0) continue;
 
@@ -117,14 +114,14 @@ export async function runBuilderRollup(db, logger) {
       for (const buildPermit of buildPermits) {
         if (!buildPermit.address) continue;
 
-        const plumbingPermits = db.db.prepare(`
+        const plumbingPermits = await db.all(`
           SELECT contractorName
           FROM permits
           WHERE permitCategory = 'plumbing'
             AND address = ?
             AND contractorName IS NOT NULL
             AND contractorName != ?
-        `).all(buildPermit.address, buildPermit.contractorName);
+        `, [buildPermit.address, buildPermit.contractorName]);
 
         plumbingPermits.forEach(pp => {
           if (pp.contractorName) {
@@ -139,7 +136,7 @@ export async function runBuilderRollup(db, logger) {
         const [plumberName, matchCount] = entries.sort((a, b) => b[1] - a[1])[0];
         const confidence = Math.min(1.0, matchCount / 3.0);
 
-        db.updateBuilder(builder.id, {
+        await db.updateBuilder(builder.id, {
           hasPlumber: 1,
           knownPlumber: plumberName,
           plumberConfidence: Math.round(confidence * 100) / 100
@@ -150,7 +147,7 @@ export async function runBuilderRollup(db, logger) {
     logger.info('Updated plumber relationship detection');
 
     // ── Summary stats ──
-    const allBuilders = db.getAllBuilders();
+    const allBuilders = await db.getAllBuilders();
     const stats = {
       totalBuilders: allBuilders.length,
       rampingUp: allBuilders.filter(b => b.activityTrend === 'ramping_up').length,
@@ -187,26 +184,29 @@ export async function runBuilderRollup(db, logger) {
 export async function getTopProspects(db, limit = 20) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  const builders = db.getAllBuilders({
+  const allBuilders = await db.getAllBuilders({
     hasPlumber: false
-  }).filter(b => b.permitsLast30d > 0 && ['unknown', 'prospecting'].includes(b.relationshipStatus));
+  });
+  
+  const activeBuilders = allBuilders.filter(b => b.permitsLast30d > 0 && ['unknown', 'prospecting'].includes(b.relationshipStatus));
 
   // Get recent permits for each
-  const prospects = builders.map(builder => {
-    const recentPermits = db.getBuilderPermits(builder.id)
-      .filter(p => p.issuedDate >= thirtyDaysAgo);
+  const prospects = [];
+  for (const builder of activeBuilders) {
+    const builderPermits = await db.getBuilderPermits(builder.id);
+    const recentPermits = builderPermits.filter(p => p.issuedDate >= thirtyDaysAgo);
 
     const recentAddresses = [...new Set(recentPermits.map(p => p.address).filter(Boolean))];
     const recentTotalValue = recentPermits
       .filter(p => p.estimatedCost)
       .reduce((sum, p) => sum + p.estimatedCost, 0);
 
-    return {
+    prospects.push({
       ...builder,
       recentAddresses,
       recentTotalValue
-    };
-  });
+    });
+  }
 
   // Sort by activity and value
   prospects.sort((a, b) => {

@@ -42,7 +42,7 @@ class EmailWatcherService {
 
     try {
       // Check if we have any configured accounts
-      const accounts = db.getActiveEmailWatcherAccounts();
+      const accounts = await db.getActiveEmailWatcherAccounts();
       if (accounts.length === 0) {
         logger.warn('[emailWatcher] No active email watcher accounts configured');
         logger.info('[emailWatcher] Configure an account via /api/email-alerts/accounts');
@@ -95,7 +95,7 @@ class EmailWatcherService {
    */
   async reloadRules() {
     try {
-      this.rulesCache = db.getAllEmailAlertRules(true); // active only
+      this.rulesCache = await db.getAllEmailAlertRules(true); // active only
       this.rulesCacheTime = Date.now();
       logger.debug(`[emailWatcher] Loaded ${this.rulesCache.length} active rules`);
       return this.rulesCache;

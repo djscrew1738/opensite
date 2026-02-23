@@ -39,10 +39,42 @@ export class DatabaseService {
    * This is the central schema definition
    */
   initializeTables() {
+    // Users table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        passwordHash TEXT NOT NULL,
+        role TEXT DEFAULT 'viewer',
+        isActive INTEGER DEFAULT 1,
+        lastLoginAt TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // QuickBooks table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS quickbooks_accounts (
+        id TEXT PRIMARY KEY,
+        realmId TEXT,
+        accessToken TEXT,
+        refreshToken TEXT,
+        tokenExpiresAt TEXT,
+        refreshExpiresAt TEXT,
+        companyName TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
     // Leads table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS leads (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         name TEXT NOT NULL,
         company TEXT,
         email TEXT,
@@ -54,7 +86,8 @@ export class DatabaseService {
         status TEXT,
         notes TEXT,
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
@@ -62,6 +95,7 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         name TEXT NOT NULL,
         leadId TEXT,
         phase TEXT DEFAULT 'rough-in',
@@ -72,6 +106,7 @@ export class DatabaseService {
         status TEXT DEFAULT 'active',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
         FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE SET NULL
       )
     `);
@@ -80,6 +115,7 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS estimates (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         leadId TEXT,
         sqft REAL,
         bathrooms REAL,
@@ -100,6 +136,7 @@ export class DatabaseService {
         margin TEXT,
         analysis TEXT,
         createdAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
         FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE SET NULL
       )
     `);
@@ -108,9 +145,11 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         messages TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
@@ -118,12 +157,14 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS blueprints (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         fileName TEXT NOT NULL,
         filePath TEXT,
         extractedData TEXT,
         aiAnalysis TEXT,
         estimateId TEXT,
         createdAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
         FOREIGN KEY (estimateId) REFERENCES estimates(id) ON DELETE SET NULL
       )
     `);
@@ -149,6 +190,7 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS takeoffs (
         id TEXT PRIMARY KEY,
+        userId TEXT,
         name TEXT NOT NULL,
         blueprintId TEXT,
         projectId TEXT,
@@ -160,6 +202,7 @@ export class DatabaseService {
         totalCost REAL DEFAULT 0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
         FOREIGN KEY (blueprintId) REFERENCES blueprints(id) ON DELETE SET NULL,
         FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE SET NULL
       )
@@ -300,6 +343,88 @@ export class DatabaseService {
       )
     `);
 
+    // Email watcher accounts table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS email_accounts (
+        id TEXT PRIMARY KEY,
+        email_address TEXT NOT NULL UNIQUE,
+        provider TEXT NOT NULL,
+        access_token TEXT,
+        refresh_token TEXT,
+        token_expires_at TEXT,
+        isActive INTEGER DEFAULT 1,
+        lastCheckedAt TEXT,
+        lastError TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Email alert rules table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS email_alert_rules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        keywords TEXT NOT NULL,
+        channels TEXT NOT NULL,
+        priority INTEGER DEFAULT 0,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    // Vision tables (used in vision.js)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_projects (
+        id TEXT PRIMARY KEY,
+        userId TEXT,
+        name TEXT NOT NULL,
+        originalFile TEXT NOT NULL,
+        fileType TEXT,
+        width INTEGER,
+        height INTEGER,
+        tileDir TEXT,
+        dziPath TEXT,
+        pageCount INTEGER DEFAULT 1,
+        currentPage INTEGER DEFAULT 1,
+        metadata TEXT,
+        scale REAL, -- Pixels per foot or similar
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_layers (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT,
+        visible INTEGER DEFAULT 1,
+        minZoom REAL,
+        maxZoom REAL,
+        data TEXT,
+        style TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES vision_projects(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vision_analyses (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        passType TEXT,
+        model TEXT,
+        result TEXT,
+        status TEXT,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES vision_projects(id) ON DELETE CASCADE
+      )
+    `);
+
     // Add new columns to materials if they don't exist
     this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');
@@ -311,6 +436,14 @@ export class DatabaseService {
     
     // Add constraints
     this.addConstraints();
+
+    // Add userId to existing tables
+    this.safeAddColumn('leads', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+    this.safeAddColumn('projects', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+    this.safeAddColumn('estimates', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+    this.safeAddColumn('takeoffs', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+    this.safeAddColumn('blueprints', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+    this.safeAddColumn('conversations', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
     
     // Initialize settings table (from settings.js mixin)
     if (this.initializeSettingsTable) {
@@ -434,10 +567,31 @@ export class DatabaseService {
   }
 
   /**
+   * Execute a query that returns multiple rows
+   */
+  async all(sql, params = []) {
+    return this.db.prepare(sql).all(...params);
+  }
+
+  /**
+   * Execute a query that returns a single row
+   */
+  async get(sql, params = []) {
+    return this.db.prepare(sql).get(...params);
+  }
+
+  /**
+   * Execute a query that doesn't return rows (INSERT, UPDATE, DELETE)
+   */
+  async run(sql, params = []) {
+    return this.db.prepare(sql).run(...params);
+  }
+
+  /**
    * Execute SQL directly (for backward compatibility)
    * @param {string} sql - SQL statement to execute
    */
-  exec(sql) {
+  async exec(sql) {
     return this.db.exec(sql);
   }
 

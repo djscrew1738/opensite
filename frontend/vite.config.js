@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
@@ -29,9 +29,9 @@ export default defineConfig({
           'vendor-motion': ['framer-motion'],
           'vendor-charts': ['recharts'],
           'vendor-icons': ['lucide-react'],
-          'vendor-axios': ['axios'],
+          'vendor-axios': ['axios']
         }
       }
     }
   }
-})
+});

@@ -1,12 +1,15 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './hooks/useTheme';
 import { FieldModeProvider } from './hooks/useFieldMode';
 import { ToastProvider } from './hooks/useToast';
+import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ToastContainer } from './components/shared';
 import Layout from './components/layout/Layout';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { pageImports, routePrefetchMap, prefetchRoute } from './routes/prefetch';
+import { Login, Register } from './pages/Auth';
 
 // Lazy load pages — store import functions for prefetching
 const Dashboard = lazy(pageImports.dashboard);
@@ -21,6 +24,22 @@ const Documents = lazy(pageImports.documents);
 const Canvas = lazy(pageImports.canvas);
 const Alerts = lazy(pageImports.alerts);
 const AIAssistant = lazy(pageImports.ai);
+
+// Protected Route component
+function ProtectedRoute() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <Outlet />;
+}
 
 // Dark Forge page loader
 function PageLoader() {
@@ -171,42 +190,53 @@ function RedirectToJobs({ tab }) {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <FieldModeProvider>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <RoutePrefetcher />
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                {/* Core Pages */}
-                <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
-                <Route path="jobs" element={<PageWrapper><Jobs /></PageWrapper>} />
-                <Route path="leads" element={<PageWrapper><LeadFinder /></PageWrapper>} />
-                <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
-                
-                {/* AI Assistant */}
-                <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
-                
-                {/* System */}
-                <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />
-                
-                {/* Legacy Redirects */}
-                <Route path="plans" element={<RedirectToJobs tab="estimating" />} />
-                <Route path="plumbing" element={<RedirectToJobs tab="plumbing" />} />
-                <Route path="vision" element={<Navigate to="/documents?tab=vision" replace />} />
-                <Route path="alerts" element={<Navigate to="/?view=alerts" replace />} />
-                <Route path="history" element={<Navigate to="/" replace />} />
-              </Route>
-              
-              {/* Canvas - Full screen, no layout */}
-              <Route path="canvas" element={<Canvas />} />
-            </Routes>
-          </BrowserRouter>
-          <ToastContainer />
-        </ToastProvider>
-      </QueryClientProvider>
-    </FieldModeProvider>
-    </ThemeProvider>
+    <ErrorBoundary componentName="Root">
+      <ThemeProvider>
+        <FieldModeProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <AuthProvider>
+              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <RoutePrefetcher />
+                <Routes>
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+
+                  {/* Protected App Routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/" element={<Layout />}>
+                      {/* Core Pages */}
+                      <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
+                      <Route path="jobs" element={<PageWrapper><Jobs /></PageWrapper>} />
+                      <Route path="leads" element={<PageWrapper><LeadFinder /></PageWrapper>} />
+                      <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
+                      
+                      {/* AI Assistant */}
+                      <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
+                      
+                      {/* System */}
+                      <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />
+                      
+                      {/* Legacy Redirects */}
+                      <Route path="plans" element={<RedirectToJobs tab="estimating" />} />
+                      <Route path="plumbing" element={<RedirectToJobs tab="plumbing" />} />
+                      <Route path="vision" element={<Navigate to="/documents?tab=vision" replace />} />
+                      <Route path="alerts" element={<Navigate to="/?view=alerts" replace />} />
+                      <Route path="history" element={<Navigate to="/" replace />} />
+                    </Route>
+                    
+                    {/* Canvas - Full screen, no layout */}
+                    <Route path="canvas" element={<Canvas />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+              <ToastContainer />
+            </AuthProvider>
+          </ToastProvider>
+        </QueryClientProvider>
+      </FieldModeProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

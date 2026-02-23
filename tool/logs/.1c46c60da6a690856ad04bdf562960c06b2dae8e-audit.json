@@ -9,6 +9,16 @@
             "date": 1771794736554,
             "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-22.log",
             "hash": "0069b260d49fb5778ac3088164741d7b9199f8701c2817001f47fe93a19fcb86"
+        },
+        {
+            "date": 1771818364550,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-23.log",
+            "hash": "41138f99d344a31f96c0a30e410ce7f86cfa71fd3c0c286ce0bc22c93cd5fca3"
+        },
+        {
+            "date": 1771856405338,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-23.log.1",
+            "hash": "b099a11d7ab08dce7b054c05587de857dad07471a7c8c49ca29354152934aa89"
         }
     ],
     "hashType": "sha256"

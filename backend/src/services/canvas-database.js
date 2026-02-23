@@ -7,12 +7,14 @@ export function initCanvasTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS canvas_workspaces (
       id TEXT PRIMARY KEY,
+      userId TEXT,
       name TEXT NOT NULL,
       description TEXT,
       project_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      view_state TEXT -- JSON: { x, y, zoom }
+      view_state TEXT, -- JSON: { x, y, zoom }
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 
@@ -98,24 +100,24 @@ export function initCanvasTables() {
 }
 
 // Workspace CRUD
-export function createWorkspace(data) {
-  const stmt = db.prepare(`
-    INSERT INTO canvas_workspaces (id, name, description, project_id, view_state)
-    VALUES (?, ?, ?, ?, ?)
-  `);
+export async function createWorkspace(data) {
   const id = data.id || generateId();
-  stmt.run(
+  await db.run(`
+    INSERT INTO canvas_workspaces (id, userId, name, description, project_id, view_state)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, [
     id,
+    data.userId || null,
     data.name,
     data.description || null,
     data.project_id || null,
     JSON.stringify(data.view_state || { x: 0, y: 0, zoom: 1 })
-  );
-  return getWorkspace(id);
+  ]);
+  return await getWorkspace(id);
 }
 
-export function getWorkspace(id) {
-  const row = db.prepare('SELECT * FROM canvas_workspaces WHERE id = ?').get(id);
+export async function getWorkspace(id) {
+  const row = await db.get('SELECT * FROM canvas_workspaces WHERE id = ?', [id]);
   if (!row) return null;
   return {
     ...row,
@@ -123,25 +125,30 @@ export function getWorkspace(id) {
   };
 }
 
-export function getWorkspaces(projectId = null) {
-  let query = 'SELECT * FROM canvas_workspaces';
+export async function getWorkspaces(projectId = null, userId = null) {
+  let query = 'SELECT * FROM canvas_workspaces WHERE 1=1';
   let params = [];
   
   if (projectId) {
-    query += ' WHERE project_id = ?';
+    query += ' AND project_id = ?';
     params.push(projectId);
+  }
+
+  if (userId) {
+    query += ' AND userId = ?';
+    params.push(userId);
   }
   
   query += ' ORDER BY updated_at DESC';
   
-  const rows = db.prepare(query).all(...params);
+  const rows = await db.all(query, params);
   return rows.map(row => ({
     ...row,
     view_state: JSON.parse(row.view_state || '{}')
   }));
 }
 
-export function updateWorkspace(id, data) {
+export async function updateWorkspace(id, data) {
   const sets = [];
   const values = [];
   
@@ -149,28 +156,27 @@ export function updateWorkspace(id, data) {
   if (data.description !== undefined) { sets.push('description = ?'); values.push(data.description); }
   if (data.view_state !== undefined) { sets.push('view_state = ?'); values.push(JSON.stringify(data.view_state)); }
   
-  if (sets.length === 0) return getWorkspace(id);
+  if (sets.length === 0) return await getWorkspace(id);
   
   sets.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
   
-  db.prepare(`UPDATE canvas_workspaces SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getWorkspace(id);
+  await db.run(`UPDATE canvas_workspaces SET ${sets.join(', ')} WHERE id = ?`, values);
+  return await getWorkspace(id);
 }
 
-export function deleteWorkspace(id) {
-  db.prepare('DELETE FROM canvas_workspaces WHERE id = ?').run(id);
+export async function deleteWorkspace(id) {
+  await db.run('DELETE FROM canvas_workspaces WHERE id = ?', [id]);
   return { deleted: true };
 }
 
 // Node CRUD
-export function createNode(data) {
-  const stmt = db.prepare(`
+export async function createNode(data) {
+  const id = data.id || generateId();
+  await db.run(`
     INSERT INTO canvas_nodes (id, workspace_id, type, position_x, position_y, width, height, data, style)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const id = data.id || generateId();
-  stmt.run(
+  `, [
     id,
     data.workspace_id,
     data.type,
@@ -180,22 +186,22 @@ export function createNode(data) {
     data.height || 120,
     JSON.stringify(data.data || {}),
     JSON.stringify(data.style || {})
-  );
-  return getNode(id);
+  ]);
+  return await getNode(id);
 }
 
-export function getNode(id) {
-  const row = db.prepare('SELECT * FROM canvas_nodes WHERE id = ?').get(id);
+export async function getNode(id) {
+  const row = await db.get('SELECT * FROM canvas_nodes WHERE id = ?', [id]);
   if (!row) return null;
   return deserializeNode(row);
 }
 
-export function getNodesByWorkspace(workspaceId) {
-  const rows = db.prepare('SELECT * FROM canvas_nodes WHERE workspace_id = ?').all(workspaceId);
+export async function getNodesByWorkspace(workspaceId) {
+  const rows = await db.all('SELECT * FROM canvas_nodes WHERE workspace_id = ?', [workspaceId]);
   return rows.map(deserializeNode);
 }
 
-export function updateNode(id, data) {
+export async function updateNode(id, data) {
   const sets = [];
   const values = [];
   
@@ -206,50 +212,57 @@ export function updateNode(id, data) {
   if (data.data !== undefined) { sets.push('data = ?'); values.push(JSON.stringify(data.data)); }
   if (data.style !== undefined) { sets.push('style = ?'); values.push(JSON.stringify(data.style)); }
   
-  if (sets.length === 0) return getNode(id);
+  if (sets.length === 0) return await getNode(id);
   
   sets.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
   
-  db.prepare(`UPDATE canvas_nodes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getNode(id);
+  await db.run(`UPDATE canvas_nodes SET ${sets.join(', ')} WHERE id = ?`, values);
+  return await getNode(id);
 }
 
-export function updateNodePositions(workspaceId, nodes) {
-  const stmt = db.prepare(`
-    UPDATE canvas_nodes 
-    SET position_x = ?, position_y = ?, updated_at = CURRENT_TIMESTAMP 
-    WHERE id = ? AND workspace_id = ?
-  `);
-  
-  const updateWorkspace = db.prepare(`
-    UPDATE canvas_workspaces SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `);
-  
-  const transaction = db.transaction((nodeList) => {
-    for (const node of nodeList) {
-      stmt.run(node.position.x, node.position.y, node.id, workspaceId);
+export async function updateNodePositions(workspaceId, nodes) {
+  if (db.db && db.db.transaction) {
+    const stmt = db.db.prepare(`
+      UPDATE canvas_nodes 
+      SET position_x = ?, position_y = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ? AND workspace_id = ?
+    `);
+    
+    const updateWorkspace = db.db.prepare(`
+      UPDATE canvas_workspaces SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `);
+    
+    const transaction = db.db.transaction((nodeList) => {
+      for (const node of nodeList) {
+        stmt.run(node.position.x, node.position.y, node.id, workspaceId);
+      }
+      updateWorkspace.run(workspaceId);
+    });
+    
+    transaction(nodes);
+  } else {
+    // Async-native (Postgres)
+    for (const node of nodes) {
+      await db.run('UPDATE canvas_nodes SET position_x = ?, position_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ?', [node.position.x, node.position.y, node.id, workspaceId]);
     }
-    updateWorkspace.run(workspaceId);
-  });
-  
-  transaction(nodes);
+    await db.run('UPDATE canvas_workspaces SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [workspaceId]);
+  }
   return true;
 }
 
-export function deleteNode(id) {
-  db.prepare('DELETE FROM canvas_nodes WHERE id = ?').run(id);
+export async function deleteNode(id) {
+  await db.run('DELETE FROM canvas_nodes WHERE id = ?', [id]);
   return { deleted: true };
 }
 
 // Edge CRUD
-export function createEdge(data) {
-  const stmt = db.prepare(`
+export async function createEdge(data) {
+  const id = data.id || generateId();
+  await db.run(`
     INSERT INTO canvas_edges (id, workspace_id, source, target, label, type, data)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  const id = data.id || generateId();
-  stmt.run(
+  `, [
     id,
     data.workspace_id,
     data.source,
@@ -257,22 +270,22 @@ export function createEdge(data) {
     data.label || null,
     data.type || 'solid',
     JSON.stringify(data.data || {})
-  );
-  return getEdge(id);
+  ]);
+  return await getEdge(id);
 }
 
-export function getEdge(id) {
-  const row = db.prepare('SELECT * FROM canvas_edges WHERE id = ?').get(id);
+export async function getEdge(id) {
+  const row = await db.get('SELECT * FROM canvas_edges WHERE id = ?', [id]);
   if (!row) return null;
   return deserializeEdge(row);
 }
 
-export function getEdgesByWorkspace(workspaceId) {
-  const rows = db.prepare('SELECT * FROM canvas_edges WHERE workspace_id = ?').all(workspaceId);
+export async function getEdgesByWorkspace(workspaceId) {
+  const rows = await db.all('SELECT * FROM canvas_edges WHERE workspace_id = ?', [workspaceId]);
   return rows.map(deserializeEdge);
 }
 
-export function updateEdge(id, data) {
+export async function updateEdge(id, data) {
   const sets = [];
   const values = [];
   
@@ -280,26 +293,25 @@ export function updateEdge(id, data) {
   if (data.type !== undefined) { sets.push('type = ?'); values.push(data.type); }
   if (data.data !== undefined) { sets.push('data = ?'); values.push(JSON.stringify(data.data)); }
   
-  if (sets.length === 0) return getEdge(id);
+  if (sets.length === 0) return await getEdge(id);
   
   values.push(id);
-  db.prepare(`UPDATE canvas_edges SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getEdge(id);
+  await db.run(`UPDATE canvas_edges SET ${sets.join(', ')} WHERE id = ?`, values);
+  return await getEdge(id);
 }
 
-export function deleteEdge(id) {
-  db.prepare('DELETE FROM canvas_edges WHERE id = ?').run(id);
+export async function deleteEdge(id) {
+  await db.run('DELETE FROM canvas_edges WHERE id = ?', [id]);
   return { deleted: true };
 }
 
 // Finding / Pin CRUD
-export function createFinding(data) {
-  const stmt = db.prepare(`
+export async function createFinding(data) {
+  const id = data.id || generateId();
+  await db.run(`
     INSERT INTO canvas_findings (id, workspace_id, node_id, type, title, description, position_x, position_y)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const id = data.id || generateId();
-  stmt.run(
+  `, [
     id,
     data.workspace_id,
     data.node_id || null,
@@ -308,19 +320,19 @@ export function createFinding(data) {
     data.description || null,
     data.position?.x || null,
     data.position?.y || null
-  );
-  return getFinding(id);
+  ]);
+  return await getFinding(id);
 }
 
-export function getFinding(id) {
-  return db.prepare('SELECT * FROM canvas_findings WHERE id = ?').get(id);
+export async function getFinding(id) {
+  return await db.get('SELECT * FROM canvas_findings WHERE id = ?', [id]);
 }
 
-export function getFindingsByWorkspace(workspaceId) {
-  return db.prepare('SELECT * FROM canvas_findings WHERE workspace_id = ? ORDER BY created_at DESC').all(workspaceId);
+export async function getFindingsByWorkspace(workspaceId) {
+  return await db.all('SELECT * FROM canvas_findings WHERE workspace_id = ? ORDER BY created_at DESC', [workspaceId]);
 }
 
-export function updateFinding(id, data) {
+export async function updateFinding(id, data) {
   const sets = [];
   const values = [];
   
@@ -330,29 +342,28 @@ export function updateFinding(id, data) {
   if (data.position?.x !== undefined) { sets.push('position_x = ?'); values.push(data.position.x); }
   if (data.position?.y !== undefined) { sets.push('position_y = ?'); values.push(data.position.y); }
   
-  if (sets.length === 0) return getFinding(id);
+  if (sets.length === 0) return await getFinding(id);
   
   values.push(id);
-  db.prepare(`UPDATE canvas_findings SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getFinding(id);
+  await db.run(`UPDATE canvas_findings SET ${sets.join(', ')} WHERE id = ?`, values);
+  return await getFinding(id);
 }
 
-export function deleteFinding(id) {
-  db.prepare('DELETE FROM canvas_findings WHERE id = ?').run(id);
+export async function deleteFinding(id) {
+  await db.run('DELETE FROM canvas_findings WHERE id = ?', [id]);
   return { deleted: true };
 }
 
 // Document CRUD
-export function createDocument(data) {
-  const stmt = db.prepare(`
+export async function createDocument(data) {
+  const id = data.id || generateId();
+  await db.run(`
     INSERT INTO canvas_documents (
       id, node_id, workspace_id, filename, file_path, file_type, file_size, 
       category, ocr_text, page_count, thumbnail_path, ai_classification_confidence
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const id = data.id || generateId();
-  stmt.run(
+  `, [
     id,
     data.node_id,
     data.workspace_id,
@@ -365,19 +376,19 @@ export function createDocument(data) {
     data.page_count || 1,
     data.thumbnail_path || null,
     data.ai_classification_confidence || null
-  );
-  return getDocument(id);
+  ]);
+  return await getDocument(id);
 }
 
-export function getDocument(id) {
-  return db.prepare('SELECT * FROM canvas_documents WHERE id = ?').get(id);
+export async function getDocument(id) {
+  return await db.get('SELECT * FROM canvas_documents WHERE id = ?', [id]);
 }
 
-export function getDocumentByNode(nodeId) {
-  return db.prepare('SELECT * FROM canvas_documents WHERE node_id = ?').get(nodeId);
+export async function getDocumentByNode(nodeId) {
+  return await db.get('SELECT * FROM canvas_documents WHERE node_id = ?', [nodeId]);
 }
 
-export function updateDocument(id, data) {
+export async function updateDocument(id, data) {
   const sets = [];
   const values = [];
   
@@ -385,39 +396,42 @@ export function updateDocument(id, data) {
   if (data.ocr_text !== undefined) { sets.push('ocr_text = ?'); values.push(data.ocr_text); }
   if (data.thumbnail_path !== undefined) { sets.push('thumbnail_path = ?'); values.push(data.thumbnail_path); }
   
-  if (sets.length === 0) return getDocument(id);
+  if (sets.length === 0) return await getDocument(id);
   
   values.push(id);
-  db.prepare(`UPDATE canvas_documents SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getDocument(id);
+  await db.run(`UPDATE canvas_documents SET ${sets.join(', ')} WHERE id = ?`, values);
+  return await getDocument(id);
 }
 
 // Full canvas state operations
-export function getFullCanvas(workspaceId) {
-  const workspace = getWorkspace(workspaceId);
+export async function getFullCanvas(workspaceId) {
+  const workspace = await getWorkspace(workspaceId);
   if (!workspace) return null;
   
   return {
     workspace,
-    nodes: getNodesByWorkspace(workspaceId),
-    edges: getEdgesByWorkspace(workspaceId),
-    findings: getFindingsByWorkspace(workspaceId)
+    nodes: await getNodesByWorkspace(workspaceId),
+    edges: await getEdgesByWorkspace(workspaceId),
+    findings: await getFindingsByWorkspace(workspaceId)
   };
 }
 
-export function saveFullCanvas(workspaceId, data) {
-  const transaction = db.transaction((canvasData) => {
-    // Update workspace
-    if (canvasData.workspace) {
-      updateWorkspace(workspaceId, canvasData.workspace);
+export async function saveFullCanvas(workspaceId, data) {
+  if (db.db && db.db.transaction) {
+    const transaction = db.db.transaction(async (canvasData) => {
+      // Update workspace
+      if (canvasData.workspace) {
+        await updateWorkspace(workspaceId, canvasData.workspace);
+      }
+    });
+    await transaction(data);
+  } else {
+    if (data.workspace) {
+      await updateWorkspace(workspaceId, data.workspace);
     }
-    
-    // Nodes are updated individually via updateNodePositions for drag operations
-    // But we can batch update other node properties here if needed
-  });
+  }
   
-  transaction(data);
-  return getFullCanvas(workspaceId);
+  return await getFullCanvas(workspaceId);
 }
 
 // Helpers

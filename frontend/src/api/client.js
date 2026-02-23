@@ -23,6 +23,11 @@ const apiClient = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
+    // Add Authorization header if token exists
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -46,6 +51,16 @@ apiClient.interceptors.response.use(
     return responseData;
   },
   (error) => {
+    // Handle 401 Unauthorized (token expired or invalid)
+    if (error.response?.status === 401 && !error.config._retry) {
+      // Don't redirect if we are already on login page
+      if (!window.location.pathname.includes('/login')) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        window.location.href = '/login';
+      }
+    }
+
     // Handle network errors (backend unavailable)
     if (!error.response) {
       const networkError = new Error('Cannot connect to server. Please check your connection or try again later.');
@@ -74,6 +89,18 @@ apiClient.interceptors.response.use(
 
 // API methods
 export const api = {
+  // Auth
+  auth: {
+    login: (email, password) => apiClient.post('/auth/login', { email, password }),
+    register: (data) => apiClient.post('/auth/register', data),
+    me: () => apiClient.get('/auth/me'),
+    logout: () => {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      window.location.href = '/login';
+    }
+  },
+
   // Health
   health: () => apiClient.get('/health'),
 
@@ -101,6 +128,7 @@ export const api = {
     getOne: (id) => apiClient.get(`/projects/${id}`),
     create: (data) => apiClient.post('/projects', data),
     update: (id, data) => apiClient.put(`/projects/${id}`, data),
+    delete: (id) => apiClient.delete(`/projects/${id}`),
     updatePhase: (id, phase, progress) =>
       apiClient.put(`/projects/${id}/phase`, { phase, progress })
   },
@@ -129,6 +157,7 @@ export const api = {
     update: (data) => apiClient.put('/settings', data),
     testOllama: (url) => apiClient.post('/settings/test-ollama', { url }),
     testGroq: (key) => apiClient.post('/settings/test-groq', { key }),
+    testOpenai: (key) => apiClient.post('/settings/test-openai', { key }),
     testOpenClaw: (url, token) => apiClient.post('/settings/test-openclaw', { url, token }),
     testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
     testAnthropic: (key) => apiClient.post('/settings/test-anthropic', { key }),
@@ -285,6 +314,14 @@ export const api = {
   // Weather
   weather: {
     getForecast: () => apiClient.get('/weather/forecast'),
+  },
+
+  // QuickBooks
+  quickbooks: {
+    getStatus: () => apiClient.get('/quickbooks/status'),
+    getAuthUrl: () => apiClient.get('/quickbooks/auth'),
+    disconnect: () => apiClient.delete('/quickbooks/account'),
+    syncEstimate: (id) => apiClient.post(`/quickbooks/sync/estimate/${id}`),
   },
 
   // Email Monitor (Legacy IMAP)

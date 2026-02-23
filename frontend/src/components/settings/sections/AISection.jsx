@@ -6,11 +6,12 @@
 import { 
   Cpu, CheckCircle, Server, Zap, Cog, SlidersHorizontal, 
   HardDrive, Download, Star, XCircle, Clock, Trash2, 
-  Loader2, Save, Eye, EyeOff
+  Loader2, Save, Eye, EyeOff, Shield, AlertCircle, Check
 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
 import { useSettingsActions } from '../hooks/useSettingsActions';
 import { Section, SliderField, SettingsRow, Toggle } from '../primitives';
+import { ConfirmDialog } from '../../shared';
 
 export default function AISection() {
   const ctx = useSettings();
@@ -55,11 +56,12 @@ export default function AISection() {
       {/* Provider Selection */}
       <Section icon={Cpu} title="AI Provider" badge={providerBadge}>
         <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { id: 'ollama', icon: Server, label: 'Ollama', desc: 'Local, private, no limits', accent: 'blue' },
               { id: 'groq', icon: Zap, label: 'Groq', desc: 'Ultra-fast cloud inference', accent: 'orange' },
-              { id: 'openclaw', icon: Cog, label: 'OpenClaw', desc: 'Local AI gateway — 200k ctx, no API cost', accent: 'red' },
+              { id: 'anthropic', icon: Shield, label: 'Anthropic', desc: 'Claude — 200k context', accent: 'amber' },
+              { id: 'openclaw', icon: Cog, label: 'OpenClaw', desc: 'Local gateway — 200k ctx, no API cost', accent: 'red' },
             ].map(({ id, icon: Icon, label, desc, accent }) => {
               const isActive = activeProvider === id;
               return (
@@ -146,8 +148,9 @@ export default function AISection() {
                       type="button" 
                       onClick={() => ctx.setShowGroqKey(!showGroqKey)} 
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label={showGroqKey ? 'Hide API key' : 'Show API key'}
                     >
-                      {showGroqKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showGroqKey ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                     </button>
                   </div>
                   <button onClick={handleTestGroq} disabled={testingGroq} className="btn-secondary text-sm whitespace-nowrap">
@@ -180,8 +183,78 @@ export default function AISection() {
             </>
           )}
 
+          {activeProvider === 'anthropic' && (
+            <>
+              <div className="p-4 bg-amber-50/50 dark:bg-amber-950/10 rounded-xl border border-amber-200/60 dark:border-amber-800/40">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">Anthropic Claude</h4>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Premium AI with 200k context window. Requires API key from console.anthropic.com
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="label">Claude API Key</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input 
+                      type={ctx.showAnthropicKey ? 'text' : 'password'} 
+                      value={ctx.anthropicKey} 
+                      onChange={e => ctx.setAnthropicKey(e.target.value)} 
+                      className="input pr-10 font-mono text-sm" 
+                      placeholder={settings.anthropic_api_key_masked || 'sk-ant-...'} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => ctx.setShowAnthropicKey(!ctx.showAnthropicKey)} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label={ctx.showAnthropicKey ? 'Hide API key' : 'Show API key'}
+                    >
+                      {ctx.showAnthropicKey ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
+                    </button>
+                  </div>
+                  <button onClick={actions.handleTestAnthropic} disabled={ctx.testingAnthropic} className="btn-secondary text-sm whitespace-nowrap">
+                    {ctx.testingAnthropic ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
+                  </button>
+                  <button onClick={actions.handleSaveAnthropicKey} disabled={!ctx.anthropicKey.trim()} className="btn-primary text-sm whitespace-nowrap">
+                    <Save className="w-4 h-4" /> Save
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="label">Default Model</label>
+                <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input">
+                  <option value="claude-3-haiku-20240307">Claude 3 Haiku (fast)</option>
+                  <option value="claude-3-sonnet-20240229">Claude 3 Sonnet (balanced)</option>
+                  <option value="claude-3-opus-20240229">Claude 3 Opus (powerful)</option>
+                </select>
+              </div>
+            </>
+          )}
+
           {activeProvider === 'openclaw' && (
             <>
+              {/* OpenClaw Info Banner */}
+              <div className="p-4 bg-red-50/50 dark:bg-red-950/10 rounded-xl border border-red-200/60 dark:border-red-800/40">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">OpenClaw Gateway</h4>
+                    <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                      Premium local AI with OpenAI-compatible API, 200k context window, and built-in circuit breaker protection.
+                    </p>
+                    <ul className="text-xs text-red-600 dark:text-red-400 space-y-1">
+                      <li className="flex items-center gap-1.5"><Check className="w-3 h-3" />No API costs — runs locally</li>
+                      <li className="flex items-center gap-1.5"><Check className="w-3 h-3" />200k token context window</li>
+                      <li className="flex items-center gap-1.5"><Check className="w-3 h-3" />Automatic failover to cloud providers</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="label">OpenClaw Gateway URL</label>
                 <div className="flex gap-2">
@@ -190,12 +263,13 @@ export default function AISection() {
                     value={openclawUrl} 
                     onChange={e => ctx.setOpenclawUrl(e.target.value)} 
                     className="input flex-1 font-mono text-sm" 
-                    placeholder="http://localhost:18789" 
+                    placeholder="http://localhost:10000" 
                   />
                   <button onClick={handleTestOpenClaw} disabled={testingOpenClaw} className="btn-secondary text-sm whitespace-nowrap">
                     {testingOpenClaw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Default: http://localhost:10000</p>
               </div>
               <div>
                 <label className="label">Gateway Token (optional)</label>
@@ -212,8 +286,9 @@ export default function AISection() {
                       type="button" 
                       onClick={() => ctx.setShowOpenclawToken(!showOpenclawToken)} 
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label={showOpenclawToken ? 'Hide token' : 'Show token'}
                     >
-                      {showOpenclawToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showOpenclawToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                     </button>
                   </div>
                   <button onClick={handleSaveOpenclawToken} disabled={!openclawToken.trim()} className="btn-primary text-sm whitespace-nowrap">
@@ -222,9 +297,9 @@ export default function AISection() {
                 </div>
               </div>
               <div>
-                <label className="label">Default Agent</label>
+                <label className="label">Default Model</label>
                 <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input">
-                  {availableModels.length === 0 && <option>openclaw:main</option>}
+                  {availableModels.length === 0 && <option>llama3.1</option>}
                   {availableModels.map(m => <option key={m.name} value={m.name}>{m.label || m.name}</option>)}
                 </select>
               </div>
@@ -303,6 +378,14 @@ export default function AISection() {
           </div>
         )}
         
+        {activeProvider === 'openclaw' && (
+          <div className="mb-5 p-4 bg-red-50/50 dark:bg-red-950/10 rounded-xl border border-red-200/60 dark:border-red-800/40">
+            <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+              <Shield className="w-4 h-4" />OpenClaw models are managed via the gateway. Configure URL above.
+            </p>
+          </div>
+        )}
+        
         {(!connected && activeProvider === 'ollama') ? (
           <div className="text-center py-8 text-gray-500">
             <XCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -357,25 +440,12 @@ export default function AISection() {
                         </button>
                       )}
                       {!isGroq && !isOC && (
-                        deleteConfirm === m.name ? (
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleDeleteModel(m.name)} 
-                              disabled={deletingModel === m.name} 
-                              className="btn-danger text-xs px-3 py-1.5 min-h-0"
-                            >
-                              {deletingModel === m.name ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
-                            </button>
-                            <button onClick={() => ctx.setDeleteConfirm(null)} className="btn-ghost text-xs px-2 py-1.5 min-h-0">Cancel</button>
-                          </div>
-                        ) : (
-                          <button 
-                            onClick={() => ctx.setDeleteConfirm(m.name)} 
-                            className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )
+                        <button 
+                          onClick={() => ctx.setDeleteConfirm(m.name)} 
+                          className="btn-ghost text-xs px-2 py-1.5 min-h-0 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -383,6 +453,18 @@ export default function AISection() {
               );
             })}
           </div>
+        )}
+
+        {/* Delete Confirmation */}
+        {deleteConfirm && (
+          <ConfirmDialog
+            title="Delete AI Model?"
+            message={`Are you sure you want to delete the model "${deleteConfirm}"? This will remove the model files from your local Ollama storage.`}
+            confirmLabel={deletingModel ? 'Deleting...' : 'Delete Model'}
+            onConfirm={() => handleDeleteModel(deleteConfirm)}
+            onCancel={() => ctx.setDeleteConfirm(null)}
+            variant="danger"
+          />
         )}
       </Section>
     </div>

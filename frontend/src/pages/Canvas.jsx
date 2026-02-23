@@ -27,6 +27,7 @@ import DocumentNode from '../components/canvas/nodes/DocumentNode';
 import EntityNode from '../components/canvas/nodes/EntityNode';
 import StickyNoteNode from '../components/canvas/nodes/StickyNoteNode';
 import { useCanvasStore, generateId } from '../components/canvas/canvasStore';
+import { ConfirmDialog } from '../components/shared';
 
 // Node type components
 const nodeTypes = {
@@ -303,6 +304,7 @@ function Canvas() {
   const [isLocked, setIsLocked] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   // Store integration
   const store = useCanvasStore();
@@ -432,11 +434,14 @@ function Canvas() {
   
   // Clear canvas
   const clearCanvas = useCallback(() => {
-    if (confirm('Are you sure you want to clear the canvas? This cannot be undone.')) {
-      setNodes([]);
-      setEdges([]);
-      setHasChanges(true);
-    }
+    setShowClearConfirm(true);
+  }, []);
+
+  const handleConfirmClear = useCallback(() => {
+    setNodes([]);
+    setEdges([]);
+    setHasChanges(true);
+    setShowClearConfirm(false);
   }, []);
   
   // Sample documents data (would come from API)
@@ -514,6 +519,18 @@ function Canvas() {
           onAddDocument={addEntity}
         />
       </ReactFlow>
+
+      {/* Clear Confirmation */}
+      {showClearConfirm && (
+        <ConfirmDialog
+          title="Clear Canvas?"
+          message="Are you sure you want to clear the entire canvas? This action cannot be undone and all your unsaved changes will be lost."
+          confirmLabel="Clear All"
+          onConfirm={handleConfirmClear}
+          onCancel={() => setShowClearConfirm(false)}
+          variant="danger"
+        />
+      )}
     </div>
   );
 }

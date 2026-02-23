@@ -11,9 +11,13 @@ import { visionAIService } from '../services/vision-ai.js';
 import { jobQueue } from '../services/jobQueuePersistent.js';
 import { tryCatch } from '../utils/response.js';
 import { uploadLimiter } from '../middleware/security.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
+
+// Apply authentication to all vision routes
+router.use(authenticateToken);
 
 // Configure multer for vision uploads
 const storage = multer.diskStorage({
@@ -45,24 +49,61 @@ const upload = multer({
  * GET /api/vision/models
  */
 router.get('/models', tryCatch(async (req, res) => {
-  const anthropicKey = db.getSetting('anthropic_api_key');
-  const groqKey = db.getSetting('groq_api_key');
+  const anthropicKey = await db.getSetting('anthropic_api_key');
+  const groqKey = await db.getSetting('groq_api_key');
   const models = [];
 
+  // Cloud models
   if (anthropicKey) {
     models.push(
-      { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', speed: 'fast', quality: 'good' },
-      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic', speed: 'medium', quality: 'excellent' },
+      { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', speed: 'fast', quality: 'good', type: 'global' },
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic', speed: 'medium', quality: 'excellent', type: 'global' },
     );
   }
   if (groqKey) {
     models.push(
-      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', provider: 'groq', speed: 'fast', quality: 'good' },
-      { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: 'groq', speed: 'medium', quality: 'excellent' },
+      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', provider: 'groq', speed: 'fast', quality: 'good', type: 'global' },
+      { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: 'groq', speed: 'medium', quality: 'excellent', type: 'global' },
     );
   }
 
-  res.success({ models, hasKeys: !!(anthropicKey || groqKey) });
+  // Local models via Ollama
+  try {
+    const { ollamaService } = await import('../services/ollama.js');
+    const health = await ollamaService.healthCheck();
+    if (health.connected) {
+      const ollamaModels = await ollamaService.listAvailableModels();
+      const visionModels = ollamaModels.models.filter(m => 
+        m.name.toLowerCase().includes('llava') || 
+        m.name.toLowerCase().includes('vision') ||
+        m.name.toLowerCase().includes('moondream')
+      );
+
+      for (const m of visionModels) {
+        // Add two modes for each local vision model
+        models.push({
+          id: `${m.id}:fixtures`,
+          name: `${m.name} - Fixture Detection`,
+          provider: 'ollama',
+          speed: 'local',
+          quality: 'tiled-deep',
+          type: 'deep'
+        });
+        models.push({
+          id: `${m.id}:trace`,
+          name: `${m.name} - Pipe Tracing`,
+          provider: 'ollama',
+          speed: 'local',
+          quality: 'tiled-deep',
+          type: 'trace'
+        });
+      }
+    }
+  } catch (err) {
+    logger.debug('Ollama not available for vision models');
+  }
+
+  res.success({ models, hasKeys: !!(anthropicKey || groqKey || models.some(m => m.provider === 'ollama')) });
 }));
 
 /**
@@ -79,6 +120,7 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
   const ext = path.extname(fileName).toLowerCase();
   const projectId = randomUUID();
   const projectName = req.body.name || fileName.replace(/\.[^.]+$/, '');
+  const userId = req.user.id;
 
   let imagePath = filePath;
   let pageCount = 1;
@@ -114,17 +156,17 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
 
     // Store project in database
     const now = new Date().toISOString();
-    db.db.prepare(`
-      INSERT INTO vision_projects (id, name, originalFile, fileType, width, height, tileDir, dziPath, pageCount, currentPage, metadata, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      projectId, projectName, fileName, fileType,
+    await db.run(`
+      INSERT INTO vision_projects (id, userId, name, originalFile, fileType, width, height, tileDir, dziPath, pageCount, currentPage, metadata, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      projectId, userId, projectName, fileName, fileType,
       metadata.width, metadata.height,
       tileResult.tileDir, tileResult.dziPath,
       pageCount, 1,
       JSON.stringify({ format: metadata.format, size: metadata.size, channels: metadata.channels }),
       now, now
-    );
+    ]);
 
     // Clean up original upload (keep the converted image if it's different)
     if (filePath !== imagePath && fs.existsSync(filePath)) {
@@ -165,9 +207,10 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
  * GET /api/vision/projects
  */
 router.get('/projects', tryCatch(async (req, res) => {
-  const projects = db.db.prepare(
-    'SELECT id, name, originalFile, fileType, width, height, pageCount, createdAt, updatedAt FROM vision_projects ORDER BY updatedAt DESC'
-  ).all();
+  const projects = await db.all(
+    'SELECT id, name, originalFile, fileType, width, height, pageCount, createdAt, updatedAt FROM vision_projects WHERE userId = ? ORDER BY updatedAt DESC',
+    [req.user.id]
+  );
 
   // Add thumbnail URLs
   const result = projects.map(p => ({
@@ -183,17 +226,23 @@ router.get('/projects', tryCatch(async (req, res) => {
  * GET /api/vision/projects/:id
  */
 router.get('/projects/:id', tryCatch(async (req, res) => {
-  const project = db.db.prepare('SELECT * FROM vision_projects WHERE id = ?').get(req.params.id);
+  const project = await db.get('SELECT * FROM vision_projects WHERE id = ?', [req.params.id]);
   if (!project) {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
+  }
+
+  // Security check
+  if (project.userId && project.userId !== req.user.id) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
 
   project.metadata = JSON.parse(project.metadata || '{}');
 
   // Get layers
-  const layers = db.db.prepare(
-    'SELECT * FROM vision_layers WHERE projectId = ? ORDER BY createdAt'
-  ).all(req.params.id);
+  const layers = await db.all(
+    'SELECT * FROM vision_layers WHERE projectId = ? ORDER BY createdAt',
+    [req.params.id]
+  );
 
   layers.forEach(layer => {
     layer.data = JSON.parse(layer.data || '[]');
@@ -201,9 +250,10 @@ router.get('/projects/:id', tryCatch(async (req, res) => {
   });
 
   // Get analyses
-  const analyses = db.db.prepare(
-    'SELECT id, passType, model, status, createdAt FROM vision_analyses WHERE projectId = ? ORDER BY createdAt DESC'
-  ).all(req.params.id);
+  const analyses = await db.all(
+    'SELECT id, passType, model, status, createdAt FROM vision_analyses WHERE projectId = ? ORDER BY createdAt DESC',
+    [req.params.id]
+  );
 
   res.success({ ...project, layers, analyses });
 }));
@@ -216,27 +266,48 @@ router.get('/projects/:id', tryCatch(async (req, res) => {
  * POST /api/vision/projects/:id/analyze
  */
 router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
-  const project = db.db.prepare('SELECT * FROM vision_projects WHERE id = ?').get(req.params.id);
+  const project = await db.get('SELECT * FROM vision_projects WHERE id = ?', [req.params.id]);
   if (!project) {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
 
+  // Security check
+  if (project.userId && project.userId !== req.user.id) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
+
   const analysisId = randomUUID();
   const now = new Date().toISOString();
-  const model = req.body.model || null;
+  let model = req.body.model || null;
+  let passType = req.body.type || 'global'; // 'global', 'deep', or 'trace'
+
+  // If model has a task suffix, split it
+  if (model && model.includes(':')) {
+    const [actualModel, task] = model.split(':');
+    model = actualModel;
+    if (task === 'trace') passType = 'trace';
+    if (task === 'fixtures') passType = 'deep';
+  }
 
   // Create analysis record
-  db.db.prepare(
-    'INSERT INTO vision_analyses (id, projectId, passType, model, result, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(analysisId, req.params.id, 'global', model || 'auto', '{}', 'pending', now);
+  await db.run(
+    'INSERT INTO vision_analyses (id, projectId, passType, model, result, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [analysisId, req.params.id, passType, model || 'auto', '{}', 'pending', now]
+  );
 
-  // Use the saved analysis image (resized copy saved during upload)
-  // Falls back to thumbnail if analysis image doesn't exist (older projects)
-  let analysisImagePath = visionService.getAnalysisImagePath(req.params.id);
-  if (!fs.existsSync(analysisImagePath)) {
-    analysisImagePath = path.join(visionService.tilesDir, req.params.id, 'thumbnail.jpeg');
+  // For global scan, use analysis image (2048px). For deep scan/trace, use original file if available
+  let imagePath = visionService.getAnalysisImagePath(req.params.id);
+  if (passType === 'deep' || passType === 'trace') {
+    const uploadPath = path.join(visionService.uploadsDir, project.originalFile);
+    if (fs.existsSync(uploadPath)) {
+      imagePath = uploadPath;
+    }
   }
-  if (!fs.existsSync(analysisImagePath)) {
+
+  if (!fs.existsSync(imagePath)) {
+    imagePath = path.join(visionService.tilesDir, req.params.id, 'thumbnail.jpeg');
+  }
+  if (!fs.existsSync(imagePath)) {
     return res.error('No image available for analysis. Try re-uploading the blueprint.', 'NO_IMAGE', null, 400);
   }
 
@@ -244,26 +315,37 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
   const jobHandler = async (jobData, progressCallback) => {
     progressCallback(5);
 
-    const result = await visionAIService.analyzeBlueprint(analysisImagePath, { model }, progressCallback);
+    let result;
+    if (passType === 'deep') {
+      result = await visionAIService.deepScan(imagePath, { model }, progressCallback);
+    } else if (passType === 'trace') {
+      result = await visionAIService.traceRuns(imagePath, { model }, progressCallback);
+    } else {
+      result = await visionAIService.analyzeBlueprint(imagePath, { model }, progressCallback);
+    }
 
     progressCallback(85);
 
     // Save analysis result
-    db.db.prepare(
-      'UPDATE vision_analyses SET result = ?, model = ?, status = ? WHERE id = ?'
-    ).run(JSON.stringify(result.data || {}), result.model, result.success ? 'completed' : 'failed', analysisId);
+    await db.run(
+      'UPDATE vision_analyses SET result = ?, model = ?, status = ? WHERE id = ?',
+      [JSON.stringify(result.data || {}), result.model, result.success ? 'completed' : 'failed', analysisId]
+    );
 
     // Auto-create layers from analysis
     if (result.success && result.data) {
       const layers = visionAIService.analysisToLayers(result.data);
       for (const layer of layers) {
         const layerId = randomUUID();
-        db.db.prepare(
-          'INSERT INTO vision_layers (id, projectId, name, type, visible, minZoom, maxZoom, data, style, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).run(
-          layerId, req.params.id, layer.name, layer.type,
-          layer.visible ? 1 : 0, layer.minZoom, layer.maxZoom,
-          JSON.stringify(layer.data), JSON.stringify(layer.style), now
+        await db.run(
+          'INSERT INTO vision_layers (id, projectId, name, type, visible, minZoom, maxZoom, data, style, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            layerId, req.params.id, 
+            `${layer.name} (${passType === 'deep' ? 'Deep' : passType === 'trace' ? 'Trace' : 'Global'})`, 
+            layer.type,
+            layer.visible ? 1 : 0, layer.minZoom, layer.maxZoom,
+            JSON.stringify(layer.data), JSON.stringify(layer.style), now
+          ]
         );
       }
     }
@@ -279,7 +361,31 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
     analysisId,
     status: 'processing',
     pollUrl: `/api/jobs/${jobId}`
-  }, 'AI analysis started');
+  }, `AI ${passType} analysis started`);
+}));
+
+/**
+ * Convert AI analysis to Takeoff
+ * POST /api/vision/projects/:id/analyses/:analysisId/convert
+ */
+router.post('/projects/:id/analyses/:analysisId/convert', tryCatch(async (req, res) => {
+  const { id, analysisId } = req.params;
+  
+  const takeoff = await db.convertAnalysisToTakeoff(id, analysisId, req.user.id);
+  
+  res.success(takeoff, 'AI analysis converted to takeoff successfully');
+}));
+
+/**
+ * Update project scale
+ * PUT /api/vision/projects/:id/scale
+ */
+router.put('/projects/:id/scale', tryCatch(async (req, res) => {
+  const { scale } = req.body;
+  if (scale === undefined) return res.error('Scale is required', 'VALIDATION_ERROR', null, 400);
+  
+  await db.run('UPDATE vision_projects SET scale = ? WHERE id = ?', [scale, req.params.id]);
+  res.success({ scale }, 'Scale updated');
 }));
 
 /**
@@ -296,18 +402,19 @@ router.post('/projects/:id/layers', tryCatch(async (req, res) => {
   const layerId = randomUUID();
   const now = new Date().toISOString();
 
-  db.db.prepare(
-    'INSERT INTO vision_layers (id, projectId, name, type, visible, minZoom, maxZoom, data, style, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(
-    layerId, req.params.id, name, type || 'annotation',
-    visible !== false ? 1 : 0,
-    minZoom || 0, maxZoom || 20,
-    JSON.stringify(data || []),
-    JSON.stringify(style || {}),
-    now
+  await db.run(
+    'INSERT INTO vision_layers (id, projectId, name, type, visible, minZoom, maxZoom, data, style, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      layerId, req.params.id, name, type || 'annotation',
+      visible !== false ? 1 : 0,
+      minZoom || 0, maxZoom || 20,
+      JSON.stringify(data || []),
+      JSON.stringify(style || {}),
+      now
+    ]
   );
 
-  const layer = db.db.prepare('SELECT * FROM vision_layers WHERE id = ?').get(layerId);
+  const layer = await db.get('SELECT * FROM vision_layers WHERE id = ?', [layerId]);
   layer.data = JSON.parse(layer.data);
   layer.style = JSON.parse(layer.style);
 
@@ -322,7 +429,7 @@ router.post('/projects/:id/layers', tryCatch(async (req, res) => {
  */
 router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => {
   const { layerId } = req.params;
-  const existing = db.db.prepare('SELECT * FROM vision_layers WHERE id = ?').get(layerId);
+  const existing = await db.get('SELECT * FROM vision_layers WHERE id = ?', [layerId]);
   if (!existing) {
     return res.error('Layer not found', 'NOT_FOUND', null, 404);
   }
@@ -406,10 +513,10 @@ router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => 
     params.push(layerId);
     // Build query with whitelist-verified column names only
     const query = `UPDATE vision_layers SET ${updates.join(', ')} WHERE id = ?`;
-    db.db.prepare(query).run(...params);
+    await db.run(query, params);
   }
 
-  const layer = db.db.prepare('SELECT * FROM vision_layers WHERE id = ?').get(layerId);
+  const layer = await db.get('SELECT * FROM vision_layers WHERE id = ?', [layerId]);
   layer.data = JSON.parse(layer.data);
   layer.style = JSON.parse(layer.style);
 
@@ -421,7 +528,7 @@ router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => 
  * DELETE /api/vision/projects/:projectId/layers/:layerId
  */
 router.delete('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => {
-  const result = db.db.prepare('DELETE FROM vision_layers WHERE id = ?').run(req.params.layerId);
+  const result = await db.run('DELETE FROM vision_layers WHERE id = ?', [req.params.layerId]);
   if (result.changes === 0) {
     return res.error('Layer not found', 'NOT_FOUND', null, 404);
   }
@@ -433,7 +540,7 @@ router.delete('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) 
  * DELETE /api/vision/projects/:id
  */
 router.delete('/projects/:id', tryCatch(async (req, res) => {
-  const project = db.db.prepare('SELECT * FROM vision_projects WHERE id = ?').get(req.params.id);
+  const project = await db.get('SELECT * FROM vision_projects WHERE id = ?', [req.params.id]);
   if (!project) {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
@@ -442,9 +549,9 @@ router.delete('/projects/:id', tryCatch(async (req, res) => {
   visionService.deleteProjectTiles(req.params.id);
 
   // Delete from database (layers and analyses cascade)
-  db.db.prepare('DELETE FROM vision_layers WHERE projectId = ?').run(req.params.id);
-  db.db.prepare('DELETE FROM vision_analyses WHERE projectId = ?').run(req.params.id);
-  db.db.prepare('DELETE FROM vision_projects WHERE id = ?').run(req.params.id);
+  await db.run('DELETE FROM vision_layers WHERE projectId = ?', [req.params.id]);
+  await db.run('DELETE FROM vision_analyses WHERE projectId = ?', [req.params.id]);
+  await db.run('DELETE FROM vision_projects WHERE id = ?', [req.params.id]);
 
   res.success({ deleted: true }, 'Project deleted');
 }));

@@ -11,8 +11,12 @@ import { pricingService } from '../services/pricing.js';
 import { jobQueue, JOB_TYPES } from '../services/jobQueuePersistent.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 
 const router = express.Router();
+
+// Apply authentication to all upload routes
+router.use(authenticateToken);
 
 // Resolve base upload directory with safe default
 const PROJECT_ROOT = process.cwd().includes('/backend') 

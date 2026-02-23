@@ -83,7 +83,7 @@ export async function sendLeadAlert(permit, db, logger) {
       to: toPhone,
     });
 
-    db.createPermitNotification({
+    await db.createPermitNotification({
       permitId: permit.id,
       channel: 'sms',
       recipient: toPhone,
@@ -97,7 +97,7 @@ export async function sendLeadAlert(permit, db, logger) {
     return result.sid;
 
   } catch (err) {
-    db.createPermitNotification({
+    await db.createPermitNotification({
       permitId: permit.id,
       channel: 'sms',
       recipient: toPhone,
@@ -132,13 +132,13 @@ export async function sendDailyDigest(db, logger) {
   try {
     // Fetch today's new permits, scored
     const today = new Date().toISOString().split('T')[0];
-    const permits = db.db.prepare(`
+    const permits = await db.all(`
       SELECT p.*
       FROM permits p
       WHERE DATE(p.createdAt) = ?
-        AND p.leadTier != 'unscored'
+        AND p.tier != 'unscored'
       ORDER BY p.leadScore DESC
-    `).all(today);
+    `, [today]);
 
     if (permits.length === 0) {
       logger.info('No new permits today. Skipping digest.');
@@ -146,20 +146,21 @@ export async function sendDailyDigest(db, logger) {
     }
 
     // Get builder info for each permit
-    const permitsWithBuilders = permits.map(p => {
-      const builders = db.getPermitBuilders(p.id);
+    const permitsWithBuilders = [];
+    for (const p of permits) {
+      const builders = await db.getPermitBuilders(p.id);
       const contractor = builders.find(b => b.role === 'contractor');
-      return {
+      permitsWithBuilders.push({
         ...p,
         builderCompany: contractor?.company,
         activityTrend: contractor?.activityTrend,
         hasPlumber: contractor?.hasPlumber
-      };
-    });
+      });
+    }
 
-    const hot = permitsWithBuilders.filter(p => p.leadTier === 'hot');
-    const warm = permitsWithBuilders.filter(p => p.leadTier === 'warm');
-    const cold = permitsWithBuilders.filter(p => p.leadTier === 'cold');
+    const hot = permitsWithBuilders.filter(p => p.tier === 'hot');
+    const warm = permitsWithBuilders.filter(p => p.tier === 'warm');
+    const cold = permitsWithBuilders.filter(p => p.tier === 'cold');
 
     // Build HTML email
     const html = buildDigestHTML(permitsWithBuilders, hot, warm, cold);
@@ -186,8 +187,8 @@ function buildDigestHTML(all, hot, warm, cold) {
     const cost = p.estimatedCost
       ? `$${Number(p.estimatedCost).toLocaleString()}`
       : '—';
-    const tierColor = p.leadTier === 'hot' ? '#e53e3e' : p.leadTier === 'warm' ? '#dd6b20' : '#718096';
-    const tierEmoji = p.leadTier === 'hot' ? '🔥' : p.leadTier === 'warm' ? '🟡' : '⚪';
+    const tierColor = p.tier === 'hot' ? '#e53e3e' : p.tier === 'warm' ? '#dd6b20' : '#718096';
+    const tierEmoji = p.tier === 'hot' ? '🔥' : p.tier === 'warm' ? '🟡' : '⚪';
     const plumberFlag = p.hasPlumber === false || p.hasPlumber === 0 ? ' ⚡ No plumber detected' : '';
 
     return `

@@ -4,6 +4,7 @@ import FileDropzone from './FileDropzone';
 import UploadProgress from './UploadProgress';
 import AnalysisResults from './AnalysisResults';
 import ExtractedDataEditor from './ExtractedDataEditor';
+import { UploadSuccess } from '../shared/SuccessAnimation';
 import { 
   FileText, 
   Upload, 
@@ -295,12 +296,36 @@ export default function BlueprintUpload({
 
   // Render based on status
   const renderContent = () => {
-    // Show results when completed or partial results available
-    if ((status === 'completed' || (status === 'processing' && isPartial)) && result) {
+    // Show success animation immediately when completed, then results
+    if (status === 'completed' && result) {
+      return (
+        <div className="space-y-6">
+          <UploadSuccess
+            fileName={file?.name}
+            onUploadAnother={handleUploadAnother}
+            onViewResults={() => setStatus('results')}
+          />
+        </div>
+      );
+    }
+
+    // Show results view after success animation
+    if (status === 'results' && result) {
       return (
         <AnalysisResults
           result={result}
-          isPartial={isPartial && status === 'processing'}
+          isPartial={false}
+          onUploadAnother={handleUploadAnother}
+        />
+      );
+    }
+
+    // Show partial results during processing
+    if (status === 'processing' && isPartial && result) {
+      return (
+        <AnalysisResults
+          result={result}
+          isPartial={true}
           onUploadAnother={handleUploadAnother}
         />
       );

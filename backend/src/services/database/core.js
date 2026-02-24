@@ -24,15 +24,30 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
  */
 export class DatabaseService {
   constructor() {
-    this.db = new Database(DB_PATH);
-    // Performance pragmas — tuned for low memory
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('cache_size = -8000');     // 8MB page cache
-    this.db.pragma('mmap_size = 67108864');   // 64MB mmap
-    this.db.pragma('temp_store = MEMORY');
-    this.db.pragma('wal_autocheckpoint = 1000');
-    this.initializeTables();
+    try {
+      this.db = new Database(DB_PATH);
+      // Performance pragmas — tuned for low memory
+      this.db.pragma('busy_timeout = 5000');
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('synchronous = NORMAL');
+      this.db.pragma('cache_size = -8000');     // 8MB page cache
+      this.db.pragma('mmap_size = 67108864');   // 64MB mmap
+      this.db.pragma('temp_store = MEMORY');
+      this.db.pragma('wal_autocheckpoint = 1000');
+      this.initializeTables();
+      logger.info('Database initialized successfully', { path: DB_PATH });
+    } catch (error) {
+      logger.error('Fatal: Database initialization failed', { 
+        error: error.message, path: DB_PATH 
+      });
+      if (error.message.includes('SQLITE_CANTOPEN')) {
+        throw new Error(`Cannot open database at ${DB_PATH}. Check permissions.`);
+      }
+      if (error.message.includes('SQLITE_CORRUPT')) {
+        throw new Error(`Database corrupted. Restore from backup.`);
+      }
+      throw new Error(`Database initialization failed: ${error.message}`);
+    }
   }
 
   /**
@@ -712,11 +727,21 @@ export class DatabaseService {
    * Helper to safely add a column if it doesn't exist
    */
   safeAddColumn(table, column, type) {
-    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all();
-    const exists = columns.some(c => c.name === column);
-    if (!exists) {
-      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-      logger.info(`Added column ${column} to ${table}`);
+    try {
+      const tableInfo = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+      ).get(table);
+      if (!tableInfo) return;
+      
+      const columns = this.db.prepare(`PRAGMA table_info(${table})`).all();
+      const exists = columns.some(c => c.name === column);
+      if (!exists) {
+        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+        logger.info(`Added column ${column} to ${table}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to add column ${column} to ${table}`, { error: error.message });
+      // Don't throw - allow initialization to continue
     }
   }
 
@@ -724,38 +749,105 @@ export class DatabaseService {
    * Close the database connection
    */
   close() {
-    this.db.close();
+    try {
+      if (this.db && this.db.open) {
+        this.db.close();
+        logger.info('Database connection closed');
+      }
+    } catch (error) {
+      logger.error('Error closing database', { error: error.message });
+    }
   }
 
   /**
    * Backup the database
    */
   backup() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(TOOL_DIR, 'data', `opensite-backup-${timestamp}.db`);
-    this.db.backup(backupPath);
-    return backupPath;
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupDir = path.join(TOOL_DIR, 'data', 'backups');
+      const backupPath = path.join(backupDir, `opensite-backup-${timestamp}.db`);
+      
+      fs.mkdirSync(backupDir, { recursive: true });
+      this.db.backup(backupPath);
+      
+      if (!fs.existsSync(backupPath) || fs.statSync(backupPath).size === 0) {
+        throw new Error('Backup file creation failed');
+      }
+      
+      logger.info('Database backup created', { path: backupPath });
+      return backupPath;
+    } catch (error) {
+      logger.error('Backup failed', { error: error.message });
+      throw new Error(`Backup failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if database connection is open
+   */
+  _checkConnection() {
+    if (!this.db || !this.db.open) {
+      throw new Error('Database connection is not open');
+    }
+  }
+
+  /**
+   * Classify database errors into user-friendly messages
+   */
+  _classifyError(error, sql) {
+    const message = error.message || '';
+    if (message.includes('UNIQUE constraint failed')) {
+      const match = message.match(/UNIQUE constraint failed: (\w+)\.(\w+)/);
+      return new Error(`Duplicate entry in ${match?.[1] || 'record'}`);
+    }
+    if (message.includes('FOREIGN KEY constraint failed')) {
+      return new Error('Referenced record does not exist');
+    }
+    if (message.includes('NOT NULL constraint failed')) {
+      const match = message.match(/NOT NULL constraint failed: (\w+)\.(\w+)/);
+      return new Error(`Required field missing: ${match?.[2] || 'field'}`);
+    }
+    return error;
   }
 
   /**
    * Execute a query that returns multiple rows
    */
   async all(sql, params = []) {
-    return this.db.prepare(sql).all(...params);
+    this._checkConnection();
+    try {
+      return this.db.prepare(sql).all(...params);
+    } catch (error) {
+      logger.error('Query failed (all)', { sql: sql.substring(0, 200), error: error.message });
+      throw this._classifyError(error, sql);
+    }
   }
 
   /**
    * Execute a query that returns a single row
    */
   async get(sql, params = []) {
-    return this.db.prepare(sql).get(...params);
+    this._checkConnection();
+    try {
+      return this.db.prepare(sql).get(...params);
+    } catch (error) {
+      logger.error('Query failed (get)', { sql: sql.substring(0, 200), error: error.message });
+      throw this._classifyError(error, sql);
+    }
   }
 
   /**
    * Execute a query that doesn't return rows (INSERT, UPDATE, DELETE)
    */
   async run(sql, params = []) {
-    return this.db.prepare(sql).run(...params);
+    this._checkConnection();
+    try {
+      return this.db.prepare(sql).run(...params);
+    } catch (error) {
+      logger.error('Query failed (run)', { sql: sql.substring(0, 200), error: error.message });
+      throw this._classifyError(error, sql);
+    }
   }
 
   /**

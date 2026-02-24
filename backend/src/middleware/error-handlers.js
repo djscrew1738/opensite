@@ -12,7 +12,20 @@ export function registerErrorHandlers(app) {
       ip: req.ip,
       requestId: req.id
     });
-    res.error('Endpoint not found', 'NOT_FOUND', { path: req.originalUrl }, 404);
+    
+    if (res.error) {
+      return res.error('Endpoint not found', 'NOT_FOUND', { path: req.originalUrl }, 404);
+    }
+    
+    res.status(404).json({
+      success: false,
+      error: {
+        message: 'Endpoint not found',
+        code: 'NOT_FOUND',
+        details: { path: req.originalUrl },
+        timestamp: new Date().toISOString()
+      }
+    });
   });
 
   // Unhandled error handler

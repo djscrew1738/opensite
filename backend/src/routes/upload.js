@@ -450,7 +450,7 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
   // Validate inputs
   const validationErrors = validateInputs(tier, model);
   if (validationErrors.length > 0) {
-    await enhancedBlueprintService.deleteFile(filePath);
+    await safeDeleteFile(filePath);
     return res.error('Validation failed', 'VALIDATION_ERROR', { errors: validationErrors }, 400);
   }
 

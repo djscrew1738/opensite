@@ -25,10 +25,18 @@ const isPostgres = !!process.env.DATABASE_URL;
 let DatabaseService = SQLiteService;
 
 if (isPostgres) {
-  logger.info('Using PostgreSQL database engine');
-  // Dynamic import to avoid loading pg when not needed
-  const { DatabaseService: PostgresService } = await import('./postgres-core.js');
-  DatabaseService = PostgresService;
+  logger.info('Attempting to use PostgreSQL');
+  try {
+    // Dynamic import to avoid loading pg when not needed
+    const { DatabaseService: PostgresService } = await import('./postgres-core.js');
+    DatabaseService = PostgresService;
+    logger.info('PostgreSQL service loaded successfully');
+  } catch (error) {
+    logger.error('Failed to load PostgreSQL, falling back to SQLite', { 
+      error: error.message 
+    });
+    // Falls back to SQLiteService
+  }
 } else {
   logger.info('Using SQLite database engine');
 }
@@ -48,7 +56,15 @@ addJobOperations(DatabaseService);
 addDocumentOperations(DatabaseService);
 
 // Create and export singleton instance
-export const db = new DatabaseService();
+let db;
+try {
+  db = new DatabaseService();
+  logger.info('Database instance created successfully');
+} catch (error) {
+  logger.error('Fatal: Failed to create database instance', { error: error.message });
+  process.exit(1);
+}
+export { db };
 
 // Also export the class for testing
 export { DatabaseService };

@@ -21,6 +21,7 @@ backend/audit-*.json
 dist/
 build/
 .vite/
+.worktrees/
 
 # IDEs
 .vscode/

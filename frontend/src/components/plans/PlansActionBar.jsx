@@ -1,5 +1,5 @@
 import { Save, Brain, FileDown, Loader } from 'lucide-react';
-import ModelSelector from '../ai/ModelSelector';
+import { ModelSelector } from '../ai/ModelSelector';
 
 export default function PlansActionBar({
   onSave,

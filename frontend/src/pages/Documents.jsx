@@ -109,12 +109,33 @@ function DocumentsLibrary({
     e.preventDefault();
   }, []);
 
+  // Handle file upload
+  const handleFileUpload = useCallback(async (files) => {
+    if (!files || files.length === 0) return;
+    
+    // Process each file
+    for (const file of Array.from(files)) {
+      try {
+        // Use visionApi for upload as it handles projects + tiles
+        await visionApi.upload(file, file.name);
+      } catch (err) {
+        console.error('Upload failed:', err);
+      }
+    }
+    
+    // Trigger refetch via props or parent
+    onSelectProject(null); // Force refresh context
+  }, [onSelectProject]);
+
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setIsDragging(false);
     dragCounter.current = 0;
-    // Handle file drop logic here
-  }, []);
+    
+    if (e.dataTransfer.files) {
+      handleFileUpload(e.dataTransfer.files);
+    }
+  }, [handleFileUpload]);
 
   const toggleSelection = (id) => {
     setSelectedItems(prev => {
@@ -224,6 +245,7 @@ function DocumentsLibrary({
             multiple
             accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.dwg"
             className="hidden"
+            onChange={(e) => handleFileUpload(e.target.files)}
           />
         </div>
       </div>

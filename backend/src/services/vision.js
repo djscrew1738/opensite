@@ -178,8 +178,12 @@ class VisionService {
       if (largestImage && largestImage.width > 100 && largestImage.height > 100) {
         // Convert embedded image to PNG via sharp
         const { data, width, height, kind } = largestImage;
-        const channels = kind === 2 ? 4 : kind === 1 ? 3 : data.length / (width * height);
-        await sharp(Buffer.from(data), { raw: { width, height, channels: Math.round(channels) } })
+        // Map PDF.js kind to channels (kind 1: RGB, kind 2: RGBA, etc)
+        const channels = kind === 2 ? 4 : 3; 
+        
+        await sharp(Buffer.from(data), { 
+          raw: { width, height, channels } 
+        })
           .png()
           .toFile(outputPath);
       } else {

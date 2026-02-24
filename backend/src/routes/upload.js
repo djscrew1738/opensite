@@ -597,12 +597,18 @@ router.post('/blueprint/enhanced', upload.single('file'), tryCatch(async (req, r
 }));
 
 // New endpoint for PDF processing with OCR and thumbnail generation
-router.post('/process-pdf', upload.single('file'), tryCatch(async (req, res) => {
+router.post('/process-pdf', uploadLimiter, upload.single('file'), tryCatch(async (req, res) => {
   if (!req.file) {
     return res.error('No file uploaded', 'MISSING_FILE', null, 400);
   }
 
   const filePath = req.file.path;
+
+  // Validate file path is within upload directory (path traversal check)
+  if (!isPathSafe(filePath)) {
+    await safeDeleteFile(filePath);
+    return res.error('Invalid file path', 'PATH_VALIDATION_ERROR', null, 400);
+  }
 
   try {
     const results = await ocrService.processPdf(filePath);

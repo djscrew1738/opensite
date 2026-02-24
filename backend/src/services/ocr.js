@@ -13,7 +13,14 @@ class OCRService {
     if (this.worker) return;
     try {
       this.worker = await createWorker({
-        logger: m => logger.debug(`[tesseract] ${m.status}: ${Math.round(m.progress * 100)}%`),
+        logger: m => {
+          // Only log major status changes to avoid noisy/sensitive progress dumps
+          if (m.status === 'recognizing' && m.progress === 0) {
+            logger.debug('[ocr] Recognition started');
+          } else if (m.status === 'recognized' || m.progress === 1) {
+            logger.debug('[ocr] Recognition completed');
+          }
+        }
       });
       await this.worker.loadLanguage('eng');
       await this.worker.initialize('eng');

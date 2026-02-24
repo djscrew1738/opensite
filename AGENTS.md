@@ -25,6 +25,7 @@
 | **AI Assistant** | Multi-provider AI chat with streaming responses |
 | **Email Watcher** | Outlook-based email monitoring with keyword alerts |
 | **AECVision CV** | Computer vision for blueprint analysis (walls, fixtures, pipe runs) |
+| **Floorplan Extractor** | Dimension and code extraction from floorplan PDFs |
 
 ---
 
@@ -75,6 +76,7 @@ The backend supports multiple AI providers with automatic fallback:
 - **PM2** - Process management in production
 - **Let's Encrypt** - SSL certificates
 - **AECVision** - Python CV service for blueprint analysis (YOLOv5)
+- **Floorplan Extractor** - Python service for dimension/code extraction
 
 ---
 
@@ -171,11 +173,16 @@ The backend supports multiple AI providers with automatic fallback:
 │   ├── settings.py            # ARQ worker configuration
 │   ├── core/                  # Worker utilities
 │   │   ├── llm/               # LLM client and schemas
-│   │   └── aecvision/         # AECVision CV integration
-│   │       ├── api.py         # FastAPI CV service
-│   │       ├── detector.py    # YOLOv5 object detection
-│   │       ├── convert_pdf.py # PDF to image conversion
-│   │       └── analysis.py    # Plumbing estimation from CV
+│   │   ├── aecvision/         # AECVision CV integration
+│   │   │   ├── api.py         # FastAPI CV service
+│   │   │   ├── detector.py    # YOLOv5 object detection
+│   │   │   ├── convert_pdf.py # PDF to image conversion
+│   │   │   └── analysis.py    # Plumbing estimation from CV
+│   │   └── floorplan/         # Floorplan dimension extraction
+│   │       ├── api.py         # FastAPI dimension service
+│   │       ├── dimension_parser.py  # Dimension text parsing
+│   │       ├── code_detector.py     # Cabinet/code detection
+│   │       └── pdf_processor.py     # PDF text extraction
 │       ├── llm/               # LLM client and schemas
 │       └── vision/            # PDF tiling and image processing
 │
@@ -665,7 +672,11 @@ npm run build
 
 ---
 
-## AECVision Computer Vision Integration
+## Blueprint Analysis Services (AECVision + Floorplan)
+
+OpenSite integrates multiple computer vision and text extraction services for comprehensive blueprint analysis.
+
+### AECVision - Computer Vision
 
 OpenSite integrates [AECVision](https://github.com/PawelKinczyk/AECVision) for computer vision-based blueprint analysis.
 
@@ -742,6 +753,56 @@ AECVISION_MODEL_PATH=./train_results/model_12classes/weights/best.pt
 ### Documentation
 - `AECVISION_INTEGRATION.md` - Complete integration guide
 - `test-aecvision.sh` - Test script
+
+---
+
+### Floorplan Dimension Extractor
+
+OpenSite integrates [Floorplan-Dimractor](https://github.com/jasoncobra3/Floorplan-Dimractor) for extracting dimensions and cabinet codes from floorplan PDFs.
+
+#### Capabilities
+- **Dimension Extraction** - Parse various formats (feet-inches, fractions, decimals)
+- **Cabinet Code Detection** - Identify SB36, DW, WC, etc.
+- **Room Type Detection** - Infer kitchen/bathroom/laundry from codes
+- **Pipe Estimation** - Calculate rough pipe lengths from dimensions
+
+#### Architecture
+```
+Floorplan PDF → PyMuPDF/pdfplumber → Text Extraction
+                                        ↓
+                            ┌──────────────────────┐
+                            │ Dimension Parser     │
+                            │ Code Detector        │
+                            └──────────────────────┘
+                                        ↓
+                            JSON with measurements
+```
+
+#### Components
+1. **Python Service** (`workers/core/floorplan/`)
+   - `api.py` - FastAPI HTTP service (port 8003)
+   - `dimension_parser.py` - Parses dimension formats
+   - `code_detector.py` - Detects cabinet/appliance codes
+   - `pdf_processor.py` - Extracts text from PDFs
+
+2. **Node.js Integration** (`backend/src/services/floorplan-client.js`)
+   - `FloorplanClient` - HTTP client for Python service
+   - `ComprehensiveBlueprintService` - Combines all analysis methods
+
+#### Starting the Service
+```bash
+./start-floorplan.sh
+```
+
+#### API Endpoints
+- `POST /api/floorplan/extract` - Full extraction
+- `POST /api/floorplan/dimensions` - Dimensions only
+- `POST /api/floorplan/codes` - Codes only
+- `POST /api/floorplan/pipe-estimate` - Pipe estimation
+- `POST /api/floorplan/comprehensive` - Combined CV + AI
+
+#### Documentation
+- `FLOORPLAN_INTEGRATION.md` - Complete integration guide
 
 ---
 

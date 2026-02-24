@@ -53,6 +53,7 @@ import historyRoutes from './routes/history.js';
 import visionRoutes from './routes/vision.js';
 import weatherRoutes from './routes/weather.js';
 import aecvisionRoutes from './routes/aecvision.js';
+import floorplanRoutes from './routes/floorplan.js';
 // import quickbooksRoutes from './routes/quickbooks.js'; // Commented out - requires intuit-oauth package
 import emailMonitorRoutes from './routes/email-monitor.js';
 import emailAlertsRoutes from './routes/emailAlerts/index.js';
@@ -218,6 +219,7 @@ app.use('/api/settings', settingsRoutes); // App settings CRUD
 app.use('/api/history', historyRoutes); // History browsing
 app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
 app.use('/api/aecvision', aecvisionRoutes); // AECVision CV blueprint analysis
+app.use('/api/floorplan', floorplanRoutes); // Floorplan dimension extraction
 app.use('/api/weather', weatherRoutes); // Weather forecast (NWS proxy with caching)
 // app.use('/api/quickbooks', quickbooksRoutes); // QuickBooks Online integration - requires intuit-oauth package
 app.use('/api/email-monitor', emailMonitorRoutes); // Legacy email keyword monitoring + SMS alerts

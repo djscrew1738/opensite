@@ -659,10 +659,6 @@ export default function Jobs() {
           />
         </Tab>
 
-        <Tab id="leads" label="Lead Finder" icon={Users}>
-          <LeadFinder />
-        </Tab>
-        
         <Tab id="estimating" label="Estimating" icon={Calculator}>
           <Estimating
             fixtures={fixtures}
@@ -680,6 +676,10 @@ export default function Jobs() {
         
         <Tab id="plumbing" label="4D View" icon={Box}>
           <PlumbingView />
+        </Tab>
+
+        <Tab id="leads" label="Lead Finder" icon={Users}>
+          <LeadFinder />
         </Tab>
       </TabSystem>
 

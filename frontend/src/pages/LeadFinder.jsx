@@ -276,20 +276,10 @@ export default function LeadFinder() {
   const hasActiveFilters = search || statusFilter || tierFilter || permitCityFilter;
 
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl md:text-5xl font-display font-bold text-primary-950 dark:text-surface-100 tracking-tight">
-            Lead Finder
-          </h1>
-          <p className="text-sm text-surface-600 dark:text-surface-400 mt-1 font-medium">
-            Search permits by city across DFW metroplex
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Unified Search Trigger */}
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
+      {/* Header Actions Only */}
+      <div className="flex items-center justify-end gap-2 mb-2">
+        {/* Unified Search Trigger */}
           <button
             onClick={() => setShowUnifiedSearch(true)}
             className="btn-secondary shrink-0 gap-2"

@@ -15,7 +15,6 @@ const navGroups = {
   core: [
     { path: '/',          icon: LayoutDashboard, label: 'Dashboard',    shortcut: '1', badge: null },
     { path: '/jobs',      icon: HardHat,         label: 'Jobs',         shortcut: '2', badge: null },
-    { path: '/leads',     icon: Users,           label: 'Lead Finder',  shortcut: '3', badge: null },
     { path: '/documents', icon: Files,           label: 'Documents',    shortcut: '4', badge: null },
     { path: '/ai',        icon: Sparkles,        label: 'AI Assistant', shortcut: '5', badge: null },
   ],

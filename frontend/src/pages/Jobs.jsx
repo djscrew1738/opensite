@@ -20,6 +20,7 @@ import { useFormPersistence } from '../hooks/useFormPersistence';
 import { TabSystem, Tab } from '../components/tabs';
 import { PlumbingVisualizer } from '../plumbing-visualizer/PlumbingVisualizer';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import LeadFinder from './LeadFinder';
 
 import FixtureGrid from '../components/plans/FixtureGrid';
 import PricingDashboard from '../components/plans/PricingDashboard';
@@ -656,6 +657,10 @@ export default function Jobs() {
             }}
             onDeleteJob={(job) => setJobToDelete(job)}
           />
+        </Tab>
+
+        <Tab id="leads" label="Lead Finder" icon={Users}>
+          <LeadFinder />
         </Tab>
         
         <Tab id="estimating" label="Estimating" icon={Calculator}>

@@ -14,6 +14,11 @@
             "date": 1771806335356,
             "name": "/home/djscrew/opensite/tool/logs/application-2026-02-23.log",
             "hash": "dcba95f86432dca9c4a140c316f1678ce28d089068d1bbdca8473e3f353e7e91"
+        },
+        {
+            "date": 1771907152410,
+            "name": "/home/djscrew/opensite/tool/logs/application-2026-02-24.log",
+            "hash": "94af9b96bed02cbcad9d821dd120228a602ac32df3731261f95c032ec2685446"
         }
     ],
     "hashType": "sha256"

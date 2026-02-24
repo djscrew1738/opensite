@@ -209,7 +209,7 @@ export default function App() {
                       {/* Core Pages */}
                       <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
                       <Route path="jobs" element={<PageWrapper><Jobs /></PageWrapper>} />
-                      <Route path="leads" element={<PageWrapper><LeadFinder /></PageWrapper>} />
+                      <Route path="leads" element={<RedirectToJobs tab="leads" />} />
                       <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
                       
                       {/* AI Assistant */}

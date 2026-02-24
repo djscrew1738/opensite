@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+import colors from 'tailwindcss/colors';
+
 /* ═══════════════════════════════════════════════════════════════
    DARK FORGE — Job Pulse Design System ✨ ENHANCED
    Industrial control room × Bloomberg terminal × native iOS
@@ -13,6 +15,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        gray: colors.slate,
         // ── Surface System ─────────────────────────────
         surface: {
           primary:  '#0A0B0D',  // App background — blue-black

@@ -77,6 +77,12 @@
   body {
     background-color: var(--surface-primary);
     color: var(--text-primary);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  }
+
+  .dark body {
+    scrollbar-color: rgba(45, 53, 72, 0.5) transparent;
   }
 
   /* Scrollbar — thin, refined */
@@ -110,6 +116,14 @@
   ::selection {
     background-color: rgba(59, 130, 246, 0.25);
     color: inherit;
+  }
+
+  /* Global Focus Ring for Accessibility & Polish */
+  *:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    border-radius: inherit;
   }
 }
 

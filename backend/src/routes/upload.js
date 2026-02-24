@@ -597,7 +597,7 @@ router.post('/blueprint/enhanced', upload.single('file'), tryCatch(async (req, r
 }));
 
 // New endpoint for PDF processing with OCR and thumbnail generation
-router.post('/process-pdf', uploadLimiter, upload.single('file'), tryCatch(async (req, res) => {
+router.post('/process-pdf', upload.single('file'), tryCatch(async (req, res) => {
   if (!req.file) {
     return res.error('No file uploaded', 'MISSING_FILE', null, 400);
   }

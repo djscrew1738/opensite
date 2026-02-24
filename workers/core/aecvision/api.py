@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 import tempfile
 import shutil
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
@@ -19,6 +19,12 @@ import uvicorn
 from convert_pdf import PDFConverter, ImageTiler, convert_and_tile_pdf
 from detector import BlueprintDetector, SAHIDetector
 from analysis import BlueprintAnalyzer, PlumbingEstimator
+from workers.core.utils.files import (
+    safe_filename,
+    read_upload_bytes_async,
+    build_visualization_filename,
+    cleanup_old_files,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +39,10 @@ CONFIDENCE_THRESHOLD = float(os.getenv('AECVISION_CONFIDENCE', '0.5'))
 DEVICE = os.getenv('AECVISION_DEVICE', None)  # None = auto
 PORT = int(os.getenv('AECVISION_PORT', '8002'))
 HOST = os.getenv('AECVISION_HOST', '0.0.0.0')
+OUTPUT_DIR = Path(os.getenv('AECVISION_OUTPUT_DIR', './output'))
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+MAX_UPLOAD_BYTES = int(os.getenv('AECVISION_MAX_UPLOAD_MB', '100')) * 1024 * 1024
+VIS_TTL_SECONDS = int(os.getenv('AECVISION_VIS_TTL_SECONDS', '3600'))
 
 # Global detector instance
 detector = None
@@ -134,10 +144,13 @@ async def detect(
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         
-        # Save uploaded file
-        input_path = temp_path / file.filename
+        safe_name = safe_filename(file.filename, default="upload.pdf")
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
+        input_path = temp_path / safe_name
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         try:
@@ -192,10 +205,13 @@ async def analyze(
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         
-        # Save uploaded file
-        input_path = temp_path / file.filename
+        safe_name = safe_filename(file.filename, default="upload.pdf")
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
+        input_path = temp_path / safe_name
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         try:
@@ -214,9 +230,12 @@ async def analyze(
             # Run analysis
             results = analyzer.analyze(image_path, include_materials=include_materials)
             
-            # Save visualization
-            vis_path = temp_path / "visualization.jpg"
-            det_results = detector.detect_with_visualization(image_path, vis_path)
+            # Save visualization to persistent output
+            vis_filename = build_visualization_filename(safe_name)
+            vis_path = OUTPUT_DIR / vis_filename
+            shutil.copy(image_path, vis_path)
+            detector.detect_with_visualization(vis_path, vis_path)
+            cleanup_old_files(OUTPUT_DIR, VIS_TTL_SECONDS)
             
             return AnalysisResponse(
                 success=True,
@@ -225,7 +244,7 @@ async def analyze(
                 pipe_runs=results['pipe_runs'],
                 material_takeoff=results.get('material_takeoff', []),
                 totals=results.get('totals', {}),
-                visualization_url=f"/visualization/{file.filename}"
+                visualization_url=f"/visualization/{vis_filename}"
             )
             
         except Exception as e:
@@ -252,9 +271,13 @@ async def detect_walls(
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         
-        input_path = temp_path / file.filename
+        safe_name = safe_filename(file.filename, default="upload.pdf")
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
+        input_path = temp_path / safe_name
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         try:
@@ -308,9 +331,13 @@ async def convert_pdf(file: UploadFile = File(...), page_num: int = 0):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         
-        input_path = temp_path / file.filename
+        safe_name = safe_filename(file.filename, default="upload.pdf")
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
+        input_path = temp_path / safe_name
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         try:
@@ -345,6 +372,18 @@ async def list_models():
             {'name': 'bathtub', 'description': 'Bathtubs', 'relevance': 'high'}
         ]
     }
+
+
+@app.get("/visualization/{filename}")
+async def get_visualization(filename: str):
+    safe_name = safe_filename(filename, default="")
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_path = OUTPUT_DIR / safe_name
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Visualization not found")
+    return FileResponse(file_path, media_type="image/jpeg")
 
 
 # Error handlers

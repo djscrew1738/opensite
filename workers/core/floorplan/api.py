@@ -10,7 +10,7 @@ from typing import Optional, List
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 import uvicorn
@@ -19,6 +19,7 @@ from .pdf_processor import PDFProcessor
 from .visualizer import FloorplanVisualizer
 from .dimension_parser import DimensionParser
 from .code_detector import CodeDetector
+from workers.core.utils.files import safe_filename, read_upload_bytes_async
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 PORT = int(os.getenv('FLOORPLAN_PORT', '8003'))
 HOST = os.getenv('FLOORPLAN_HOST', '0.0.0.0')
 OUTPUT_DIR = Path(os.getenv('FLOORPLAN_OUTPUT_DIR', './output'))
+MAX_UPLOAD_BYTES = int(os.getenv('FLOORPLAN_MAX_UPLOAD_MB', '100')) * 1024 * 1024
 
 # Ensure output directory exists
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,11 +137,15 @@ async def extract(
     
     # Save uploaded file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_path = OUTPUT_DIR / f"input_{timestamp}_{file.filename}"
+    safe_name = safe_filename(file.filename, default="upload.pdf")
+    input_path = OUTPUT_DIR / f"input_{timestamp}_{safe_name}"
     
     try:
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         logger.info(f"Processing {file.filename} with method={method}")
@@ -185,11 +191,15 @@ async def extract_dimensions(
     start_time = time.time()
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_path = OUTPUT_DIR / f"input_{timestamp}_{file.filename}"
+    safe_name = safe_filename(file.filename, default="upload.pdf")
+    input_path = OUTPUT_DIR / f"input_{timestamp}_{safe_name}"
     
     try:
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         results = processor.extract(str(input_path), method)
@@ -237,11 +247,15 @@ async def extract_codes(
     start_time = time.time()
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_path = OUTPUT_DIR / f"input_{timestamp}_{file.filename}"
+    safe_name = safe_filename(file.filename, default="upload.pdf")
+    input_path = OUTPUT_DIR / f"input_{timestamp}_{safe_name}"
     
     try:
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         results = processor.extract(str(input_path), method)
@@ -281,6 +295,7 @@ async def extract_codes(
 @app.post("/visualize")
 async def create_visualization(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None,
     page: int = Query(1, ge=1),
     scale: float = Query(2.0, ge=1.0, le=4.0)
 ):
@@ -293,11 +308,15 @@ async def create_visualization(
     start_time = time.time()
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_path = OUTPUT_DIR / f"input_{timestamp}_{file.filename}"
+    safe_name = safe_filename(file.filename, default="upload.pdf")
+    input_path = OUTPUT_DIR / f"input_{timestamp}_{safe_name}"
     
     try:
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         # Extract data
@@ -314,13 +333,16 @@ async def create_visualization(
         
         processing_time = (time.time() - start_time) * 1000
         
-        return FileResponse(
+        response = FileResponse(
             output_path,
             media_type="image/png",
             headers={
                 "X-Processing-Time": str(round(processing_time, 2))
             }
         )
+        if background_tasks is not None:
+            background_tasks.add_task(output_path.unlink, missing_ok=True)
+        return response
         
     except Exception as e:
         logger.error(f"Visualization error: {e}")
@@ -364,11 +386,15 @@ async def estimate_pipes(
     start_time = time.time()
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    input_path = OUTPUT_DIR / f"input_{timestamp}_{file.filename}"
+    safe_name = safe_filename(file.filename, default="upload.pdf")
+    input_path = OUTPUT_DIR / f"input_{timestamp}_{safe_name}"
     
     try:
+        try:
+            content = await read_upload_bytes_async(file, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         with open(input_path, "wb") as f:
-            content = await file.read()
             f.write(content)
         
         # Extract with full metadata

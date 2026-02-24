@@ -2,6 +2,8 @@
 node_modules/
 package-lock.json
 node_modules_backup_*/
+frontend/node_modules_backup_*/
+backend/node_modules_backup_*/
 
 # Environment
 .env

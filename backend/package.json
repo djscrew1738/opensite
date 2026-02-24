@@ -10,7 +10,8 @@
     "permits:ingest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualIngest(7))\"",
     "permits:score": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualScore())\"",
     "permits:digest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualDigest())\"",
-    "permits:rollup": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualRollup())\""
+    "permits:rollup": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualRollup())\"",
+    "db:migrate": "node-pg-migrate"
   },
   "keywords": [
     "plumbing",

@@ -1,0 +1,73 @@
+# Docker Compose for Blueprint Analysis Services
+# Run with: docker-compose -f docker-compose.blueprint.yml up -d
+
+version: '3.8'
+
+services:
+  # AECVision Computer Vision Service
+  aecvision:
+    build:
+      context: ./workers/core/aecvision
+      dockerfile: Dockerfile
+    container_name: opensite-aecvision
+    ports:
+      - "8002:8002"
+    environment:
+      - AECVISION_PORT=8002
+      - AECVISION_HOST=0.0.0.0
+      - AECVISION_MODEL_PATH=/models/best.pt
+      - AECVISION_DEVICE=cpu
+    volumes:
+      - ./train_results:/models:ro
+      - ./tool/uploads:/uploads:ro
+      - aecvision-cache:/root/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Floorplan Dimension Extractor Service
+  floorplan:
+    build:
+      context: ./workers/core/floorplan
+      dockerfile: Dockerfile
+    container_name: opensite-floorplan
+    ports:
+      - "8003:8003"
+    environment:
+      - FLOORPLAN_PORT=8003
+      - FLOORPLAN_HOST=0.0.0.0
+      - FLOORPLAN_OUTPUT_DIR=/output
+    volumes:
+      - ./tool/uploads:/uploads:ro
+      - floorplan-output:/output
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: opensite-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  aecvision-cache:
+  floorplan-output:
+  redis-data:

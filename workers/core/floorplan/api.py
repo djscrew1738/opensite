@@ -6,7 +6,7 @@ Provides HTTP endpoints for extracting dimensions and codes from floorplan PDFs
 import os
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from contextlib import asynccontextmanager
 from datetime import datetime
 

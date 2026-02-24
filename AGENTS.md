@@ -77,6 +77,7 @@ The backend supports multiple AI providers with automatic fallback:
 - **Let's Encrypt** - SSL certificates
 - **AECVision** - Python CV service for blueprint analysis (YOLOv5)
 - **Floorplan Extractor** - Python service for dimension/code extraction
+- **Blueprint Orchestrator** - Unified service coordinating all analysis methods
 
 ---
 
@@ -803,6 +804,129 @@ Floorplan PDF → PyMuPDF/pdfplumber → Text Extraction
 
 #### Documentation
 - `FLOORPLAN_INTEGRATION.md` - Complete integration guide
+
+---
+
+### Blueprint Orchestrator
+
+The Blueprint Orchestrator provides a unified interface for running multiple analysis services together with intelligent result combination.
+
+#### Capabilities
+- **Unified API** - Single endpoint for all analysis methods
+- **Parallel Processing** - Runs services concurrently
+- **Smart Combination** - Merges results with confidence scoring
+- **Real-time Updates** - WebSocket support for live progress
+- **Job Management** - Track and manage analysis jobs
+
+#### Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Blueprint Orchestrator                        │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
+│  │   Text       │ │  Dimensions  │ │    Vision    │        │
+│  │ Extraction   │ │ Extraction   │ │   (AECVision)│        │
+│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘        │
+│         │                │                │                 │
+│         └────────────────┼────────────────┘                 │
+│                          ▼                                  │
+│               ┌──────────────────┐                         │
+│               │ Result Combiner  │                         │
+│               │ - Merge fixtures │                         │
+│               │ - Average pipes  │                         │
+│               │ - Confidence calc│                         │
+│               └────────┬─────────┘                         │
+│                        ▼                                    │
+│               ┌──────────────────┐                         │
+│               │  AI Enhancement  │                         │
+│               └──────────────────┘                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### API Endpoints
+- `POST /api/blueprint/analyze` - Submit analysis job
+- `GET /api/blueprint/jobs/:jobId` - Get job status
+- `POST /api/blueprint/analyze-sync` - Synchronous analysis
+- `POST /api/blueprint/quick-estimate` - Fast estimate
+- `POST /api/blueprint/compare-methods` - Compare approaches
+- `WS /ws/blueprint` - Real-time updates
+
+#### Usage
+```bash
+# Submit comprehensive analysis
+curl -X POST /api/blueprint/analyze \
+  -d '{"filePath": "/path/to/blueprint.pdf", "services": ["dimensions", "vision", "ai"]}'
+
+# Get job status
+curl /api/blueprint/jobs/JOB_ID
+```
+
+#### Frontend Components
+- `BlueprintAnalysisPanel` - Complete upload/analysis UI
+- `useBlueprintAnalysis` - React hook for analysis
+
+---
+
+### Export System
+
+Export analysis results to various formats.
+
+#### Supported Formats
+- **PDF** - Professional estimate document
+- **CSV** - Spreadsheet for import
+- **Excel** - Multi-sheet workbook
+- **JSON** - Machine-readable format
+- **QuickBooks IIF** - Import into QuickBooks
+
+#### API Endpoints
+- `POST /api/blueprint/export/:jobId` - Create export
+- `GET /api/blueprint/exports/:filename` - Download file
+- `GET /api/blueprint/formats` - List formats
+
+#### CLI Usage
+```bash
+# Export to PDF
+./blueprint-cli.js export JOB_ID -f pdf
+
+# Export to Excel
+./blueprint-cli.js export JOB_ID -f excel
+
+# Quick analysis and export
+./blueprint-cli.js analyze blueprint.pdf --sync && \
+./blueprint-cli.js export JOB_ID -f pdf
+```
+
+---
+
+### CLI Tool
+
+Command-line interface for blueprint analysis.
+
+#### Installation
+```bash
+chmod +x blueprint-cli.js
+npm install -g commander chalk ora cli-table3
+```
+
+#### Commands
+```bash
+# Health check
+./blueprint-cli.js health
+
+# Analyze blueprint
+./blueprint-cli.js analyze path/to/blueprint.pdf
+
+# Analyze with specific services
+./blueprint-cli.js analyze blueprint.pdf -s dimensions,ai
+
+# Synchronous analysis
+./blueprint-cli.js analyze blueprint.pdf --sync
+
+# Export results
+./blueprint-cli.js export JOB_ID -f excel
+
+# Compare methods
+./blueprint-cli.js compare blueprint.pdf
+```
 
 ---
 

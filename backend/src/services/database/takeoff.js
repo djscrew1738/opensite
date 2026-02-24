@@ -2,6 +2,7 @@
 // Adds material and takeoff CRUD operations to DatabaseService
 
 import { v4 as uuidv4 } from 'uuid';
+import cache from '../cache.js';
 
 /**
  * Takeoff and Materials operations mixin
@@ -33,16 +34,31 @@ export function addTakeoffOperations(DatabaseService) {
       now
     ]);
     
+    cache.del('materials:all');
+    cache.del('materials:categories');
     return await this.getMaterial(id);
   };
 
   // Get single material
   DatabaseService.prototype.getMaterial = async function(id) {
-    return await this.get('SELECT * FROM materials WHERE id = ?', [id]);
+    const cacheKey = `material:${id}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const material = await this.get('SELECT * FROM materials WHERE id = ?', [id]);
+    if (material) {
+      cache.set(cacheKey, material, 3600); // Cache for 1 hour
+    }
+    return material;
   };
 
   // Get all materials with optional filtering
   DatabaseService.prototype.getAllMaterials = async function(filters = {}) {
+    if (Object.keys(filters).length === 0) {
+      const cached = cache.get('materials:all');
+      if (cached) return cached;
+    }
+
     let query = 'SELECT * FROM materials WHERE 1=1';
     const params = [];
     
@@ -59,7 +75,13 @@ export function addTakeoffOperations(DatabaseService) {
     
     query += ' ORDER BY name';
     
-    return await this.all(query, params);
+    const materials = await this.all(query, params);
+
+    if (Object.keys(filters).length === 0) {
+      cache.set('materials:all', materials, 3600); // Cache for 1 hour
+    }
+
+    return materials;
   };
 
   // Update material
@@ -101,19 +123,32 @@ export function addTakeoffOperations(DatabaseService) {
       id
     ]);
     
+    cache.del(`material:${id}`);
+    cache.del('materials:all');
+    cache.del('materials:categories');
     return await this.getMaterial(id);
   };
 
   // Delete material
   DatabaseService.prototype.deleteMaterial = async function(id) {
     const result = await this.run('DELETE FROM materials WHERE id = ?', [id]);
+    if (result.changes > 0) {
+      cache.del(`material:${id}`);
+      cache.del('materials:all');
+      cache.del('materials:categories');
+    }
     return result.changes > 0;
   };
 
   // Get material categories
   DatabaseService.prototype.getMaterialCategories = async function() {
+    const cached = cache.get('materials:categories');
+    if (cached) return cached;
+
     const rows = await this.all('SELECT DISTINCT category FROM materials ORDER BY category');
-    return rows.map(r => r.category);
+    const categories = rows.map(r => r.category);
+    cache.set('materials:categories', categories, 3600); // Cache for 1 hour
+    return categories;
   };
 
   // Get material suppliers

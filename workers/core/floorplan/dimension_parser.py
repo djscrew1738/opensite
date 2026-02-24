@@ -6,7 +6,7 @@ Based on Floorplan-Dimractor by jasoncobra3
 
 import re
 import regex
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 
 
 class DimensionParser:

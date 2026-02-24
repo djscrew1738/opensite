@@ -1,6 +1,6 @@
 // Pricing calculation service for CTL Plumbing LLC
 
-import { PRICING_TIERS, PROJECT_PHASES, PRICING_ADJUSTMENTS, FIXTURE_PRICING } from '../config/constants.js';
+import { PRICING_TIERS, PROJECT_PHASES, PRICING_ADJUSTMENTS, FIXTURE_PRICING, DFW_MATERIAL_PRICING } from '../config/constants.js';
 
 class PricingService {
   calculateEstimate(params) {
@@ -66,30 +66,52 @@ class PricingService {
   }
 
   calculateFixtureBased(fixtures) {
-    const { qualifyingFixtures, pricePerFixture } = FIXTURE_PRICING;
-
-    // Count qualifying fixtures and build per-fixture subtotals
     const fixtureSubtotals = {};
     let totalFixtures = 0;
+    let materialCost = 0;
 
-    for (const key of qualifyingFixtures) {
-      const count = Number(fixtures[key]) || 0;
-      fixtureSubtotals[key] = { count, subtotal: count * pricePerFixture };
-      totalFixtures += count;
+    for (const [key, count] of Object.entries(fixtures)) {
+      const fixtureCount = Number(count) || 0;
+      if (fixtureCount > 0) {
+        const material = this.getMaterialForFixture(key);
+        if (material) {
+          fixtureSubtotals[key] = {
+            count: fixtureCount,
+            subtotal: fixtureCount * material.unitCost,
+          };
+          materialCost += fixtureSubtotals[key].subtotal;
+        }
+        totalFixtures += fixtureCount;
+      }
     }
 
-    const total = totalFixtures * pricePerFixture;
+    const laborCost = materialCost * (PRICING_ADJUSTMENTS.laborMultiplier || 1.5);
+    const total = materialCost + laborCost;
     const breakdown = this.calculatePhaseBreakdown(total);
 
     return {
       mode: 'fixture-based',
-      pricePerFixture,
       totalFixtures,
-      total,
+      materialCost: Math.round(materialCost),
+      laborCost: Math.round(laborCost),
+      total: Math.round(total),
       breakdown,
-      fixtureSubtotals
+      fixtureSubtotals,
     };
   }
+
+  getMaterialForFixture(fixtureType) {
+    const mapping = {
+      toilets: 'toilet_standard',
+      lavatories: 'faucet_standard',
+      kitchenFaucets: 'faucet_standard',
+      waterHeaters: 'water_heater_50g',
+      // Add other mappings
+    };
+    const materialKey = mapping[fixtureType];
+    return DFW_MATERIAL_PRICING[materialKey] || null;
+  }
+
 
   getAllTiers() {
     return Object.entries(PRICING_TIERS).map(([key, value]) => ({

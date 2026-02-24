@@ -13,8 +13,11 @@ import { enhancedCVBlueprintService } from '../services/aecvision-client.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
+import { ocrService } from '../services/ocr.js';
+import { webSocketService } from '../services/websocket.js';
 
 const router = express.Router();
+
 
 // Apply authentication to all upload routes
 router.use(authenticateToken);
@@ -292,7 +295,15 @@ function defaultAnalysis(complexityLevel, complexityScore) {
 
 // Background job handler for blueprint analysis
 async function performBlueprintAnalysis(jobData, progressCallback) {
-  const { filePath, fileName, extractedData, blueprintText, tier, model } = jobData;
+  const { filePath, fileName, extractedData, blueprintText, tier, model, userId } = jobData;
+
+  // Wrapper for progress updates
+  const updateProgress = (progress) => {
+    progressCallback(progress);
+    if (userId) {
+      webSocketService.send(userId, 'job-progress', { jobId: jobData.jobId, progress });
+    }
+  };
 
   // Validate file path is within upload directory (path traversal check)
   if (!isPathSafe(filePath)) {
@@ -300,16 +311,16 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
   }
 
   try {
-    progressCallback(10);
+    updateProgress(10);
 
     const aiModel = model || aiProvider.getRecommendedModel('analysis');
     const prompt = buildAnalysisPrompt(fileName, extractedData, blueprintText, tier);
 
-    progressCallback(20);
+    updateProgress(20);
 
     const aiResult = await aiProvider.generate(prompt, { model: aiModel, timeout: 300000 });
 
-    progressCallback(70);
+    updateProgress(70);
 
     let parsedAnalysis = null;
     let aiAnalysisText = aiResult.response;
@@ -354,12 +365,12 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
       }
     }
 
-    progressCallback(90);
+    updateProgress(90);
 
     // Use safe delete to ensure file is within upload directory
     await safeDeleteFile(filePath);
 
-    progressCallback(95);
+    updateProgress(95);
 
     const structuredAnalysis = parsedAnalysis ? structureAnalysis(parsedAnalysis, complexityLevel, complexityScore) : defaultAnalysis(complexityLevel, complexityScore);
 
@@ -384,7 +395,7 @@ async function performBlueprintAnalysis(jobData, progressCallback) {
       warnings: buildWarnings(extractedData, aiResult)
     };
 
-    progressCallback(100);
+    updateProgress(100);
 
     return result;
 
@@ -517,7 +528,8 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
     extractedData,
     blueprintText,
     tier,
-    model
+    model,
+    userId: req.user.id
   };
 
   const jobId = await jobQueue.addJob(
@@ -581,6 +593,33 @@ router.post('/blueprint/enhanced', upload.single('file'), tryCatch(async (req, r
   } catch (error) {
     await safeDeleteFile(filePath);
     throw error;
+  }
+}));
+
+// New endpoint for PDF processing with OCR and thumbnail generation
+router.post('/process-pdf', upload.single('file'), tryCatch(async (req, res) => {
+  if (!req.file) {
+    return res.error('No file uploaded', 'MISSING_FILE', null, 400);
+  }
+
+  const filePath = req.file.path;
+
+  try {
+    const results = await ocrService.processPdf(filePath);
+    
+    // Convert thumbnail buffers to base64 for JSON response
+    const responseData = results.map(r => ({
+      ...r,
+      thumbnail: r.thumbnail.toString('base64'),
+    }));
+    
+    res.success(responseData, 'PDF processed successfully');
+  } catch (error) {
+    logger.error('PDF processing failed', { error: error.message });
+    res.error('PDF processing failed', 'PROCESSING_ERROR', { details: error.message }, 500);
+  } finally {
+    // Clean up the uploaded file
+    await safeDeleteFile(filePath);
   }
 }));
 

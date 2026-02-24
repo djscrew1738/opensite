@@ -8,8 +8,44 @@ import logger from '../services/logger.js';
 const router = express.Router();
 
 /**
- * Register a new user
- * POST /api/auth/register
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: User authentication
+ */
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Invalid input
+ *       409:
+ *         description: Email already in use
  */
 router.post('/register', tryCatch(async (req, res) => {
   const { username, email, password } = req.body;
@@ -53,8 +89,32 @@ router.post('/register', tryCatch(async (req, res) => {
 }));
 
 /**
- * Login
- * POST /api/auth/login
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Log in a user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
  */
 router.post('/login', tryCatch(async (req, res) => {
   const { email: identifier, password } = req.body;
@@ -102,8 +162,18 @@ router.post('/login', tryCatch(async (req, res) => {
 }));
 
 /**
- * Get current user
- * GET /api/auth/me
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/me', authenticateToken, tryCatch(async (req, res) => {
   const user = await db.getUser(req.user.id);

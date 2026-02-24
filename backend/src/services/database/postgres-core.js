@@ -487,6 +487,79 @@ export class DatabaseService {
         )
       `);
 
+      // Fixtures table (Detected plumbing fixtures)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS fixtures (
+          id TEXT PRIMARY KEY,
+          project_id TEXT,
+          blueprint_id TEXT,
+          type TEXT NOT NULL,
+          x_coord REAL,
+          y_coord REAL,
+          page_number INTEGER DEFAULT 1,
+          confidence REAL,
+          metadata TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Pipe Runs table (Estimated routing)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS pipe_runs (
+          id TEXT PRIMARY KEY,
+          project_id TEXT,
+          blueprint_id TEXT,
+          material TEXT NOT NULL,
+          diameter TEXT,
+          length_ft REAL,
+          start_fixture_id TEXT,
+          end_fixture_id TEXT,
+          system_type TEXT,
+          code_compliance TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE,
+          FOREIGN KEY (start_fixture_id) REFERENCES fixtures(id) ON DELETE SET NULL,
+          FOREIGN KEY (end_fixture_id) REFERENCES fixtures(id) ON DELETE SET NULL
+        )
+      `);
+
+      // Material Estimates table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS material_estimates (
+          id TEXT PRIMARY KEY,
+          estimate_id TEXT,
+          material_id TEXT,
+          quantity REAL NOT NULL,
+          unit TEXT,
+          unit_cost REAL,
+          total_cost REAL,
+          tier TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE,
+          FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
+        )
+      `);
+
+      // Analysis Jobs table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS analysis_jobs (
+          id TEXT PRIMARY KEY,
+          blueprint_id TEXT,
+          job_type TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          progress INTEGER DEFAULT 0,
+          result TEXT,
+          error TEXT,
+          started_at TEXT,
+          completed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE
+        )
+      `);
+
       // Indexes
       await client.query('CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_projects_leadId ON projects(leadId)');

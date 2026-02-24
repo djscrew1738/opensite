@@ -425,6 +425,111 @@ export class DatabaseService {
       )
     `);
 
+    // Fixtures table (Detected plumbing fixtures)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS fixtures (
+        id TEXT PRIMARY KEY,
+        project_id TEXT,
+        blueprint_id TEXT,
+        type TEXT NOT NULL,
+        x_coord REAL,
+        y_coord REAL,
+        page_number INTEGER DEFAULT 1,
+        confidence REAL,
+        metadata TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Pipe Runs table (Estimated routing)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS pipe_runs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT,
+        blueprint_id TEXT,
+        material TEXT NOT NULL,
+        diameter TEXT,
+        length_ft REAL,
+        start_fixture_id TEXT,
+        end_fixture_id TEXT,
+        system_type TEXT,
+        code_compliance TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE,
+        FOREIGN KEY (start_fixture_id) REFERENCES fixtures(id) ON DELETE SET NULL,
+        FOREIGN KEY (end_fixture_id) REFERENCES fixtures(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Material Estimates table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS material_estimates (
+        id TEXT PRIMARY KEY,
+        estimate_id TEXT,
+        material_id TEXT,
+        quantity REAL NOT NULL,
+        unit TEXT,
+        unit_cost REAL,
+        total_cost REAL,
+        tier TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE,
+        FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Analysis Jobs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS analysis_jobs (
+        id TEXT PRIMARY KEY,
+        blueprint_id TEXT,
+        job_type TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        progress INTEGER DEFAULT 0,
+        result TEXT,
+        error TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (blueprint_id) REFERENCES blueprints(id) ON DELETE CASCADE
+      );
+
+      -- Blueprint analysis results (AECVision + Floorplan + AI combined)
+      CREATE TABLE IF NOT EXISTS blueprint_analysis (
+        id TEXT PRIMARY KEY,
+        project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        blueprint_id TEXT REFERENCES blueprints(id) ON DELETE SET NULL,
+        job_id TEXT REFERENCES analysis_jobs(id) ON DELETE SET NULL,
+        results TEXT NOT NULL, -- JSON: { fixtures, pipeEstimates, materialTakeoff, confidence }
+        analyzed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        version INTEGER DEFAULT 1,
+        metadata TEXT -- JSON: { source, processing_time_ms, services_used }
+      );
+
+      -- Blueprint analysis history (versioning)
+      CREATE TABLE IF NOT EXISTS blueprint_analysis_history (
+        id TEXT PRIMARY KEY,
+        analysis_id TEXT REFERENCES blueprint_analysis(id) ON DELETE CASCADE,
+        results TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        metadata TEXT
+      );
+
+      -- Material takeoff cache
+      CREATE TABLE IF NOT EXISTS material_takeoff_cache (
+        id TEXT PRIMARY KEY,
+        analysis_id TEXT REFERENCES blueprint_analysis(id) ON DELETE CASCADE,
+        takeoff_data TEXT NOT NULL, -- JSON: { items, total_cost, labor_hours }
+        generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        expires_at TEXT,
+        metadata TEXT
+      )
+    `);
+
     // Add new columns to materials if they don't exist
     this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');
@@ -484,6 +589,19 @@ export class DatabaseService {
       
       -- Blueprints
       CREATE INDEX IF NOT EXISTS idx_blueprints_estimateId ON blueprints(estimateId);
+      
+      -- Blueprint analysis
+      CREATE INDEX IF NOT EXISTS idx_blueprint_analysis_projectId ON blueprint_analysis(project_id);
+      CREATE INDEX IF NOT EXISTS idx_blueprint_analysis_blueprintId ON blueprint_analysis(blueprint_id);
+      CREATE INDEX IF NOT EXISTS idx_blueprint_analysis_jobId ON blueprint_analysis(job_id);
+      CREATE INDEX IF NOT EXISTS idx_blueprint_analysis_analyzedAt ON blueprint_analysis(analyzed_at);
+      
+      -- Blueprint analysis history
+      CREATE INDEX IF NOT EXISTS idx_blueprint_analysis_history_analysisId ON blueprint_analysis_history(analysis_id);
+      
+      -- Material takeoff cache
+      CREATE INDEX IF NOT EXISTS idx_material_takeoff_cache_analysisId ON material_takeoff_cache(analysis_id);
+      CREATE INDEX IF NOT EXISTS idx_material_takeoff_cache_expiresAt ON material_takeoff_cache(expires_at);
       
       -- Conversations
       CREATE INDEX IF NOT EXISTS idx_conversations_updatedAt ON conversations(updatedAt);

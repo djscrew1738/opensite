@@ -5,6 +5,7 @@ import logger from './logger.js';
 import sharp from 'sharp';
 import fs from 'fs';
 import { ollamaService } from './ollama.js';
+import { routingService } from './routing.js';
 
 /**
  * Vision AI Service — Multi-pass AI analysis for blueprint understanding
@@ -113,11 +114,16 @@ class VisionAIService {
         const base64Tile = tileBuffer.toString('base64');
 
         // Analyze tile with Ollama
-        const prompt = `Analyze this blueprint tile. Identify any plumbing fixtures (toilets, sinks, showers, drains).
+        const prompt = `Analyze this DFW-area residential blueprint tile. Identify common US plumbing fixtures and symbols.
 Return JSON only:
 {
   "fixtures": [
-    {"type": "toilet|sink|shower|drain", "x": 0.0-1.0, "y": 0.0-1.0, "label": "Description"}
+    {
+      "type": "toilet|sink|shower|drain|hose_bib|water_heater|washing_machine",
+      "x": 0.0-1.0,
+      "y": 0.0-1.0,
+      "label": "Description, e.g., 'Master bath toilet' or 'WH-1'"
+    }
   ]
 }`;
 
@@ -161,6 +167,15 @@ Return JSON only:
 
     aggregated.notes.push(`Deep Scan completed. Processed ${totalTiles} tiles.`);
     
+    // Estimate pipe runs based on detected fixtures
+    const allFixtures = aggregated.systems.find(s => s.name === 'Plumbing')?.regions || [];
+    if (allFixtures.length > 1) {
+      const { pipeRuns, materialEstimates } = routingService.estimatePipeRuns(allFixtures);
+      aggregated.pipeRuns = pipeRuns;
+      aggregated.materialEstimates = materialEstimates;
+      aggregated.notes.push(`Estimated ${pipeRuns.length} pipe runs.`);
+    }
+
     return {
       success: true,
       data: aggregated,

@@ -1,0 +1,36 @@
+# docker-compose.staging.yml
+# Staging environment that mirrors production
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5001" # Expose on 5002 to avoid conflict with dev
+    volumes:
+      - ./tool/data/staging:/app/tool/data
+      - ./tool/logs:/app/tool/logs
+    environment:
+      - NODE_ENV=staging
+      - PORT=5001
+      - DATABASE_URL=sqlite:///app/tool/data/opensite-staging.db
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    networks:
+      - opensite-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80" # Expose on 3001
+    networks:
+      - opensite-net
+
+networks:
+  opensite-net:
+    driver: bridge

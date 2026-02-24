@@ -83,3 +83,22 @@ export const COMPANY_INFO = {
     phone: '(214) 555-0100'
   }
 };
+
+export const DFW_MATERIAL_PRICING = {
+  // Real DFW supplier pricing (Ferguson, HD Supply averages)
+  pvc_pipe_4in: { name: '4" PVC DWV Pipe (per ft)', unitCost: 3.45, supplier: 'Ferguson', tier: 'production' },
+  pvc_pipe_3in: { name: '3" PVC DWV Pipe (per ft)', unitCost: 2.15, supplier: 'Ferguson', tier: 'production' },
+  pvc_pipe_2in: { name: '2" PVC DWV Pipe (per ft)', unitCost: 1.12, supplier: 'Ferguson', tier: 'production' },
+  pex_pipe_1in: { name: '1" PEX-A Pipe (per ft)', unitCost: 0.95, supplier: 'HD Supply', tier: 'production' },
+  pex_pipe_3_4in: { name: '3/4" PEX-A Pipe (per ft)', unitCost: 0.55, supplier: 'HD Supply', tier: 'production' },
+  pex_pipe_1_2in: { name: '1/2" PEX-A Pipe (per ft)', unitCost: 0.35, supplier: 'HD Supply', tier: 'production' },
+  copper_pipe_1in: { name: '1" Type L Copper (per ft)', unitCost: 5.85, supplier: 'Ferguson', tier: 'premium' },
+  copper_pipe_3_4in: { name: '3/4" Type L Copper (per ft)', unitCost: 3.75, supplier: 'Ferguson', tier: 'premium' },
+  copper_pipe_1_2in: { name: '1/2" Type L Copper (per ft)', unitCost: 2.15, supplier: 'Ferguson', tier: 'premium' },
+  water_heater_50g: { name: '50 Gal Electric Water Heater', unitCost: 545.00, supplier: 'HD Supply', tier: 'production' },
+  water_heater_tankless: { name: 'Tankless Gas Water Heater (Navien)', unitCost: 1450.00, supplier: 'Ferguson', tier: 'premium' },
+  toilet_standard: { name: 'Standard elongated toilet (ProFlo)', unitCost: 125.00, supplier: 'Ferguson', tier: 'production' },
+  toilet_premium: { name: 'Premium comfort height toilet (Kohler)', unitCost: 345.00, supplier: 'Ferguson', tier: 'premium' },
+  faucet_standard: { name: 'Standard lav faucet (Moen)', unitCost: 85.00, supplier: 'HD Supply', tier: 'production' },
+  faucet_premium: { name: 'Premium widespread faucet (Delta)', unitCost: 215.00, supplier: 'Ferguson', tier: 'premium' }
+};

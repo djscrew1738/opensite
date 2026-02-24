@@ -54,6 +54,9 @@ import visionRoutes from './routes/vision.js';
 import weatherRoutes from './routes/weather.js';
 import aecvisionRoutes from './routes/aecvision.js';
 import floorplanRoutes from './routes/floorplan.js';
+import orchestratorRoutes from './routes/blueprint-orchestrator.js';
+import blueprintExportRoutes from './routes/blueprint-export.js';
+import apiDocsRoutes from './routes/api-docs.js';
 // import quickbooksRoutes from './routes/quickbooks.js'; // Commented out - requires intuit-oauth package
 import emailMonitorRoutes from './routes/email-monitor.js';
 import emailAlertsRoutes from './routes/emailAlerts/index.js';
@@ -70,6 +73,7 @@ import { aiProvider } from './services/ai-provider.js';
 
 // Import email watcher service
 import { emailWatcherService } from './services/emailWatcher/index.js';
+import { webSocketService } from './services/websocket.js';
 
 // Load environment variables
 dotenv.config();
@@ -220,6 +224,9 @@ app.use('/api/history', historyRoutes); // History browsing
 app.use('/api/vision', visionRoutes); // Vision deep-zoom viewer (upload limiter applied inside route)
 app.use('/api/aecvision', aecvisionRoutes); // AECVision CV blueprint analysis
 app.use('/api/floorplan', floorplanRoutes); // Floorplan dimension extraction
+app.use('/api/blueprint', orchestratorRoutes); // Unified blueprint orchestrator
+app.use('/api/blueprint', blueprintExportRoutes); // Blueprint exports
+app.use('/api/docs', apiDocsRoutes); // API documentation
 app.use('/api/weather', weatherRoutes); // Weather forecast (NWS proxy with caching)
 // app.use('/api/quickbooks', quickbooksRoutes); // QuickBooks Online integration - requires intuit-oauth package
 app.use('/api/email-monitor', emailMonitorRoutes); // Legacy email keyword monitoring + SMS alerts
@@ -366,6 +373,9 @@ const adminConfigured = checkAdminTokenConfig();
 
 // Start server on all interfaces
 const server = app.listen(PORT, '0.0.0.0', async () => {
+  // Initialize WebSocket service
+  webSocketService.initialize(server);
+
   logger.info('Server started', { port: PORT, adminConfigured });
 
   // Ensure Guest account exists for easy demo/testing

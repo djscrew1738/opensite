@@ -6,6 +6,10 @@ import { useOllama } from '../hooks/useOllama';
 import { useModelPreference } from '../hooks/useModelPreference';
 import { useTheme } from '../hooks/useTheme';
 import { useToast } from '../hooks/useToast';
+import { useBusinessSettings } from '../hooks/useBusinessSettings';
+import { useEstimatingSettings } from '../hooks/useEstimatingSettings';
+import { useDiscoverySettings } from '../hooks/useDiscoverySettings';
+import { useAPIKeySettings } from '../hooks/useAPIKeySettings';
 import {
   Building2, Cpu, Key, Activity, Bell, Search, Calculator,
   Gauge, Palette, Database, Loader2, ChevronRight, LayoutDashboard, AlertCircle,
@@ -139,6 +143,19 @@ export default function Settings() {
     else showToastWarning(message);
   }, [showToastSuccess, showToastError, showToastWarning]);
 
+  /* ── Settings query (needed by hooks below) ── */
+  const { data: settingsData, refetch: refetchSettings } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: () => api.settings.get(),
+  });
+
+  /* ── Domain hooks ── */
+  const hookDeps = { settingsData, refetchSettings, showToast };
+  const businessProps = useBusinessSettings(hookDeps);
+  const estimatingProps = useEstimatingSettings(hookDeps);
+  const discoveryProps = useDiscoverySettings(hookDeps);
+  const apiKeyProps = useAPIKeySettings({ refetchSettings, showToast });
+
   /* ── Tab nav ── */
   const [activeTab, setActiveTab] = useState('overview');
   const [tabDirection, setTabDirection] = useState(null);
@@ -182,40 +199,7 @@ export default function Settings() {
   const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [systemPrompt, setSystemPrompt] = useState('');
 
-  /* ── Business basic ── */
-  const [companyName, setCompanyName] = useState('');
-  const [serviceArea, setServiceArea] = useState('');
-  const [specialization, setSpecialization] = useState('');
-
-  /* ── Business extended ── */
-  const [businessPhone, setBusinessPhone] = useState('');
-  const [businessEmail, setBusinessEmail] = useState('');
-  const [businessWebsite, setBusinessWebsite] = useState('');
-  const [businessLicense, setBusinessLicense] = useState('');
-  const [businessInsurance, setBusinessInsurance] = useState('');
-  const [businessState, setBusinessState] = useState('');
-  const [businessZip, setBusinessZip] = useState('');
-
-  /* ── Estimating ── */
-  const [laborRate, setLaborRate] = useState(85);
-  const [materialMarkup, setMaterialMarkup] = useState(30);
-  const [overheadFactor, setOverheadFactor] = useState(15);
-  const [taxRate, setTaxRate] = useState(8.25);
-  const [paymentTerms, setPaymentTerms] = useState('Net 30');
-  const [depositPct, setDepositPct] = useState(25);
-  const [expiryDays, setExpiryDays] = useState(30);
-  const [includeTax, setIncludeTax] = useState(true);
-  const [autoMarkup, setAutoMarkup] = useState(true);
-
-  /* ── Discovery ── */
-  const [maxResults, setMaxResults] = useState(50);
-  const [minScore, setMinScore] = useState(5);
-  const [autoScore, setAutoScore] = useState(true);
-  const [excludedKeywords, setExcludedKeywords] = useState('');
-  const [searchRadius, setSearchRadius] = useState(25);
-  const [autoArchive, setAutoArchive] = useState(false);
-  const [archiveThreshold, setArchiveThreshold] = useState(3);
-  const [followupDays, setFollowupDays] = useState(7);
+  /* ── Business / Estimating / Discovery — managed by hooks above ── */
 
   /* ── Notifications ── */
   const [notifyEnabled, setNotifyEnabled] = useState(false);
@@ -243,11 +227,7 @@ export default function Settings() {
   const [emStatus, setEmStatus] = useState(null);
   const [emAlerts, setEmAlerts] = useState([]);
 
-  /* ── API keys ── */
-  const [serperKey, setSerperKey] = useState('');
-  const [showSerperKey, setShowSerperKey] = useState(false);
-  const [placesKey, setPlacesKey] = useState('');
-  const [showPlacesKey, setShowPlacesKey] = useState(false);
+  /* ── API keys — managed by useAPIKeySettings hook ── */
 
   /* ── Email Watcher (Microsoft Graph) ── */
   const [msClientId, setMsClientId] = useState('');
@@ -304,19 +284,9 @@ export default function Settings() {
   const [testingGroq, setTestingGroq] = useState(false);
   const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingOpenClaw, setTestingOpenClaw] = useState(false);
-  const [testingSerper, setTestingSerper] = useState(false);
-  const [testingAnthropic, setTestingAnthropic] = useState(false);
-  const [testingTwilio, setTestingTwilio] = useState(false);
-  const [testingSendgrid, setTestingSendgrid] = useState(false);
-  const [testingStripe, setTestingStripe] = useState(false);
-  const [testingGoogleMaps, setTestingGoogleMaps] = useState(false);
   const [testingMicrosoft, setTestingMicrosoft] = useState(false);
   const [testingGoogle, setTestingGoogle] = useState(false);
-  const [testingTelegram, setTestingTelegram] = useState(false);
-  const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
-  const [savingEstimating, setSavingEstimating] = useState(false);
-  const [savingDiscovery, setSavingDiscovery] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [savingPerformance, setSavingPerformance] = useState(false);
   const [switchingProvider, setSwitchingProvider] = useState(false);
@@ -330,11 +300,6 @@ export default function Settings() {
   /* ─────────────────────────────────────────────
      QUERIES
   ───────────────────────────────────────────── */
-  const { data: settingsData, refetch: refetchSettings } = useQuery({
-    queryKey: ['app-settings'],
-    queryFn: () => api.settings.get(),
-  });
-
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
@@ -384,38 +349,7 @@ export default function Settings() {
     setStreamingEnabled(bool(s.ai_streaming, true));
     setSystemPrompt(s.ai_system_prompt || '');
 
-    // Business
-    setCompanyName(s.company_name || '');
-    setServiceArea(s.service_area || '');
-    setSpecialization(s.specialization || '');
-    setBusinessPhone(s.business_phone || '');
-    setBusinessEmail(s.business_email || '');
-    setBusinessWebsite(s.business_website || '');
-    setBusinessLicense(s.business_license || '');
-    setBusinessInsurance(s.business_insurance || '');
-    setBusinessState(s.business_state || '');
-    setBusinessZip(s.business_zip || '');
-
-    // Estimating
-    setLaborRate(num(s.estimate_labor_rate, 85));
-    setMaterialMarkup(num(s.estimate_markup, 30));
-    setOverheadFactor(num(s.estimate_overhead, 15));
-    setTaxRate(num(s.estimate_tax_rate, 8.25));
-    setPaymentTerms(s.estimate_terms || 'Net 30');
-    setDepositPct(num(s.estimate_deposit_pct, 25));
-    setExpiryDays(num(s.estimate_expiry_days, 30));
-    setIncludeTax(bool(s.estimate_include_tax, true));
-    setAutoMarkup(bool(s.estimate_auto_markup, true));
-
-    // Discovery
-    setMaxResults(num(s.discovery_max_results, 50));
-    setMinScore(num(s.discovery_min_score, 5));
-    setAutoScore(bool(s.discovery_auto_score, true));
-    setExcludedKeywords(s.discovery_excluded_keywords || '');
-    setSearchRadius(num(s.discovery_radius, 25));
-    setAutoArchive(bool(s.discovery_auto_archive, false));
-    setArchiveThreshold(num(s.discovery_archive_threshold, 3));
-    setFollowupDays(num(s.discovery_followup_days, 7));
+    // Business / Estimating / Discovery — synced in their own hooks
 
     // Notifications
     setNotifyEnabled(bool(s.notify_enabled, false));
@@ -659,83 +593,7 @@ export default function Settings() {
     }
   };
 
-  /* ─────────────────────────────────────────────
-     HANDLERS — BUSINESS
-  ───────────────────────────────────────────── */
-  const handleSaveBusiness = async () => {
-    setSavingBusiness(true);
-    try {
-      await api.settings.update({
-        company_name: companyName,
-        service_area: serviceArea,
-        specialization,
-        business_phone: businessPhone,
-        business_email: businessEmail,
-        business_website: businessWebsite,
-        business_license: businessLicense,
-        business_insurance: businessInsurance,
-        business_state: businessState,
-        business_zip: businessZip,
-      });
-      refetchSettings();
-      showToast('Business profile saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingBusiness(false);
-    }
-  };
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — ESTIMATING
-  ───────────────────────────────────────────── */
-  const handleSaveEstimating = async () => {
-    setSavingEstimating(true);
-    try {
-      await api.settings.update({
-        estimate_labor_rate: String(laborRate),
-        estimate_markup: String(materialMarkup),
-        estimate_overhead: String(overheadFactor),
-        estimate_tax_rate: String(taxRate),
-        estimate_terms: paymentTerms,
-        estimate_deposit_pct: String(depositPct),
-        estimate_expiry_days: String(expiryDays),
-        estimate_include_tax: String(includeTax),
-        estimate_auto_markup: String(autoMarkup),
-      });
-      refetchSettings();
-      showToast('Estimating defaults saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingEstimating(false);
-    }
-  };
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — DISCOVERY
-  ───────────────────────────────────────────── */
-  const handleSaveDiscovery = async () => {
-    setSavingDiscovery(true);
-    try {
-      await api.settings.update({
-        discovery_max_results: String(maxResults),
-        discovery_min_score: String(minScore),
-        discovery_auto_score: String(autoScore),
-        discovery_excluded_keywords: excludedKeywords,
-        discovery_radius: String(searchRadius),
-        discovery_auto_archive: String(autoArchive),
-        discovery_archive_threshold: String(archiveThreshold),
-        discovery_followup_days: String(followupDays),
-      });
-      refetchSettings();
-      showToast('Discovery settings saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingDiscovery(false);
-    }
-  };
+  /* ── Business / Estimating / Discovery handlers — in hooks ── */
 
   /* ─────────────────────────────────────────────
      HANDLERS — NOTIFICATIONS
@@ -1084,80 +942,11 @@ export default function Settings() {
           />
         );
       case 'business':
-        return (
-          <SettingsBusiness
-            companyName={companyName}
-            setCompanyName={setCompanyName}
-            businessPhone={businessPhone}
-            setBusinessPhone={setBusinessPhone}
-            businessEmail={businessEmail}
-            setBusinessEmail={setBusinessEmail}
-            businessWebsite={businessWebsite}
-            setBusinessWebsite={setBusinessWebsite}
-            serviceArea={serviceArea}
-            setServiceArea={setServiceArea}
-            businessState={businessState}
-            setBusinessState={setBusinessState}
-            businessZip={businessZip}
-            setBusinessZip={setBusinessZip}
-            specialization={specialization}
-            setSpecialization={setSpecialization}
-            businessLicense={businessLicense}
-            setBusinessLicense={setBusinessLicense}
-            businessInsurance={businessInsurance}
-            setBusinessInsurance={setBusinessInsurance}
-            savingBusiness={savingBusiness}
-            handleSaveBusiness={handleSaveBusiness}
-          />
-        );
+        return <SettingsBusiness {...businessProps} />;
       case 'estimating':
-        return (
-          <SettingsEstimating
-            laborRate={laborRate}
-            setLaborRate={setLaborRate}
-            materialMarkup={materialMarkup}
-            setMaterialMarkup={setMaterialMarkup}
-            overheadFactor={overheadFactor}
-            setOverheadFactor={setOverheadFactor}
-            taxRate={taxRate}
-            setTaxRate={setTaxRate}
-            paymentTerms={paymentTerms}
-            setPaymentTerms={setPaymentTerms}
-            depositPct={depositPct}
-            setDepositPct={setDepositPct}
-            expiryDays={expiryDays}
-            setExpiryDays={setExpiryDays}
-            includeTax={includeTax}
-            setIncludeTax={setIncludeTax}
-            autoMarkup={autoMarkup}
-            setAutoMarkup={setAutoMarkup}
-            savingEstimating={savingEstimating}
-            handleSaveEstimating={handleSaveEstimating}
-          />
-        );
+        return <SettingsEstimating {...estimatingProps} />;
       case 'discovery':
-        return (
-          <SettingsDiscovery
-            maxResults={maxResults}
-            setMaxResults={setMaxResults}
-            searchRadius={searchRadius}
-            setSearchRadius={setSearchRadius}
-            minScore={minScore}
-            setMinScore={setMinScore}
-            excludedKeywords={excludedKeywords}
-            setExcludedKeywords={setExcludedKeywords}
-            autoScore={autoScore}
-            setAutoScore={setAutoScore}
-            autoArchive={autoArchive}
-            setAutoArchive={setAutoArchive}
-            archiveThreshold={archiveThreshold}
-            setArchiveThreshold={setArchiveThreshold}
-            followupDays={followupDays}
-            setFollowupDays={setFollowupDays}
-            savingDiscovery={savingDiscovery}
-            handleSaveDiscovery={handleSaveDiscovery}
-          />
-        );
+        return <SettingsDiscovery {...discoveryProps} />;
       case 'jobpulse':
         return (
           <SettingsJobPulse
@@ -1272,32 +1061,7 @@ export default function Settings() {
         return (
           <SettingsAPIKeys
             settings={settings}
-            serperKey={serperKey}
-            setSerperKey={setSerperKey}
-            showSerperKey={showSerperKey}
-            setShowSerperKey={setShowSerperKey}
-            testingSerper={testingSerper}
-            handleTestSerper={handleTestSerper}
-            handleSaveSerperKey={handleSaveSerperKey}
-            placesKey={placesKey}
-            setPlacesKey={setPlacesKey}
-            showPlacesKey={showPlacesKey}
-            setShowPlacesKey={setShowPlacesKey}
-            handleSavePlacesKey={handleSavePlacesKey}
-            googleMapsKey={googleMapsKey}
-            setGoogleMapsKey={setGoogleMapsKey}
-            showGoogleMapsKey={showGoogleMapsKey}
-            setShowGoogleMapsKey={setShowGoogleMapsKey}
-            testingGoogleMaps={testingGoogleMaps}
-            handleTestGoogleMaps={handleTestGoogleMaps}
-            handleSaveGoogleMapsKey={handleSaveGoogleMapsKey}
-            anthropicKey={anthropicKey}
-            setAnthropicKey={setAnthropicKey}
-            showAnthropicKey={showAnthropicKey}
-            setShowAnthropicKey={setShowAnthropicKey}
-            testingAnthropic={testingAnthropic}
-            handleTestAnthropic={handleTestAnthropic}
-            handleSaveAnthropicKey={handleSaveAnthropicKey}
+            {...apiKeyProps}
             openaiKey={openaiKey}
             setOpenaiKey={setOpenaiKey}
             showOpenaiKey={showOpenaiKey}
@@ -1305,40 +1069,6 @@ export default function Settings() {
             testingOpenai={testingOpenai}
             handleTestOpenai={handleTestOpenai}
             handleSaveOpenaiKey={handleSaveOpenaiKey}
-            twilioSid={twilioSid}
-            setTwilioSid={setTwilioSid}
-            twilioToken={twilioToken}
-            setTwilioToken={setTwilioToken}
-            showTwilioToken={showTwilioToken}
-            setShowTwilioToken={setShowTwilioToken}
-            twilioPhone={twilioPhone}
-            setTwilioPhone={setTwilioPhone}
-            testingTwilio={testingTwilio}
-            handleTestTwilio={handleTestTwilio}
-            handleSaveTwilio={handleSaveTwilio}
-            sendgridKey={sendgridKey}
-            setSendgridKey={setSendgridKey}
-            showSendgridKey={showSendgridKey}
-            setShowSendgridKey={setShowSendgridKey}
-            testingSendgrid={testingSendgrid}
-            handleTestSendgrid={handleTestSendgrid}
-            handleSaveSendgridKey={handleSaveSendgridKey}
-            stripeKey={stripeKey}
-            setStripeKey={setStripeKey}
-            showStripeKey={showStripeKey}
-            setShowStripeKey={setShowStripeKey}
-            testingStripe={testingStripe}
-            handleTestStripe={handleTestStripe}
-            handleSaveStripeKey={handleSaveStripeKey}
-            telegramToken={telegramToken}
-            setTelegramToken={setTelegramToken}
-            showTelegramToken={showTelegramToken}
-            setShowTelegramToken={setShowTelegramToken}
-            telegramChatId={telegramChatId}
-            setTelegramChatId={setTelegramChatId}
-            testingTelegram={testingTelegram}
-            handleTestTelegram={handleTestTelegram}
-            handleSaveTelegram={handleSaveTelegram}
           />
         );
       case 'performance':

@@ -154,7 +154,7 @@ export default function Settings() {
   const businessProps = useBusinessSettings(hookDeps);
   const estimatingProps = useEstimatingSettings(hookDeps);
   const discoveryProps = useDiscoverySettings(hookDeps);
-  const apiKeyProps = useAPIKeySettings({ refetchSettings, showToast });
+  const apiKeyProps = useAPIKeySettings(hookDeps);
 
   /* ── Tab nav ── */
   const [activeTab, setActiveTab] = useState('overview');
@@ -239,10 +239,7 @@ export default function Settings() {
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [showGoogleClientSecret, setShowGoogleClientSecret] = useState(false);
 
-  /* ── Telegram ── */
-  const [telegramToken, setTelegramToken] = useState('');
-  const [showTelegramToken, setShowTelegramToken] = useState(false);
-  const [telegramChatId, setTelegramChatId] = useState('');
+  /* ── Telegram — managed by useAPIKeySettings hook ── */
   const [ewPollInterval, setEwPollInterval] = useState(60);
   const [ewMarkAsRead, setEwMarkAsRead] = useState(false);
 
@@ -722,23 +719,7 @@ export default function Settings() {
     finally { setTestingGoogle(false); }
   };
 
-  const handleSaveTelegram = async () => {
-    try {
-      const u = {};
-      if (telegramToken) u.telegram_bot_token = telegramToken;
-      if (telegramChatId) u.telegram_chat_id = telegramChatId;
-      await api.settings.update(u);
-      setTelegramToken('');
-      refetchSettings(); showToast('Telegram settings saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-
-  const handleTestTelegram = async () => {
-    setTestingTelegram(true);
-    try { const r = await api.settings.testTelegram(telegramToken || undefined); if (r.valid) showToast(`Bot connected: @${r.botUsername}`); else showToast(r.error || 'Invalid token', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingTelegram(false); }
-  };
+  /* ── Telegram — handlers moved to useAPIKeySettings hook ── */
 
   const handleSaveEmailWatcher = async () => {
     try {
@@ -1061,14 +1042,12 @@ export default function Settings() {
         return (
           <SettingsAPIKeys
             settings={settings}
-            {...apiKeyProps}
-            openaiKey={openaiKey}
-            setOpenaiKey={setOpenaiKey}
-            showOpenaiKey={showOpenaiKey}
-            setShowOpenaiKey={setShowOpenaiKey}
-            testingOpenai={testingOpenai}
-            handleTestOpenai={handleTestOpenai}
-            handleSaveOpenaiKey={handleSaveOpenaiKey}
+            providers={apiKeyProps}
+            openai={{
+              key: openaiKey, setKey: setOpenaiKey,
+              show: showOpenaiKey, setShow: setShowOpenaiKey,
+              testing: testingOpenai, test: handleTestOpenai, save: handleSaveOpenaiKey,
+            }}
           />
         );
       case 'performance':

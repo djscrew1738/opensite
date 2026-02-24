@@ -9,11 +9,7 @@ export function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Access denied', 
-      code: 'UNAUTHORIZED' 
-    });
+    return res.error('Access denied', 'UNAUTHORIZED', null, 401);
   }
 
   try {
@@ -22,11 +18,7 @@ export function authenticateToken(req, res, next) {
     next();
   } catch (err) {
     logger.warn('Invalid token attempt', { ip: req.ip, error: err.message });
-    return res.status(403).json({ 
-      success: false, 
-      error: 'Invalid or expired token', 
-      code: 'FORBIDDEN' 
-    });
+    return res.error('Invalid or expired token', 'FORBIDDEN', null, 403);
   }
 }
 
@@ -37,15 +29,11 @@ export function authenticateToken(req, res, next) {
 export function requireRole(roles) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, error: 'Unauthorized' });
+      return res.error('Unauthorized', 'UNAUTHORIZED', null, 401);
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Insufficient permissions',
-        code: 'FORBIDDEN_ROLE' 
-      });
+      return res.error('Insufficient permissions', 'FORBIDDEN_ROLE', null, 403);
     }
 
     next();

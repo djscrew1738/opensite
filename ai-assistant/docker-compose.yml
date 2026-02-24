@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./api
+    container_name: ai-assistant-api
+    ports:
+      - "3210:3210"
+    environment:
+      - PORT=3210
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=aiassistant
+      - POSTGRES_USER=assistant
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      - WHISPER_URL=${WHISPER_URL:-http://whisper:8000}
+      - API_KEY=${API_KEY:-dev-key-change-me}
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: ai-assistant-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=aiassistant
+      - POSTGRES_USER=assistant
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./api/src/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    restart: unless-stopped
+
+  whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: ai-assistant-whisper
+    ports:
+      - "8100:8000"
+    environment:
+      - WHISPER_MODEL=base.en
+    volumes:
+      - whisper_cache:/root/.cache
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  whisper_cache:

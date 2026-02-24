@@ -82,7 +82,7 @@ const ALLOWED_MIMES = new Set(['application/pdf']);
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const mime = (file.mimetype || '').toLowerCase();
@@ -104,55 +104,11 @@ function validateInputs(tier, model) {
   return errors;
 }
 
+import { PromptRegistry } from '../services/prompt-registry.js';
+
 // Build AI analysis prompt
 function buildAnalysisPrompt(fileName, extractedData, blueprintText, tier) {
-  const fixtureCount = (extractedData.toilets || 0) + (extractedData.lavatories || 0) +
-    (extractedData.kitchenFaucets || 0) + (extractedData.barSinks || 0) +
-    (extractedData.tubs || 0) + (extractedData.showerBases || 0) +
-    (extractedData.mudPans || 0) + (extractedData.washingMachines || 0);
-
-  return `You are a DFW plumbing estimator. Analyze this blueprint and return a supply-house-ready material takeoff.
-
-PROJECT: ${fileName}
-${extractedData.sqft ? `SQ FT: ${extractedData.sqft}` : ''}
-${extractedData.units ? `UNITS: ${extractedData.units}` : ''}
-${extractedData.stories ? `STORIES: ${extractedData.stories}` : ''}
-${extractedData.bathrooms ? `BATHROOMS: ${extractedData.bathrooms}` : ''}
-FIXTURES DETECTED: ${fixtureCount} total — ${extractedData.toilets || 0} toilets, ${extractedData.lavatories || 0} lavs, ${extractedData.kitchenFaucets || 0} kitchen, ${extractedData.barSinks || 0} bar, ${extractedData.tubs || 0} tubs, ${extractedData.showerBases || 0} showers, ${extractedData.mudPans || 0} mud pans, ${extractedData.washingMachines || 0} W/M, ${extractedData.waterSoftenerPreplumb || 0} WS pre-plumb
-
-${blueprintText ? 'BLUEPRINT TEXT:\n' + blueprintText.substring(0, 6000) : ''}
-
-Return ONLY this JSON — no text before or after:
-
-{
-  "fixtures": {
-    "toilets": 0, "lavatories": 0, "kitchenFaucets": 0, "barSinks": 0,
-    "tubs": 0, "showerBases": 0, "mudPans": 0, "washingMachines": 0,
-    "waterSoftener": 0, "total": 0
-  },
-  "takeoff": [
-    {"item": "3/4\\" Type L Copper", "cat": "Supply", "qty": 340, "unit": "LF", "cost": 3.85, "total": 1309}
-  ],
-  "totals": {
-    "material": 18400,
-    "laborMultiplier": 1.65,
-    "estimate": 30360
-  },
-  "notes": ["47 fixtures total", "PEX-A recommended for 2nd floor"]
-}
-
-RULES:
-- "takeoff" is the ONLY thing that matters. Make it SUPPLY HOUSE READY.
-- Use real part descriptions a plumber would say at Ferguson
-- Standard trade units: LF, EA, RL, BX, PR, SET
-- Use realistic 2024-2025 DFW supply house pricing
-- Categories: Supply, DWV, Fitting, Valve, Fixture, Support, Specialty
-- Include EVERYTHING: all pipe sizes, fittings, valves, fixtures, hangers, etc.
-- "fixtures" should confirm or correct the detected counts above
-- "totals.laborMultiplier" = typical labor-to-material ratio (1.5-2.0x)
-- "totals.estimate" = material × laborMultiplier
-- "notes" = 2-4 short bullets — only things a plumber needs to know to bid
-- Return ONLY valid JSON. All numbers must be numbers, not strings.`;
+  return PromptRegistry.blueprint.getAnalysisPrompt(fileName, extractedData, blueprintText, tier);
 }
 
 // Helper to safely parse JSON from AI response

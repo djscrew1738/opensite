@@ -106,7 +106,7 @@ export const requestSizeLimiter = (req, res, next) => {
 // In production CORS_ORIGIN must be set explicitly — never default to wildcard
 // with credentials: true (browsers reject it and it's a security risk).
 const corsOrigin = process.env.CORS_ORIGIN
-  || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : false);
+  || (process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : false);
 
 export const corsOptions = {
   origin: corsOrigin,

@@ -6,6 +6,7 @@
 import axios from 'axios';
 import { db } from './database.js';
 import logger from './logger.js';
+import { PromptRegistry } from './prompt-registry.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 
@@ -424,18 +425,12 @@ class OpenClawService {
   }
 
   getChatPrompt(message, history = []) {
-    let prompt = `You are an AI assistant for a construction leads management system.\n\n`;
-    for (const h of history) {
-      prompt += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\n\n`;
-    }
-    prompt += `User: ${message}\nAssistant:`;
-    return prompt;
+    const system = PromptRegistry.chat.getSystemPrompt();
+    return PromptRegistry.chat.buildChatPrompt(message, history, system);
   }
 
   getLeadScoringPrompt(lead) {
-    return `Score this construction lead (0-100) and classify as hot/warm/cold:\n
-Project: ${lead.title}\nType: ${lead.projectType}\nValue: $${lead.value || 'Unknown'}\nLocation: ${lead.location || 'Unknown'}\n
-Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
+    return PromptRegistry.leads.getScoringPrompt(lead);
   }
 
   getBlueprintAnalysisPrompt(data) {

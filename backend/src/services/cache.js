@@ -100,6 +100,12 @@ class CacheService {
     for (const key of this.cache.keys()) {
       if (regex.test(key)) { this.cache.del(key); deleted++; }
     }
+    for (const key of this.apiCache.keys()) {
+      if (regex.test(key)) { this.apiCache.del(key); deleted++; }
+    }
+    for (const key of this.staticCache.keys()) {
+      if (regex.test(key)) { this.staticCache.del(key); deleted++; }
+    }
     return deleted;
   }
 

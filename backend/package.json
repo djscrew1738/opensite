@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --max-old-space-size=${NODE_HEAP_MB:-512} --watch src/server.js",
     "start": "node --max-old-space-size=${NODE_HEAP_MB:-512} src/server.js",
+    "test": "node --test",
     "permits:ingest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualIngest(7))\"",
     "permits:score": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualScore())\"",
     "permits:digest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualDigest())\"",

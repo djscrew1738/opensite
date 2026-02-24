@@ -11,7 +11,7 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
   const [plumberFilter, setPlumberFilter] = useState('');
   const [selectedBuilderId, setSelectedBuilderId] = useState(null);
 
-  const { data: builders = [], isLoading } = useQuery({
+  const { data: buildersData, isLoading } = useQuery({
     queryKey: ['builders', { search: builderSearch, activityTrend: trendFilter, hasPlumber: plumberFilter }],
     queryFn: () => api.permits.getBuilders({
       search: builderSearch || undefined,
@@ -20,10 +20,14 @@ export default function BuilderIntelligenceTab({ onViewPermit }) {
     }),
   });
 
-  const { data: prospects = [] } = useQuery({
+  const builders = buildersData?.builders || [];
+
+  const { data: prospectsData } = useQuery({
     queryKey: ['builder-prospects'],
     queryFn: () => api.permits.getProspects(10),
   });
+
+  const prospects = prospectsData?.prospects || [];
 
   const stats = {
     total: builders.length,

@@ -352,7 +352,7 @@ export default function LeadPulseHome({
             label="Permits" 
             onClick={() => onTabChange('permits')}
             color="text-violet-600"
-            badge={permits.filter(p => p.leadStatus === 'new').length || null}
+            badge={(Array.isArray(permits) ? permits : []).filter(p => p.leadStatus === 'new').length || null}
           />
           <QuickAction 
             icon={MapPin} 

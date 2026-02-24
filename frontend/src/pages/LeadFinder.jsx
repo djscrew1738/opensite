@@ -132,7 +132,7 @@ export default function LeadFinder() {
   });
 
   const manualLeads = manualData?.leads || [];
-  const permits = permitData || [];
+  const permits = permitData?.permits || [];
 
   // Bulk selection
   const bulk = useBulkSelect(manualLeads);

@@ -146,7 +146,7 @@ export const CitySearch = ({ onViewPermit, onSwitchToBuilders }) => {
     staleTime: 60 * 1000,
   });
 
-  const permits = allPermits || [];
+  const permits = allPermits?.permits || [];
 
   // Aggregate stats by city
   const cityStats = useMemo(() => {

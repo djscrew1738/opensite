@@ -57,13 +57,19 @@ router.post('/register', tryCatch(async (req, res) => {
  * POST /api/auth/login
  */
 router.post('/login', tryCatch(async (req, res) => {
-  const { email, password } = req.body;
+  const { email: identifier, password } = req.body;
 
-  if (!email || !password) {
-    return res.error('Email and password are required', 'VALIDATION_ERROR', null, 400);
+  if (!identifier || !password) {
+    return res.error('Email/Username and password are required', 'VALIDATION_ERROR', null, 400);
   }
 
-  const user = await db.getUserByEmail(email);
+  // Try to find user by email first, then by username
+  let user = await db.getUserByEmail(identifier);
+  if (!user) {
+    // If not found by email, try by username
+    user = await db.getUserByUsername(identifier);
+  }
+
   if (!user) {
     return res.error('Invalid credentials', 'AUTH_ERROR', null, 401);
   }

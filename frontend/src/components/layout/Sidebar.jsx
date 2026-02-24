@@ -347,6 +347,51 @@ export default function Sidebar({
           {bottomNav.map((item) => (
             <NavItem key={item.path} item={item} expanded={isExpanded} onClick={onItemClick} />
           ))}
+          <li>
+            <button
+              onClick={logout}
+              className="group/item relative flex items-center gap-3 rounded-lg transition-all duration-150 w-full"
+              style={{
+                padding: isExpanded ? '10px 12px' : '10px 0',
+                justifyContent: isExpanded ? 'flex-start' : 'center',
+                background: 'transparent',
+                color: 'rgba(148, 163, 184, 0.45)',
+                minHeight: '44px',
+              }}
+            >
+              <LogOut
+                className="w-[18px] h-[18px] flex-shrink-0 group-hover/item:text-red-400 transition-colors"
+                strokeWidth={1.75}
+              />
+
+              <span
+                className="text-sm font-semibold whitespace-nowrap overflow-hidden group-hover/item:text-red-400 transition-colors"
+                style={{
+                  opacity: isExpanded ? 1 : 0,
+                  width: isExpanded ? 'auto' : 0,
+                  transition: 'opacity 0.2s ease',
+                  transitionDelay: isExpanded ? '0.07s' : '0s',
+                }}
+              >
+                Logout
+              </span>
+
+              {!isExpanded && (
+                <div
+                  className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50"
+                  style={{
+                    background: 'rgba(24, 28, 36, 0.96)',
+                    border: '1px solid rgba(45, 53, 72, 0.5)',
+                    color: '#F1F5F9',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  Logout
+                </div>
+              )}
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -393,16 +438,6 @@ export default function Sidebar({
                 {user?.role || 'Viewer'}
               </p>
             </div>
-          )}
-
-          {isExpanded && (
-            <button
-              onClick={logout}
-              className="p-1.5 rounded-md hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
           )}
         </div>
 

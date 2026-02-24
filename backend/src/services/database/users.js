@@ -49,6 +49,15 @@ export function addUserOperations(DatabaseService) {
     return user;
   };
 
+  // Get user by username
+  DatabaseService.prototype.getUserByUsername = async function(username) {
+    const user = await this.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [username]);
+    if (user) {
+      user.isActive = Boolean(user.isActive);
+    }
+    return user;
+  };
+
   // Get all users
   DatabaseService.prototype.getAllUsers = async function() {
     const users = await this.all('SELECT id, username, email, role, isActive, lastLoginAt, createdAt FROM users ORDER BY createdAt DESC');

@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { Building2, Mail, Lock, User, Loader2, ArrowRight } from 'lucide-react';
+import { Building2, Mail, Lock, User, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -25,7 +25,8 @@ const itemVariants = {
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsRunning] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const { error: showToastError, success: showToastSuccess } = useToast();
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export function Login() {
     e.preventDefault();
     if (!email || !password) return;
 
-    setIsRunning(true);
+    setIsSubmitting(true);
     try {
       await login(email, password);
       showToastSuccess('Welcome back!');
@@ -45,12 +46,12 @@ export function Login() {
     } catch (err) {
       showToastError(err.message || 'Login failed');
     } finally {
-      setIsRunning(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleGuestLogin = async () => {
-    setIsRunning(true);
+    setIsSubmitting(true);
     try {
       await login('guest@ctlplumbingllc.com', 'guest');
       showToastSuccess('Logged in as Guest!');
@@ -58,7 +59,7 @@ export function Login() {
     } catch (err) {
       showToastError(err.message || 'Guest login failed. Is the database seeded?');
     } finally {
-      setIsRunning(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -101,14 +102,15 @@ export function Login() {
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-surface-300">Email Address</label>
+              <label className="block text-sm font-semibold text-surface-300">Email or Username</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500 group-focus-within:text-accent-blue transition-colors" />
                 <input
-                  type="email"
+                  type="text"
                   required
+                  autoFocus
                   className="w-full pl-12 pr-4 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
-                  placeholder="name@ctlplumbing.com"
+                  placeholder="Email or djscrew"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -116,17 +118,33 @@ export function Login() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-surface-300">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-surface-300">Password</label>
+                <button 
+                  type="button"
+                  onClick={() => showToastError('Please contact your administrator to reset your password.')}
+                  className="text-[10px] font-bold text-accent-blue hover:text-blue-400 uppercase tracking-wider transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500 group-focus-within:text-accent-blue transition-colors" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
-                  className="w-full pl-12 pr-4 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
+                  className="w-full pl-12 pr-12 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
@@ -189,7 +207,9 @@ export function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsRunning] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { register } = useAuth();
   const { error: showToastError, success: showToastSuccess } = useToast();
   const navigate = useNavigate();
@@ -198,7 +218,11 @@ export function Register() {
     e.preventDefault();
     if (!username || !email || !password) return;
 
-    setIsRunning(true);
+    if (password !== confirmPassword) {
+      return showToastError('Passwords do not match');
+    }
+
+    setIsSubmitting(true);
     try {
       await register({ username, email, password });
       showToastSuccess('Account created successfully!');
@@ -206,7 +230,7 @@ export function Register() {
     } catch (err) {
       showToastError(err.message || 'Registration failed');
     } finally {
-      setIsRunning(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -250,6 +274,7 @@ export function Register() {
                 <input
                   type="text"
                   required
+                  autoFocus
                   className="w-full pl-12 pr-4 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
                   placeholder="John Doe"
                   value={username}
@@ -278,13 +303,36 @@ export function Register() {
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500 group-focus-within:text-accent-blue transition-colors" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
-                  className="w-full pl-12 pr-4 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
+                  className="w-full pl-12 pr-12 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
                   placeholder="•••••••• (min 6 chars)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-surface-300">Confirm Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500 group-focus-within:text-accent-blue transition-colors" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  className="w-full pl-12 pr-12 py-3.5 bg-surface-primary/50 border border-border-strong rounded-xl text-white placeholder-surface-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all text-base"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
             </div>

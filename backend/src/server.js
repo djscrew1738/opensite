@@ -199,7 +199,7 @@ app.use('/api/', apiLimiter);
 
 // Routes
 app.use('/api/health', healthRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/ai', aiChatLimiter, aiRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/estimates', estimatesRoutes);

@@ -2,62 +2,18 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useToast } from '../../hooks/useToast';
-import { 
+import {
   Plus, Edit3, Trash2, Search, Package, X, Save, Filter,
   Star, Copy, Download, Upload, ChevronDown, ChevronRight,
   DollarSign, TrendingUp, TrendingDown, BarChart3, Grid3X3,
-  List, Table2, Percent, Check, AlertCircle, Clock, Heart,
+  List, Table2, Percent, Check, Clock,
   ArrowUpDown, SlidersHorizontal, FileSpreadsheet, MoreVertical,
-  Eye, History, Hash, ExternalLink
+  Eye, History, Hash
 } from 'lucide-react';
 import MaterialDetailModal from './MaterialDetailModal';
 import ConfirmDialog from '../shared/ConfirmDialog';
-
-const CATEGORY_LABELS = {  pipe: 'Pipe',
-  fittings: 'Fittings',
-  fixtures: 'Fixtures',
-  valves: 'Valves',
-  water_heater: 'Water Heaters',
-  gas: 'Gas',
-  misc: 'Miscellaneous'
-};
-
-const CATEGORY_COLORS = {
-  pipe: '#2563eb',
-  fittings: '#7c3aed',
-  fixtures: '#0891b2',
-  valves: '#dc2626',
-  water_heater: '#ea580c',
-  gas: '#ca8a04',
-  misc: '#6b7280'
-};
-
-const UNIT_OPTIONS = ['ft', 'ea', 'lb', 'gal', 'roll', 'box', 'set', 'bag', 'pair', 'kit'];
-
-const SORT_OPTIONS = [
-  { value: 'category', label: 'Category' },
-  { value: 'name', label: 'Name (A-Z)' },
-  { value: 'name_desc', label: 'Name (Z-A)' },
-  { value: 'cost', label: 'Price (Low-High)' },
-  { value: 'cost_desc', label: 'Price (High-Low)' },
-  { value: 'supplier', label: 'Supplier' },
-  { value: 'usage', label: 'Most Used' },
-  { value: 'recent', label: 'Recently Used' },
-  { value: 'updated', label: 'Recently Updated' }
-];
-
-const VIEW_MODES = {
-  GROUPED: 'grouped',
-  TABLE: 'table',
-  CARD: 'card'
-};
-
-const QUICK_FILTERS = {
-  ALL: 'all',
-  FAVORITES: 'favorites',
-  RECENT: 'recent',
-  MOST_USED: 'most_used'
-};
+import { CATEGORY_LABELS, CATEGORY_COLORS, UNIT_OPTIONS, SORT_OPTIONS, VIEW_MODES, QUICK_FILTERS } from '../../constants/materials';
+import { parseCSVLine } from '../../utils/csvParser';
 
 export default function MaterialManager({ onSelect, selectionMode = false }) {
   const queryClient = useQueryClient();
@@ -85,7 +41,6 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
   // Bulk operations state
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [_showBulkActions, setShowBulkActions] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
   const [bulkPricePercent, setBulkPricePercent] = useState('');
 
@@ -214,7 +169,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       queryClient.invalidateQueries({ queryKey: ['material-suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['material-stats'] });
       setSelectedIds(new Set());
-      setShowBulkActions(false);
+
       setDeleteConfirm(null);
       showNotification(`${data.deleted} materials deleted`);
     }
@@ -1072,7 +1027,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                       setSelectedIds(new Set());
                     } else {
                       setSelectedIds(new Set(materials.map(m => m.id)));
-                      setShowBulkActions(true);
+
                     }
                   }}
                   className="btn-secondary flex items-center gap-2 text-sm"
@@ -1487,28 +1442,3 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
   );
 }
 
-// CSV line parser that handles quoted fields
-function parseCSVLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}

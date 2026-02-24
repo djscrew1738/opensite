@@ -466,8 +466,8 @@ export default function AIAssistant() {
             <div>
               <label className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">Model</label>
               <ModelSelector
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
+                value={effectiveModel}
+                onChange={(modelName) => setSelectedModel(modelName)}
                 disabled={isStreaming}
                 showSizes={true}
                 className="text-sm py-1 border-0 bg-transparent focus:ring-0 p-0 font-medium text-surface-900 dark:text-surface-100"

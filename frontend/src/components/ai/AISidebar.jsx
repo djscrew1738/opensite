@@ -208,7 +208,7 @@ export default function AISidebar({ isOpen, onClose }) {
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-text-muted" />
             <ModelSelector
-              value={selectedModel}
+              value={effectiveModel}
               onChange={setSelectedModel}
               disabled={isStreaming}
               showSizes={false}

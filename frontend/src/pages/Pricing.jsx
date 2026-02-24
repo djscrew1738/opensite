@@ -163,8 +163,8 @@ export default function Pricing() {
         <div className="flex items-center gap-3">
           <label className="text-sm text-surface-600 dark:text-surface-400">AI Model:</label>
           <ModelSelector
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+            value={effectiveModel}
+            onChange={(modelName) => setSelectedModel(modelName)}
             showSizes={false}
             className="text-sm py-1"
           />

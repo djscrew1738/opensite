@@ -428,7 +428,7 @@ export default function Plans() {
                 isSaving={calculateMutation.isPending}
                 isAnalyzing={analyzeMutation.isPending}
                 totalFixtures={totalFixtures}
-                selectedModel={selectedModel}
+                selectedModel={effectiveModel}
                 onModelChange={setSelectedModel}
               />
 

@@ -17,6 +17,7 @@ import { hashPassword } from './utils/auth.js';
 import {
   securityHeaders,
   apiLimiter,
+  authLimiter,
   uploadLimiter,
   aiChatLimiter,
   discoveryLimiter,

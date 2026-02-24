@@ -531,6 +531,49 @@ export class DatabaseService {
       )
     `);
 
+    // DocVault: Text documents table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS text_documents (
+        id TEXT PRIMARY KEY,
+        userId TEXT,
+        filename TEXT NOT NULL,
+        originalName TEXT NOT NULL,
+        mimeType TEXT,
+        fileSize INTEGER,
+        filePath TEXT,
+        extractedText TEXT,
+        summary TEXT,
+        entities TEXT,
+        pageCount INTEGER,
+        wordCount INTEGER,
+        status TEXT DEFAULT 'uploaded',
+        errorMessage TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_text_documents_user ON text_documents(userId);
+      CREATE INDEX IF NOT EXISTS idx_text_documents_status ON text_documents(status);
+      CREATE INDEX IF NOT EXISTS idx_text_documents_created ON text_documents(createdAt DESC);
+    `);
+
+    // DocVault: Document chat messages table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS document_chat_messages (
+        id TEXT PRIMARY KEY,
+        documentId TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_doc_chat_document ON document_chat_messages(documentId, createdAt);
+    `);
+
     // Add new columns to materials if they don't exist
     this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');

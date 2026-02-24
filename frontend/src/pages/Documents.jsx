@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Files, Plus, Trash2, FileImage, LayoutGrid, 
+  Files, Plus, Trash2, FileImage, LayoutGrid,
   ChevronRight, Loader2, AlertCircle, Upload,
   FolderOpen, Image, FileText, MoreVertical,
   Download, Eye, EyeOff, Grid3X3, List,
   Search, Filter, SortAsc, Calendar, Clock,
   CheckCircle2, X, Maximize2, Copy, Move,
   Star, Tag, Pin, Share2, Archive, ScanEye,
-  BrainCircuit
+  BrainCircuit, BookOpenText
 } from 'lucide-react';
 import { visionApi } from '../api/vision';
+import { docvaultApi } from '../api/docvault';
 import VisionCanvas from '../components/vision/VisionCanvas';
 import BlueprintSelector from '../components/vision/BlueprintSelector';
+import DocUpload from '../components/documents/DocUpload';
+import DocSidebar from '../components/documents/DocSidebar';
+import DocViewer from '../components/documents/DocViewer';
 import { TabSystem, Tab } from '../components/tabs';
 import { NoDocumentsEmpty, NoAnalysisEmpty } from '../components/empty-states';
 import { ConfirmDialog } from '../components/shared';
@@ -541,6 +545,160 @@ function VisionAnalysis({ projects, onSelectProject }) {
   );
 }
 
+// Text Intelligence Component
+function TextIntelligence() {
+  const queryClient = useQueryClient();
+  const [selectedDocId, setSelectedDocId] = useState(null);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Fetch text documents list
+  const { data: textDocs = [], isLoading: docsLoading } = useQuery({
+    queryKey: ['docvault-documents'],
+    queryFn: () => docvaultApi.getAll(),
+    refetchInterval: (query) => {
+      // Poll while any document is processing
+      const docs = query.state.data || [];
+      return docs.some(d => d.status === 'processing') ? 3000 : false;
+    },
+  });
+
+  // Fetch selected document details
+  const { data: selectedDoc, isLoading: docDetailLoading } = useQuery({
+    queryKey: ['docvault-document', selectedDocId],
+    queryFn: () => docvaultApi.getOne(selectedDocId),
+    enabled: !!selectedDocId,
+  });
+
+  // Fetch chat history when document selected
+  useEffect(() => {
+    if (!selectedDocId) {
+      setChatHistory([]);
+      return;
+    }
+    docvaultApi.getChatHistory(selectedDocId)
+      .then(messages => setChatHistory(messages || []))
+      .catch(() => setChatHistory([]));
+  }, [selectedDocId]);
+
+  // Upload handler
+  const handleUpload = async (file) => {
+    await docvaultApi.upload(file);
+    queryClient.invalidateQueries({ queryKey: ['docvault-documents'] });
+  };
+
+  // Delete handler
+  const handleDelete = async (id) => {
+    await docvaultApi.delete(id);
+    if (selectedDocId === id) setSelectedDocId(null);
+    queryClient.invalidateQueries({ queryKey: ['docvault-documents'] });
+  };
+
+  // Summarize handler
+  const handleSummarize = async () => {
+    if (!selectedDocId) return;
+    setIsAiLoading(true);
+    try {
+      await docvaultApi.summarize(selectedDocId);
+      queryClient.invalidateQueries({ queryKey: ['docvault-document', selectedDocId] });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Extract entities handler
+  const handleExtract = async () => {
+    if (!selectedDocId) return;
+    setIsAiLoading(true);
+    try {
+      await docvaultApi.extract(selectedDocId);
+      queryClient.invalidateQueries({ queryKey: ['docvault-document', selectedDocId] });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Chat handler
+  const handleChat = async (message) => {
+    if (!selectedDocId || !message.trim()) return;
+    // Optimistic: add user message immediately
+    const userMsg = { role: 'user', content: message, created_at: new Date().toISOString() };
+    setChatHistory(prev => [...prev, userMsg]);
+    setIsAiLoading(true);
+    try {
+      const result = await docvaultApi.chat(selectedDocId, message);
+      const assistantMsg = { role: 'assistant', content: result.answer, created_at: new Date().toISOString() };
+      setChatHistory(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      const errorMsg = { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', created_at: new Date().toISOString() };
+      setChatHistory(prev => [...prev, errorMsg]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Clear chat handler
+  const handleClearChat = async () => {
+    if (!selectedDocId) return;
+    await docvaultApi.clearChat(selectedDocId);
+    setChatHistory([]);
+  };
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Left panel: Upload + Document list */}
+      <div
+        className="w-72 lg:w-80 shrink-0 flex flex-col border-r overflow-y-auto"
+        style={{ borderColor: '#1F2430', backgroundColor: '#0A0B0D' }}
+      >
+        <div className="p-3">
+          <DocUpload onUpload={handleUpload} />
+        </div>
+        <DocSidebar
+          documents={textDocs}
+          selectedId={selectedDocId}
+          onSelect={setSelectedDocId}
+          onDelete={handleDelete}
+          isLoading={docsLoading}
+        />
+      </div>
+
+      {/* Right panel: Document viewer */}
+      <div className="flex-1 min-w-0 flex flex-col" style={{ backgroundColor: '#0A0B0D' }}>
+        {selectedDocId && selectedDoc ? (
+          <DocViewer
+            document={selectedDoc}
+            onBack={() => setSelectedDocId(null)}
+            onSummarize={handleSummarize}
+            onExtract={handleExtract}
+            onChat={handleChat}
+            onClearChat={handleClearChat}
+            chatHistory={chatHistory}
+            isAiLoading={isAiLoading}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: '#111318', border: '1px solid #1F2430' }}
+              >
+                <BookOpenText className="w-7 h-7" style={{ color: '#64748B' }} />
+              </div>
+              <p className="text-sm font-medium" style={{ color: '#94A3B8' }}>
+                Select a document to analyze
+              </p>
+              <p className="text-xs mt-1" style={{ color: '#64748B' }}>
+                Upload text files and use AI to summarize, extract entities, and chat
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Main Documents Page
 export default function Documents() {
   const queryClient = useQueryClient();
@@ -621,10 +779,13 @@ export default function Documents() {
           />
         </Tab>
         <Tab id="vision" label="AI Analysis" icon={ScanEye}>
-          <VisionAnalysis 
+          <VisionAnalysis
             projects={projects}
             onSelectProject={handleSelectProject}
           />
+        </Tab>
+        <Tab id="text-intel" label="Text Intelligence" icon={BookOpenText}>
+          <TextIntelligence />
         </Tab>
       </TabSystem>
 

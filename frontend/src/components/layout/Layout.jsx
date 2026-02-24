@@ -1,7 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './Sidebar';
-import MobileNav from './MobileNav';
 import StickyHeader from './StickyHeader';
 import PageHeaderBar, { PageHeaderBarSkeleton } from './PageHeaderBar';
 import CommandPalette from './CommandPalette';
@@ -215,9 +214,6 @@ export default function Layout() {
         >
           <main
             className="flex-1 overflow-y-auto relative flex flex-col"
-            style={{
-              paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '0',
-            }}
           >
             {/* Subtle radial depth gradient */}
             <div
@@ -269,18 +265,6 @@ export default function Layout() {
             </div>
           </main>
         </PageHeaderContext.Provider>
-
-        {/* Mobile Floating Tab Bar */}
-        {isMobile && (
-          <MobileNav 
-            alertCount={unreadCount}
-            hasUrgent={hasUrgent}
-            onCommandPaletteOpen={() => setShowCommandPalette(true)}
-            onNotificationsOpen={() => setShowNotifications(true)}
-            onAIOpen={() => setShowAI(true)}
-            isAIOpen={showAI}
-          />
-        )}
 
         {/* Command Palette - Global */}
         <CommandPalette 

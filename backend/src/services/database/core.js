@@ -55,6 +55,15 @@ export class DatabaseService {
       )
     `);
 
+    // Settings key/value store
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
     // QuickBooks table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS quickbooks_accounts (

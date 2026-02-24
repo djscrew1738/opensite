@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Sparkles, X } from 'lucide-react';
+import { Bot, Sparkles } from 'lucide-react';
 import { usePageContext } from '../../hooks/usePageContext';
 
 /**

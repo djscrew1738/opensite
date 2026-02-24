@@ -80,9 +80,9 @@ export function ModelSelector({
 
   if (statusLoading || modelsLoading) {
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 bg-surface-100 dark:bg-surface-800 rounded-lg animate-pulse ${sizeClasses[size]} ${className}`}>
-        <Cpu className="w-4 h-4 text-surface-400" />
-        <span className="text-surface-400">Loading models...</span>
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg animate-pulse ${sizeClasses[size]} ${className}`} style={{ background: '#111318' }}>
+        <Cpu className="w-4 h-4 text-[#64748B]" />
+        <span className="text-[#64748B]">Loading models...</span>
       </div>
     );
   }
@@ -94,12 +94,12 @@ export function ModelSelector({
         onClick={() => setIsOpen(!isOpen)}
         className={`
           w-full flex items-center justify-between gap-3 px-3 rounded-lg
-          border border-surface-200 dark:border-surface-700
-          bg-white dark:bg-surface-800
-          hover:border-accent-300 dark:hover:border-accent-600
+          border border-[#1F2430]
+          bg-[#111318]
+          hover:border-[#3B82F6]/40
           transition-all duration-200
           ${sizeClasses[size]}
-          ${isOpen ? 'ring-2 ring-accent-500/20 border-accent-500' : ''}
+          ${isOpen ? 'ring-2 ring-[#3B82F6]/20 border-[#3B82F6]' : ''}
         `}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -109,7 +109,7 @@ export function ModelSelector({
                 w-2 h-2 rounded-full shrink-0
                 ${isProviderReady(activeProvider) ? 'bg-emerald-500' : 'bg-red-500'}
               `} />
-              <span className="font-medium text-surface-900 dark:text-surface-100 truncate">
+              <span className="font-medium text-[#F1F5F9] truncate">
                 {selectedModel.label || selectedModel.name}
               </span>
               {isFallback && allowFallback && (
@@ -120,19 +120,19 @@ export function ModelSelector({
             </>
           ) : (
             <>
-              <Cpu className="w-4 h-4 text-surface-400 shrink-0" />
-              <span className="text-surface-500">Select model...</span>
+              <Cpu className="w-4 h-4 text-[#64748B] shrink-0" />
+              <span className="text-[#94A3B8]">Select model...</span>
             </>
           )}
         </div>
         
         <div className="flex items-center gap-2 shrink-0">
           {showPerformance && selectedModel?.context && (
-            <span className="hidden sm:block text-xs text-surface-400">
+            <span className="hidden sm:block text-xs text-[#64748B]">
               {Math.round(selectedModel.context / 1000)}k ctx
             </span>
           )}
-          <ChevronDown className={`w-4 h-4 text-surface-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
@@ -145,14 +145,14 @@ export function ModelSelector({
           />
           <div className="
             absolute top-full left-0 right-0 mt-2 z-50
-            bg-white dark:bg-surface-800
-            border border-surface-200 dark:border-surface-700
+            bg-[#111318]
+            border border-[#1F2430]
             rounded-xl shadow-xl
             max-h-[400px] overflow-y-auto
           ">
             {/* Provider Tabs */}
             {showProvider && providers.length > 1 && (
-              <div className="flex gap-1 p-2 border-b border-surface-200 dark:border-surface-700 overflow-x-auto">
+              <div className="flex gap-1 p-2 border-b border-[#1F2430] overflow-x-auto">
                 {providers.map(provider => {
                   const info = getProviderInfo(provider.name);
                   const isReady = isProviderReady(provider.name);
@@ -175,8 +175,8 @@ export function ModelSelector({
                         flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
                         whitespace-nowrap transition-colors
                         ${isActive 
-                          ? 'bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300' 
-                          : 'hover:bg-surface-100 dark:hover:bg-surface-700'
+                          ? 'bg-[#3B82F6]/10 text-[#3B82F6]' 
+                          : 'hover:bg-[#181C24]'
                         }
                         ${!isReady ? 'opacity-50' : ''}
                       `}
@@ -197,7 +197,7 @@ export function ModelSelector({
               {/* Recommended Models */}
               {recommendations.chat && recommendations.chat.length > 0 && (
                 <div className="mb-3">
-                  <p className="px-3 py-1 text-[10px] font-bold text-surface-400 uppercase tracking-wider">
+                  <p className="px-3 py-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
                     Recommended
                   </p>
                   {recommendations.chat.slice(0, 3).map(modelName => {
@@ -224,7 +224,7 @@ export function ModelSelector({
               {/* All Models Grouped by Provider */}
               {Object.entries(groupedModels).map(([provider, providerModels]) => (
                 <div key={provider} className="mb-2">
-                  <p className="px-3 py-1 text-[10px] font-bold text-surface-400 uppercase tracking-wider">
+                  <p className="px-3 py-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
                     {getProviderInfo(provider).label}
                   </p>
                   {providerModels.map(model => (
@@ -246,8 +246,8 @@ export function ModelSelector({
               {models.length === 0 && (
                 <div className="p-4 text-center">
                   <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                  <p className="text-sm text-surface-600">No models available</p>
-                  <p className="text-xs text-surface-400 mt-1">
+                  <p className="text-sm text-[#94A3B8]">No models available</p>
+                  <p className="text-xs text-[#64748B] mt-1">
                     Check your AI provider configuration
                   </p>
                 </div>
@@ -255,13 +255,13 @@ export function ModelSelector({
             </div>
 
             {/* Footer */}
-            <div className="p-2 border-t border-surface-200 dark:border-surface-700">
+            <div className="p-2 border-t border-[#1F2430]">
               <button
                 onClick={() => {
                   refetch();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-surface-500 hover:text-surface-700 hover:bg-surface-50 dark:hover:bg-surface-700 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#181C24] rounded-lg transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Refresh Models
@@ -292,23 +292,23 @@ function ModelOption({ model, isSelected, onClick, showPerformance, badge }) {
         w-full flex items-center justify-between px-3 py-2 rounded-lg text-left
         transition-colors
         ${isSelected 
-          ? 'bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800' 
-          : 'hover:bg-surface-50 dark:hover:bg-surface-700'
+          ? 'bg-[#3B82F6]/5 border border-[#3B82F6]/30' 
+          : 'hover:bg-[#181C24]'
         }
       `}
     >
       <div className="flex items-center gap-2 min-w-0">
         {isSelected ? (
-          <CheckCircle2 className="w-4 h-4 text-accent-600 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-[#3B82F6] shrink-0" />
         ) : (
-          <div className="w-4 h-4 rounded-full border-2 border-surface-300 dark:border-surface-600 shrink-0" />
+          <div className="w-4 h-4 rounded-full border-2 border-[#2A3040] shrink-0" />
         )}
         <div className="min-w-0">
-          <p className={`text-sm font-medium truncate ${isSelected ? 'text-accent-700 dark:text-accent-300' : 'text-surface-900 dark:text-surface-100'}`}>
+          <p className={`text-sm font-medium truncate ${isSelected ? 'text-[#3B82F6]' : 'text-[#F1F5F9]'}`}>
             {model.label || model.name}
           </p>
           {model.description && (
-            <p className="text-xs text-surface-500 truncate">{model.description}</p>
+            <p className="text-xs text-[#94A3B8] truncate">{model.description}</p>
           )}
         </div>
         {badge && (
@@ -319,7 +319,7 @@ function ModelOption({ model, isSelected, onClick, showPerformance, badge }) {
       </div>
 
       {showPerformance && (
-        <div className="flex items-center gap-2 shrink-0 text-xs text-surface-400">
+        <div className="flex items-center gap-2 shrink-0 text-xs text-[#64748B]">
           {model.context && (
             <span className="hidden sm:block">
               {Math.round(model.context / 1000)}k

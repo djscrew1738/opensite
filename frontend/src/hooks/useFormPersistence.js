@@ -136,5 +136,3 @@ export function useFormPersistence(formKey, formData, setFormData, options = {})
     hasRestored
   };
 }
-
-export default useFormPersistence;

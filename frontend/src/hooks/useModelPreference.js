@@ -139,5 +139,3 @@ export function useModelPreference() {
     isLoading
   };
 }
-
-export default useModelPreference;

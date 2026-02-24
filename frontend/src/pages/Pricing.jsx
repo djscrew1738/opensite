@@ -4,9 +4,8 @@ import { api } from '../api/client';
 import PricingForm from '../components/pricing/PricingForm';
 import AnalysisDashboard from '../components/pricing/AnalysisDashboard';
 import BlueprintUpload from '../components/pricing/BlueprintUpload';
-import ModelSelector from '../components/ai/ModelSelector';
-import { useFormPersistence } from '../hooks/useFormPersistence';
-import { useModelPreference } from '../hooks/useModelPreference';
+import { ModelSelector } from '../components/ai';
+import { useFormPersistence, useModelPreference } from '../hooks';
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
 
 export default function Pricing() {

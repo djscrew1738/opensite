@@ -8,9 +8,11 @@ import {
 } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { useFormPersistence } from '../hooks/useFormPersistence';
-import { useModelPreference } from '../hooks/useModelPreference';
-import { useToast } from '../hooks/useToast';
+import { 
+  useFormPersistence, 
+  useModelPreference, 
+  useToast 
+} from '../hooks';
 import { LayoutDashboard, Calculator, Save, AlertCircle } from 'lucide-react';
 
 import PlansHome from '../components/plans/PlansHome';

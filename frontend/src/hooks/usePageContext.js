@@ -190,5 +190,3 @@ export function useEntityContext(entityType, entityId) {
     }
   }, [entityType, entityId]);
 }
-
-export default usePageContext;

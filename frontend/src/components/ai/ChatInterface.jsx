@@ -18,7 +18,7 @@ const suggestedActions = [
   { icon: Sparkles, label: 'Materials', prompt: 'Recommend materials for a custom home' },
 ];
 
-export default function ChatInterface({ messages, streamingMessage, isStreaming, onSuggestionClick }) {
+export function ChatInterface({ messages, streamingMessage, isStreaming, onSuggestionClick }) {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 

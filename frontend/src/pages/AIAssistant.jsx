@@ -7,11 +7,15 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
-import ChatInterface from '../components/ai/ChatInterface';
-import ModelSelector from '../components/ai/ModelSelector';
-import { useStreamingResponse } from '../hooks/useStreamingResponse';
-import { useModelPreference } from '../hooks/useModelPreference';
-import { useToast } from '../hooks/useToast';
+import { 
+  ChatInterface, 
+  ModelSelector 
+} from '../components/ai';
+import { 
+  useStreamingResponse,
+  useModelPreference,
+  useToast 
+} from '../hooks';
 import { PageHeader, ConfirmDialog } from '../components/shared';
 
 // Format date for conversation list

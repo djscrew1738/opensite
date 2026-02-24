@@ -2,16 +2,16 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Cpu, ChevronDown, Server, Cloud, Zap, AlertCircle,
-  CheckCircle2, RefreshCw, HardDrive, Gauge
+  CheckCircle2, RefreshCw, HardDrive, Gauge, Activity
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { useAIStatus } from '../../hooks/useAIStatus';
+import { useAIStatus } from '../../hooks';
 
 /**
  * Enhanced Model Selector with provider status, performance indicators,
  * and intelligent recommendations
  */
-export default function ModelSelector({
+export function ModelSelector({
   value,
   onChange,
   showProvider = true,
@@ -158,6 +158,15 @@ export default function ModelSelector({
                   const isReady = isProviderReady(provider.name);
                   const isActive = activeProvider === provider.name;
                   
+                  // Map iconType to Lucide component
+                  const ProviderIcon = {
+                    server: Server,
+                    zap: Zap,
+                    cloud: Cloud,
+                    cpu: Cpu,
+                    activity: Activity
+                  }[info.iconType] || Activity;
+                  
                   return (
                     <button
                       key={provider.name}
@@ -175,8 +184,8 @@ export default function ModelSelector({
                       <span className={isReady ? 'text-emerald-500' : 'text-red-500'}>
                         {isReady ? '●' : '○'}
                       </span>
-                      <span className={info.color}>{info.icon}</span>
-                      {provider.label.split(' ')[0]}
+                      <span className={info.color}><ProviderIcon className="w-4 h-4" /></span>
+                      {provider.label?.split(' ')[0] || provider.name}
                     </button>
                   );
                 })}

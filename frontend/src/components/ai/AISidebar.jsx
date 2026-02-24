@@ -6,10 +6,13 @@ import {
   ClipboardList, TrendingUp, Wrench, Calendar
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { useStreamingResponse } from '../../hooks/useStreamingResponse';
-import { useModelPreference } from '../../hooks/useModelPreference';
-import { usePageContext } from '../../hooks/usePageContext';
-import ModelSelector from './ModelSelector';
+import { 
+  useStreamingResponse, 
+  useModelPreference, 
+  usePageContext,
+  useAIStatus 
+} from '../../hooks';
+import { ModelSelector } from './ModelSelector';
 
 /**
  * AISidebar - Context-aware AI assistant slide-out sidebar

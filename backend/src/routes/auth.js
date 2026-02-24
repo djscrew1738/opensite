@@ -54,8 +54,22 @@ router.post('/register', tryCatch(async (req, res) => {
     return res.error('Username, email, and password are required', 'VALIDATION_ERROR', null, 400);
   }
 
+  // Normalize email
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.error('Invalid email format', 'VALIDATION_ERROR', null, 400);
+  }
+
+  // Validate password length
+  if (password.length < 6) {
+    return res.error('Password must be at least 6 characters', 'VALIDATION_ERROR', null, 400);
+  }
+
   // Check if user exists
-  const existingUser = await db.getUserByEmail(email);
+  const existingUser = await db.getUserByEmail(normalizedEmail);
   if (existingUser) {
     return res.error('Email already in use', 'CONFLICT', null, 409);
   }
@@ -67,8 +81,8 @@ router.post('/register', tryCatch(async (req, res) => {
   const role = allUsers.length === 0 ? 'admin' : 'viewer';
 
   const user = await db.createUser({
-    username,
-    email,
+    username: username.trim(),
+    email: normalizedEmail,
     passwordHash: hashedPassword,
     role
   });
@@ -123,8 +137,11 @@ router.post('/login', tryCatch(async (req, res) => {
     return res.error('Email/Username and password are required', 'VALIDATION_ERROR', null, 400);
   }
 
+  // Normalize identifier (email or username)
+  const normalizedIdentifier = identifier.toLowerCase().trim();
+
   // Try to find user by email first, then by username
-  let user = await db.getUserByEmail(identifier);
+  let user = await db.getUserByEmail(normalizedIdentifier);
   if (!user) {
     // If not found by email, try by username
     user = await db.getUserByUsername(identifier);

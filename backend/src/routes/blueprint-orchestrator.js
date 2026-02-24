@@ -6,10 +6,14 @@
 import express from 'express';
 import { blueprintOrchestrator, JOB_STATUS } from '../services/blueprint-orchestrator.js';
 import { tryCatch } from '../utils/response.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 import logger from '../services/logger.js';
 import fs from 'fs';
 
 const router = express.Router();
+
+// Secure all routes
+router.use(authenticateToken);
 
 /**
  * @route POST /api/blueprint/analyze

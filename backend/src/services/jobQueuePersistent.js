@@ -25,6 +25,7 @@ class PersistentJobQueue extends EventEmitter {
     this.initDatabase();
     
     this.processing = new Set();
+    this.handlers = new Map();
     this.maxConcurrent = 3;
     this.jobId = 0;
     
@@ -90,8 +91,21 @@ class PersistentJobQueue extends EventEmitter {
     }
   }
 
-  async addJob(type, data, handler) {
+  registerHandler(type, handler) {
+    this.handlers.set(type, handler);
+    logger.debug(`Registered handler for job type: ${type}`);
+  }
+
+  async addJob(type, data, handler = null) {
     const jobId = `job-${++this.jobId}-${Date.now()}`;
+
+    if (handler) {
+      this.registerHandler(type, handler);
+    }
+
+    if (!this.handlers.has(type)) {
+      logger.warn(`No handler registered for job type: ${type}. Job will stay pending.`);
+    }
 
     try {
       // Store in database
@@ -100,9 +114,6 @@ class PersistentJobQueue extends EventEmitter {
         VALUES (?, ?, ?, 'pending', 0, CURRENT_TIMESTAMP)
       `);
       stmt.run(jobId, type, JSON.stringify(data));
-
-      // Store handler in memory only (can't serialize functions)
-      this._handler = handler;
 
       logger.info('Job added to queue', { jobId, type });
 
@@ -128,6 +139,12 @@ class PersistentJobQueue extends EventEmitter {
 
     if (!job) return;
 
+    const handler = this.handlers.get(job.type);
+    if (!handler) {
+      // Skip jobs with no registered handler for now to avoid blocking the queue
+      return;
+    }
+
     // Update status to processing
     this.db.prepare(`
       UPDATE jobs SET status = 'processing', started_at = CURRENT_TIMESTAMP WHERE id = ?
@@ -140,9 +157,10 @@ class PersistentJobQueue extends EventEmitter {
     try {
       // Deserialize data
       const jobData = JSON.parse(job.data);
+      jobData.jobId = job.id; // Ensure jobId is available in data
 
-      // Execute handler (stored in memory)
-      const result = await this._handler(jobData, (progress) => {
+      // Execute handler
+      const result = await handler(jobData, (progress) => {
         this.db.prepare('UPDATE jobs SET progress = ? WHERE id = ?').run(progress, job.id);
         this.emit('progress', job.id, progress);
       });
@@ -170,7 +188,6 @@ class PersistentJobQueue extends EventEmitter {
       this.emit('failed', job.id, error);
     } finally {
       this.processing.delete(job.id);
-      this._handler = null;
 
       setImmediate(() => this.processNext());
     }

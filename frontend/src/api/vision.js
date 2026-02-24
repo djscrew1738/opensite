@@ -59,8 +59,11 @@ export const visionApi = {
   },
 
   // Projects
-  getProjects: () => apiClient.get('/vision/projects'),
+  getProjects: (params) => apiClient.get('/vision/projects', { params }),
+  getSummary: () => apiClient.get('/vision/summary'),
+  searchProjects: (query) => apiClient.get('/vision/projects', { params: { q: query } }),
   getProject: (id) => apiClient.get(`/vision/projects/${id}`),
+  updateProjectName: (id, name) => apiClient.patch(`/vision/projects/${id}`, { name }),
   deleteProject: (id) => apiClient.delete(`/vision/projects/${id}`),
 
   // AI Analysis

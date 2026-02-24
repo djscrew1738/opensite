@@ -207,10 +207,12 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
  * GET /api/vision/projects
  */
 router.get('/projects', tryCatch(async (req, res) => {
-  const projects = await db.all(
-    'SELECT id, name, originalFile, fileType, width, height, pageCount, createdAt, updatedAt FROM vision_projects WHERE userId = ? ORDER BY updatedAt DESC',
-    [req.user.id]
-  );
+  const { q, type } = req.query;
+  const projects = await db.searchDocuments({ 
+    query: q, 
+    type,
+    userId: req.user.id 
+  });
 
   // Add thumbnail URLs
   const result = projects.map(p => ({
@@ -219,6 +221,15 @@ router.get('/projects', tryCatch(async (req, res) => {
   }));
 
   res.success(result);
+}));
+
+/**
+ * Get document summary stats
+ * GET /api/vision/summary
+ */
+router.get('/summary', tryCatch(async (req, res) => {
+  const summary = await db.getDocumentSummary(req.user.id);
+  res.success(summary);
 }));
 
 /**
@@ -380,8 +391,20 @@ router.put('/projects/:id/scale', tryCatch(async (req, res) => {
   const { scale } = req.body;
   if (scale === undefined) return res.error('Scale is required', 'VALIDATION_ERROR', null, 400);
   
-  await db.run('UPDATE vision_projects SET scale = ? WHERE id = ?', [scale, req.params.id]);
+  await db.updateVisionProject(req.params.id, { scale });
   res.success({ scale }, 'Scale updated');
+}));
+
+/**
+ * Update project name
+ * PATCH /api/vision/projects/:id
+ */
+router.patch('/projects/:id', tryCatch(async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.error('Name is required', 'VALIDATION_ERROR', null, 400);
+  
+  const project = await db.updateVisionProject(req.params.id, { name });
+  res.success(project, 'Project name updated');
 }));
 
 /**

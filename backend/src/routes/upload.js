@@ -294,7 +294,7 @@ function defaultAnalysis(complexityLevel, complexityScore) {
 }
 
 // Background job handler for blueprint analysis
-async function performBlueprintAnalysis(jobData, progressCallback) {
+export async function performBlueprintAnalysis(jobData, progressCallback) {
   const { filePath, fileName, extractedData, blueprintText, tier, model, userId } = jobData;
 
   // Wrapper for progress updates

@@ -709,8 +709,19 @@ export class DatabaseService {
    * Execute SQL directly (for backward compatibility)
    * @param {string} sql - SQL statement to execute
    */
-  async exec(sql) {
+  exec(sql) {
     return this.db.exec(sql);
+  }
+
+  /**
+   * Universal query method (proxies to run or all)
+   */
+  async query(sql, params = []) {
+    const isSelect = sql.trim().toLowerCase().startsWith('select');
+    if (isSelect) {
+      return this.all(sql, params);
+    }
+    return this.run(sql, params);
   }
 
   /**

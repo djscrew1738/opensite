@@ -9,11 +9,13 @@ import { emailWatcherService } from './emailWatcher/index.js';
 import { webSocketService } from './websocket.js';
 import { printConfigStatus } from '../utils/notification-config-checker.js';
 import { hashPassword } from '../utils/auth.js';
+import { initializeJobHandlers } from './jobHandlers.js';
 import os from 'os';
 
 export async function startServer(app, port) {
   const server = app.listen(port, '0.0.0.0', async () => {
     webSocketService.initialize(server);
+    initializeJobHandlers();
     logger.info(`Server started on port ${port}`);
     
     await provisionGuestAccount();

@@ -508,18 +508,46 @@ Return JSON:
   }
 
   /**
-   * Save results to database
+   * Save results to database with versioning
    */
   async saveResults(projectId, results) {
     try {
-      await db.query(
-        `INSERT INTO blueprint_analysis (project_id, results, analyzed_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(project_id) DO UPDATE SET
-         results = excluded.results,
-         analyzed_at = excluded.analyzed_at`,
-        [projectId, JSON.stringify(results), new Date().toISOString()]
+      // Get current version if exists
+      const current = await db.get(
+        'SELECT id, version FROM blueprint_analysis WHERE project_id = ?',
+        [projectId]
       );
+
+      const nextVersion = (current?.version || 0) + 1;
+      const analysisId = current?.id || `ba-${Date.now()}`;
+      const now = new Date().toISOString();
+
+      if (current) {
+        // Archive current to history
+        const oldResults = await db.get('SELECT results, analyzed_at, metadata FROM blueprint_analysis WHERE id = ?', [analysisId]);
+        await db.run(
+          `INSERT INTO blueprint_analysis_history (id, analysis_id, results, analyzed_at, version, metadata)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [`bah-${Date.now()}`, analysisId, oldResults.results, oldResults.analyzed_at, current.version, oldResults.metadata]
+        );
+
+        // Update current
+        await db.run(
+          `UPDATE blueprint_analysis 
+           SET results = ?, analyzed_at = ?, version = ?
+           WHERE id = ?`,
+          [JSON.stringify(results), now, nextVersion, analysisId]
+        );
+      } else {
+        // Insert new
+        await db.run(
+          `INSERT INTO blueprint_analysis (id, project_id, results, analyzed_at, version)
+           VALUES (?, ?, ?, ?, ?)`,
+          [analysisId, projectId, JSON.stringify(results), now, 1]
+        );
+      }
+
+      logger.info(`Saved analysis results for project ${projectId} (v${nextVersion})`);
     } catch (error) {
       logger.error('Failed to save results:', error);
     }
@@ -530,7 +558,7 @@ Return JSON:
    */
   async getProjectAnalysis(projectId) {
     try {
-      const row = await db.query(
+      const row = await db.get(
         'SELECT * FROM blueprint_analysis WHERE project_id = ?',
         [projectId]
       );

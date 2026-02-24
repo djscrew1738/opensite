@@ -606,6 +606,21 @@ export class DatabaseService {
   /**
    * Execute SQL directly
    */
+  async query(sql, params = []) {
+    const res = await this.pool.query(this._convertSql(sql), params);
+    const isSelect = sql.trim().toLowerCase().startsWith('select');
+    if (isSelect) {
+      return res.rows;
+    }
+    return {
+      changes: res.rowCount,
+      lastInsertRowid: null
+    };
+  }
+
+  /**
+   * Execute SQL directly (legacy)
+   */
   async exec(sql) {
     return await this.pool.query(sql);
   }

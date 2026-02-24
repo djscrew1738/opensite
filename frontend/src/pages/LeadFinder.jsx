@@ -299,8 +299,6 @@ export default function LeadFinder() {
             </button>
           )}
         </div>
-      </header>
-
       {/* Tabs */}
       <div className="card">
         <div className="flex border-b border-surface-200 dark:border-surface-700 overflow-x-auto scrollbar-hide">

@@ -1,0 +1,30 @@
+# AECVision Integration Requirements
+# Computer Vision for Blueprint Analysis
+
+# Core ML/CV
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# YOLOv5 (Ultralytics)
+ultralytics>=8.0.0
+
+# PDF Processing
+PyMuPDF>=1.23.0
+
+# Slicing Aided Hyper Inference for large images
+sahi>=0.11.0
+
+# API Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# Data Processing
+pandas>=2.0.0
+
+# Utilities
+pydantic>=2.5.0
+python-dotenv>=1.0.0

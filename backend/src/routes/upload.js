@@ -9,6 +9,7 @@ import { enhancedBlueprintService } from '../services/blueprint-enhanced.js';
 import { aiProvider } from '../services/ai-provider.js';
 import { pricingService } from '../services/pricing.js';
 import { jobQueue, JOB_TYPES } from '../services/jobQueuePersistent.js';
+import { enhancedCVBlueprintService } from '../services/aecvision-client.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
@@ -538,6 +539,49 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
     },
     'Blueprint uploaded successfully. AI analysis in progress.'
   );
+}));
+
+// Enhanced blueprint analysis with CV + AI
+router.post('/blueprint/enhanced', upload.single('file'), tryCatch(async (req, res) => {
+  if (!req.file) {
+    return res.error('No file uploaded', 'MISSING_FILE', null, 400);
+  }
+
+  const filePath = req.file.path;
+  const fileName = req.file.originalname;
+  const { tier, model, useCV = 'true', useAI = 'true' } = req.body;
+
+  // Validate inputs
+  const validationErrors = validateInputs(tier, model);
+  if (validationErrors.length > 0) {
+    await safeDeleteFile(filePath);
+    return res.error('Validation failed', 'VALIDATION_ERROR', { errors: validationErrors }, 400);
+  }
+
+  try {
+    // Run enhanced analysis (CV + AI)
+    const results = await enhancedCVBlueprintService.analyzeBlueprint(filePath, {
+      useCV: useCV === 'true',
+      useAI: useAI === 'true',
+      tier,
+      model
+    });
+
+    // Clean up file
+    await safeDeleteFile(filePath);
+
+    res.success({
+      fileName,
+      analysis: results.combined,
+      cvAnalysis: results.cvAnalysis,
+      aiAnalysis: results.aiAnalysis,
+      metadata: results.metadata
+    }, 'Enhanced blueprint analysis completed');
+
+  } catch (error) {
+    await safeDeleteFile(filePath);
+    throw error;
+  }
 }));
 
 export default router;

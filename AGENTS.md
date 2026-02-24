@@ -24,6 +24,7 @@
 | **Canvas Workspace** | Visual workspace for project planning and blueprint annotation |
 | **AI Assistant** | Multi-provider AI chat with streaming responses |
 | **Email Watcher** | Outlook-based email monitoring with keyword alerts |
+| **AECVision CV** | Computer vision for blueprint analysis (walls, fixtures, pipe runs) |
 
 ---
 
@@ -73,6 +74,7 @@ The backend supports multiple AI providers with automatic fallback:
 - **nginx** - Reverse proxy & static serving
 - **PM2** - Process management in production
 - **Let's Encrypt** - SSL certificates
+- **AECVision** - Python CV service for blueprint analysis (YOLOv5)
 
 ---
 
@@ -167,7 +169,13 @@ The backend supports multiple AI providers with automatic fallback:
 ├── workers/                    # Python ARQ worker (background jobs)
 │   ├── tasks.py               # Job definitions (PDF processing)
 │   ├── settings.py            # ARQ worker configuration
-│   └── core/                  # Worker utilities
+│   ├── core/                  # Worker utilities
+│   │   ├── llm/               # LLM client and schemas
+│   │   └── aecvision/         # AECVision CV integration
+│   │       ├── api.py         # FastAPI CV service
+│   │       ├── detector.py    # YOLOv5 object detection
+│   │       ├── convert_pdf.py # PDF to image conversion
+│   │       └── analysis.py    # Plumbing estimation from CV
 │       ├── llm/               # LLM client and schemas
 │       └── vision/            # PDF tiling and image processing
 │
@@ -657,9 +665,90 @@ npm run build
 
 ---
 
+## AECVision Computer Vision Integration
+
+OpenSite integrates [AECVision](https://github.com/PawelKinczyk/AECVision) for computer vision-based blueprint analysis.
+
+### Capabilities
+- **Wall Detection** - Identify wall locations for pipe run estimation
+- **Fixture Detection** - Detect toilets, sinks, showers, bathtubs
+- **Room Analysis** - Identify room types and validate layouts
+- **Material Estimation** - Calculate pipe lengths based on wall geometry
+
+### Architecture
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  OpenSite       │────▶│  AECVision       │────▶│  YOLOv5         │
+│  Backend        │     │  Python Service  │     │  Object         │
+│  (Node.js)      │◀────│  (FastAPI)       │◀────│  Detection      │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+### Components
+1. **Python CV Service** (`workers/core/aecvision/`)
+   - `api.py` - FastAPI HTTP service (port 8002)
+   - `detector.py` - YOLOv5 wrapper for blueprint detection
+   - `convert_pdf.py` - PDF to image conversion with tiling
+   - `analysis.py` - Plumbing estimation from detected elements
+
+2. **Node.js Integration** (`backend/src/services/aecvision-client.js`)
+   - `AECVisionClient` - HTTP client for Python service
+   - `EnhancedCVBlueprintService` - Combines CV + AI analysis
+
+3. **API Routes** (`backend/src/routes/aecvision.js`)
+   - `/api/aecvision/health` - Service health
+   - `/api/aecvision/detect` - Object detection
+   - `/api/aecvision/analyze` - Complete analysis
+   - `/api/aecvision/enhanced-analysis` - CV + AI combined
+
+### Starting the Service
+```bash
+# Start AECVision CV service
+./start-aecvision.sh
+
+# Or manually
+cd workers/core/aecvision
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 api.py
+```
+
+### API Endpoints
+- `POST /api/aecvision/detect` - Run object detection
+- `POST /api/aecvision/analyze` - Full CV analysis with plumbing estimates
+- `POST /api/aecvision/walls` - Wall detection for pipe runs
+- `POST /api/aecvision/enhanced-analysis` - Combined CV + AI
+
+### Model Setup
+Models from the original AECVision repo should be placed in:
+```
+train_results/
+├── model_12classes/weights/best.pt
+├── model_walls/weights/best.pt
+└── ...
+```
+
+If no custom model is found, the service falls back to YOLOv5m pretrained on COCO.
+
+### Environment Variables
+```bash
+AECVISION_URL=http://localhost:8002
+AECVISION_CONFIDENCE=0.5
+AECVISION_DEVICE=cuda  # or 'cpu'
+AECVISION_MODEL_PATH=./train_results/model_12classes/weights/best.pt
+```
+
+### Documentation
+- `AECVISION_INTEGRATION.md` - Complete integration guide
+- `test-aecvision.sh` - Test script
+
+---
+
 ## Key Documentation Files
 
 - `README.md` - User-facing quick start documentation
+- `AECVISION_INTEGRATION.md` - Computer vision integration guide
 - `MODELS.md` - AI model selection guide
 - `DEPLOY.md` - Detailed deployment instructions
 - `QUICK_START.md` - Quick reference card
@@ -678,4 +767,8 @@ npm run build
 
 ---
 
-*Last updated: 2026-02-23*
+*Last updated: 2026-02-24*
+
+---
+
+*Changes: Added AECVision computer vision integration for enhanced blueprint analysis with YOLOv5 object detection.*

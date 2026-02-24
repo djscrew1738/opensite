@@ -272,9 +272,7 @@ router.get('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if takeoff belongs to user
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const items = await db.getTakeoffItems(req.params.id);
   res.success({ ...takeoff, items });
@@ -307,9 +305,7 @@ router.put('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if takeoff belongs to user
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const updatedTakeoff = await db.updateTakeoff(req.params.id, req.body);
   res.success(updatedTakeoff, 'Takeoff updated successfully');
@@ -323,9 +319,7 @@ router.delete('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if takeoff belongs to user
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const deleted = await db.deleteTakeoff(req.params.id);
   res.success({ id: req.params.id }, 'Takeoff deleted successfully');
@@ -341,9 +335,7 @@ router.get('/:id/items', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const items = await db.getTakeoffItems(req.params.id);
   res.success({ items, total: items.length });
@@ -357,9 +349,7 @@ router.post('/:id/items', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const { materialId, measurementType, label, quantity, unit, unitCost, measurementData, notes } = req.body;
 
@@ -409,9 +399,7 @@ router.put('/:takeoffId/items/:itemId', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const { quantity, unitCost, ...rest } = req.body;
   const qty = quantity !== undefined ? Number(quantity) : undefined;
@@ -442,9 +430,7 @@ router.delete('/:takeoffId/items/:itemId', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const deleted = await db.deleteTakeoffItem(req.params.itemId);
   if (!deleted) {
@@ -463,9 +449,7 @@ router.get('/:id/summary', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (takeoff.userId && takeoff.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const summary = await db.generateTakeoffSummary(req.params.id);
   res.success({

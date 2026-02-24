@@ -25,9 +25,7 @@ router.get('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if project belongs to user
-  if (project.userId && project.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   res.success({ project });
 }));
@@ -92,9 +90,7 @@ router.delete('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if project belongs to user
-  if (project.userId && project.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const deleted = await db.deleteProject(req.params.id);
   

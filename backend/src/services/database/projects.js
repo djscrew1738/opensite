@@ -44,11 +44,7 @@ export function addProjectOperations(DatabaseService) {
     let query = 'SELECT * FROM projects WHERE 1=1';
     const params = [];
 
-    if (filters.userId) {
-      // Include projects owned by user OR unassigned projects (userId IS NULL or empty)
-      query += ' AND (userId = ? OR userId IS NULL OR userId = \'\')';
-      params.push(filters.userId);
-    }
+    /* User filter disabled for company-wide access */
 
     query += ' ORDER BY updatedAt DESC';
     

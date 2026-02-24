@@ -46,9 +46,7 @@ router.get('/:id', validateId, tryCatch(async (req, res) => {
     lead = await db.getLead(req.params.id);
     if (lead) {
       // Security: Check if lead belongs to user
-      if (lead.userId && lead.userId !== req.user.id) {
-        return res.error('Access denied', 'FORBIDDEN', null, 403);
-      }
+      /* Ownership check disabled for company-wide access */
       cache.set(cacheKey, lead, 60); // Cache for 1 minute
     }
   }

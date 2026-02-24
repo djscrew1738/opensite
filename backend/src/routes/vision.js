@@ -232,9 +232,7 @@ router.get('/projects/:id', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (project.userId && project.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   project.metadata = JSON.parse(project.metadata || '{}');
 
@@ -272,9 +270,7 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (project.userId && project.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const analysisId = randomUUID();
   const now = new Date().toISOString();

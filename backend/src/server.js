@@ -11,6 +11,7 @@ import os from 'os';
 import logger from './services/logger.js';
 import { db } from './services/database.js';
 import cache from './services/cache.js';
+import { hashPassword } from './utils/auth.js';
 
 // Import middleware
 import {
@@ -361,6 +362,28 @@ const adminConfigured = checkAdminTokenConfig();
 // Start server on all interfaces
 const server = app.listen(PORT, '0.0.0.0', async () => {
   logger.info('Server started', { port: PORT, adminConfigured });
+
+  // Ensure Guest account exists for easy demo/testing
+  try {
+    const guestEmail = 'guest@ctlplumbingllc.com';
+    let guestUser = await db.getUserByEmail(guestEmail);
+    const hashedGuestPassword = await hashPassword('guest');
+    if (!guestUser) {
+      await db.createUser({
+        username: 'Guest User',
+        email: guestEmail,
+        passwordHash: hashedGuestPassword,
+        role: 'viewer',
+        isActive: true
+      });
+      logger.info('Auto-provisioned guest account (guest@ctlplumbingllc.com / guest)');
+    } else {
+      // Ensure password is correct and account is active
+      await db.updateUser(guestUser.id, { passwordHash: hashedGuestPassword, role: 'viewer', isActive: true });
+    }
+  } catch (err) {
+    logger.warn('Failed to auto-provision guest account', { error: err.message });
+  }
 
   // Load saved settings and apply to all AI providers
   try {

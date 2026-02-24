@@ -32,9 +32,7 @@ router.get('/conversations/:id', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (conv.userId && conv.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   res.success(conv);
 }));
@@ -47,9 +45,7 @@ router.delete('/conversations/:id', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (conv.userId && conv.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const deleted = await db.deleteConversation(req.params.id);
   res.success({ deleted: true }, 'Conversation deleted successfully');
@@ -85,9 +81,7 @@ router.get('/estimates/:id', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (estimate.userId && estimate.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   // Use database wrapper method instead of direct db.db.prepare
   const blueprints = await db.getBlueprintsByEstimateId(req.params.id);
@@ -104,9 +98,7 @@ router.delete('/estimates/:id', tryCatch(async (req, res) => {
   }
 
   // Security check
-  if (estimate.userId && estimate.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   const deleted = await db.deleteEstimate(req.params.id);
   res.success({ deleted: true }, 'Estimate deleted successfully');

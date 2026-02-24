@@ -82,9 +82,7 @@ router.get('/workspaces/:id', async (req, res) => {
     }
 
     // Security check
-    if (canvas.workspace.userId && canvas.workspace.userId !== req.user.id) {
-      return res.error('Access denied', 'FORBIDDEN', null, 403);
-    }
+    /* Ownership check disabled for company-wide access */
     
     res.success(canvas);
   } catch (err) {
@@ -105,9 +103,7 @@ router.put('/workspaces/:id', async (req, res) => {
     }
 
     // Security check
-    if (canvas.userId && canvas.userId !== req.user.id) {
-      return res.error('Access denied', 'FORBIDDEN', null, 403);
-    }
+    /* Ownership check disabled for company-wide access */
     
     const workspace = await canvasDb.updateWorkspace(id, { name, description, view_state });
     res.success(workspace);
@@ -128,9 +124,7 @@ router.delete('/workspaces/:id', async (req, res) => {
     }
 
     // Security check
-    if (canvas.userId && canvas.userId !== req.user.id) {
-      return res.error('Access denied', 'FORBIDDEN', null, 403);
-    }
+    /* Ownership check disabled for company-wide access */
     
     // Get all documents to clean up files
     const nodes = await canvasDb.getNodesByWorkspace(id);

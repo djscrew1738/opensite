@@ -31,6 +31,19 @@ export function Login() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setIsRunning(true);
+    try {
+      await login('guest@ctlplumbingllc.com', 'guest');
+      showToastSuccess('Logged in as Guest!');
+      navigate(from, { replace: true });
+    } catch (err) {
+      showToastError(err.message || 'Guest login failed. Is the database seeded?');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
       <div className="max-w-md w-full">
@@ -84,6 +97,18 @@ export function Login() {
               {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
             </button>
           </form>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              disabled={isSubmitting}
+              className="w-full py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              Login as Guest
+            </button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-400">

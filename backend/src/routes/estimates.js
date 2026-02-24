@@ -134,9 +134,7 @@ router.get('/:id', tryCatch(async (req, res) => {
   }
 
   // Security: Check if estimate belongs to user
-  if (estimate.userId && estimate.userId !== req.user.id) {
-    return res.error('Access denied', 'FORBIDDEN', null, 403);
-  }
+  /* Ownership check disabled for company-wide access */
 
   res.success({ estimate });
 }));

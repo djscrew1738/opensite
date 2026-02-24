@@ -46,11 +46,7 @@ export function addLeadOperations(DatabaseService) {
     let query = 'SELECT * FROM leads WHERE 1=1';
     const params = [];
     
-    if (filters.userId) {
-      // Include leads owned by user OR unassigned leads (userId IS NULL or empty)
-      query += ' AND (userId = ? OR userId IS NULL OR userId = \'\')';
-      params.push(filters.userId);
-    }
+    /* User filter disabled for company-wide access */
 
     if (filters.status) {
       query += ' AND status = ?';

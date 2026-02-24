@@ -296,10 +296,7 @@ export function addTakeoffOperations(DatabaseService) {
     let query = 'SELECT * FROM takeoffs WHERE 1=1';
     const params = [];
     
-    if (filters.userId) {
-      query += ' AND userId = ?';
-      params.push(filters.userId);
-    }
+    /* User filter disabled for company-wide access */
 
     if (filters.status) {
       query += ' AND status = ?';

@@ -10,22 +10,26 @@ export function AuthProvider({ children }) {
 
   // Load user on mount if token exists
   useEffect(() => {
+    let isMounted = true;
+    
     const initAuth = async () => {
       const token = localStorage.getItem('auth_token');
       if (token) {
         try {
           const data = await api.auth.me();
-          setUser(data.user);
+          if (isMounted) setUser(data.user);
         } catch (err) {
           console.error('Failed to restore session:', err.message);
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user_data');
         }
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
 
     initAuth();
+    
+    return () => { isMounted = false; };
   }, []);
 
   const login = useCallback(async (email, password) => {

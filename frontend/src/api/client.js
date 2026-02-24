@@ -95,8 +95,12 @@ export const api = {
     register: (data) => apiClient.post('/auth/register', data),
     me: () => apiClient.get('/auth/me'),
     logout: () => {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_data');
+      try {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+      } catch (e) {
+        console.warn('localStorage access failed:', e);
+      }
       window.location.href = '/login';
     }
   },

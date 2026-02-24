@@ -15,7 +15,14 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 });
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  console.error('Failed to find root element. The app cannot start.');
+  document.body.innerHTML = '<div style="padding: 20px; text-align: center; font-family: system-ui, sans-serif;"><h1>Application Error</h1><p>Failed to initialize the application. Please refresh the page.</p></div>';
+  throw new Error('Root element not found');
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <App />
   </StrictMode>,

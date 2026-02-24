@@ -200,8 +200,16 @@ export default function App() {
                 <RoutePrefetcher />
                 <Routes>
                   {/* Auth Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
+                  <Route path="/login" element={
+                    <ErrorBoundary componentName="Login">
+                      <Login />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/register" element={
+                    <ErrorBoundary componentName="Register">
+                      <Register />
+                    </ErrorBoundary>
+                  } />
 
                   {/* Protected App Routes */}
                   <Route element={<ProtectedRoute />}>
@@ -227,7 +235,13 @@ export default function App() {
                     </Route>
                     
                     {/* Canvas - Full screen, no layout */}
-                    <Route path="canvas" element={<Canvas />} />
+                    <Route path="canvas" element={
+                      <ErrorBoundary componentName="Canvas">
+                        <Suspense fallback={<PageLoader />}>
+                          <Canvas />
+                        </Suspense>
+                      </ErrorBoundary>
+                    } />
                   </Route>
                 </Routes>
               </BrowserRouter>

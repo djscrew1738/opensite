@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 /**
  * useMicroInteraction — Hook for consistent micro-interactions
@@ -111,6 +111,7 @@ export function useMicroInteraction({
 export function useRipple() {
   const [ripples, setRipples] = useState([]);
   const containerRef = useRef(null);
+  const timeoutsRef = useRef([]);
 
   const createRipple = useCallback((event) => {
     const container = containerRef.current;
@@ -131,9 +132,18 @@ export function useRipple() {
     setRipples(prev => [...prev, newRipple]);
 
     // Remove ripple after animation
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== newRipple.id));
     }, 600);
+    timeoutsRef.current.push(timeoutId);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(id => clearTimeout(id));
+      timeoutsRef.current = [];
+    };
   }, []);
 
   return { ripples, createRipple, containerRef };
@@ -146,6 +156,7 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
   const [displayValue, setDisplayValue] = useState(value);
   const startTimeRef = useRef(null);
   const startValueRef = useRef(value);
+  const rafRef = useRef(null);
 
   const animate = useCallback((timestamp) => {
     if (!startTimeRef.current) {
@@ -155,7 +166,7 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
     const elapsed = timestamp - startTimeRef.current - delay;
     
     if (elapsed < 0) {
-      requestAnimationFrame(animate);
+      rafRef.current = requestAnimationFrame(animate);
       return;
     }
 
@@ -166,7 +177,7 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
     setDisplayValue(Math.round(currentValue * 100) / 100);
 
     if (progress < 1) {
-      requestAnimationFrame(animate);
+      rafRef.current = requestAnimationFrame(animate);
     } else {
       startTimeRef.current = null;
       startValueRef.current = value;
@@ -179,9 +190,15 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
     if (prevValueRef.current !== value) {
       startTimeRef.current = null;
       startValueRef.current = displayValue;
-      requestAnimationFrame(animate);
+      rafRef.current = requestAnimationFrame(animate);
       prevValueRef.current = value;
     }
+    
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, [value, animate, displayValue]);
 
   return displayValue;
@@ -192,18 +209,28 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
  */
 export function useStaggeredAnimation(itemCount, { staggerDelay = 50, initialDelay = 0 } = {}) {
   const [visibleItems, setVisibleItems] = useState(new Set());
+  const timeoutsRef = useRef([]);
 
   const trigger = useCallback(() => {
     setVisibleItems(new Set());
     
     for (let i = 0; i < itemCount; i++) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setVisibleItems(prev => new Set([...prev, i]));
       }, initialDelay + i * staggerDelay);
+      timeoutsRef.current.push(timeoutId);
     }
   }, [itemCount, staggerDelay, initialDelay]);
 
   const isVisible = useCallback((index) => visibleItems.has(index), [visibleItems]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(id => clearTimeout(id));
+      timeoutsRef.current = [];
+    };
+  }, []);
 
   return { trigger, isVisible, visibleCount: visibleItems.size };
 }
@@ -214,6 +241,7 @@ export function useStaggeredAnimation(itemCount, { staggerDelay = 50, initialDel
 export function useLoadingState() {
   const [state, setState] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
   const [error, setError] = useState(null);
+  const timeoutsRef = useRef([]);
 
   const startLoading = useCallback(() => {
     setState('loading');
@@ -222,21 +250,32 @@ export function useLoadingState() {
 
   const setSuccess = useCallback(() => {
     setState('success');
-    setTimeout(() => setState('idle'), 2000);
+    const timeoutId = setTimeout(() => setState('idle'), 2000);
+    timeoutsRef.current.push(timeoutId);
   }, []);
 
   const setErrorState = useCallback((err) => {
     setState('error');
     setError(err);
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setState('idle');
       setError(null);
     }, 3000);
+    timeoutsRef.current.push(timeoutId);
   }, []);
 
   const reset = useCallback(() => {
+    timeoutsRef.current.forEach(id => clearTimeout(id));
+    timeoutsRef.current = [];
     setState('idle');
     setError(null);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(id => clearTimeout(id));
+    };
   }, []);
 
   return {

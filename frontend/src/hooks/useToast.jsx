@@ -64,6 +64,14 @@ export function ToastProvider({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Clear timer for a specific toast
+  const clearToastTimer = useCallback((id) => {
+    if (timersRef.current.has(id)) {
+      clearTimeout(timersRef.current.get(id));
+      timersRef.current.delete(id);
+    }
+  }, []);
+
   const dismissToast = useCallback((id) => {
     clearToastTimer(id);
     setToasts((prev) => {

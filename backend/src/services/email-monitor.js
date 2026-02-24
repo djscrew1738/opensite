@@ -136,6 +136,60 @@ async function sendEmailAlertSms(emailData, matchedKeywords) {
 }
 
 /**
+ * Detect if error is due to Outlook/Office365 OAuth requirement
+ */
+function isOutlookOAuthError(err, host) {
+  const message = err.message || '';
+  const isOutlook = host?.includes('outlook') || host?.includes('office365');
+  
+  // Check for various OAuth/authentication failure patterns
+  return isOutlook && (
+    message.includes('AUTHENTICATE failed') ||
+    message.includes('Login failed') ||
+    message.includes('Invalid credentials') ||
+    message.includes('AUTH') ||
+    message.includes('535') ||
+    message.includes('5.7.139') ||
+    message.includes('5.7.1') ||
+    message.includes('BasicAuthDisabled')
+  );
+}
+
+/**
+ * Get helpful error message for Outlook authentication issues
+ */
+function getOutlookAuthHelpMessage(user) {
+  return `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTLOOK/OFFICE365 AUTHENTICATION ERROR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Microsoft has disabled basic password authentication for IMAP.
+
+To fix this, you have two options:
+
+OPTION 1: Use an App Password (Recommended)
+─────────────────────────────────────────
+1. Go to: https://account.microsoft.com/security
+2. Sign in with your Microsoft account
+3. Click "Advanced security options"
+4. Turn ON "Two-step verification" (required for app passwords)
+5. Click "Create a new app password"
+6. Name it "OpenSite Job Pulse"
+7. Copy the generated password (it looks like: abcd efgh ijkl mnop)
+8. Paste it in the Password field above (without spaces)
+
+OPTION 2: Enable Basic Auth (Not Recommended)
+─────────────────────────────────────────
+Contact your Microsoft 365 administrator to enable
+"Basic Authentication" for IMAP in the Exchange Admin Center.
+Note: Microsoft is phasing out this option.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+}
+
+/**
  * Test IMAP connection with given credentials
  */
 export async function testImapConnection(config) {
@@ -148,6 +202,9 @@ export async function testImapConnection(config) {
       pass: config.pass,
     },
     logger: false,
+    // Increase connection timeout
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
   });
 
   try {
@@ -162,7 +219,23 @@ export async function testImapConnection(config) {
     await client.logout();
     return result;
   } catch (err) {
-    throw new Error(`IMAP connection failed: ${err.message}`);
+    const errorMessage = err.message || 'Unknown error';
+    
+    // Check for Outlook OAuth issues
+    if (isOutlookOAuthError(err, config.host)) {
+      const helpMessage = getOutlookAuthHelpMessage(config.user);
+      log.warn(`Outlook OAuth error for ${config.user}: ${errorMessage}`);
+      throw new Error(`Outlook authentication failed. Please use an App Password instead of your regular password.${helpMessage}`);
+    }
+    
+    // Check for Gmail OAuth issues
+    if (config.host?.includes('gmail') || config.host?.includes('google')) {
+      if (errorMessage.includes('AUTHENTICATE') || errorMessage.includes('Login failed') || errorMessage.includes('Invalid credentials')) {
+        throw new Error(`Gmail authentication failed. Please use an App Password.\n\nTo create an App Password:\n1. Go to https://myaccount.google.com/apppasswords\n2. Sign in with your Google account\n3. Select "Mail" and your device\n4. Copy the 16-character password and paste it here.`);
+      }
+    }
+    
+    throw new Error(`IMAP connection failed: ${errorMessage}`);
   }
 }
 
@@ -198,10 +271,20 @@ export async function checkEmails() {
     secure: true,
     auth: { user, pass },
     logger: false,
+    // Increase connection timeouts for better reliability
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
   });
 
   try {
     await client.connect();
+    
+    // Check for authentication errors on connect
+    if (!client.authenticated) {
+      throw new Error('Authentication failed - please check your credentials');
+    }
+    
     const lock = await client.getMailboxLock('INBOX');
 
     try {
@@ -307,10 +390,38 @@ export async function checkEmails() {
     await client.logout();
 
   } catch (err) {
-    log.error(`Email check failed: ${err.message}`);
+    const errorMessage = err.message || 'Unknown error';
+    log.error(`Email check failed: ${errorMessage}`);
+    
+    // Check for Outlook OAuth issues
+    if (isOutlookOAuthError(err, host)) {
+      const helpMessage = getOutlookAuthHelpMessage(user);
+      log.warn(`Outlook OAuth error during check for ${user}: ${errorMessage}`);
+      isChecking = false;
+      lastCheckTime = new Date().toISOString();
+      lastCheckResult = { 
+        error: 'Outlook authentication failed. Please use an App Password.',
+        help: helpMessage,
+        requiresAppPassword: true
+      };
+      return lastCheckResult;
+    }
+    
+    // Check for Gmail OAuth issues
+    if ((host?.includes('gmail') || host?.includes('google')) && 
+        (errorMessage.includes('AUTHENTICATE') || errorMessage.includes('Login failed'))) {
+      isChecking = false;
+      lastCheckTime = new Date().toISOString();
+      lastCheckResult = { 
+        error: 'Gmail authentication failed. Please use an App Password.',
+        requiresAppPassword: true
+      };
+      return lastCheckResult;
+    }
+    
     isChecking = false;
     lastCheckTime = new Date().toISOString();
-    lastCheckResult = { error: err.message };
+    lastCheckResult = { error: errorMessage };
     return lastCheckResult;
   }
 

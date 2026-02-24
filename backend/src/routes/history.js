@@ -12,16 +12,23 @@ router.use(authenticateToken);
 router.get('/conversations', tryCatch(async (req, res) => {
   const conversations = await db.getAllConversations({ search: req.query.search, userId: req.user.id });
   const summaries = conversations.map(conv => {
-    const firstUserMsg = conv.messages.find(m => m.role === 'user');
+    let messages = [];
+    try {
+      messages = JSON.parse(conv.messages);
+    } catch (e) {
+      messages = [];
+    }
+    const firstUserMsg = messages.find(m => m.role === 'user');
     return {
       id: conv.id,
+      title: conv.title || (firstUserMsg ? firstUserMsg.content.slice(0, 40) + (firstUserMsg.content.length > 40 ? '...' : '') : 'New Conversation'),
       preview: firstUserMsg ? firstUserMsg.content.slice(0, 120) : '(empty conversation)',
-      messageCount: conv.messages.length,
+      messageCount: messages.length,
       createdAt: conv.createdAt,
       updatedAt: conv.updatedAt,
     };
   });
-  res.success(summaries);
+  res.success({ conversations: summaries });
 }));
 
 // Get full conversation

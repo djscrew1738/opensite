@@ -319,8 +319,8 @@ class OllamaService {
     return recommendations[task] || this.defaultModel;
   }
 
-  getChatPrompt(message, history = []) {
-    let prompt = `You are an AI assistant for a construction leads management system.\n\n`;
+  getChatPrompt(message, history = [], system = null) {
+    let prompt = `${system || 'You are an AI assistant for a construction leads management system.'}\n\n`;
     for (const h of history) {
       prompt += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\n\n`;
     }
@@ -333,8 +333,8 @@ class OllamaService {
    * Ollama uses prompt-based format but this method provides consistency
    * with other providers for the AI provider manager
    */
-  getChatMessages(message, history = []) {
-    const prompt = this.getChatPrompt(message, history);
+  getChatMessages(message, history = [], system = null) {
+    const prompt = this.getChatPrompt(message, history, system);
     return { system: '', messages: [{ role: 'user', content: prompt }] };
   }
 

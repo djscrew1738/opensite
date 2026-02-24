@@ -10,8 +10,12 @@ import {
 } from '../services/email-monitor.js';
 import { db } from '../services/database.js';
 import { encrypt, isEncrypted } from '../utils/encryption.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 
 const router = express.Router();
+
+// Apply authentication to all email monitor routes
+router.use(authenticateToken);
 
 // POST /api/email-monitor/test — test IMAP connection
 router.post('/test', async (req, res) => {

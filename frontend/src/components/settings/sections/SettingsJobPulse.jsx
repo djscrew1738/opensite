@@ -1,7 +1,8 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
   Activity, Bell, Mail, Phone, Key,
-  Loader2, Save, Zap, RefreshCw, AlertCircle
+  Loader2, Save, Zap, RefreshCw, AlertCircle,
+  ExternalLink, HelpCircle
 } from 'lucide-react';
 import { Section, SettingsRow, Toggle } from '../primitives';
 
@@ -33,6 +34,26 @@ function SettingsJobPulse({
 }) {
   // Defensive: ensure emAlerts is always an array
   const emAlerts = Array.isArray(rawEmAlerts) ? rawEmAlerts : [];
+  
+  // Local state for connection error and help
+  const [connectionError, setConnectionError] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  
+  // Determine if Outlook is selected
+  const isOutlook = emHost?.includes('outlook') || emHost?.includes('office365');
+  const isGmail = emHost?.includes('gmail') || emHost?.includes('google');
+  
+  // Wrapped test handler with error capture
+  const handleTestWithError = async () => {
+    setConnectionError(null);
+    try {
+      await handleTestEmailMonitor();
+    } catch (err) {
+      setConnectionError(err.message || 'Connection failed');
+      setShowHelp(true);
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <Section icon={Activity} title="Job Pulse Email Login"
@@ -55,15 +76,75 @@ function SettingsJobPulse({
 
           {emEnabled && (
             <>
-              <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-800/40 mb-4">
-                <p className="text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>
-                    Use an <strong>App Password</strong> if your email has 2FA/MFA enabled.
-                    For Outlook, generate one at account.microsoft.com/security.
-                  </span>
-                </p>
-              </div>
+              {/* Connection Error Display */}
+              {connectionError && (
+                <div className="p-4 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-200/60 dark:border-red-800/40 mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-1">
+                        Connection Failed
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                        {connectionError}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Help Box - App Password Instructions */}
+              {(isOutlook || isGmail || showHelp) && (
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200/60 dark:border-amber-800/40 mb-4">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+                        {isOutlook ? 'Microsoft 365 / Outlook Requires App Password' : 
+                         isGmail ? 'Gmail Requires App Password' : 
+                         'Email Authentication Help'}
+                      </p>
+                      <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                        {isOutlook 
+                          ? 'Microsoft has disabled basic password authentication. You must use an App Password.'
+                          : isGmail
+                          ? 'Google requires App Passwords for IMAP access when 2FA is enabled.'
+                          : 'Your email provider may require an App Password for IMAP access.'}
+                      </p>
+                      
+                      {isOutlook && (
+                        <ol className="text-sm text-amber-700 dark:text-amber-400 space-y-1.5 list-decimal list-inside mb-3">
+                          <li>Go to <a href="https://account.microsoft.com/security" target="_blank" rel="noopener noreferrer" className="underline font-medium inline-flex items-center gap-1">account.microsoft.com/security <ExternalLink className="w-3 h-3" /></a></li>
+                          <li>Sign in with your Microsoft account</li>
+                          <li>Click &quot;Advanced security options&quot;</li>
+                          <li>Turn ON &quot;Two-step verification&quot; (required)</li>
+                          <li>Click &quot;Create a new app password&quot;</li>
+                          <li>Name it &quot;OpenSite Job Pulse&quot;</li>
+                          <li>Copy the 16-character password</li>
+                          <li>Paste it in the Password field below (no spaces)</li>
+                        </ol>
+                      )}
+                      
+                      {isGmail && (
+                        <ol className="text-sm text-amber-700 dark:text-amber-400 space-y-1.5 list-decimal list-inside mb-3">
+                          <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline font-medium inline-flex items-center gap-1">myaccount.google.com/apppasswords <ExternalLink className="w-3 h-3" /></a></li>
+                          <li>Sign in with your Google account</li>
+                          <li>Select &quot;Mail&quot; and your device</li>
+                          <li>Copy the 16-character password</li>
+                          <li>Paste it in the Password field below</li>
+                        </ol>
+                      )}
+                      
+                      <button 
+                        onClick={() => setShowHelp(false)}
+                        className="text-xs text-amber-800 dark:text-amber-300 underline"
+                      >
+                        Hide help
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -156,7 +237,7 @@ function SettingsJobPulse({
               </div>
 
               <div className="flex flex-wrap gap-2 pt-2">
-                <button onClick={handleTestEmailMonitor} disabled={emTesting} className="btn-secondary text-sm whitespace-nowrap">
+                <button onClick={handleTestWithError} disabled={emTesting || !emUser} className="btn-secondary text-sm whitespace-nowrap">
                   {emTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test Connection
                 </button>
                 <button onClick={handleCheckNow} disabled={emChecking} className="btn-secondary text-sm whitespace-nowrap">
@@ -165,6 +246,11 @@ function SettingsJobPulse({
                 <button onClick={handleSaveEmailMonitor} disabled={emSaving} className="btn-primary text-sm whitespace-nowrap">
                   {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Job Pulse Email
                 </button>
+                {!showHelp && (isOutlook || isGmail) && (
+                  <button onClick={() => setShowHelp(true)} className="btn-ghost text-sm whitespace-nowrap text-amber-600 dark:text-amber-400">
+                    <HelpCircle className="w-4 h-4" /> Need App Password?
+                  </button>
+                )}
               </div>
 
               {/* Connection Status */}

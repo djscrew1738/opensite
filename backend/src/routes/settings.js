@@ -56,8 +56,8 @@ router.get('/', tryCatch(async (req, res) => {
   res.success(settings);
 }));
 
-// Update settings (partial merge) - Require admin
-router.put('/', requireRole(['admin']), tryCatch(async (req, res) => {
+// Update settings (partial merge) - Allow admin and editor
+router.put('/', requireRole(['admin', 'editor']), tryCatch(async (req, res) => {
   const updates = req.body;
 
   if (!updates || Object.keys(updates).length === 0) {
@@ -274,6 +274,163 @@ router.post('/test-telegram', tryCatch(async (req, res) => {
     }
   } catch (error) {
     res.success({ valid: false, error: error.message });
+  }
+}));
+
+// Test SendGrid API key
+router.post('/test-sendgrid', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || (await db.getSetting('sendgrid_api_key'));
+  if (!apiKey) return res.success({ valid: false, error: 'No API key provided' });
+  try {
+    const { default: axios } = await import('axios');
+    // SendGrid API v3 - validate by fetching user profile
+    const response = await axios.get('https://api.sendgrid.com/v3/user/profile', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 10000,
+    });
+    res.success({ valid: true, user: response.data?.first_name || 'Valid' });
+  } catch (error) {
+    res.success({ valid: false, error: error.response?.status === 401 ? 'Invalid API key' : error.message });
+  }
+}));
+
+// Test Stripe API key
+router.post('/test-stripe', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || (await db.getSetting('stripe_api_key'));
+  if (!apiKey) return res.success({ valid: false, error: 'No API key provided' });
+  try {
+    const { default: axios } = await import('axios');
+    // Stripe API - validate by fetching account info
+    const response = await axios.get('https://api.stripe.com/v1/account', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 10000,
+    });
+    res.success({ 
+      valid: true, 
+      account: response.data?.settings?.dashboard?.display_name || 'Valid',
+      mode: response.data?.charges_enabled ? 'Live' : 'Test'
+    });
+  } catch (error) {
+    res.success({ valid: false, error: error.response?.status === 401 ? 'Invalid API key' : error.message });
+  }
+}));
+
+// Test Google Maps API key
+router.post('/test-google-maps', tryCatch(async (req, res) => {
+  const { key } = req.body;
+  const apiKey = key || (await db.getSetting('google_maps_api_key'));
+  if (!apiKey) return res.success({ valid: false, error: 'No API key provided' });
+  try {
+    const { default: axios } = await import('axios');
+    // Test with a simple geocoding request
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: { address: 'New York, NY', key: apiKey },
+      timeout: 10000,
+    });
+    if (response.data?.status === 'OK') {
+      res.success({ valid: true, status: 'OK' });
+    } else if (response.data?.status === 'REQUEST_DENIED') {
+      res.success({ valid: false, error: 'Invalid API key or API not enabled' });
+    } else {
+      res.success({ valid: false, error: response.data?.status || 'Unknown error' });
+    }
+  } catch (error) {
+    res.success({ valid: false, error: error.message });
+  }
+}));
+
+// Test Microsoft OAuth credentials
+router.post('/test-microsoft', tryCatch(async (req, res) => {
+  const { clientId, clientSecret } = req.body;
+  const msClientId = clientId || (await db.getSetting('microsoft_client_id'));
+  const msClientSecret = clientSecret || (await db.getSetting('microsoft_client_secret'));
+  
+  if (!msClientId || !msClientSecret) {
+    return res.success({ valid: false, error: 'Client ID and Client Secret required' });
+  }
+  
+  try {
+    const { default: axios } = await import('axios');
+    // Microsoft Graph - get access token using client credentials flow
+    const tokenResponse = await axios.post(
+      `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
+      new URLSearchParams({
+        client_id: msClientId,
+        client_secret: msClientSecret,
+        scope: 'https://graph.microsoft.com/.default',
+        grant_type: 'client_credentials'
+      }),
+      { 
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 15000 
+      }
+    );
+    
+    if (tokenResponse.data?.access_token) {
+      // Token obtained - credentials are valid
+      res.success({ valid: true, tokenType: tokenResponse.data?.token_type || 'Bearer' });
+    } else {
+      res.success({ valid: false, error: 'Could not obtain access token' });
+    }
+  } catch (error) {
+    const status = error.response?.status;
+    const errorCode = error.response?.data?.error;
+    if (status === 401 || errorCode === 'invalid_client') {
+      res.success({ valid: false, error: 'Invalid client credentials' });
+    } else {
+      res.success({ valid: false, error: error.response?.data?.error_description || error.message });
+    }
+  }
+}));
+
+// Test Google OAuth credentials  
+router.post('/test-google', tryCatch(async (req, res) => {
+  const { clientId, clientSecret } = req.body;
+  const googleClientId = clientId || (await db.getSetting('google_client_id'));
+  const googleClientSecret = clientSecret || (await db.getSetting('google_client_secret'));
+  
+  if (!googleClientId || !googleClientSecret) {
+    return res.success({ valid: false, error: 'Client ID and Client Secret required' });
+  }
+  
+  try {
+    const { default: axios } = await import('axios');
+    // Google OAuth - we can't fully test without user consent, but we can validate
+    // the client credentials format by attempting a token refresh (which will fail
+    // without a refresh token, but tells us if credentials are recognized)
+    
+    // Alternatively, check if we can fetch the OAuth 2.0 configuration
+    // We'll validate by making a request to Google's token endpoint with invalid grant
+    // which should return "invalid_grant" (credentials valid) vs "invalid_client" (credentials invalid)
+    const tokenResponse = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      new URLSearchParams({
+        client_id: googleClientId,
+        client_secret: googleClientSecret,
+        grant_type: 'refresh_token',
+        refresh_token: 'invalid_token_for_testing'
+      }),
+      { 
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 15000 
+      }
+    );
+    
+    // If we somehow got here, credentials worked
+    res.success({ valid: true, message: 'Google OAuth credentials format is valid' });
+  } catch (error) {
+    const errorCode = error.response?.data?.error;
+    // "invalid_grant" means client_id/secret are valid, but refresh token is bad
+    // "unauthorized_client" or "invalid_client" means bad credentials
+    if (errorCode === 'invalid_grant') {
+      res.success({ valid: true, message: 'Google OAuth credentials are valid' });
+    } else if (errorCode === 'invalid_client' || errorCode === 'unauthorized_client') {
+      res.success({ valid: false, error: 'Invalid client credentials' });
+    } else {
+      res.success({ valid: false, error: error.response?.data?.error_description || error.message });
+    }
   }
 }));
 

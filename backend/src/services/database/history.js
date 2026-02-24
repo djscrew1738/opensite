@@ -66,19 +66,73 @@ export function addHistoryOperations(DatabaseService) {
   // Update conversation
   DatabaseService.prototype.updateConversation = async function(id, data) {
     const now = new Date().toISOString();
+    const sets = [];
+    const values = [];
+    
+    if (data.messages) {
+      sets.push('messages = ?');
+      values.push(JSON.stringify(data.messages));
+    }
+    
+    if (data.title) {
+      sets.push('title = ?');
+      values.push(data.title);
+    }
+    
+    if (sets.length === 0) return await this.getConversation(id);
+    
+    sets.push('updatedAt = ?');
+    values.push(now);
+    values.push(id);
     
     await this.run(`
       UPDATE conversations SET
-        messages = COALESCE(?, messages),
-        updatedAt = ?
+        ${sets.join(', ')}
       WHERE id = ?
-    `, [
-      data.messages ? JSON.stringify(data.messages) : null,
-      now,
-      id
-    ]);
+    `, values);
     
     return await this.getConversation(id);
+  };
+
+  // Save a single message to a conversation (creates if doesn't exist)
+  DatabaseService.prototype.saveMessage = async function(data) {
+    const { conversationId, userId, role, content, title } = data;
+    const now = new Date().toISOString();
+    
+    // Check if conversation exists
+    const existing = await this.getConversation(conversationId);
+    
+    if (existing) {
+      // Append to existing
+      const messages = existing.messages || [];
+      messages.push({ role, content, timestamp: now });
+      
+      const sets = ['messages = ?', 'updatedAt = ?'];
+      const values = [JSON.stringify(messages), now];
+      
+      if (title) {
+        sets.push('title = ?');
+        values.push(title);
+      }
+      
+      values.push(conversationId);
+      
+      await this.run(`
+        UPDATE conversations SET
+          ${sets.join(', ')}
+        WHERE id = ?
+      `, values);
+    } else {
+      // Create new with first message
+      const messages = [{ role, content, timestamp: now }];
+      
+      await this.run(`
+        INSERT INTO conversations (id, userId, messages, title, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [conversationId, userId || null, JSON.stringify(messages), title || null, now, now]);
+    }
+    
+    return await this.getConversation(conversationId);
   };
 
   // Delete conversation

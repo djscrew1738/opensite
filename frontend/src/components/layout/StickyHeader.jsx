@@ -44,7 +44,6 @@ export default function StickyHeader({
     const titles = {
       '/': 'Dashboard',
       '/plans': 'Plans',
-      '/leads': 'Lead Finder',
       '/ai': 'AI Assistant',
       '/documents': 'Documents',
       '/vision': 'Vision',

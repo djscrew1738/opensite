@@ -12,7 +12,7 @@ const router = express.Router();
  * GET /api/quickbooks/auth
  * Get Authorization URL for OAuth2
  */
-router.get('/auth', authenticateToken, requireRole(['admin']), tryCatch(async (req, res) => {
+router.get('/auth', authenticateToken, requireRole(['admin', 'editor']), tryCatch(async (req, res) => {
   const url = await quickbooksService.getAuthUrl();
   res.success({ url });
 }));
@@ -42,7 +42,7 @@ router.get('/status', authenticateToken, tryCatch(async (req, res) => {
  * DELETE /api/quickbooks/account
  * Remove QuickBooks connection
  */
-router.delete('/account', authenticateToken, requireRole(['admin']), tryCatch(async (req, res) => {
+router.delete('/account', authenticateToken, requireRole(['admin', 'editor']), tryCatch(async (req, res) => {
   const account = await db.getQuickBooksAccount();
   if (account) {
     await db.deleteQuickBooksAccount(account.id);

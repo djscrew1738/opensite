@@ -464,7 +464,7 @@ export default function Settings() {
   const handleSwitchProvider = async (provider) => {
     setSwitchingProvider(true);
     try {
-      await api.settings.update({ ai_provider: provider });
+      await api.ai.switchProvider(provider);
       setActiveProvider(provider);
       refetchSettings();
       refetchModels();
@@ -888,6 +888,86 @@ export default function Settings() {
       });
       refetchSettings(); showToast('Email watcher settings saved');
     } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  /* ─────────────────────────────────────────────
+     HANDLERS — API KEYS
+  ───────────────────────────────────────────── */
+  const handleSaveSerperKey = async () => {
+    try { await api.settings.update({ serper_api_key: serperKey }); setSerperKey(''); refetchSettings(); showToast('Serper API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSavePlacesKey = async () => {
+    try { await api.settings.update({ google_places_api_key: placesKey }); setPlacesKey(''); refetchSettings(); showToast('Google Places API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSaveGoogleMapsKey = async () => {
+    try { await api.settings.update({ google_maps_api_key: googleMapsKey }); setGoogleMapsKey(''); refetchSettings(); showToast('Google Maps API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSaveAnthropicKey = async () => {
+    try { await api.settings.update({ anthropic_api_key: anthropicKey }); setAnthropicKey(''); refetchSettings(); showToast('Anthropic API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSaveSendgridKey = async () => {
+    try { await api.settings.update({ sendgrid_api_key: sendgridKey }); setSendgridKey(''); refetchSettings(); showToast('SendGrid API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSaveStripeKey = async () => {
+    try { await api.settings.update({ stripe_api_key: stripeKey }); setStripeKey(''); refetchSettings(); showToast('Stripe API key saved'); }
+    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleSaveTwilio = async () => {
+    try {
+      const u = {};
+      if (twilioSid) u.twilio_account_sid = twilioSid;
+      if (twilioToken) u.twilio_auth_token = twilioToken;
+      if (twilioPhone) u.twilio_from_phone = twilioPhone;
+      await api.settings.update(u);
+      setTwilioSid(''); setTwilioToken(''); setTwilioPhone('');
+      refetchSettings(); showToast('Twilio credentials saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  };
+
+  const handleTestSerper = async () => {
+    setTestingSerper(true);
+    try { const r = await api.settings.testSerper(serperKey || undefined); if (r.valid) showToast(`Serper valid (credits: ${r.credits})`); else showToast(r.error || 'Invalid key', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingSerper(false); }
+  };
+
+  const handleTestSendgrid = async () => {
+    setTestingSendgrid(true);
+    try { const r = await api.settings.testSendgrid(sendgridKey || undefined); if (r.valid) showToast('SendGrid key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingSendgrid(false); }
+  };
+
+  const handleTestStripe = async () => {
+    setTestingStripe(true);
+    try { const r = await api.settings.testStripe(stripeKey || undefined); if (r.valid) showToast(`Stripe valid (${r.mode} mode)`); else showToast(r.error || 'Invalid key', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingStripe(false); }
+  };
+
+  const handleTestGoogleMaps = async () => {
+    setTestingGoogleMaps(true);
+    try { const r = await api.settings.testGoogleMaps(googleMapsKey || undefined); if (r.valid) showToast('Google Maps key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingGoogleMaps(false); }
+  };
+
+  const handleTestTwilio = async () => {
+    setTestingTwilio(true);
+    try { const r = await api.settings.testTwilio(twilioSid || undefined, twilioToken || undefined); if (r.valid) showToast(`Twilio connected (${r.friendlyName})`); else showToast(r.error || 'Invalid credentials', 'error'); }
+    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
+    finally { setTestingTwilio(false); }
   };
 
   /* ─────────────────────────────────────────────
@@ -1501,9 +1581,9 @@ export default function Settings() {
             </TabErrorBoundary>
           </div>
 
-          {/* Subtle attribution */}
+          {/* Attribution */}
           <div className="flex justify-end pt-6 mt-4 border-t border-gray-200 dark:border-gray-800">
-            <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40 tracking-wide">
+            <span className="text-xs text-gray-500 font-medium tracking-wide">
               Created by Cory Nichols
             </span>
           </div>

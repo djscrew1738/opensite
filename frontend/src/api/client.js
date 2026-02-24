@@ -161,7 +161,6 @@ export const api = {
     testOpenClaw: (url, token) => apiClient.post('/settings/test-openclaw', { url, token }),
     testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
     testAnthropic: (key) => apiClient.post('/settings/test-anthropic', { key }),
-    testOpenai: (key) => apiClient.post('/settings/test-openai', { key }),
     testTwilio: (sid, token) => apiClient.post('/settings/test-twilio', { sid, token }),
     testSendgrid: (key) => apiClient.post('/settings/test-sendgrid', { key }),
     testStripe: (key) => apiClient.post('/settings/test-stripe', { key }),

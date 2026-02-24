@@ -114,7 +114,7 @@ function SettingsAPIKeys({
         </div>
 
         <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Premium AI Providers</p>
+          <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">Premium AI Providers</p>
           <div className="space-y-5">
             <KeyInput label="Anthropic API Key" description="Claude AI for premium analysis. " href="https://console.anthropic.com" hrefLabel="console.anthropic.com"
               value={anthropicKey} onChange={setAnthropicKey} show={showAnthropicKey} onToggleShow={() => setShowAnthropicKey(!showAnthropicKey)}
@@ -140,7 +140,7 @@ function SettingsAPIKeys({
                   <button 
                     type="button" 
                     onClick={() => setShowTwilioToken(!showTwilioToken)} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-400"
                     aria-label={showTwilioToken ? 'Hide auth token' : 'Show auth token'}
                   >
                     {showTwilioToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
@@ -163,7 +163,7 @@ function SettingsAPIKeys({
               onTest={handleTestSendgrid} testing={testingSendgrid} onSave={handleSaveSendgridKey} />
 
             <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Messaging</p>
+              <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">Messaging</p>
               <div className="space-y-5">
                 <div>
                   <label className="label">Telegram Bot Token</label>
@@ -180,7 +180,7 @@ function SettingsAPIKeys({
                       <button 
                         type="button" 
                         onClick={() => setShowTelegramToken(!showTelegramToken)} 
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-400"
                         aria-label={showTelegramToken ? 'Hide bot token' : 'Show bot token'}
                       >
                         {showTelegramToken ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}

@@ -307,7 +307,7 @@ class AnthropicService {
 
   // ── Prompt helpers (identical interface to other providers) ──
 
-  getChatMessages(message, history = []) {
+  getChatMessages(message, history = [], system = null) {
     const messages = [];
     // Add conversation history in proper format
     for (const msg of history) {
@@ -316,12 +316,12 @@ class AnthropicService {
       }
     }
     messages.push({ role: 'user', content: message });
-    return { system: CTL_SYSTEM, messages };
+    return { system: system || CTL_SYSTEM, messages };
   }
 
   // Legacy string format for backwards compat with analysis/scoring callers
-  getChatPrompt(message, history = []) {
-    let prompt = CTL_SYSTEM + '\n\n';
+  getChatPrompt(message, history = [], system = null) {
+    let prompt = (system || CTL_SYSTEM) + '\n\n';
     if (history.length > 0) {
       prompt += 'Conversation History:\n';
       history.forEach(m => { prompt += `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}\n`; });

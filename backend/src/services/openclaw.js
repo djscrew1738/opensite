@@ -423,8 +423,8 @@ class OpenClawService {
     return recommendations[task] || this.defaultModel;
   }
 
-  getChatPrompt(message, history = []) {
-    let prompt = `You are an AI assistant for a construction leads management system.\n\n`;
+  getChatPrompt(message, history = [], system = null) {
+    let prompt = `${system || 'You are an AI assistant for a construction leads management system.'}\n\n`;
     for (const h of history) {
       prompt += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\n\n`;
     }

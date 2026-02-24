@@ -1,9 +1,7 @@
-/** @type { import('@storybook/react-vite').StorybookConfig } */
-const config = {
-  stories: [
-    '../src/components/**/*.stories.@(js|jsx|ts|tsx)',
-    '../src/**/*.mdx',
-  ],
+// .storybook/main.js
+
+export default {
+  stories: ['../src/components/**/*.stories.@(js|jsx|ts|tsx)'],
   addons: [
     '@storybook/addon-essentials',
     '@storybook/addon-a11y',
@@ -12,23 +10,4 @@ const config = {
     name: '@storybook/react-vite',
     options: {},
   },
-  core: {
-    disableTelemetry: true,
-  },
-  staticDirs: ['../public'],
-  viteFinal: (config) => {
-    // Merge with existing Vite config
-    return {
-      ...config,
-      resolve: {
-        ...config.resolve,
-        alias: {
-          ...config.resolve?.alias,
-          '@': '/src',
-        },
-      },
-    };
-  },
 };
-
-export default config;

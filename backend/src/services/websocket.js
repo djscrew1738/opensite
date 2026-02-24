@@ -18,6 +18,11 @@ class WebSocketService {
     this.wss.on('connection', (ws, req) => {
       const { token } = url.parse(req.url, true).query;
 
+      if (!token) {
+        ws.close(1008, 'Token required');
+        return;
+      }
+
       try {
         const user = verifyToken(token);
         if (!user) {

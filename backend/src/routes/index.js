@@ -28,6 +28,7 @@ import emailMonitorRoutes from './email-monitor.js';
 import emailAlertsRoutes from './emailAlerts/index.js';
 import notificationRoutes from './notifications.js';
 import canvasRoutes from './canvas.js';
+import usersRoutes from './users.js';
 import { visionService } from '../services/vision.js';
 import { authLimiter, aiChatLimiter, uploadLimiter, discoveryLimiter } from '../middleware/security.js';
 import { requireAdminToken } from '../middleware/auth.js';
@@ -64,6 +65,7 @@ export function registerRoutes(app) {
   app.use('/api/email-alerts', emailAlertsRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/canvas', canvasRoutes);
+  app.use('/api/users', usersRoutes);
   app.use('/api/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' }));
 
   // Root and admin routes

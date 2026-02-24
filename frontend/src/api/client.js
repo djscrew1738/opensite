@@ -371,6 +371,11 @@ export const api = {
     getCities: () => apiClient.get('/permits/cities'),
     getCityStats: (city) => apiClient.get(`/permits/stats/city/${encodeURIComponent(city)}`),
     search: (params) => apiClient.get('/permits/search', { params })
+  },
+  
+  // Users
+  users: {
+    getAll: () => apiClient.get('/users'),
   }
 };
 

@@ -1,37 +1,23 @@
-import '../src/index.css';
+// .storybook/preview.js
 
-/** @type { import('@storybook/react').Preview } */
-const preview = {
-  parameters: {
-    actions: { argTypesRegex: '^on[A-Z].*' },
-    controls: {
-      matchers: {
-        color: /(background|color)$/i,
-        date: /Date$/,
-      },
-    },
-    backgrounds: {
-      default: 'dark',
-      values: [
-        {
-          name: 'dark',
-          value: '#0A0B0D', // surface-primary
-        },
-        {
-          name: 'card',
-          value: '#111318', // surface-card
-        },
-      ],
-    },
-    layout: 'centered',
+import '../src/index.css'; // Import Tailwind CSS
+
+export const parameters = {
+  backgrounds: {
+    default: 'dark',
+    values: [
+      { name: 'dark', value: '#0A0B0D' },
+      { name: 'light', value: '#F1F5F9' },
+    ],
   },
-  decorators: [
-    (Story) => (
-      <div className="dark">
-        <Story />
-      </div>
-    ),
-  ],
+  layout: 'centered',
 };
 
-export default preview;
+// Wrap all stories in a div with the dark theme class
+export const decorators = [
+  (Story) => (
+    <div className="dark">
+      <Story />
+    </div>
+  ),
+];

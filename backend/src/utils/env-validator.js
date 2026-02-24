@@ -1,49 +1,29 @@
 // utils/env-validator.js
 // Validates environment variables at startup
 
+import { z } from 'zod';
 import logger from '../services/logger.js';
 
+const envSchema = z.object({
+  ENCRYPTION_KEY: z.string().min(1, "ENCRYPTION_KEY is required."),
+  JWT_SECRET: z.string().min(1, "JWT_SECRET is required."),
+  DATABASE_URL: z.string().optional(),
+  PORT: z.string().optional(),
+  NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
+  GROQ_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENCLAW_URL: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+});
+
 export function validateEnvironment() {
-  console.log('🔍 Validating environment...');
-  const errors = [];
-  const warnings = [];
-
-  // CRITICAL: ENCRYPTION_KEY
-  const encryptionKey = process.env.ENCRYPTION_KEY;
-  if (!encryptionKey) {
-    errors.push('ENCRYPTION_KEY is not set.');
-  } else {
-    try {
-      let keyBuffer;
-      if (encryptionKey.length === 64) {
-        keyBuffer = Buffer.from(encryptionKey, 'hex');
-      } else {
-        keyBuffer = Buffer.from(encryptionKey, 'base64');
-      }
-      if (keyBuffer.length !== 32) {
-        errors.push(`ENCRYPTION_KEY must be 32 bytes when decoded.`);
-      }
-    } catch (e) {
-      errors.push(`ENCRYPTION_KEY is invalid: ${e.message}`);
-    }
-  }
-
-  // OPTIONAL: AI provider keys
-  const aiKeys = ['GROQ_API_KEY', 'ANTHROPIC_API_KEY', 'OPENCLAW_URL'];
-  if (!aiKeys.some(key => !!process.env[key])) {
-    warnings.push('No cloud AI provider API keys configured.');
-  }
-
-  // OPTIONAL: Other service keys
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-    warnings.push('Twilio credentials not configured.');
-  }
-
-  warnings.forEach(warning => logger.warn(`[env] ${warning}`));
-
-  if (errors.length > 0) {
-    errors.forEach(error => logger.error(`[env] FATAL: ${error}`));
-    logger.error('[env] Server startup aborted.');
+  try {
+    envSchema.parse(process.env);
+    logger.info('[env] Environment variables validated successfully');
+  } catch (error) {
+    logger.error('[env] Invalid environment variables:', error.format());
     process.exit(1);
   }
 }

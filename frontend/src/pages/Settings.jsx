@@ -9,8 +9,9 @@ import { useToast } from '../hooks/useToast';
 import {
   Building2, Cpu, Key, Activity, Bell, Search, Calculator,
   Gauge, Palette, Database, Loader2, ChevronRight, LayoutDashboard, AlertCircle,
-  CreditCard
+  CreditCard, Users
 } from 'lucide-react';
+import UserManagement from '../components/admin/UserManagement';
 
 /* ─────────────────────────────────────────────
    PRIMITIVES (kept inline for header/nav)
@@ -120,6 +121,7 @@ const NAV_ITEMS = [
   { id: 'appearance',    icon: Palette,          label: 'Appearance' },
   { id: 'data',          icon: Database,         label: 'Data' },
   { id: 'system',        icon: Activity,         label: 'System' },
+  { id: 'users',         icon: Users,            label: 'Users' },
 ];
 
 /* ─────────────────────────────────────────────
@@ -1410,6 +1412,8 @@ export default function Settings() {
             showToast={showToast}
           />
         );
+      case 'users':
+        return <UserManagement />;
       default:
         return (
           <SettingsOverview

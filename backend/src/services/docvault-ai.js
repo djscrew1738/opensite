@@ -11,7 +11,7 @@ export async function summarize(text) {
 
   const result = await aiProvider.generate(prompt, { system });
   if (!result.success) throw new Error(result.error || 'Summarization failed');
-  return result.content;
+  return result.response;
 }
 
 export async function extractEntities(text) {
@@ -24,12 +24,12 @@ export async function extractEntities(text) {
 
   // Try parsing JSON from response
   try {
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.response.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
   } catch (e) {
     logger.warn('[docvault-ai] Failed to parse entities JSON, returning raw');
   }
-  return { raw_extraction: result.content };
+  return { raw_extraction: result.response };
 }
 
 export async function chat(text, question, history = []) {
@@ -47,5 +47,5 @@ export async function chat(text, question, history = []) {
 
   const result = await aiProvider.generate(prompt, { system });
   if (!result.success) throw new Error(result.error || 'Chat failed');
-  return result.content;
+  return result.response;
 }

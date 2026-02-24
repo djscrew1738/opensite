@@ -67,7 +67,7 @@ export function registerRoutes(app) {
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/canvas', canvasRoutes);
   app.use('/api/users', usersRoutes);
-  app.use('/api/docvault', uploadLimiter, docvaultRoutes);
+  app.use('/api/docvault', docvaultRoutes);
   app.use('/api/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' }));
 
   // Root and admin routes

@@ -193,7 +193,7 @@ export default function JobPulseHome({
       {/* Subtle attribution */}
       <div className="flex justify-end pt-4">
         <span className="text-[10px] text-text-muted/40 tracking-wide">
-          by Cory
+          Created by Cory Nichols
         </span>
       </div>
     </div>

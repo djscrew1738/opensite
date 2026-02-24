@@ -1504,7 +1504,7 @@ export default function Settings() {
           {/* Subtle attribution */}
           <div className="flex justify-end pt-6 mt-4 border-t border-gray-200 dark:border-gray-800">
             <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40 tracking-wide">
-              by Cory
+              Created by Cory Nichols
             </span>
           </div>
         </div>

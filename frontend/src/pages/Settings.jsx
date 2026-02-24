@@ -388,7 +388,6 @@ export default function Settings() {
     // Email Watcher
     setEwPollInterval(num(s.email_watcher_poll_interval, 60));
     setEwMarkAsRead(bool(s.email_watcher_mark_read, false));
-    setTelegramChatId(s.telegram_chat_id || '');
   }, [settingsData]);
 
   /* ─────────────────────────────────────────────

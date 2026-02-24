@@ -374,13 +374,13 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
         username: 'Guest User',
         email: guestEmail,
         passwordHash: hashedGuestPassword,
-        role: 'admin',
+        role: 'viewer',
         isActive: true
       });
       logger.info('Auto-provisioned guest account (guest@ctlplumbingllc.com / guest)');
     } else {
-      // Ensure password is correct and account is active and promoted to admin
-      await db.updateUser(guestUser.id, { passwordHash: hashedGuestPassword, role: 'admin', isActive: true });
+      // Ensure password is correct and account is active
+      await db.updateUser(guestUser.id, { passwordHash: hashedGuestPassword, role: 'viewer', isActive: true });
     }
   } catch (err) {
     logger.warn('Failed to auto-provision guest account', { error: err.message });

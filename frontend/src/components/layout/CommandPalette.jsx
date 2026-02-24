@@ -28,7 +28,7 @@ const navigationCommands = [
   { id: 'nav-jobs', label: 'Jobs', path: '/jobs', icon: HardHat, shortcut: 'G J', category: 'Navigate' },
   { id: 'nav-jobs-estimating', label: 'Jobs — Estimating', path: '/jobs?tab=estimating', icon: Calculator, shortcut: 'G E', category: 'Navigate' },
   { id: 'nav-jobs-plumbing', label: 'Jobs — 4D Plumbing', path: '/jobs?tab=plumbing', icon: Box, shortcut: 'G 4', category: 'Navigate' },
-  { id: 'nav-leads', label: 'Lead Finder', path: '/jobs?tab=leads', icon: Users, shortcut: 'G L', category: 'Navigate' },
+  { id: 'nav-leads', label: 'Lead Finder', path: '/leads', icon: Users, shortcut: 'G L', category: 'Navigate' },
   { id: 'nav-documents', label: 'Documents', path: '/documents', icon: Files, shortcut: 'G F', category: 'Navigate' },
   { id: 'nav-ai', label: 'AI Hub', path: '/ai', icon: Sparkles, shortcut: 'G A', category: 'Navigate' },
   { id: 'nav-canvas', label: 'Canvas', path: '/canvas', icon: Network, shortcut: 'G C', category: 'Navigate' },
@@ -90,7 +90,7 @@ export default function CommandPalette({ isOpen, onClose }) {
           navigate('/documents?action=upload');
           break;
         case 'search-leads':
-          navigate('/jobs?tab=leads');
+          navigate('/leads?focus=search');
           break;
         case 'ai-chat':
           navigate('/ai?focus=chat');

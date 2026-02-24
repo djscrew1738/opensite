@@ -349,9 +349,9 @@ class GroqService {
   /**
    * Get chat messages (for unified interface)
    */
-  getChatMessages(message, history = [], system = null) {
+  getChatMessages(message, history = []) {
     return {
-      system: system || this.getSystemPrompt(),
+      system: this.getSystemPrompt(),
       messages: [
         ...history.map(h => ({ role: h.role, content: h.content })),
         { role: 'user', content: message }
@@ -362,8 +362,8 @@ class GroqService {
   /**
    * Get chat prompt
    */
-  getChatPrompt(message, history = [], system = null) {
-    let prompt = (system || this.getSystemPrompt()) + '\n\n';
+  getChatPrompt(message, history = []) {
+    let prompt = this.getSystemPrompt() + '\n\n';
     for (const h of history) {
       prompt += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\n\n`;
     }

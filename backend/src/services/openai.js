@@ -334,35 +334,6 @@ class OpenAIService {
     return recommendations[task] || this.defaultModel;
   }
 
-  /**
-   * Get chat messages (for unified interface)
-   */
-  getChatMessages(message, history = [], system = null) {
-    return {
-      system: system || this.getSystemPrompt(),
-      messages: [
-        ...history.map(h => ({ role: h.role, content: h.content })),
-        { role: 'user', content: message }
-      ]
-    };
-  }
-
-  /**
-   * Get chat prompt
-   */
-  getChatPrompt(message, history = [], system = null) {
-    let prompt = (system || this.getSystemPrompt()) + '\n\n';
-    for (const h of history) {
-      prompt += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\n\n`;
-    }
-    prompt += `User: ${message}\nAssistant:`;
-    return prompt;
-  }
-
-  getSystemPrompt() {
-    return `You are an AI assistant for a construction leads management system.`;
-  }
-
   configure(config) {
     if (config.apiKey) this.apiKey = config.apiKey;
     if (config.defaultModel) this.defaultModel = config.defaultModel;

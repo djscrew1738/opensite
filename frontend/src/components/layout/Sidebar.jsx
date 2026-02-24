@@ -15,6 +15,7 @@ const navGroups = {
   core: [
     { path: '/',          icon: LayoutDashboard, label: 'Dashboard',    shortcut: '1', badge: null },
     { path: '/jobs',      icon: HardHat,         label: 'Jobs',         shortcut: '2', badge: null },
+    { path: '/leads',     icon: Users,           label: 'Lead Finder',  shortcut: '3', badge: null },
     { path: '/documents', icon: Files,           label: 'Documents',    shortcut: '4', badge: null },
     { path: '/ai',        icon: Sparkles,        label: 'AI Assistant', shortcut: '5', badge: null },
   ],
@@ -440,15 +441,10 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Time and Attribution */}
+        {/* Time */}
         {isExpanded && (
-          <div className="mt-2 px-3 text-center space-y-1">
+          <div className="mt-2 px-3 text-center">
             <TimeDisplay />
-            <div className="pt-1 border-t border-[#1F2430]/50">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block opacity-60 hover:opacity-100 transition-opacity">
-                Created by Cory Nichols
-              </span>
-            </div>
           </div>
         )}
       </div>

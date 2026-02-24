@@ -6,6 +6,7 @@ import { ChevronRight, Home } from 'lucide-react';
 const routeTitles = {
   '/': { title: 'Dashboard', icon: null },
   '/plans': { title: 'Plans', icon: null },
+  '/leads': { title: 'Lead Finder', icon: null },
   '/ai': { title: 'AI Assistant', icon: null },
   '/documents': { title: 'Documents', icon: null },
   '/vision': { title: 'Vision', icon: null },
@@ -19,6 +20,7 @@ const routeTitles = {
 // Route hierarchy for nested breadcrumbs
 const routeHierarchy = {
   '/plans': ['/'],
+  '/leads': ['/'],
   '/ai': ['/'],
   '/documents': ['/'],
   '/vision': ['/'],

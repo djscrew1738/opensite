@@ -80,11 +80,6 @@ router.post('/chat', tryCatch(async (req, res) => {
   const history = conversation?.messages || [];
 
   const newConvId = conversationId || generateConversationId();
-  const isNew = !conversation;
-  
-  // Auto-generate title for new conversations
-  const title = (isNew && message) ? (message.slice(0, 40) + (message.length > 40 ? '...' : '')) : null;
-
   const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
   // Use structured chat generation (system + messages array)
@@ -96,8 +91,8 @@ router.post('/chat', tryCatch(async (req, res) => {
   }
 
   // Persist conversation
-  await db.saveMessage({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim(), title });
-  await db.saveMessage({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: result.response });
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: result.response });
 
   logger.info('AI chat completed', {
     provider: aiProvider.activeProviderName,
@@ -138,15 +133,10 @@ router.post('/chat/stream', async (req, res) => {
     const conversation = conversationId ? await db.getConversation(conversationId) : null;
     const history = conversation?.messages || [];
     const newConvId = conversationId || generateConversationId();
-    const isNew = !conversation;
-    
-    // Auto-generate title for new conversations
-    const title = (isNew && message) ? (message.slice(0, 40) + (message.length > 40 ? '...' : '')) : null;
-
     const modelToUse = model || aiProvider.getRecommendedModel('chat');
 
     // Save user message first
-    await db.saveMessage({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim(), title });
+    await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
 
     let fullResponse = '';
 
@@ -161,7 +151,7 @@ router.post('/chat/stream', async (req, res) => {
 
     // Save assistant response
     if (fullResponse) {
-      await db.saveMessage({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: fullResponse });
+      await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: fullResponse });
     }
 
     res.write(`data: ${JSON.stringify({

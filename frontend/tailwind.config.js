@@ -18,24 +18,10 @@ export default {
         gray: colors.slate,
         // ── Surface System ─────────────────────────────
         surface: {
-          // Base dark mode colors
           primary:  '#0A0B0D',  // App background — blue-black
           card:     '#111318',  // Card backgrounds
           elevated: '#181C24',  // Modals, panels, dropdowns
           overlay:  'rgba(0, 0, 0, 0.6)', // Backdrop overlay
-          // Full color scale for proper dark mode support
-          50:  '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          850: '#151e2e',  // Extra step between 800 and 900
-          900: '#0f172a',
-          950: '#020617',
         },
 
         // ── Border System ──────────────────────────────

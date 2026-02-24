@@ -353,27 +353,15 @@ class AIProviderManager {
     const chain = this._getProviderChain(options.provider);
     const errors = [];
 
-    // Fetch global system prompt from settings
-    let systemPrompt = '';
-    try {
-      systemPrompt = await db.getSetting('ai_system_prompt');
-    } catch (e) {
-      logger.warn('[ai-provider] Failed to fetch ai_system_prompt:', e.message);
-    }
-
     for (const pName of chain) {
       try {
         const service = this.providers[pName];
-        
-        // Merge global system prompt with service default if needed
-        const finalSystem = systemPrompt || (service.getSystemPrompt ? service.getSystemPrompt() : '');
-        
         let result;
         if (typeof service.generateChat === 'function') {
-          result = await service.generateChat(message, history, { ...options, system: finalSystem });
+          result = await service.generateChat(message, history, options);
         } else {
-          const { messages } = service.getChatMessages ? service.getChatMessages(message, history, finalSystem) : { messages: [{role:'user', content: message}] };
-          result = await service.generate('', { ...options, system: finalSystem, messages });
+          const { system, messages } = service.getChatMessages ? service.getChatMessages(message, history) : { messages: [{role:'user', content: message}] };
+          result = await service.generate('', { ...options, system, messages });
         }
 
         if (result.success) {
@@ -390,22 +378,11 @@ class AIProviderManager {
 
   async *generateChatStream(message, history = [], options = {}) {
     const chain = this._getProviderChain(options.provider);
-    
-    // Fetch global system prompt
-    let systemPrompt = '';
-    try {
-      systemPrompt = await db.getSetting('ai_system_prompt');
-    } catch (e) {}
-
     for (const pName of chain) {
       try {
         const service = this.providers[pName];
-        const finalSystem = systemPrompt || (service.getSystemPrompt ? service.getSystemPrompt() : '');
-        
         let hasContent = false;
-        const stream = service.generateChatStream 
-          ? service.generateChatStream(message, history, { ...options, system: finalSystem }) 
-          : service.generateStream(message, { ...options, system: finalSystem });
+        const stream = service.generateChatStream ? service.generateChatStream(message, history, options) : service.generateStream(message, options);
         
         for await (const chunk of stream) {
           if (chunk && !chunk.startsWith('Error:')) {

@@ -19,6 +19,12 @@ export const pageMetadata = {
     parent: { path: '/', title: 'Home' },
     description: 'Manage active jobs',
   },
+  '/leads': {
+    title: 'Lead Finder',
+    icon: null,
+    parent: { path: '/', title: 'Home' },
+    description: 'Discover and track leads',
+  },
   '/documents': {
     title: 'Documents',
     icon: null,

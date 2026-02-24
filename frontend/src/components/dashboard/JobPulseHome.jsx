@@ -190,9 +190,9 @@ export default function JobPulseHome({
         </div>
       </section>
 
-      {/* Attribution */}
-      <div className="flex justify-end pt-6 mt-4 border-t border-border/40">
-        <span className="text-xs text-text-muted font-medium tracking-wide">
+      {/* Subtle attribution */}
+      <div className="flex justify-end pt-4">
+        <span className="text-[10px] text-text-muted/40 tracking-wide">
           Created by Cory Nichols
         </span>
       </div>

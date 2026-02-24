@@ -146,7 +146,6 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
         userId TEXT,
-        title TEXT,
         messages TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
@@ -445,7 +444,6 @@ export class DatabaseService {
     this.safeAddColumn('takeoffs', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
     this.safeAddColumn('blueprints', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
     this.safeAddColumn('conversations', 'userId', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
-    this.safeAddColumn('conversations', 'title', 'TEXT');
     
     // Initialize settings table (from settings.js mixin)
     if (this.initializeSettingsTable) {

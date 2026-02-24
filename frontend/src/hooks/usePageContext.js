@@ -35,27 +35,11 @@ export function usePageContext() {
     if (path === '/jobs') {
       const tab = searchParams.get('tab');
       const tabNames = {
-        'leads': 'Lead Finder',
         'estimating': 'Estimating',
         'plumbing': '4D Plumbing',
         'inspections': 'Inspections',
         'permits': 'Permits',
       };
-
-      if (tab === 'leads') {
-        return {
-          page: 'leads',
-          title: 'Lead Finder',
-          greeting: "I see you're in the Lead Finder. Want me to score leads, analyze conversion patterns, or draft follow-up messages?",
-          quickActions: [
-            { label: 'Score hot leads', prompt: 'Identify and score my hottest leads' },
-            { label: 'Follow-up drafts', prompt: 'Draft follow-up messages for recent leads' },
-            { label: 'Conversion analysis', prompt: 'Analyze my lead conversion patterns' },
-            { label: 'Builder insights', prompt: 'Show insights about builder activity' },
-          ],
-          data: { tab },
-        };
-      }
 
       return {
         page: 'jobs',

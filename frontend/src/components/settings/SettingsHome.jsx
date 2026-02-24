@@ -16,10 +16,10 @@ import {
    ================================================================ */
 
 const PROVIDER_COLORS = {
-  ollama: { color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-800' },
-  groq: { color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30', border: 'border-orange-200 dark:border-orange-800' },
-  anthropic: { color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-800' },
-  openclaw: { color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-800' },
+  ollama: { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  groq: { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+  anthropic: { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+  openclaw: { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
 };
 
 /* -- COMPONENTS -- */
@@ -34,13 +34,13 @@ const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', de
       <div className="relative">
         <Icon className={`w-6 h-6 ${color}`} />
         {badge && (
-          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 dark:bg-red-600 text-white text-xs font-bold flex items-center justify-center px-1">
+          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1">
             {badge}
           </span>
         )}
       </div>
       <span className="text-xs font-medium text-surface-600 dark:text-surface-400">{label}</span>
-      {description && <span className="text-[10px] text-surface-400 dark:text-surface-500">{description}</span>}
+      {description && <span className="text-[10px] text-surface-400">{description}</span>}
     </button>
   );
 };
@@ -48,34 +48,14 @@ const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', de
 const StatusCard = ({ title, status, message, icon: Icon, color, onAction, actionLabel }) => {
   if (!Icon) return null;
   const colors = {
-    success: { 
-      border: 'border-emerald-200 dark:border-emerald-800', 
-      bg: 'bg-emerald-50/80 dark:bg-emerald-900/20', 
-      iconColor: 'text-emerald-500 dark:text-emerald-400', 
-      text: 'text-emerald-700 dark:text-emerald-300' 
-    },
-    warning: { 
-      border: 'border-amber-200 dark:border-amber-800', 
-      bg: 'bg-amber-50/80 dark:bg-amber-900/20', 
-      iconColor: 'text-amber-500 dark:text-amber-400', 
-      text: 'text-amber-700 dark:text-amber-300' 
-    },
-    error: { 
-      border: 'border-red-200 dark:border-red-800', 
-      bg: 'bg-red-50/80 dark:bg-red-900/20', 
-      iconColor: 'text-red-500 dark:text-red-400', 
-      text: 'text-red-700 dark:text-red-300' 
-    },
-    info: { 
-      border: 'border-blue-200 dark:border-blue-800', 
-      bg: 'bg-blue-50/80 dark:bg-blue-900/20', 
-      iconColor: 'text-blue-500 dark:text-blue-400', 
-      text: 'text-blue-700 dark:text-blue-300' 
-    },
+    success: { border: 'border-emerald-200', bg: 'bg-emerald-50/80', iconColor: 'text-emerald-500', text: 'text-emerald-700' },
+    warning: { border: 'border-amber-200', bg: 'bg-amber-50/80', iconColor: 'text-amber-500', text: 'text-amber-700' },
+    error: { border: 'border-red-200', bg: 'bg-red-50/80', iconColor: 'text-red-500', text: 'text-red-700' },
+    info: { border: 'border-blue-200', bg: 'bg-blue-50/80', iconColor: 'text-blue-500', text: 'text-blue-700' },
   }[status || 'info'];
 
   return (
-    <div className={`p-4 rounded-xl border ${colors.border} ${colors.bg}`}>
+    <div className={`p-4 rounded-xl border ${colors.border} ${colors.bg} dark:bg-opacity-10`}>
       <div className="flex items-start gap-3">
         <Icon className={`w-5 h-5 ${colors.iconColor} shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
@@ -114,9 +94,9 @@ const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600'
 const ConfigCategory = ({ icon: Icon, title, description, status, onClick, configured = false }) => {
   if (!Icon) return null;
   const statusColors = {
-    configured: { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Configured' },
-    partial: { dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400', label: 'Partial' },
-    empty: { dot: 'bg-slate-300 dark:bg-slate-600', text: 'text-slate-400 dark:text-slate-500', label: 'Not Configured' },
+    configured: { dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Configured' },
+    partial: { dot: 'bg-amber-500', text: 'text-amber-600', label: 'Partial' },
+    empty: { dot: 'bg-slate-300', text: 'text-slate-400', label: 'Not Configured' },
   }[status || 'empty'];
 
   return (
@@ -125,7 +105,7 @@ const ConfigCategory = ({ icon: Icon, title, description, status, onClick, confi
       className="w-full flex items-center gap-4 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 hover:shadow-md transition-all text-left group"
     >
       <div className="w-12 h-12 rounded-xl bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0">
-        <Icon className="w-6 h-6 text-surface-500 dark:text-surface-400 group-hover:text-accent-500 transition-colors" />
+        <Icon className="w-6 h-6 text-surface-500 group-hover:text-accent-500 transition-colors" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -137,7 +117,7 @@ const ConfigCategory = ({ icon: Icon, title, description, status, onClick, confi
         </div>
         <p className="text-sm text-surface-500 dark:text-surface-400 truncate">{description}</p>
       </div>
-      <ChevronRight className="w-5 h-5 text-surface-300 dark:text-surface-600 group-hover:text-accent-500 transition-colors" />
+      <ChevronRight className="w-5 h-5 text-surface-300 group-hover:text-accent-500 transition-colors" />
     </button>
   );
 };
@@ -145,9 +125,9 @@ const ConfigCategory = ({ icon: Icon, title, description, status, onClick, confi
 const HealthItem = ({ label, value, status, icon: Icon }) => {
   if (!Icon) return null;
   const colors = {
-    good: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30',
-    warning: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30',
-    error: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30',
+    good: 'text-emerald-600 bg-emerald-50',
+    warning: 'text-amber-600 bg-amber-50',
+    error: 'text-red-600 bg-red-50',
   }[status || 'good'];
 
   return (
@@ -158,7 +138,7 @@ const HealthItem = ({ label, value, status, icon: Icon }) => {
         </div>
         <span className="text-sm text-surface-700 dark:text-surface-300">{label}</span>
       </div>
-      <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">{value}</span>
+      <span className="text-sm font-semibold text-surface-900">{value}</span>
     </div>
   );
 };
@@ -355,7 +335,7 @@ export default function SettingsHome({
             <Settings className="w-4 h-4 text-surface-400" />
             Configuration Categories
           </h3>
-          <div className="text-xs text-surface-500 dark:text-surface-400">
+          <div className="text-xs text-surface-500">
             {configStatus.configured}/{configStatus.total} complete
           </div>
         </div>
@@ -469,10 +449,10 @@ export default function SettingsHome({
                 className="w-full flex items-center justify-between p-3 rounded-lg bg-surface-50 dark:bg-surface-900 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-left"
               >
                 <div className="flex items-center gap-3">
-                  <setting.icon className="w-4 h-4 text-surface-400 dark:text-surface-500" />
+                  <setting.icon className="w-4 h-4 text-surface-400" />
                   <span className="text-sm text-surface-700 dark:text-surface-300">{setting.label}</span>
                 </div>
-                <span className={`text-xs font-medium ${setting.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`text-xs font-medium ${setting.value ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {setting.value ? 'On' : 'Off'}
                 </span>
               </button>
@@ -484,7 +464,7 @@ export default function SettingsHome({
       {/* Resources */}
       <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
         <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-          <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+          <Info className="w-4 h-4 text-blue-500" />
           Resources & Support
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -499,8 +479,8 @@ export default function SettingsHome({
               href={resource.href}
               className="p-3 rounded-lg bg-white/80 dark:bg-surface-800/80 text-center hover:bg-white dark:hover:bg-surface-800 transition-colors"
             >
-              <resource.icon className="w-4 h-4 text-blue-500 dark:text-blue-400 mx-auto mb-2" />
-              <p className="text-xs font-medium text-surface-700 dark:text-surface-300">{resource.label}</p>
+              <resource.icon className="w-4 h-4 text-blue-500 mx-auto mb-2" />
+              <p className="text-xs font-medium text-surface-700">{resource.label}</p>
             </a>
           ))}
         </div>

@@ -22,7 +22,7 @@ import { NotificationBellCompact } from '../notifications';
 const primaryNav = [
   { path: '/',       icon: LayoutDashboard, label: 'Home',      shortcut: '1' },
   { path: '/jobs',   icon: HardHat,         label: 'Jobs',      shortcut: '2' },
-  { path: '/leads',  icon: Users,           label: 'Leads',     shortcut: '3' },
+  { path: '/jobs?tab=leads',  icon: Users,           label: 'Leads',     shortcut: '3' },
 ];
 
 // Secondary items (in More menu)

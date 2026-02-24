@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --max-old-space-size=${NODE_HEAP_MB:-512} --watch src/server.js",
     "start": "node --max-old-space-size=${NODE_HEAP_MB:-512} src/server.js",
+    "lint": "eslint src/**/*.js",
     "test": "node --test",
     "permits:ingest": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualIngest(7))\"",
     "permits:score": "node -e \"import('./src/jobs/permit-jobs.js').then(m => m.manualScore())\"",
@@ -64,6 +65,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "eslint": "^10.0.2",
+    "eslint-formatter-compact": "^9.0.1",
     "prisma": "^7.4.1"
   }
 }

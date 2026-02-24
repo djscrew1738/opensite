@@ -41,7 +41,7 @@ export async function startServer(app, port) {
 async function provisionGuestAccount() {
   try {
     const guestEmail = 'guest@ctlplumbingllc.com';
-    let guestUser = await db.getUserByEmail(guestEmail);
+    const guestUser = await db.getUserByEmail(guestEmail);
     const hashedGuestPassword = await hashPassword('guest');
 
     if (!guestUser) {

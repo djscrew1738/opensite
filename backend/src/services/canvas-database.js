@@ -127,7 +127,7 @@ export async function getWorkspace(id) {
 
 export async function getWorkspaces(projectId = null, userId = null) {
   let query = 'SELECT * FROM canvas_workspaces WHERE 1=1';
-  let params = [];
+  const params = [];
   
   if (projectId) {
     query += ' AND project_id = ?';

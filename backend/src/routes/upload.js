@@ -279,7 +279,7 @@ export async function performBlueprintAnalysis(jobData, progressCallback) {
     updateProgress(70);
 
     let parsedAnalysis = null;
-    let aiAnalysisText = aiResult.response;
+    const aiAnalysisText = aiResult.response;
     if (aiResult.success) {
       parsedAnalysis = parseAIResponse(aiResult.response);
       if (!parsedAnalysis) {

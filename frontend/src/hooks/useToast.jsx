@@ -64,14 +64,23 @@ export function ToastProvider({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Clear timer for a specific toast
-  const clearToastTimer = useCallback((id) => {
-    const timer = timersRef.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timersRef.current.delete(id);
-    }
-  }, []);
+  const dismissToast = useCallback((id) => {
+    clearToastTimer(id);
+    setToasts((prev) => {
+      const toast = prev.find((t) => t.id === id);
+      if (!toast) return prev;
+      
+      // Mark toast as dismissing for exit animation
+      return prev.map((t) => 
+        t.id === id ? { ...t, dismissing: true } : t
+      );
+    });
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 300);
+  }, [clearToastTimer]);
 
   // Set timer for a specific toast
   const setToastTimer = useCallback((id, duration) => {
@@ -80,7 +89,7 @@ export function ToastProvider({ children }) {
       dismissToast(id);
     }, duration);
     timersRef.current.set(id, timer);
-  }, [clearToastTimer]);
+  }, [clearToastTimer, dismissToast]);
 
   // Add a new toast
   const addToast = useCallback((message, options = {}) => {
@@ -116,26 +125,7 @@ export function ToastProvider({ children }) {
 
     return id;
   }, [mobile, setToastTimer]);
-
-  // Dismiss a specific toast
-  const dismissToast = useCallback((id) => {
-    clearToastTimer(id);
-    setToasts((prev) => {
-      const toast = prev.find((t) => t.id === id);
-      if (!toast) return prev;
-      
-      // Mark toast as dismissing for exit animation
-      return prev.map((t) => 
-        t.id === id ? { ...t, dismissing: true } : t
-      );
-    });
-
-    // Remove from DOM after animation
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 300);
-  }, [clearToastTimer]);
-
+  
   // Dismiss all toasts
   const dismissAll = useCallback(() => {
     timersRef.current.forEach((timer, id) => {

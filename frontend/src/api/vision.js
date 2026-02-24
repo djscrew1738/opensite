@@ -46,15 +46,16 @@ apiClient.interceptors.response.use(
 );
 
 export const visionApi = {
-  // Upload blueprint
-  upload: (file, name) => {
+  // Upload blueprint (supports onUploadProgress)
+  upload: (file, name, options = {}) => {
     const formData = new FormData();
     formData.append('file', file);
     if (name) formData.append('name', name);
 
     return apiClient.post('/vision/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60000
+      timeout: 60000,
+      onUploadProgress: options.onUploadProgress
     });
   },
 

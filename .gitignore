@@ -16,6 +16,7 @@ backend.log
 frontend.log
 backend/logs/
 backend/audit-*.json
+tool/logs/
 
 # Build outputs
 dist/

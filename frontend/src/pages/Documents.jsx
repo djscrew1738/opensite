@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Files, Plus, Trash2, FileImage, LayoutGrid,
   ChevronRight, Loader2, AlertCircle, Upload,
@@ -20,6 +21,8 @@ import DocViewer from '../components/documents/DocViewer';
 import { TabSystem, Tab } from '../components/tabs';
 import { NoDocumentsEmpty, NoAnalysisEmpty } from '../components/empty-states';
 import { ConfirmDialog } from '../components/shared';
+import { useToast } from '../hooks/useToast';
+import TabErrorBoundary from '../components/documents/TabErrorBoundary.jsx';
 
 // Document types configuration
 const FILE_TYPES = {
@@ -61,6 +64,9 @@ function formatFileSize(bytes) {
 function DocumentsLibrary({ 
   projects, 
   isLoading, 
+  isFetchingMore,
+  hasMore,
+  onLoadMore,
   viewMode, 
   setViewMode,
   searchQuery,
@@ -70,27 +76,26 @@ function DocumentsLibrary({
   selectedItems,
   setSelectedItems,
   onSelectProject,
-  onDelete
+  onDelete,
+  onUpload,
+  uploadingFiles = []
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
-
-  // Filter and sort projects
-  const filteredProjects = projects
-    .filter(p => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        return (p.name || '').toLowerCase().includes(query);
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date') return new Date(b.createdAt) - new Date(a.createdAt);
-      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-      if (sortBy === 'size') return (b.size || 0) - (a.size || 0);
-      return 0;
-    });
+  const listParentRef = useRef(null);
+  const rowVirtualizer = useVirtualizer({
+    count: sortedProjects.length,
+    getScrollElement: () => listParentRef.current,
+    estimateSize: () => 88,
+    overscan: 8,
+  });
+  const sortedProjects = [...projects].sort((a, b) => {
+    if (sortBy === 'date') return new Date(b.createdAt) - new Date(a.createdAt);
+    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'size') return (b.size || 0) - (a.size || 0);
+    return 0;
+  });
 
   // Drag and drop handlers
   const handleDragEnter = useCallback((e) => {
@@ -116,20 +121,8 @@ function DocumentsLibrary({
   // Handle file upload
   const handleFileUpload = useCallback(async (files) => {
     if (!files || files.length === 0) return;
-    
-    // Process each file
-    for (const file of Array.from(files)) {
-      try {
-        // Use visionApi for upload as it handles projects + tiles
-        await visionApi.upload(file, file.name);
-      } catch (err) {
-        console.error('Upload failed:', err);
-      }
-    }
-    
-    // Trigger refetch via props or parent
-    onSelectProject(null); // Force refresh context
-  }, [onSelectProject]);
+    onUpload?.(files);
+  }, [onUpload]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -272,11 +265,32 @@ function DocumentsLibrary({
 
       {/* Documents grid/list */}
       <div className="p-4">
-        {filteredProjects.length === 0 ? (
+        {uploadingFiles.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {uploadingFiles.map((u) => (
+              <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: '#111318', border: '1px solid #1F2430' }}>
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <div className="flex-1">
+                  <p className="text-sm" style={{ color: '#F1F5F9' }}>{u.name}</p>
+                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: '#0F1117' }}>
+                    <div className="h-full" style={{ width: `${u.progress || 5}%`, background: '#3B82F6' }} />
+                  </div>
+                </div>
+                <span className="text-xs" style={{ color: '#94A3B8' }}>{u.progress ? `${u.progress}%` : 'Uploading'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isLoading && projects.length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+          </div>
+        ) : sortedProjects.length === 0 ? (
           <NoDocumentsEmpty onUpload={() => fileInputRef.current?.click()} />
         ) : viewMode === VIEW_MODES.GRID ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredProjects.map((project) => (
+            {sortedProjects.map((project) => (
               <DocumentCard 
                 key={project.id} 
                 project={project}
@@ -288,17 +302,49 @@ function DocumentsLibrary({
             ))}
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredProjects.map((project) => (
-              <DocumentListItem 
-                key={project.id} 
-                project={project}
-                isSelected={selectedItems.has(project.id)}
-                onSelect={() => toggleSelection(project.id)}
-                onClick={() => onSelectProject(project)}
-                onDelete={(e) => onDelete(project.id, e)}
-              />
-            ))}
+          <div
+            ref={listParentRef}
+            style={{ height: 'calc(100vh - 260px)', overflow: 'auto', position: 'relative' }}
+          >
+            <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const project = sortedProjects[virtualRow.index];
+                return (
+                  <div
+                    key={project.id}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <DocumentListItem 
+                      project={project}
+                      isSelected={selectedItems.has(project.id)}
+                      onSelect={() => toggleSelection(project.id)}
+                      onClick={() => onSelectProject(project)}
+                      onDelete={(e) => onDelete(project.id, e)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Load more */}
+        {hasMore && sortedProjects.length > 0 && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={onLoadMore}
+              disabled={isFetchingMore}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ background: '#111318', border: '1px solid #1F2430', color: '#F1F5F9' }}
+            >
+              {isFetchingMore ? 'Loading…' : 'Load more'}
+            </button>
           </div>
         )}
       </div>
@@ -705,21 +751,56 @@ export default function Documents() {
   const [activeTab, setActiveTab] = useState('library');
   const [viewMode, setViewMode] = useState(VIEW_MODES.GRID);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showCanvas, setShowCanvas] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [documents, setDocuments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState([]);
+  const pageSize = viewMode === VIEW_MODES.LIST ? 50 : 24;
+  const { success: toastSuccess, error: toastError } = useToast();
 
-  // Fetch projects
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['vision-projects'],
-    queryFn: () => visionApi.getProjects(),
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(0);
+      setHasMore(true);
+      setDocuments([]);
+      setDebouncedQuery(searchQuery.trim());
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Fetch paged projects
+  const { data: pageData = [], isLoading, isFetching } = useQuery({
+    queryKey: ['vision-projects', { page, pageSize, debouncedQuery, sortBy }],
+    queryFn: () => visionApi.getProjects({
+      limit: pageSize,
+      offset: page * pageSize,
+      q: debouncedQuery || undefined,
+      sort: sortBy,
+    }),
+    keepPreviousData: true,
   });
+
+  // Merge pages
+  useEffect(() => {
+    if (!pageData) return;
+    setDocuments(prev => page === 0 ? pageData : [...prev, ...pageData]);
+    setHasMore((pageData?.length || 0) === pageSize);
+  }, [pageData, page, pageSize]);
+
+  const handleLoadMore = () => {
+    if (hasMore && !isFetching) setPage(p => p + 1);
+  };
 
   const handleDelete = (id, e) => {
     e?.stopPropagation();
-    const project = projects.find(p => p.id === id);
+    const project = documents.find(p => p.id === id);
     setDocumentToDelete(project || { id });
   };
 
@@ -733,6 +814,54 @@ export default function Documents() {
   const handleSelectProject = (project) => {
     setSelectedProject(project);
     setShowCanvas(true);
+  };
+
+  // Upload handling
+  const uploadMutation = useMutation(
+    ({ file, tempId }) =>
+      visionApi.upload(file, file.name, {
+        onUploadProgress: (evt) => {
+          if (!evt.total) return;
+          const progress = Math.round((evt.loaded / evt.total) * 100);
+          setUploadingFiles(prev => prev.map(f => f.id === tempId ? { ...f, progress } : f));
+        }
+      }),
+    {
+      onSuccess: (_, variables) => {
+        setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
+        toastSuccess('Uploaded ' + (variables.file?.name || 'file'));
+        queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+        setPage(0);
+        setDocuments([]);
+        setHasMore(true);
+      },
+      onError: (err, variables) => {
+        setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
+        toastError(err.message || 'Upload failed');
+      }
+    }
+  );
+
+  const validateFile = (file) => {
+    const allowed = new Set(['pdf','png','jpg','jpeg','tiff','tif','dwg','webp']);
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowed.has(ext)) return 'Unsupported file type';
+    const MAX = 100 * 1024 * 1024;
+    if (file.size > MAX) return 'File exceeds 100MB limit';
+    return null;
+  };
+
+  const handleUpload = (files) => {
+    Array.from(files || []).forEach((file) => {
+      const validationError = validateFile(file);
+      if (validationError) {
+        toastError(`${file.name}: ${validationError}`);
+        return;
+      }
+      const tempId = `${file.name}-${Date.now()}`;
+      setUploadingFiles(prev => [...prev, { id: tempId, name: file.name, progress: 0 }]);
+      uploadMutation.mutate({ file, tempId });
+    });
   };
 
   return (
@@ -750,7 +879,7 @@ export default function Documents() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm" style={{ color: '#64748B' }}>
-            {projects.length} document{projects.length !== 1 ? 's' : ''}
+            {documents.length} document{documents.length !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
@@ -763,29 +892,40 @@ export default function Documents() {
         onChange={setActiveTab}
       >
         <Tab id="library" label="Library" icon={Files}>
-          <DocumentsLibrary
-            projects={projects}
-            isLoading={isLoading}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            selectedItems={selectedItems}
-            setSelectedItems={setSelectedItems}
-            onSelectProject={handleSelectProject}
-            onDelete={handleDelete}
-          />
+          <TabErrorBoundary onRetry={() => queryClient.invalidateQueries({ queryKey: ['vision-projects'] })}>
+            <DocumentsLibrary
+              projects={documents}
+              isLoading={isLoading && documents.length === 0}
+              isFetchingMore={isFetching && documents.length > 0}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              selectedItems={selectedItems}
+              setSelectedItems={setSelectedItems}
+              onSelectProject={handleSelectProject}
+              onDelete={handleDelete}
+              onUpload={handleUpload}
+              uploadingFiles={uploadingFiles}
+            />
+          </TabErrorBoundary>
         </Tab>
         <Tab id="vision" label="AI Analysis" icon={ScanEye}>
-          <VisionAnalysis
-            projects={projects}
-            onSelectProject={handleSelectProject}
-          />
+          <TabErrorBoundary onRetry={() => queryClient.invalidateQueries({ queryKey: ['vision-projects'] })}>
+            <VisionAnalysis
+              projects={documents}
+              onSelectProject={handleSelectProject}
+            />
+          </TabErrorBoundary>
         </Tab>
         <Tab id="text-intel" label="Text Intelligence" icon={BookOpenText}>
-          <TextIntelligence />
+          <TabErrorBoundary>
+            <TextIntelligence />
+          </TabErrorBoundary>
         </Tab>
       </TabSystem>
 

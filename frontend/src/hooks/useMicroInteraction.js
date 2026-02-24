@@ -175,11 +175,14 @@ export function useAnimatedNumber(value, { duration = 500, delay = 0 } = {}) {
 
   // Start animation when value changes
   const prevValueRef = useRef(value);
-  if (prevValueRef.current !== value) {
-    startTimeRef.current = null;
-    prevValueRef.current = value;
-    requestAnimationFrame(animate);
-  }
+  useEffect(() => {
+    if (prevValueRef.current !== value) {
+      startTimeRef.current = null;
+      startValueRef.current = displayValue;
+      requestAnimationFrame(animate);
+      prevValueRef.current = value;
+    }
+  }, [value, animate, displayValue]);
 
   return displayValue;
 }

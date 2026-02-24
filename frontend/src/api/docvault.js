@@ -8,10 +8,11 @@ export const docvaultApi = {
     if (!file) throw new Error('No file provided');
     if (file.size > 100 * 1024 * 1024) throw new Error('File size exceeds 100MB limit');
     
-    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error('Invalid file type. Allowed: PDF, TXT, DOC, DOCX');
+    // Get file extension for validation (more reliable than mime type)
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const allowedExts = ['pdf', 'docx', 'txt', 'csv', 'md', 'html', 'htm', 'json', 'xml'];
+    if (!allowedExts.includes(ext)) {
+      throw new Error(`Invalid file type .${ext}. Allowed: PDF, DOCX, TXT, CSV, MD, HTML, JSON, XML`);
     }
 
     const formData = new FormData();

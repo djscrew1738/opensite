@@ -43,3 +43,7 @@ jobs:
         CI: true
         JWT_SECRET: test-secret
         ENCRYPTION_KEY: a2V5Zm9ydGVzdGluZ2FlbmRkZXZlbG9wbWVudA==
+
+    - name: Run Playwright tests
+      run: npx playwright test
+      working-directory: ./

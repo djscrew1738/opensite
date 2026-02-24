@@ -6,3 +6,8 @@ test('homepage has correct title', async ({ page }) => {
   await page.goto('http://localhost:3000/');
   await expect(page).toHaveTitle(/OpenSite/);
 });
+
+test('analysis jobs dashboard loads', async ({ page }) => {
+  await page.goto('http://localhost:3000/jobs?tab=analysis-jobs');
+  await expect(page.locator('h2:has-text("Analysis Jobs")')).toBeVisible();
+});

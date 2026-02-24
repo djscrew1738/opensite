@@ -3,8 +3,16 @@
 import express from 'express';
 import { jobQueue } from '../services/jobQueuePersistent.js';
 import { tryCatch } from '../utils/response.js';
+import { db } from '../services/database.js';
 
 const router = express.Router();
+
+// GET /api/jobs - Get all analysis jobs
+router.get('/', tryCatch(async (req, res) => {
+  const jobs = await db.getAllAnalysisJobs();
+  res.success(jobs);
+}));
+
 
 /**
  * Get queue statistics

@@ -12,9 +12,11 @@ import addHistoryOperations from './history.js';
 import addUserOperations from './users.js';
 import addEmailWatcherOperations from './email-watcher.js';
 import addQuickBooksOperations from './quickbooks.js';
+import addJobOperations from './jobs.js';
 
 // Determine which service to use
 const isPostgres = !!process.env.DATABASE_URL;
+
 
 // Dynamically import PostgreSQL service only when needed
 let DatabaseService = SQLiteService;
@@ -39,6 +41,7 @@ addHistoryOperations(DatabaseService);
 addUserOperations(DatabaseService);
 addEmailWatcherOperations(DatabaseService);
 addQuickBooksOperations(DatabaseService);
+addJobOperations(DatabaseService);
 
 // Create and export singleton instance
 export const db = new DatabaseService();

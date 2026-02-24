@@ -678,6 +678,10 @@ export default function Jobs() {
           <PlumbingView />
         </Tab>
 
+        <Tab id="analysis-jobs" label="Analysis Jobs" icon={Calendar}>
+          <AnalysisJobsDashboard />
+        </Tab>
+
         <Tab id="leads" label="Lead Finder" icon={Users}>
           <LeadFinder />
         </Tab>

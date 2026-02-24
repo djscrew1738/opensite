@@ -256,6 +256,7 @@ export const api = {
 
   // Jobs (for polling background tasks)
   jobs: {
+    getAll: () => apiClient.get('/jobs'),
     getStatus: (jobId) => apiClient.get(`/jobs/${jobId}`),
     getQueueStats: () => apiClient.get('/jobs/queue/stats'),
     cancel: (jobId) => apiClient.delete(`/jobs/${jobId}`)

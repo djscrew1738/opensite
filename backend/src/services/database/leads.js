@@ -41,27 +41,41 @@ export function addLeadOperations(DatabaseService) {
     return await this.get('SELECT * FROM leads WHERE id = ?', [id]);
   };
 
-  // Get all leads with optional filtering
+  // Get all leads with optional filtering and pagination
   DatabaseService.prototype.getAllLeads = async function(filters = {}) {
-    let query = 'SELECT * FROM leads WHERE 1=1';
+    let where = 'WHERE 1=1';
     const params = [];
-    
+
     /* User filter disabled for company-wide access */
 
     if (filters.status) {
-      query += ' AND status = ?';
+      where += ' AND status = ?';
       params.push(filters.status);
     }
-    
+
     if (filters.search) {
-      query += ' AND (name LIKE ? OR company LIKE ? OR email LIKE ? OR phone LIKE ?)';
+      where += ' AND (name LIKE ? OR company LIKE ? OR email LIKE ? OR phone LIKE ?)';
       const searchTerm = `%${filters.search}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
-    
-    query += ' ORDER BY updatedAt DESC';
-    
-    return await this.all(query, params);
+
+    // Count total before pagination
+    const countRow = await this.get(`SELECT COUNT(*) as total FROM leads ${where}`, params);
+    const total = countRow?.total || 0;
+
+    let query = `SELECT * FROM leads ${where} ORDER BY updatedAt DESC`;
+
+    if (filters.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+      if (filters.offset) {
+        query += ' OFFSET ?';
+        params.push(filters.offset);
+      }
+    }
+
+    const leads = await this.all(query, params);
+    return { leads, total };
   };
 
   // Update lead

@@ -2,6 +2,7 @@
 // Implements the same interface as OllamaService / GroqService
 
 import axios from 'axios';
+import logger from './logger.js';
 
 const CB_CLOSED = 'closed';
 const CB_OPEN = 'open';
@@ -219,7 +220,7 @@ class AnthropicService {
       this._metrics.failCount++;
       this._cbRecordFailure(error);
       const msg = error.response?.data?.error?.message || error.message;
-      console.error('[anthropic] generate error:', msg);
+      logger.error('[anthropic] generate error:', msg);
       return { success: false, error: msg };
     }
   }
@@ -291,7 +292,7 @@ class AnthropicService {
       this._metrics.failCount++;
       this._cbRecordFailure(error);
       const msg = error.response?.data?.error?.message || error.message;
-      console.error('[anthropic] stream error:', msg);
+      logger.error('[anthropic] stream error:', msg);
       yield `Error: ${msg}`;
     }
   }

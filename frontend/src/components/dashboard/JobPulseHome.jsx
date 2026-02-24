@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import {
   LayoutDashboard,
   Target,
@@ -36,7 +36,7 @@ const PHASE_TABS = [
  * - isLoading: Boolean loading state
  * - onJobClick: Function(job) called when a job is clicked
  */
-export default function JobPulseHome({ 
+const JobPulseHome = memo(function JobPulseHome({
   jobs = [], 
   metrics = [],
   focusItems = [],
@@ -198,4 +198,6 @@ export default function JobPulseHome({
       </div>
     </div>
   );
-}
+});
+
+export default JobPulseHome;

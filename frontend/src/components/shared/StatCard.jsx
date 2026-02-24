@@ -1,19 +1,10 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 /**
  * StatCard - Reusable metric card component with optional animation
  * Follows industrial control room aesthetic with monospace numerals
- * @param {string} title - Card title
- * @param {number|string} value - Main value to display
- * @param {string} subtitle - Optional subtitle text
- * @param {string} icon - Optional Lucide icon component
- * @param {string} trend - Optional trend indicator (up/down/neutral)
- * @param {boolean} animated - Whether to animate the number counting
- * @param {string} className - Additional CSS classes
- * @param {string} color - Color accent: 'copper', 'green', 'amber', 'blue', 'purple'
- * @param {number} delay - Animation delay in ms
  */
-export default function StatCard({
+const StatCard = memo(function StatCard({
   title,
   value,
   subtitle,
@@ -131,4 +122,6 @@ export default function StatCard({
       </div>
     </div>
   );
-}
+});
+
+export default StatCard;

@@ -4,14 +4,9 @@
 
 import dns from 'dns';
 import { promisify } from 'util';
+import logger from '../logger.js';
 
 const dnsResolveMx = promisify(dns.resolveMx);
-
-const logger = {
-  info: (msg, data) => console.log(`[email-verifier] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[email-verifier] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[email-verifier] ${msg}`, data || ''),
-};
 
 // Disposable email domains (common throwaway services)
 const DISPOSABLE_DOMAINS = new Set([

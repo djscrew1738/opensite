@@ -161,7 +161,6 @@ export const api = {
     testOpenClaw: (url, token) => apiClient.post('/settings/test-openclaw', { url, token }),
     testSerper: (key) => apiClient.post('/settings/test-serper', { key }),
     testAnthropic: (key) => apiClient.post('/settings/test-anthropic', { key }),
-    testOpenai: (key) => apiClient.post('/settings/test-openai', { key }),
     testTwilio: (sid, token) => apiClient.post('/settings/test-twilio', { sid, token }),
     testSendgrid: (key) => apiClient.post('/settings/test-sendgrid', { key }),
     testStripe: (key) => apiClient.post('/settings/test-stripe', { key }),
@@ -294,13 +293,9 @@ export const api = {
       const formData = new FormData();
       formData.append('file', file);
       if (name) formData.append('name', name);
-      return axios.post('/api/vision/upload', formData, {
+      return apiClient.post('/vision/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000
-      }).then(res => {
-        const data = res.data;
-        if (data && typeof data === 'object' && 'success' in data) return data.data;
-        return data;
       });
     },
     getProjects: () => apiClient.get('/vision/projects'),

@@ -143,6 +143,30 @@ router.put('/', requireRole(['admin']), tryCatch(async (req, res) => {
 router.post('/test-ollama', tryCatch(async (req, res) => {
   const { url } = req.body;
   const testUrl = url || ollamaService.baseUrl;
+
+  // SSRF protection: reject private/internal IP ranges
+  try {
+    const parsed = new URL(testUrl);
+    const hostname = parsed.hostname;
+    const blockedPatterns = [
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^127\./,
+      /^0\./,
+      /^169\.254\./,
+      /^::1$/,
+      /^localhost$/i,
+    ];
+    // Allow localhost only in development
+    const isLocal = blockedPatterns.some(p => p.test(hostname));
+    if (isLocal && process.env.NODE_ENV === 'production') {
+      return res.success({ connected: false, url: testUrl, error: 'Cannot test connections to private/internal addresses in production' });
+    }
+  } catch {
+    return res.success({ connected: false, url: testUrl, error: 'Invalid URL' });
+  }
+
   try {
     const { default: axios } = await import('axios');
     const response = await axios.get(`${testUrl}/api/tags`, { timeout: 5000 });

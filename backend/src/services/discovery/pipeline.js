@@ -7,11 +7,7 @@ import { db } from '../database.js';
 import { scrapeGoogleMaps } from './mapsScraper.js';
 import { enrichLeads } from './webEnricher.js';
 import { scoreAndGenerateOutreach } from './discoveryScorer.js';
-
-const logger = {
-  info: (msg, data) => console.log(`[discovery-pipeline] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[discovery-pipeline] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 /**
  * Start a discovery pipeline run

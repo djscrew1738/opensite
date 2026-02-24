@@ -4,12 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-
-const logger = {
-  info: (msg, data) => console.log(`[lead-export] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[lead-export] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[lead-export] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 // Export directory
 const EXPORT_DIR = process.env.LEAD_EXPORT_DIR || path.join(process.cwd(), '../../tool/exports');

@@ -10,25 +10,38 @@ import { v4 as uuidv4 } from 'uuid';
 export function addHistoryOperations(DatabaseService) {
   // ==================== Conversation Operations ====================
   
-  // Get all conversations with optional search
+  // Get all conversations with optional search and pagination
   DatabaseService.prototype.getAllConversations = async function(filters = {}) {
     const { search, userId } = filters;
-    let query = 'SELECT * FROM conversations WHERE 1=1';
+    let where = 'WHERE 1=1';
     const params = [];
-    
+
     if (userId) {
-      query += ' AND userId = ?';
+      where += ' AND userId = ?';
       params.push(userId);
     }
 
     if (search) {
-      query += ' AND messages LIKE ?';
+      where += ' AND messages LIKE ?';
       params.push(`%${search}%`);
     }
-    
-    query += ' ORDER BY updatedAt DESC';
-    
-    return await this.all(query, params);
+
+    const countRow = await this.get(`SELECT COUNT(*) as total FROM conversations ${where}`, params);
+    const total = countRow?.total || 0;
+
+    let query = `SELECT * FROM conversations ${where} ORDER BY updatedAt DESC`;
+
+    if (filters.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+      if (filters.offset) {
+        query += ' OFFSET ?';
+        params.push(filters.offset);
+      }
+    }
+
+    const conversations = await this.all(query, params);
+    return { conversations, total };
   };
 
   // Get single conversation

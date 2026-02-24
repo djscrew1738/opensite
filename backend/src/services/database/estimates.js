@@ -62,31 +62,45 @@ export function addEstimateOperations(DatabaseService) {
     return estimate;
   };
 
-  // Get all estimates with optional search
+  // Get all estimates with optional search and pagination
   DatabaseService.prototype.getAllEstimates = async function(filters = {}) {
     const { search, userId } = filters;
-    let query = `
-      SELECT e.*, GROUP_CONCAT(b.fileName) as blueprintFileNames
-      FROM estimates e
-      LEFT JOIN blueprints b ON b.estimateId = e.id
-      WHERE 1=1
-    `;
+    let where = 'WHERE 1=1';
     const params = [];
-    
+
     if (userId) {
-      query += ' AND e.userId = ?';
+      where += ' AND e.userId = ?';
       params.push(userId);
     }
 
     if (search) {
-      query += ' AND (e.id LIKE ? OR e.leadId LIKE ?)';
+      where += ' AND (e.id LIKE ? OR e.leadId LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm);
     }
-    
-    query += ' GROUP BY e.id ORDER BY e.createdAt DESC';
-    
-    return await this.all(query, params);
+
+    const countRow = await this.get(`SELECT COUNT(*) as total FROM estimates e ${where}`, params);
+    const total = countRow?.total || 0;
+
+    let query = `
+      SELECT e.*, GROUP_CONCAT(b.fileName) as blueprintFileNames
+      FROM estimates e
+      LEFT JOIN blueprints b ON b.estimateId = e.id
+      ${where}
+      GROUP BY e.id ORDER BY e.createdAt DESC
+    `;
+
+    if (filters.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+      if (filters.offset) {
+        query += ' OFFSET ?';
+        params.push(filters.offset);
+      }
+    }
+
+    const estimates = await this.all(query, params);
+    return { estimates, total };
   };
 
   // Delete estimate

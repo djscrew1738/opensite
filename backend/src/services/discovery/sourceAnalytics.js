@@ -1,11 +1,7 @@
 // Lead Source Performance Analytics
 // Tracks and analyzes which lead sources produce the best results
 
-const logger = {
-  info: (msg, data) => console.log(`[source-analytics] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[source-analytics] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[source-analytics] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 /**
  * Calculate conversion funnel metrics

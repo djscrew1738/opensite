@@ -145,6 +145,33 @@ export function tryCatch(handler) {
   };
 }
 
+/**
+ * Parse pagination query params from request
+ * @param {object} query - req.query object
+ * @param {object} defaults - Default values { page, limit }
+ * @returns {{ page: number, limit: number, offset: number }}
+ */
+export function parsePagination(query, defaults = {}) {
+  const page = Math.max(parseInt(query.page) || defaults.page || 1, 1);
+  const limit = Math.min(Math.max(parseInt(query.limit) || defaults.limit || 50, 1), 1000);
+  const offset = (page - 1) * limit;
+  return { page, limit, offset };
+}
+
+/**
+ * Build pagination metadata for res.success() calls
+ * @param {number} page
+ * @param {number} limit
+ * @param {number} total
+ * @returns {object} Meta object with pagination info
+ */
+export function paginationMeta(page, limit, total) {
+  const totalPages = Math.ceil(total / limit);
+  return {
+    pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
+  };
+}
+
 // Common error codes
 export const ERROR_CODES = {
   // Client errors (400s)

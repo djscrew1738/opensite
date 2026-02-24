@@ -3,6 +3,7 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import pdfParse from 'pdf-parse';
+import logger from './logger.js';
 
 class BlueprintService {
   async extractPdfText(filePath) {
@@ -18,7 +19,7 @@ class BlueprintService {
         info: data.info
       };
     } catch (error) {
-      console.error('PDF extraction error:', error);
+      logger.error('PDF extraction error:', error);
       return {
         success: false,
         error: error.message
@@ -63,7 +64,7 @@ class BlueprintService {
           if (this.isReasonableValue(key, parsed)) {
             analysis.extractedInfo[key] = parsed;
           } else {
-            console.warn(`Suspicious ${key} value extracted: ${parsed}, ignoring`);
+            logger.warn(`Suspicious ${key} value extracted: ${parsed}, ignoring`);
           }
         }
       }
@@ -131,7 +132,7 @@ class BlueprintService {
       }
     } catch (error) {
       // Don't throw - file might have already been deleted
-      console.error('File deletion error:', error);
+      logger.error('File deletion error:', error);
     }
   }
 }

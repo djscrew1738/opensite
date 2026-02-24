@@ -5,12 +5,7 @@
 import crypto from 'crypto';
 import * as cheerio from 'cheerio';
 import { db } from '../database.js';
-
-const logger = {
-  info: (msg, data) => console.log(`[maps-scraper] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[maps-scraper] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[maps-scraper] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 /**
  * Generate a domain hash for deduplication

@@ -4,7 +4,7 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -41,13 +41,14 @@ function sanitizeCsvCell(value) {
 
 // ==================== Materials ====================
 
-// Get all materials (with advanced filtering)
+// Get all materials (with advanced filtering and pagination)
 router.get('/materials', tryCatch(async (req, res) => {
   const { category, search, supplier, minPrice, maxPrice, favorites, recentlyUsed, sort } = req.query;
+  const { page, limit, offset } = parsePagination(req.query, { limit: 100 });
 
   // Use advanced search if any extended filters are present
   if (supplier || minPrice || maxPrice || favorites || recentlyUsed || sort) {
-    const materials = await db.searchMaterials({
+    const allMaterials = await db.searchMaterials({
       category, search, supplier,
       minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
       maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
@@ -55,11 +56,15 @@ router.get('/materials', tryCatch(async (req, res) => {
       recentlyUsed: recentlyUsed === 'true' || recentlyUsed === '1',
       sort
     });
-    return res.success({ materials, total: materials.length });
+    const total = allMaterials.length;
+    const materials = allMaterials.slice(offset, offset + limit);
+    return res.success({ materials, total }, null, paginationMeta(page, limit, total));
   }
 
-  const materials = await db.getAllMaterials({ category, search });
-  res.success({ materials, total: materials.length });
+  const allMaterials = await db.getAllMaterials({ category, search });
+  const total = allMaterials.length;
+  const materials = allMaterials.slice(offset, offset + limit);
+  res.success({ materials, total }, null, paginationMeta(page, limit, total));
 }));
 
 // Get material categories

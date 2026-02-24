@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { memo, useEffect, useState, useMemo } from 'react';
 import { 
   Loader2, 
   Upload, 
@@ -18,7 +18,7 @@ const STEPS = [
   { key: 'complete', label: 'Complete', icon: CheckCircle2 },
 ];
 
-export default function UploadProgress({ 
+const UploadProgress = memo(function UploadProgress({
   progress = 0, 
   status = 'processing',
   error = null,
@@ -191,4 +191,6 @@ export default function UploadProgress({
       )}
     </div>
   );
-}
+});
+
+export default UploadProgress;

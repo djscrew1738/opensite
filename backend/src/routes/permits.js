@@ -2,7 +2,7 @@ import express from 'express';
 // Triggering server reload to fix potential transient import issues
 import { db } from '../services/database.js';
 import logger from '../services/logger.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 
 const router = express.Router();
 
@@ -60,10 +60,13 @@ router.get('/search', tryCatch(async (req, res) => {
  * Query params: search, activityTrend, hasPlumber
  */
 router.get('/builders', tryCatch(async (req, res) => {
+  const { page, limit, offset } = parsePagination(req.query, { limit: 100 });
   const filters = {
     search: req.query.search,
     activityTrend: req.query.activityTrend,
-    hasPlumber: req.query.hasPlumber !== undefined ? req.query.hasPlumber === 'true' : undefined
+    hasPlumber: req.query.hasPlumber !== undefined ? req.query.hasPlumber === 'true' : undefined,
+    limit,
+    offset
   };
 
   // Remove undefined values
@@ -72,7 +75,7 @@ router.get('/builders', tryCatch(async (req, res) => {
   });
 
   const builders = await db.getAllBuilders(filters);
-  res.success({ builders, count: builders.length });
+  res.success({ builders, count: builders.length }, null, paginationMeta(page, limit, builders.length));
 }));
 
 /**
@@ -166,6 +169,7 @@ router.get('/', tryCatch(async (req, res) => {
     return res.error(`Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}`, 'VALIDATION_ERROR', null, 400);
   }
 
+  const { page, limit, offset } = parsePagination(req.query);
   const filters = {
     tier: req.query.tier,
     status: req.query.status,
@@ -175,16 +179,17 @@ router.get('/', tryCatch(async (req, res) => {
     startDate: req.query.startDate,
     endDate: req.query.endDate,
     search: req.query.search,
-    limit: req.query.limit ? Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 1000) : undefined
+    limit,
+    offset
   };
 
-  // Remove undefined values
+  // Remove undefined values (except limit/offset)
   Object.keys(filters).forEach(key => {
     if (filters[key] === undefined) delete filters[key];
   });
 
   const permits = await db.getAllPermits(filters);
-  res.success({ permits, count: permits.length });
+  res.success({ permits, count: permits.length }, null, paginationMeta(page, limit, permits.length));
 }));
 
 /**

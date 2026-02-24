@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { Loader2, AlertCircle, Edit, Trash2, Plus } from 'lucide-react';
-import { ConfirmDialog, Modal } from '../shared';
+import { ConfirmDialog } from '../shared';
+import Modal from '../ui/Modal';
 
 function UserForm({ user, onSave, onCancel }) {
   const [formData, setFormData] = useState({

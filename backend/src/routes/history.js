@@ -1,17 +1,18 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 
 const router = express.Router();
 
 // Apply authentication to all history routes
 router.use(authenticateToken);
 
-// List all conversations (lightweight summaries)
+// List all conversations (lightweight summaries) with pagination
 router.get('/conversations', tryCatch(async (req, res) => {
-  const conversations = await db.getAllConversations({ search: req.query.search, userId: req.user.id });
-  const summaries = conversations.map(conv => {
+  const { page, limit, offset } = parsePagination(req.query);
+  const result = await db.getAllConversations({ search: req.query.search, userId: req.user.id, limit, offset });
+  const summaries = result.conversations.map(conv => {
     const firstUserMsg = conv.messages.find(m => m.role === 'user');
     return {
       id: conv.id,
@@ -21,7 +22,7 @@ router.get('/conversations', tryCatch(async (req, res) => {
       updatedAt: conv.updatedAt,
     };
   });
-  res.success(summaries);
+  res.success(summaries, null, paginationMeta(page, limit, result.total));
 }));
 
 // Get full conversation
@@ -51,26 +52,35 @@ router.delete('/conversations/:id', tryCatch(async (req, res) => {
   res.success({ deleted: true }, 'Conversation deleted successfully');
 }));
 
-// List all estimates (lightweight summaries)
+// List all estimates (lightweight summaries) with pagination
 router.get('/estimates', tryCatch(async (req, res) => {
-  const estimates = await db.getAllEstimates({ search: req.query.search, userId: req.user.id });
-  const summaries = await Promise.all(estimates.map(async est => {
-    const qboMapping = await db.getQuickBooksMapping(est.id, 'estimate');
-    return {
-      id: est.id,
-      sqft: est.sqft,
-      units: est.units,
-      stories: est.stories,
-      bathrooms: est.bathrooms,
-      total: est.total,
-      perUnit: est.perUnit,
-      margin: est.margin,
-      blueprintFileNames: est.blueprintFileNames || null,
-      createdAt: est.createdAt,
-      qboId: qboMapping?.qboId || null
-    };
+  const { page, limit, offset } = parsePagination(req.query);
+  const result = await db.getAllEstimates({ search: req.query.search, userId: req.user.id, limit, offset });
+
+  // Batch-fetch QuickBooks mappings to avoid N+1 queries
+  const estimateIds = result.estimates.map(e => e.id);
+  const qboMappings = estimateIds.length > 0
+    ? await db.all(
+        `SELECT entityId, qboId FROM quickbooks_mappings WHERE entityType = 'estimate' AND entityId IN (${estimateIds.map(() => '?').join(',')})`,
+        estimateIds
+      )
+    : [];
+  const qboMap = new Map(qboMappings.map(m => [m.entityId, m.qboId]));
+
+  const summaries = result.estimates.map(est => ({
+    id: est.id,
+    sqft: est.sqft,
+    units: est.units,
+    stories: est.stories,
+    bathrooms: est.bathrooms,
+    total: est.total,
+    perUnit: est.perUnit,
+    margin: est.margin,
+    blueprintFileNames: est.blueprintFileNames || null,
+    createdAt: est.createdAt,
+    qboId: qboMap.get(est.id) || null
   }));
-  res.success(summaries);
+  res.success(summaries, null, paginationMeta(page, limit, result.total));
 }));
 
 // Get full estimate with blueprints

@@ -2,12 +2,7 @@
 // Deduplicates leads from multiple sources (permits, discovery, manual entry)
 
 import crypto from 'crypto';
-
-const logger = {
-  info: (msg, data) => console.log(`[deduplication] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[deduplication] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[deduplication] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 /**
  * Normalize text for comparison

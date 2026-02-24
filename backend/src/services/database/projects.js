@@ -39,16 +39,29 @@ export function addProjectOperations(DatabaseService) {
     return await this.get('SELECT * FROM projects WHERE id = ?', [id]);
   };
 
-  // Get all projects
+  // Get all projects with optional pagination
   DatabaseService.prototype.getAllProjects = async function(filters = {}) {
-    let query = 'SELECT * FROM projects WHERE 1=1';
+    let where = 'WHERE 1=1';
     const params = [];
 
     /* User filter disabled for company-wide access */
 
-    query += ' ORDER BY updatedAt DESC';
-    
-    return await this.all(query, params);
+    const countRow = await this.get(`SELECT COUNT(*) as total FROM projects ${where}`, params);
+    const total = countRow?.total || 0;
+
+    let query = `SELECT * FROM projects ${where} ORDER BY updatedAt DESC`;
+
+    if (filters.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+      if (filters.offset) {
+        query += ' OFFSET ?';
+        params.push(filters.offset);
+      }
+    }
+
+    const projects = await this.all(query, params);
+    return { projects, total };
   };
 
   // Update project

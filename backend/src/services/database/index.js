@@ -14,6 +14,7 @@ import addEmailWatcherOperations from './email-watcher.js';
 import addQuickBooksOperations from './quickbooks.js';
 import addJobOperations from './jobs.js';
 import addDocumentOperations from './documents.js';
+import logger from '../logger.js';
 
 // Determine which service to use
 const isPostgres = !!process.env.DATABASE_URL;
@@ -24,12 +25,12 @@ const isPostgres = !!process.env.DATABASE_URL;
 let DatabaseService = SQLiteService;
 
 if (isPostgres) {
-  console.log('🚀 Using PostgreSQL database engine');
+  logger.info('Using PostgreSQL database engine');
   // Dynamic import to avoid loading pg when not needed
   const { DatabaseService: PostgresService } = await import('./postgres-core.js');
   DatabaseService = PostgresService;
 } else {
-  console.log('📦 Using SQLite database engine');
+  logger.info('Using SQLite database engine');
 }
 
 // Apply all mixins to the selected DatabaseService prototype

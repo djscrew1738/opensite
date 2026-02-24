@@ -84,7 +84,7 @@ function getNetworkIp() {
 
 function printServerInfo(port) {
   const networkIp = getNetworkIp();
-  console.log(`
+  logger.info(`
 ╔═══════════════════════════════════════════════════════════╗
 ║      Opensite Backend Server v2.0 - Enhanced Edition      ║
 ╚═══════════════════════════════════════════════════════════╝

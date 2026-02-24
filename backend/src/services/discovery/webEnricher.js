@@ -4,12 +4,7 @@
 import * as cheerio from 'cheerio';
 import { aiProvider } from '../ai-provider.js';
 import { verifyEmails, filterBestEmails } from './emailVerifier.js';
-
-const logger = {
-  info: (msg, data) => console.log(`[web-enricher] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[web-enricher] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[web-enricher] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 // Regex patterns
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;

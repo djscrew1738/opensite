@@ -16,17 +16,7 @@ const DEFAULT_KEYWORDS = [
   'building department', 'punch list', 'warranty', 'callback',
 ];
 
-// Use imported logger from services/logger.js
-// Local fallback only if imported logger is not available
-const localLogger = {
-  info: (msg, meta) => console.log(`[email-monitor] ${msg}`, meta || ''),
-  warn: (msg, meta) => console.warn(`[email-monitor] ${msg}`, meta || ''),
-  error: (msg, meta) => console.error(`[email-monitor] ${msg}`, meta || ''),
-  debug: (msg, meta) => console.log(`[email-monitor] DEBUG: ${msg}`, meta || ''),
-};
-
-// Use the imported logger if available, otherwise fallback to local
-const log = logger || localLogger;
+const log = logger;
 
 // Check encryption key configuration at module load (after log is defined)
 if (!process.env.ENCRYPTION_KEY) {

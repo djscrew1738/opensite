@@ -6,7 +6,7 @@ import { cache } from '../services/cache.js';
 import { scoringService } from '../services/scoring.js';
 import { validateLead, validateId, validateLeadQuery } from '../middleware/validation.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -14,27 +14,28 @@ const router = express.Router();
 // Apply authentication to all leads routes
 router.use(authenticateToken);
 
-// Get all leads with optional filtering
+// Get all leads with optional filtering and pagination
 router.get('/', validateLeadQuery, tryCatch(async (req, res) => {
   const { status, search } = req.query;
+  const { page, limit, offset } = parsePagination(req.query);
   const userId = req.user.id;
-  const cacheKey = `leads:${userId}:${status || 'all'}:${search || ''}`;
+  const cacheKey = `leads:${userId}:${status || 'all'}:${search || ''}:p${page}:l${limit}`;
 
   // Check cache first
-  let leads = cache.getApi(cacheKey);
+  let result = cache.getApi(cacheKey);
 
-  if (!leads) {
-    leads = await db.getAllLeads({ status, search, userId });
-    cache.setApi(cacheKey, leads, 30); // Cache for 30 seconds
-    logger.debug('Leads fetched from database', { count: leads.length, userId });
+  if (!result) {
+    result = await db.getAllLeads({ status, search, userId, limit, offset });
+    cache.setApi(cacheKey, result, 30);
+    logger.debug('Leads fetched from database', { count: result.leads.length, userId });
   } else {
-    logger.debug('Leads fetched from cache', { count: leads.length, userId });
+    logger.debug('Leads fetched from cache', { count: result.leads.length, userId });
   }
 
   res.success({
-    leads,
-    total: leads.length
-  });
+    leads: result.leads,
+    total: result.total
+  }, null, paginationMeta(page, limit, result.total));
 }));
 
 // Get single lead

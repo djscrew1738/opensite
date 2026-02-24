@@ -4,6 +4,7 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import pdfParse from 'pdf-parse';
+import logger from './logger.js';
 
 class EnhancedBlueprintService {
   constructor() {
@@ -162,7 +163,7 @@ class EnhancedBlueprintService {
         textLength: data.text.length
       };
     } catch (error) {
-      console.error('PDF extraction error:', error);
+      logger.error('PDF extraction error:', error);
       return {
         success: false,
         error: error.message,
@@ -368,7 +369,7 @@ class EnhancedBlueprintService {
         await fs.unlink(filePath);
       }
     } catch (error) {
-      console.error('File deletion error:', error);
+      logger.error('File deletion error:', error);
     }
   }
 }

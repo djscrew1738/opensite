@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import logger from '../logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -663,7 +664,7 @@ export class DatabaseService {
     const exists = columns.some(c => c.name === column);
     if (!exists) {
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-      console.log(`Added column ${column} to ${table}`);
+      logger.info(`Added column ${column} to ${table}`);
     }
   }
 

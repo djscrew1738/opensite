@@ -5,6 +5,7 @@ import pg from 'pg';
 import pkg from 'pg-pool';
 const { Pool } = pkg;
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../logger.js';
 
 /**
  * Base Database Service class for PostgreSQL
@@ -570,7 +571,7 @@ export class DatabaseService {
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
-      console.error('Error initializing PostgreSQL tables:', e);
+      logger.error('Error initializing PostgreSQL tables:', e);
     } finally {
       client.release();
     }

@@ -2,12 +2,7 @@
 // Manages automated follow-up sequences for leads
 
 import { v4 as uuidv4 } from 'uuid';
-
-const logger = {
-  info: (msg, data) => console.log(`[follow-up] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[follow-up] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[follow-up] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 // Default follow-up sequences (in days from initial contact)
 const DEFAULT_SEQUENCES = {

@@ -14,6 +14,7 @@ import { testImapConnection, checkEmails } from '../services/email-monitor.js';
 import twilio from 'twilio';
 import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 
@@ -98,7 +99,7 @@ router.post('/test-sms', async (req, res) => {
     }, 'Test SMS sent successfully');
 
   } catch (err) {
-    console.error('SMS test error:', err);
+    logger.error('SMS test error:', err);
     res.error(err.message, 'SMS_SEND_ERROR', null, 500);
   }
 });
@@ -168,7 +169,7 @@ router.post('/send-test-email', async (req, res) => {
     }, 'Test email sent successfully');
 
   } catch (err) {
-    console.error('Email test error:', err);
+    logger.error('Email test error:', err);
     res.error(err.message, 'EMAIL_SEND_ERROR', null, 500);
   }
 });

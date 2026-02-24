@@ -2,7 +2,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-do-not-use-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
+  ? (() => { throw new Error('JWT_SECRET must be set in production'); })()
+  : 'dev-secret-do-not-use-in-prod');
 const JWT_EXPIRES_IN = '7d';
 
 /**

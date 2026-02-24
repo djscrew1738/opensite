@@ -4,7 +4,7 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { startDiscoveryPipeline } from '../services/discovery/pipeline.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 
 const router = express.Router();
 
@@ -36,8 +36,11 @@ router.post('/run', tryCatch(async (req, res) => {
  * @route GET /api/discovery/runs
  */
 router.get('/runs', tryCatch(async (req, res) => {
+  const { page, limit, offset } = parsePagination(req.query, { limit: 20 });
   const runs = await db.getAllDiscoveryRuns();
-  res.success({ runs, total: runs.length });
+  const total = runs.length;
+  const paged = runs.slice(offset, offset + limit);
+  res.success({ runs: paged, total }, null, paginationMeta(page, limit, total));
 }));
 
 /**
@@ -67,8 +70,11 @@ router.get('/runs/:runId/leads', tryCatch(async (req, res) => {
     status: req.query.status || undefined
   };
 
-  const leads = await db.getDiscoveryLeadsByRun(req.params.runId, filters);
-  res.success({ leads, total: leads.length });
+  const { page, limit, offset } = parsePagination(req.query);
+  const allLeads = await db.getDiscoveryLeadsByRun(req.params.runId, filters);
+  const total = allLeads.length;
+  const leads = allLeads.slice(offset, offset + limit);
+  res.success({ leads, total }, null, paginationMeta(page, limit, total));
 }));
 
 /**

@@ -3,17 +3,18 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
-import { tryCatch } from '../utils/response.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
 
 const router = express.Router();
 
 // Apply authentication to all projects routes
 router.use(authenticateToken);
 
-// Get all projects
+// Get all projects with pagination
 router.get('/', tryCatch(async (req, res) => {
-  const projects = await db.getAllProjects({ userId: req.user.id });
-  res.success({ projects, total: projects.length });
+  const { page, limit, offset } = parsePagination(req.query);
+  const result = await db.getAllProjects({ userId: req.user.id, limit, offset });
+  res.success({ projects: result.projects, total: result.total }, null, paginationMeta(page, limit, result.total));
 }));
 
 // Get single project

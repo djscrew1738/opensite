@@ -4,12 +4,7 @@
  */
 
 import { db } from '../services/database.js';
-
-const logger = {
-  info: (msg) => console.log(`[ConfigChecker] ✅ ${msg}`),
-  warn: (msg) => console.warn(`[ConfigChecker] ⚠️  ${msg}`),
-  error: (msg) => console.error(`[ConfigChecker] ❌ ${msg}`),
-};
+import logger from '../services/logger.js';
 
 /**
  * Check Email (IMAP) Configuration
@@ -217,81 +212,81 @@ export async function checkAllNotificationConfigs() {
 export async function printConfigStatus() {
   const report = await checkAllNotificationConfigs();
 
-  console.log('\n' + '='.repeat(60));
-  console.log('NOTIFICATION CONFIGURATION STATUS');
-  console.log('='.repeat(60));
-  console.log(`Timestamp: ${report.timestamp}`);
-  console.log('');
+  logger.info('\n' + '='.repeat(60));
+  logger.info('NOTIFICATION CONFIGURATION STATUS');
+  logger.info('='.repeat(60));
+  logger.info(`Timestamp: ${report.timestamp}`);
+  logger.info('');
 
   // Email Status
-  console.log('📧 EMAIL MONITOR (IMAP)');
-  console.log('-'.repeat(40));
-  console.log(`Enabled: ${report.email.enabled ? 'Yes' : 'No'}`);
-  console.log(`Configured: ${report.email.configured ? 'Yes' : 'No'}`);
-  console.log(`Host: ${report.email.config.host}`);
-  console.log(`Port: ${report.email.config.port}`);
-  console.log(`User: ${report.email.config.user}`);
-  console.log(`Can Connect: ${report.email.canConnect ? '✅ Yes' : '❌ No'}`);
-  
+  logger.info('EMAIL MONITOR (IMAP)');
+  logger.info('-'.repeat(40));
+  logger.info(`Enabled: ${report.email.enabled ? 'Yes' : 'No'}`);
+  logger.info(`Configured: ${report.email.configured ? 'Yes' : 'No'}`);
+  logger.info(`Host: ${report.email.config.host}`);
+  logger.info(`Port: ${report.email.config.port}`);
+  logger.info(`User: ${report.email.config.user}`);
+  logger.info(`Can Connect: ${report.email.canConnect ? 'Yes' : 'No'}`);
+
   if (report.email.issues.length > 0) {
-    console.log('\nIssues:');
-    report.email.issues.forEach(issue => console.log(`  ⚠️  ${issue}`));
+    logger.info('\nIssues:');
+    report.email.issues.forEach(issue => logger.warn(`  ${issue}`));
   }
 
-  console.log('');
+  logger.info('');
 
   // Twilio Status
-  console.log('📱 TWILIO SMS');
-  console.log('-'.repeat(40));
-  console.log(`Configured: ${report.twilio.configured ? 'Yes' : 'No'}`);
-  console.log(`Account SID: ${report.twilio.config.accountSid}`);
-  console.log(`From Number: ${report.twilio.config.fromPhone}`);
-  console.log(`To Number: ${report.twilio.config.toPhone}`);
-  console.log(`Can Send: ${report.twilio.canSend ? '✅ Yes' : '❌ No'}`);
-  
+  logger.info('TWILIO SMS');
+  logger.info('-'.repeat(40));
+  logger.info(`Configured: ${report.twilio.configured ? 'Yes' : 'No'}`);
+  logger.info(`Account SID: ${report.twilio.config.accountSid}`);
+  logger.info(`From Number: ${report.twilio.config.fromPhone}`);
+  logger.info(`To Number: ${report.twilio.config.toPhone}`);
+  logger.info(`Can Send: ${report.twilio.canSend ? 'Yes' : 'No'}`);
+
   if (report.twilio.issues.length > 0) {
-    console.log('\nIssues:');
-    report.twilio.issues.forEach(issue => console.log(`  ⚠️  ${issue}`));
+    logger.info('\nIssues:');
+    report.twilio.issues.forEach(issue => logger.warn(`  ${issue}`));
   }
 
-  console.log('');
+  logger.info('');
 
   // SMTP Status
-  console.log('📤 SMTP (Outgoing Email)');
-  console.log('-'.repeat(40));
-  console.log(`Configured: ${report.smtp.configured ? 'Yes' : 'No'}`);
-  console.log(`Host: ${report.smtp.config.host}`);
-  console.log(`Port: ${report.smtp.config.port}`);
-  console.log(`User: ${report.smtp.config.user}`);
-  console.log(`To Email: ${report.smtp.config.toEmail}`);
-  console.log(`Can Send: ${report.smtp.canSend ? '✅ Yes' : '❌ No'}`);
-  
+  logger.info('SMTP (Outgoing Email)');
+  logger.info('-'.repeat(40));
+  logger.info(`Configured: ${report.smtp.configured ? 'Yes' : 'No'}`);
+  logger.info(`Host: ${report.smtp.config.host}`);
+  logger.info(`Port: ${report.smtp.config.port}`);
+  logger.info(`User: ${report.smtp.config.user}`);
+  logger.info(`To Email: ${report.smtp.config.toEmail}`);
+  logger.info(`Can Send: ${report.smtp.canSend ? 'Yes' : 'No'}`);
+
   if (report.smtp.issues.length > 0) {
-    console.log('\nIssues:');
-    report.smtp.issues.forEach(issue => console.log(`  ⚠️  ${issue}`));
+    logger.info('\nIssues:');
+    report.smtp.issues.forEach(issue => logger.warn(`  ${issue}`));
   }
 
-  console.log('');
-  console.log('='.repeat(60));
-  console.log('SUMMARY');
-  console.log('='.repeat(60));
-  console.log(`Email Monitoring: ${report.summary.emailReady ? '✅ Ready' : '❌ Not Ready'}`);
-  console.log(`SMS Alerts: ${report.summary.smsReady ? '✅ Ready' : '❌ Not Ready'}`);
-  console.log(`SMTP Email: ${report.summary.smtpReady ? '✅ Ready' : '❌ Not Ready'}`);
-  console.log('');
+  logger.info('');
+  logger.info('='.repeat(60));
+  logger.info('SUMMARY');
+  logger.info('='.repeat(60));
+  logger.info(`Email Monitoring: ${report.summary.emailReady ? 'Ready' : 'Not Ready'}`);
+  logger.info(`SMS Alerts: ${report.summary.smsReady ? 'Ready' : 'Not Ready'}`);
+  logger.info(`SMTP Email: ${report.summary.smtpReady ? 'Ready' : 'Not Ready'}`);
+  logger.info('');
 
   if (report.recommendations.length > 0) {
-    console.log('RECOMMENDATIONS:');
-    report.recommendations.forEach(rec => console.log(`  💡 ${rec}`));
+    logger.info('RECOMMENDATIONS:');
+    report.recommendations.forEach(rec => logger.info(`  ${rec}`));
   }
 
   if (report.summary.allReady) {
-    console.log('\n✅ All notification systems are configured and ready!');
+    logger.info('All notification systems are configured and ready!');
   } else {
-    console.log('\n⚠️  Some notification systems need configuration.');
+    logger.warn('Some notification systems need configuration.');
   }
 
-  console.log('='.repeat(60) + '\n');
+  logger.info('='.repeat(60) + '\n');
 
   return report;
 }

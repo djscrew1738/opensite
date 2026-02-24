@@ -5,14 +5,7 @@ import { scoreAllUnscored } from '../services/permits/scoring.js';
 import { runBuilderRollup } from '../services/permits/intelligence.js';
 import { sendLeadAlert, sendDailyDigest } from '../services/permits/notifications.js';
 import { checkEmails } from '../services/email-monitor.js';
-
-// Simple console logger
-const logger = {
-  info: (msg) => console.log(`[permit-jobs] ${msg}`),
-  warn: (msg) => console.warn(`[permit-jobs] ${msg}`),
-  error: (msg) => console.error(`[permit-jobs] ${msg}`),
-  debug: (msg) => console.log(`[permit-jobs] DEBUG: ${msg}`)
-};
+import logger from '../services/logger.js';
 
 let isRunning = false;
 

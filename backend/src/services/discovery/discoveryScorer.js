@@ -2,12 +2,7 @@
 // Uses Ollama for ICP scoring (0-100) and outreach email generation
 
 import { aiProvider } from '../ai-provider.js';
-
-const logger = {
-  info: (msg, data) => console.log(`[discovery-scorer] ${msg}`, data || ''),
-  warn: (msg, data) => console.warn(`[discovery-scorer] ${msg}`, data || ''),
-  error: (msg, data) => console.error(`[discovery-scorer] ${msg}`, data || ''),
-};
+import logger from '../logger.js';
 
 /**
  * Score a single lead using Ollama AI

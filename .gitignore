@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 package-lock.json
+node_modules_backup_*/
 
 # Environment
 .env
@@ -11,6 +12,8 @@ package-lock.json
 npm-debug.log*
 backend.log
 frontend.log
+backend/logs/
+backend/audit-*.json
 
 # Build outputs
 dist/

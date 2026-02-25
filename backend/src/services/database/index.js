@@ -14,6 +14,7 @@ import addEmailWatcherOperations from './email-watcher.js';
 import addQuickBooksOperations from './quickbooks.js';
 import addJobOperations from './jobs.js';
 import addDocumentOperations from './documents.js';
+import addFileOperations from './files.js';
 import logger from '../logger.js';
 
 // Determine which service to use
@@ -54,6 +55,7 @@ addEmailWatcherOperations(DatabaseService);
 addQuickBooksOperations(DatabaseService);
 addJobOperations(DatabaseService);
 addDocumentOperations(DatabaseService);
+addFileOperations(DatabaseService);
 
 // Create and export singleton instance
 let db;

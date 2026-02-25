@@ -598,6 +598,39 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_doc_chat_document ON document_chat_messages(documentId, createdAt);
     `);
 
+    // Universal Upload: files table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS files (
+        id TEXT PRIMARY KEY,
+        original_name TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        stored_path TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        category TEXT NOT NULL DEFAULT 'other',
+        pipeline_status TEXT NOT NULL DEFAULT 'pending',
+        vision_project_id TEXT,
+        docvault_id TEXT,
+        uploaded_by TEXT,
+        job_id TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Universal Upload: job_files junction table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS job_files (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        file_id TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(job_id, file_id)
+      )
+    `);
+
     // Add new columns to materials if they don't exist
     this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');
@@ -684,6 +717,16 @@ export class DatabaseService {
       
       -- Email alerts (only if table exists)
       CREATE INDEX IF NOT EXISTS idx_email_alerts_receivedAt ON email_alerts(receivedAt);
+
+      -- Files indexes
+      CREATE INDEX IF NOT EXISTS idx_files_job_id ON files(job_id);
+      CREATE INDEX IF NOT EXISTS idx_files_category ON files(category);
+      CREATE INDEX IF NOT EXISTS idx_files_pipeline_status ON files(pipeline_status);
+      CREATE INDEX IF NOT EXISTS idx_files_created_at ON files(created_at DESC);
+
+      -- Job files indexes
+      CREATE INDEX IF NOT EXISTS idx_job_files_job_id ON job_files(job_id);
+      CREATE INDEX IF NOT EXISTS idx_job_files_file_id ON job_files(file_id);
     `);
     
     // Create conditional indexes separately to handle missing columns gracefully

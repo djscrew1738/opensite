@@ -317,19 +317,27 @@ class GroqService {
   async listAvailableModels() {
     try {
       const response = await this.client.get('/models');
-      return response.data.data.map(m => ({
-        id: m.id,
-        name: m.id,
-        contextWindow: m.context_window || 8192,
-        ownedBy: m.owned_by,
-      }));
+      return {
+        success: true,
+        models: response.data.data.map(m => ({
+          id: m.id,
+          name: m.id,
+          contextWindow: m.context_window || 8192,
+          ownedBy: m.owned_by,
+        })),
+        provider: 'groq',
+      };
     } catch (error) {
       // Return default model list on error
-      return [
-        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', contextWindow: 128000 },
-        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', contextWindow: 128000 },
-        { id: 'gemma2-9b-it', name: 'Gemma 2 9B', contextWindow: 8192 },
-      ];
+      return {
+        success: true,
+        models: [
+          { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', contextWindow: 128000 },
+          { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', contextWindow: 128000 },
+          { id: 'gemma2-9b-it', name: 'Gemma 2 9B', contextWindow: 8192 },
+        ],
+        provider: 'groq',
+      };
     }
   }
 

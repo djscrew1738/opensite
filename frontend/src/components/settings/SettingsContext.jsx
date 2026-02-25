@@ -261,7 +261,7 @@ export function SettingsProvider({ children }) {
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic',
+    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic' || activeProvider === 'openai',
     retry: false
   });
 

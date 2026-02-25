@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Files, Plus, Trash2, FileImage, LayoutGrid,
@@ -784,7 +784,7 @@ export default function Documents() {
       q: debouncedQuery || undefined,
       sort: sortBy,
     }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Merge pages
@@ -817,8 +817,8 @@ export default function Documents() {
   };
 
   // Upload handling
-  const uploadMutation = useMutation(
-    ({ file, tempId }) =>
+  const uploadMutation = useMutation({
+    mutationFn: ({ file, tempId }) =>
       visionApi.upload(file, file.name, {
         onUploadProgress: (evt) => {
           if (!evt.total) return;
@@ -826,21 +826,19 @@ export default function Documents() {
           setUploadingFiles(prev => prev.map(f => f.id === tempId ? { ...f, progress } : f));
         }
       }),
-    {
-      onSuccess: (_, variables) => {
-        setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
-        toastSuccess('Uploaded ' + (variables.file?.name || 'file'));
-        queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
-        setPage(0);
-        setDocuments([]);
-        setHasMore(true);
-      },
-      onError: (err, variables) => {
-        setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
-        toastError(err.message || 'Upload failed');
-      }
+    onSuccess: (_, variables) => {
+      setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
+      toastSuccess('Uploaded ' + (variables.file?.name || 'file'));
+      queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+      setPage(0);
+      setDocuments([]);
+      setHasMore(true);
+    },
+    onError: (err, variables) => {
+      setUploadingFiles(prev => prev.filter(f => f.id !== variables.tempId));
+      toastError(err.message || 'Upload failed');
     }
-  );
+  });
 
   const validateFile = (file) => {
     const allowed = new Set(['pdf','png','jpg','jpeg','tiff','tif','dwg','webp']);

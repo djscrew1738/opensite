@@ -51,13 +51,21 @@ export const authLimiter = rateLimit({
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // 10 uploads per hour
-  message: 'Upload limit reached, please try again later',
+  message: { success: false, error: 'Too many uploads, please try again later' },
+  skip: (req) => {
+    // Authenticated users bypass upload rate limit
+    // req.user is set by authenticateToken middleware which runs before this
+    return !!req.user;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
   handler: (req, res) => {
     logger.warn('Upload rate limit exceeded', {
       ip: req.ip,
       path: req.path
     });
     res.status(429).json({
+      success: false,
       error: 'Too many uploads, please try again later'
     });
   }

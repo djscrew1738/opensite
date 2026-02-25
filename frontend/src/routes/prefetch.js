@@ -2,6 +2,7 @@ const pageImports = {
   dashboard: () => import('../pages/Dashboard'),
   leads: () => import('../pages/LeadFinder'),
   jobs: () => import('../pages/Jobs'),
+  jobDetail: () => import('../pages/JobDetail'),
   plans: () => import('../pages/Plans'),
   history: () => import('../pages/History'),
   vision: () => import('../pages/Vision'),

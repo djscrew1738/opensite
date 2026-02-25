@@ -21,6 +21,7 @@ const Vision = lazy(pageImports.vision);
 const Settings = lazy(pageImports.settings);
 const PlumbingVisualizer = lazy(pageImports.plumbing);
 const Documents = lazy(pageImports.documents);
+const JobDetail = lazy(pageImports.jobDetail);
 const Canvas = lazy(pageImports.canvas);
 const Alerts = lazy(pageImports.alerts);
 const AIAssistant = lazy(pageImports.ai);
@@ -217,6 +218,7 @@ export default function App() {
                       {/* Core Pages */}
                       <Route index element={<PageWrapper><Dashboard /></PageWrapper>} />
                       <Route path="jobs" element={<PageWrapper><Jobs /></PageWrapper>} />
+                      <Route path="jobs/:id" element={<PageWrapper><JobDetail /></PageWrapper>} />
                       <Route path="leads" element={<RedirectToJobs tab="leads" />} />
                       <Route path="documents" element={<PageWrapper><Documents /></PageWrapper>} />
                       

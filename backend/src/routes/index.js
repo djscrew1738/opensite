@@ -32,6 +32,7 @@ import notificationRoutes from './notifications.js';
 import canvasRoutes from './canvas.js';
 import usersRoutes from './users.js';
 import docvaultRoutes from './docvault.js';
+import universalUploadRoutes from './universal-upload.js';
 import { visionService } from '../services/vision.js';
 import { authLimiter, aiChatLimiter, uploadLimiter, discoveryLimiter } from '../middleware/security.js';
 import { requireAdminToken } from '../middleware/auth.js';
@@ -71,6 +72,7 @@ export function registerRoutes(app) {
   router.use('/canvas', canvasRoutes);
   router.use('/users', usersRoutes);
   router.use('/docvault', docvaultRoutes);
+  router.use('/upload/universal', uploadLimiter, universalUploadRoutes);
   router.use('/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' }));
 
   // Mount at /api/v1 (canonical) and /api (backward-compatible with deprecation headers)

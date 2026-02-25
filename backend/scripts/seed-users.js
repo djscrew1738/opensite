@@ -46,28 +46,32 @@ async function seed() {
       });
     }
 
-    // 2. Guest Account
-    const guestEmail = 'guest@ctlplumbingllc.com';
-    const guestUsername = 'Guest';
-    const guestPassword = 'guest';
-    
-    const existingGuest = await db.getUserByEmail(guestEmail);
-    if (existingGuest) {
-      console.log(`Guest user ${guestEmail} already exists. Updating password...`);
-      const hashedPassword = await hashPassword(guestPassword);
-      await db.updateUser(existingGuest.id, { 
-        passwordHash: hashedPassword,
-        role: 'viewer'
-      });
+    // 2. Guest Account (only if GUEST_ACCOUNT_ENABLED=true)
+    if (process.env.GUEST_ACCOUNT_ENABLED === 'true') {
+      const guestEmail = process.env.GUEST_EMAIL || 'guest@ctlplumbingllc.com';
+      const guestPassword = process.env.GUEST_PASSWORD;
+
+      if (!guestPassword) {
+        console.log('Skipping guest account: GUEST_PASSWORD not set');
+      } else {
+        const existingGuest = await db.getUserByEmail(guestEmail);
+        const hashedPassword = await hashPassword(guestPassword);
+        if (existingGuest) {
+          console.log(`Updating guest user ${guestEmail}...`);
+          await db.updateUser(existingGuest.id, { passwordHash: hashedPassword, role: 'viewer' });
+        } else {
+          console.log(`Creating guest user ${guestEmail}...`);
+          await db.createUser({
+            username: 'Guest',
+            email: guestEmail,
+            passwordHash: hashedPassword,
+            role: 'viewer',
+          });
+        }
+        console.log('Guest account ready');
+      }
     } else {
-      console.log(`Creating guest user ${guestEmail}...`);
-      const hashedPassword = await hashPassword(guestPassword);
-      await db.createUser({
-        username: guestUsername,
-        email: guestEmail,
-        passwordHash: hashedPassword,
-        role: 'viewer'
-      });
+      console.log('Guest account disabled (GUEST_ACCOUNT_ENABLED != true)');
     }
     
     console.log('Seeding completed successfully.');

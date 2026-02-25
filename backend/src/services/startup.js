@@ -10,6 +10,7 @@ import { webSocketService } from './websocket.js';
 import { printConfigStatus } from '../utils/notification-config-checker.js';
 import { hashPassword } from '../utils/auth.js';
 import { initializeJobHandlers } from './jobHandlers.js';
+import cron from 'node-cron';
 import os from 'os';
 
 export async function startServer(app, port) {
@@ -32,6 +33,7 @@ export async function startServer(app, port) {
     }
     
     await printConfigStatus();
+    scheduleBackups();
     printServerInfo(port);
   });
 
@@ -39,10 +41,22 @@ export async function startServer(app, port) {
 }
 
 async function provisionGuestAccount() {
+  if (process.env.GUEST_ACCOUNT_ENABLED !== 'true') {
+    logger.info('Guest account disabled (set GUEST_ACCOUNT_ENABLED=true to enable)');
+    return;
+  }
+
   try {
-    const guestEmail = 'guest@ctlplumbingllc.com';
+    const guestEmail = process.env.GUEST_EMAIL || 'guest@ctlplumbingllc.com';
+    const guestPassword = process.env.GUEST_PASSWORD;
+
+    if (!guestPassword) {
+      logger.warn('GUEST_PASSWORD not set — skipping guest account provisioning');
+      return;
+    }
+
     const guestUser = await db.getUserByEmail(guestEmail);
-    const hashedGuestPassword = await hashPassword('guest');
+    const hashedGuestPassword = await hashPassword(guestPassword);
 
     if (!guestUser) {
       await db.createUser({
@@ -52,13 +66,40 @@ async function provisionGuestAccount() {
         role: 'viewer',
         isActive: true,
       });
-      logger.info('Auto-provisioned guest account');
+      logger.info('Guest account provisioned', { email: guestEmail });
     } else {
       await db.updateUser(guestUser.id, { passwordHash: hashedGuestPassword, role: 'viewer', isActive: true });
+      logger.info('Guest account updated', { email: guestEmail });
     }
   } catch (err) {
-    logger.warn('Failed to auto-provision guest account', { error: err.message });
+    logger.warn('Failed to provision guest account', { error: err.message });
   }
+}
+
+function scheduleBackups() {
+  const schedule = process.env.BACKUP_SCHEDULE || '0 2 * * *';
+  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || '14', 10);
+  const minKeep = parseInt(process.env.BACKUP_MIN_KEEP || '3', 10);
+
+  if (process.env.BACKUP_ENABLED === 'false') {
+    logger.info('Automated backups disabled');
+    return;
+  }
+
+  cron.schedule(schedule, () => {
+    try {
+      const backupPath = db.backup();
+      logger.info('Scheduled backup completed', { path: backupPath });
+      const pruned = db.pruneBackups(retentionDays, minKeep);
+      if (pruned.length > 0) {
+        logger.info('Backup retention applied', { removed: pruned.length });
+      }
+    } catch (err) {
+      logger.error('Scheduled backup failed', { error: err.message });
+    }
+  });
+
+  logger.info(`Backup scheduler active: ${schedule} (retention: ${retentionDays}d, keep: ${minKeep} min)`);
 }
 
 async function loadAISettings() {

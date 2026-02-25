@@ -784,6 +784,56 @@ export class DatabaseService {
   }
 
   /**
+   * Remove backups older than maxAgeDays, keeping at least minKeep recent ones.
+   */
+  pruneBackups(maxAgeDays = 14, minKeep = 3) {
+    const backupDir = path.join(TOOL_DIR, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) return [];
+
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('opensite-backup-') && f.endsWith('.db'))
+      .sort()
+      .reverse(); // newest first
+
+    const cutoff = Date.now() - (maxAgeDays * 86400000);
+    const removed = [];
+
+    files.forEach((file, i) => {
+      if (i < minKeep) return; // always keep minKeep newest
+      const stat = fs.statSync(path.join(backupDir, file));
+      if (stat.mtimeMs < cutoff) {
+        fs.unlinkSync(path.join(backupDir, file));
+        removed.push(file);
+      }
+    });
+
+    if (removed.length > 0) {
+      logger.info(`Pruned ${removed.length} old backups`);
+    }
+    return removed;
+  }
+
+  /**
+   * List existing backup files with size and age.
+   */
+  listBackups() {
+    const backupDir = path.join(TOOL_DIR, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) return [];
+
+    return fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('opensite-backup-') && f.endsWith('.db'))
+      .map(file => {
+        const stat = fs.statSync(path.join(backupDir, file));
+        return {
+          file,
+          size: `${Math.round(stat.size / 1024)}KB`,
+          created: stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => b.created.localeCompare(a.created));
+  }
+
+  /**
    * Check if database connection is open
    */
   _checkConnection() {

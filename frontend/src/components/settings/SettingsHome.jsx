@@ -307,9 +307,9 @@ export default function SettingsHome({
         <StatCard
           label="Circuit Breaker"
           value={metrics.circuitBreaker || 'Closed'}
-          subtext={metrics.circuitBreaker === 'closed' ? 'Healthy' : 'Tripped'}
+          subtext={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? 'Healthy' : 'Tripped'}
           icon={Shield}
-          color={metrics.circuitBreaker === 'closed' ? 'text-emerald-400' : 'text-red-400'}
+          color={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? 'text-emerald-400' : 'text-red-400'}
           onClick={() => onTabChange('performance')}
         />
       </div>

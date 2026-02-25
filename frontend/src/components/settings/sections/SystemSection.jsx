@@ -46,7 +46,7 @@ export default function SystemSection() {
           <MetricBox 
             label="Circuit Breaker" 
             value={metrics.circuitBreaker || 'Closed'} 
-            sub={metrics.circuitBreaker === 'closed' ? 'Healthy' : 'Tripped'}
+            sub={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? 'Healthy' : 'Tripped'}
             icon={Activity}
           />
         </div>

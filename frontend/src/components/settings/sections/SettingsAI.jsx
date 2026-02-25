@@ -296,13 +296,13 @@ function SettingsAI({
               <div>
                 <label className="label">Default Model</label>
                 {availableModels.length > 0 ? (
-                  <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input">
+                  <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input" aria-label="Default Anthropic model">
                     {availableModels.map(m => (
                       <option key={m.name} value={m.name}>{m.label || m.name}</option>
                     ))}
                   </select>
                 ) : (
-                  <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input">
+                  <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input" aria-label="Default Anthropic model">
                     <option value="claude-sonnet-4-6-20250514">Claude Sonnet 4.6 (balanced)</option>
                     <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fast)</option>
                     <option value="claude-opus-4-6-20250612">Claude Opus 4.6 (powerful)</option>
@@ -535,11 +535,12 @@ function ProviderCard({ card, activeProvider, switchingProvider, onSwitch }) {
 
 // ── Model Select ──
 function ModelSelect({ value, models, onChange, emptyLabel, showSize, showContext, useIdKey, label = 'Default Model' }) {
+  const isEmpty = models.length === 0;
   return (
     <div>
       <label className="label">{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)} className="input">
-        {models.length === 0 && <option>{emptyLabel}</option>}
+      <select value={value} onChange={e => onChange(e.target.value)} className="input" disabled={isEmpty} aria-label={label}>
+        {isEmpty && <option>{emptyLabel}</option>}
         {models.map(m => {
           const key = useIdKey ? (m.id || m.name) : m.name;
           const display = m.label || m.name || m.id;

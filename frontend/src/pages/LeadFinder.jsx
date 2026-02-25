@@ -456,7 +456,7 @@ export default function LeadFinder() {
                   {activeTab === 'permits' && (
                     <div>
                       <label className="label text-xs">Tier</label>
-                      <select value={tierFilter} onChange={(e) => updateParams({ tier: e.target.value })} className="input">
+                      <select value={tierFilter} onChange={(e) => updateParams({ tier: e.target.value })} className="input" aria-label="Filter by tier">
                         <option value="">All Tiers</option>
                         <option value="hot">Hot</option>
                         <option value="warm">Warm</option>
@@ -467,7 +467,7 @@ export default function LeadFinder() {
 
                   <div>
                     <label className="label text-xs">Status</label>
-                    <select value={statusFilter} onChange={(e) => updateParams({ status: e.target.value })} className="input">
+                    <select value={statusFilter} onChange={(e) => updateParams({ status: e.target.value })} className="input" aria-label="Filter by status">
                       <option value="">All Status</option>
                       {activeTab === 'manual' ? (
                         <>
@@ -490,7 +490,7 @@ export default function LeadFinder() {
                   {activeTab === 'permits' && permitCities.length > 0 && (
                     <div>
                       <label className="label text-xs">City</label>
-                      <select value={permitCityFilter} onChange={(e) => setPermitCityFilter(e.target.value)} className="input">
+                      <select value={permitCityFilter} onChange={(e) => setPermitCityFilter(e.target.value)} className="input" aria-label="Filter by city">
                         <option value="">All Cities</option>
                         {permitCities.map(c => (
                           <option key={c} value={c}>{c}</option>

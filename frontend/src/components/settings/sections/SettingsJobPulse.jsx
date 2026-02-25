@@ -102,13 +102,11 @@ function SettingsJobPulse({
                     onChange={e => {
                       const host = e.target.value;
                       setEmHost(host);
-                      // Auto-set port based on host
-                      if (host === 'outlook.office365.com') setEmPort('993');
-                      else if (host === 'imap.gmail.com') setEmPort('993');
-                      else if (host === 'imap.mail.yahoo.com') setEmPort('993');
-                      else if (host === 'imap.office365.com') setEmPort('993');
+                      // Auto-set port based on known providers
+                      if (host) setEmPort('993');
                     }}
                     className="input text-sm"
+                    aria-label="Email server"
                   >
                     <option value="outlook.office365.com">Microsoft 365 / Outlook</option>
                     <option value="imap.gmail.com">Gmail (Google)</option>

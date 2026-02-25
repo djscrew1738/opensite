@@ -280,7 +280,8 @@ export const CitySearch = ({ onViewPermit, onSwitchToBuilders }) => {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-2.5 bg-surface-800 border border-border rounded-xl text-text-primary text-sm focus:outline-none focus:border-brand-400/50"
+            className="px-3 py-2.5 bg-surface-800 border border-border rounded-xl text-text-primary text-sm focus:outline-none focus:border-brand-400/50 focus:ring-2 focus:ring-brand-400/20"
+            aria-label="Sort cities"
           >
             <option value="value">Sort by Value</option>
             <option value="permits">Sort by Permits</option>
@@ -331,7 +332,8 @@ export const CitySearch = ({ onViewPermit, onSwitchToBuilders }) => {
                   <select
                     value={filters.minValue}
                     onChange={(e) => setFilters(f => ({ ...f, minValue: e.target.value }))}
-                    className="w-full px-3 py-2 bg-surface-900 border border-border rounded-lg text-text-primary text-sm"
+                    className="w-full px-3 py-2 bg-surface-900 border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-brand-400/50 focus:ring-2 focus:ring-brand-400/20"
+                    aria-label="Minimum value filter"
                   >
                     <option value="">Any</option>
                     <option value="1">$1M+</option>
@@ -345,7 +347,8 @@ export const CitySearch = ({ onViewPermit, onSwitchToBuilders }) => {
                   <select
                     value={filters.maxValue}
                     onChange={(e) => setFilters(f => ({ ...f, maxValue: e.target.value }))}
-                    className="w-full px-3 py-2 bg-surface-900 border border-border rounded-lg text-text-primary text-sm"
+                    className="w-full px-3 py-2 bg-surface-900 border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-brand-400/50 focus:ring-2 focus:ring-brand-400/20"
+                    aria-label="Maximum value filter"
                   >
                     <option value="">Any</option>
                     <option value="10">Under $10M</option>

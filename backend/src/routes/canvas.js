@@ -384,6 +384,12 @@ router.post('/workspaces/:id/documents', async (req, res) => {
     if (!allowedTypes.includes(ext)) {
       return res.error('Invalid file type. Allowed: PDF, PNG, JPG', 'VALIDATION_ERROR', null, 400);
     }
+
+    // Validate file size (100MB max)
+    const MAX_CANVAS_UPLOAD = 100 * 1024 * 1024;
+    if (file.size > MAX_CANVAS_UPLOAD) {
+      return res.error('File too large. Maximum size is 100MB.', 'FILE_TOO_LARGE', null, 413);
+    }
     
     // Save file
     await file.mv(filePath);

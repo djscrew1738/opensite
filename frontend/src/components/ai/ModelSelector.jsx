@@ -92,6 +92,9 @@ export function ModelSelector({
       {/* Main Selector Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={selectedModel ? `AI model: ${selectedModel.label || selectedModel.name}` : 'Select AI model'}
         className={`
           w-full flex items-center justify-between gap-3 px-3 rounded-lg
           border border-[#1F2430]

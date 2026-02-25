@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Upload, FileText, X, AlertCircle, CheckCircle2, FileWarning, Eye } from 'lucide-react';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB — matches backend multer limit
 const ALLOWED_TYPES = ['.pdf'];
 const ALLOWED_MIME_TYPES = ['application/pdf'];
 
@@ -10,7 +10,7 @@ const getErrorDetails = (errorType, details = {}) => {
   const errors = {
     FILE_TOO_LARGE: {
       title: 'File Too Large',
-      message: `File size exceeds 50MB limit (${details.size}MB).`,
+      message: `File size exceeds 100MB limit (${details.size}MB).`,
       suggestions: [
         'Compress the PDF using a tool like Smallpdf or Adobe Acrobat',
         'Remove unnecessary pages from the blueprint',

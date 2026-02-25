@@ -3,6 +3,7 @@ import { Upload, FileText, Loader2, X, AlertCircle } from 'lucide-react';
 
 const ACCEPTED_EXTENSIONS = '.pdf,.docx,.txt,.csv,.md,.html,.json,.xml';
 const ACCEPTED_SET = new Set(['pdf', 'docx', 'txt', 'csv', 'md', 'html', 'json', 'xml']);
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB — matches backend limit
 
 /**
  * DocUpload — Drag-and-drop upload zone for text documents.
@@ -43,6 +44,13 @@ export default function DocUpload({ onUpload, disabled = false }) {
     const ext = getExtension(file.name);
     if (!ACCEPTED_SET.has(ext)) {
       setError(`Unsupported file type ".${ext}". Accepted: ${[...ACCEPTED_SET].join(', ')}`);
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setError(`File too large (${sizeMB}MB). Maximum size is 100MB.`);
       return;
     }
 

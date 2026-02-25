@@ -875,7 +875,8 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="input text-sm"
+              className="input text-sm max-w-[200px]"
+              aria-label="Filter by category"
             >
               <option value="">All Categories</option>
               {categories.map(cat => (
@@ -887,6 +888,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="input text-sm"
+              aria-label="Sort materials"
             >
               {SORT_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>

@@ -175,10 +175,12 @@ export default function GlobalSearch({ isOpen, onClose }) {
           </div>
 
           {/* Type Filter Pills */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-surface-elevated/50">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-surface-elevated/50" role="tablist" aria-label="Filter results by type">
             {filterButtons.map(f => (
               <button
                 key={f.key}
+                role="tab"
+                aria-selected={typeFilter === f.key}
                 onClick={() => setTypeFilter(f.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                   typeFilter === f.key
@@ -191,7 +193,7 @@ export default function GlobalSearch({ isOpen, onClose }) {
             ))}
 
             {totalCount > 0 && (
-              <span className="ml-auto text-xs text-text-muted font-medium tabular-nums">
+              <span className="ml-auto text-xs text-text-muted font-medium tabular-nums" aria-live="polite">
                 {totalCount} result{totalCount !== 1 ? 's' : ''}
               </span>
             )}

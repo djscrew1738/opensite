@@ -16,6 +16,7 @@
     "@react-three/fiber": "^9.5.0",
     "@sentry/react": "^8.46.0",
     "@tanstack/react-query": "^5.17.9",
+    "@tanstack/react-virtual": "^3.13.19",
     "@types/three": "^0.183.1",
     "@xyflow/react": "^12.10.1",
     "axios": "^1.6.2",
@@ -31,8 +32,7 @@
     "remark-gfm": "^4.0.0",
     "three": "^0.183.1",
     "uuid": "^13.0.0",
-    "zustand": "^5.0.11",
-    "@tanstack/react-virtual": "^3.13.19"
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.0.1",

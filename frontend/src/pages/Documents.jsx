@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -84,17 +84,17 @@ function DocumentsLibrary({
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const listParentRef = useRef(null);
+  const sortedProjects = useMemo(() => [...projects].sort((a, b) => {
+    if (sortBy === 'date') return new Date(b.createdAt) - new Date(a.createdAt);
+    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'size') return (b.size || 0) - (a.size || 0);
+    return 0;
+  }), [projects, sortBy]);
   const rowVirtualizer = useVirtualizer({
     count: sortedProjects.length,
     getScrollElement: () => listParentRef.current,
     estimateSize: () => 88,
     overscan: 8,
-  });
-  const sortedProjects = [...projects].sort((a, b) => {
-    if (sortBy === 'date') return new Date(b.createdAt) - new Date(a.createdAt);
-    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-    if (sortBy === 'size') return (b.size || 0) - (a.size || 0);
-    return 0;
   });
 
   // Drag and drop handlers

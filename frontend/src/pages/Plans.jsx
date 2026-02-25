@@ -65,12 +65,6 @@ export default function Plans() {
   const [projectInfoExpanded, setProjectInfoExpanded] = useState(false);
   const [takeoffExpanded, setTakeoffExpanded] = useState(false);
 
-  // --- Computed Values (memoized) ---
-  const totalFixtures = useMemo(() => 
-    QUALIFYING_FIXTURES.reduce((sum, f) => sum + (fixtures[f.key] || 0), 0),
-    [fixtures]
-  );
-
   const { defaultModel } = useModelPreference();
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;

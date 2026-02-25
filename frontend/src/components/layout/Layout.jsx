@@ -10,6 +10,7 @@ import { NotificationCenter, NotificationBellCompact } from '../notifications';
 import { useNotifications } from '../../hooks/useNotifications';
 import { AISidebar, AIFloatingButton } from '../ai';
 import { GlobalSearch } from '../search';
+import { UploadFAB } from '../upload';
 import { PageHeaderContext } from '../../hooks/usePageHeader';
 import { useSwipe } from '../../hooks/useSwipe';
 import { QuickAddFAB } from '../shared/QuickAddFAB';
@@ -307,6 +308,9 @@ export default function Layout() {
           onAddNote={handleAddNote}
           hasUnprocessedBlueprints={false} // TODO: Connect to actual blueprint processing state
         />
+
+        {/* Upload FAB - Global */}
+        <UploadFAB />
 
         {/* Global Search Overlay */}
         <GlobalSearch

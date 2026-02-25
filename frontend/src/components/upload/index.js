@@ -6,3 +6,4 @@ export { default as UploadModal } from './UploadModal';
 export { default as UploadProgress } from './UploadProgress';
 export { default as AnalysisResults } from './AnalysisResults';
 export { default as ExtractedDataEditor } from './ExtractedDataEditor';
+export { default as UploadFAB } from './UploadFAB';

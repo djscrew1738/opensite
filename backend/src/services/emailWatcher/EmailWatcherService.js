@@ -411,15 +411,15 @@ class EmailWatcherService {
       name = accountName || profile.displayName || email;
     }
     
-    // Save account
-    const account = db.createEmailWatcherAccount({
+    // Save account (tokens encrypted by DB layer)
+    const account = await db.createEmailWatcherAccount({
       name,
       email_address: email,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       token_expires_at: tokens.expires_at,
       provider,
-      active: true,
+      isActive: true,
     });
 
     // Clear client cache to force reload

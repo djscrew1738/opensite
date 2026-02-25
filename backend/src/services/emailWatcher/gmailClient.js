@@ -54,9 +54,9 @@ class GmailClient {
       throw new Error(`Gmail account ${this.accountId} not found`);
     }
 
-    // Get full account data with tokens
-    const fullAccount = await db.get('SELECT * FROM email_watcher_accounts WHERE id = ?', [this.accountId]);
-    
+    // Get full account data with tokens (decrypted by DB layer)
+    const fullAccount = await db.getEmailWatcherAccount(this.accountId);
+
     this.accessToken = fullAccount.access_token;
     this.refreshToken = fullAccount.refresh_token;
     this.tokenExpiresAt = fullAccount.token_expires_at;

@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import logger from '../logger.js';
 import { db } from '../database.js';
 
@@ -53,9 +54,9 @@ class OutlookClient {
       throw new Error(`Email watcher account ${this.accountId} not found`);
     }
 
-    // Get full account data with tokens
-    const fullAccount = await db.get('SELECT * FROM email_watcher_accounts WHERE id = ?', [this.accountId]);
-    
+    // Get full account data with tokens (decrypted by DB layer)
+    const fullAccount = await db.getEmailWatcherAccount(this.accountId);
+
     this.accessToken = fullAccount.access_token;
     this.refreshToken = fullAccount.refresh_token;
     this.tokenExpiresAt = fullAccount.token_expires_at;
@@ -87,7 +88,7 @@ class OutlookClient {
       redirect_uri: this.redirectUri,
       scope: this.scopes.join(' '),
       response_mode: 'query',
-      state: Math.random().toString(36).substring(7),
+      state: randomUUID(),
     });
 
     return `${this.authUrl}/authorize?${params.toString()}`;

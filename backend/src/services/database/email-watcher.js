@@ -1,59 +1,90 @@
 // Email Watcher Database Operations
 // Adds email watcher related methods to DatabaseService
 
+import { encrypt, decrypt, isEncrypted } from '../../utils/encryption.js';
+
+// Encrypt an OAuth token before storing in DB
+function encryptToken(token) {
+  if (!token) return null;
+  return isEncrypted(token) ? token : encrypt(token);
+}
+
+// Decrypt an OAuth token after reading from DB
+function decryptToken(token) {
+  if (!token) return null;
+  try {
+    return decrypt(token) || token;
+  } catch {
+    return token; // Legacy plaintext — return as-is
+  }
+}
+
+// Decrypt all token fields on an account row
+function decryptAccountTokens(account) {
+  if (!account) return account;
+  return {
+    ...account,
+    access_token: decryptToken(account.access_token),
+    refresh_token: decryptToken(account.refresh_token),
+  };
+}
+
 /**
  * Email Watcher operations mixin
  * Adds email watcher related methods to DatabaseService
  */
 export function addEmailWatcherOperations(DatabaseService) {
   // ==================== Email Accounts ====================
-  
-  // Get all email watcher accounts
+
+  // Get all email watcher accounts (tokens decrypted)
   DatabaseService.prototype.getAllEmailWatcherAccounts = async function() {
-    return await this.all(`
+    const rows = await this.all(`
       SELECT * FROM email_accounts ORDER BY createdAt DESC
     `);
+    return rows.map(decryptAccountTokens);
   };
 
-  // Get active email watcher accounts
+  // Get active email watcher accounts (tokens decrypted)
   DatabaseService.prototype.getActiveEmailWatcherAccounts = async function() {
-    return await this.all(`
+    const rows = await this.all(`
       SELECT * FROM email_accounts WHERE isActive = 1 ORDER BY createdAt DESC
     `);
+    return rows.map(decryptAccountTokens);
   };
 
-  // Get email account by ID
+  // Get email account by ID (tokens decrypted)
   DatabaseService.prototype.getEmailWatcherAccount = async function(id) {
-    return await this.get('SELECT * FROM email_accounts WHERE id = ?', [id]);
+    const row = await this.get('SELECT * FROM email_accounts WHERE id = ?', [id]);
+    return decryptAccountTokens(row);
   };
 
-  // Create email account
+  // Create email account (tokens encrypted before storage)
   DatabaseService.prototype.createEmailWatcherAccount = async function(data) {
     const { v4: uuidv4 } = await import('uuid');
     const id = uuidv4();
     const now = new Date().toISOString();
-    
+
     await this.run(`
       INSERT INTO email_accounts (
-        id, email_address, provider, access_token, refresh_token, 
+        id, email_address, provider, access_token, refresh_token,
         token_expires_at, isActive, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id,
       data.email_address,
       data.provider,
-      data.access_token || null,
-      data.refresh_token || null,
+      encryptToken(data.access_token) || null,
+      encryptToken(data.refresh_token) || null,
       data.token_expires_at || null,
       data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
       now,
       now
     ]);
-    
+
     return await this.getEmailWatcherAccount(id);
   };
 
-  // Update email account
+  // Update email account (tokens encrypted if provided)
   DatabaseService.prototype.updateEmailWatcherAccount = async function(id, data) {
     const now = new Date().toISOString();
     const sets = [];
@@ -61,8 +92,8 @@ export function addEmailWatcherOperations(DatabaseService) {
 
     if (data.email_address !== undefined) { sets.push('email_address = ?'); values.push(data.email_address); }
     if (data.provider !== undefined) { sets.push('provider = ?'); values.push(data.provider); }
-    if (data.access_token !== undefined) { sets.push('access_token = ?'); values.push(data.access_token); }
-    if (data.refresh_token !== undefined) { sets.push('refresh_token = ?'); values.push(data.refresh_token); }
+    if (data.access_token !== undefined) { sets.push('access_token = ?'); values.push(encryptToken(data.access_token)); }
+    if (data.refresh_token !== undefined) { sets.push('refresh_token = ?'); values.push(encryptToken(data.refresh_token)); }
     if (data.token_expires_at !== undefined) { sets.push('token_expires_at = ?'); values.push(data.token_expires_at); }
     if (data.isActive !== undefined) { sets.push('isActive = ?'); values.push(data.isActive ? 1 : 0); }
     if (data.lastCheckedAt !== undefined) { sets.push('lastCheckedAt = ?'); values.push(data.lastCheckedAt); }
@@ -76,6 +107,22 @@ export function addEmailWatcherOperations(DatabaseService) {
 
     await this.run(`UPDATE email_accounts SET ${sets.join(', ')} WHERE id = ?`, values);
     return await this.getEmailWatcherAccount(id);
+  };
+
+  // Update tokens specifically (called by outlookClient/gmailClient on refresh)
+  DatabaseService.prototype.updateEmailWatcherAccountTokens = async function(id, data) {
+    const now = new Date().toISOString();
+    await this.run(`
+      UPDATE email_accounts
+      SET access_token = ?, refresh_token = ?, token_expires_at = ?, updatedAt = ?
+      WHERE id = ?
+    `, [
+      encryptToken(data.access_token),
+      encryptToken(data.refresh_token),
+      data.expires_at || null,
+      now,
+      id,
+    ]);
   };
 
   // Delete email account

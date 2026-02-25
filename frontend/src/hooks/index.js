@@ -17,6 +17,7 @@ export { useModelPreference } from './useModelPreference';
 export { useOllama } from './useOllama';
 export { useSorting } from './useSorting';
 export { useStreamingResponse } from './useStreamingResponse';
+export { useUniversalUpload } from './useUniversalUpload';
 
 // UI utilities
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';

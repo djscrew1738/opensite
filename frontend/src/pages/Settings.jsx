@@ -188,6 +188,9 @@ export default function Settings() {
   const [openaiKey, setOpenaiKey] = useState('');
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [openaiTemperature, setOpenaiTemperature] = useState(0.7);
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [anthropicTemperature, setAnthropicTemperature] = useState(0.7);
   const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
   const [openclawToken, setOpenclawToken] = useState('');
   const [showOpenclawToken, setShowOpenclawToken] = useState(false);
@@ -281,6 +284,7 @@ export default function Settings() {
   const [testingGroq, setTestingGroq] = useState(false);
   const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingOpenClaw, setTestingOpenClaw] = useState(false);
+  const [testingAnthropic, setTestingAnthropic] = useState(false);
   const [testingMicrosoft, setTestingMicrosoft] = useState(false);
   const [testingGoogle, setTestingGoogle] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
@@ -300,7 +304,7 @@ export default function Settings() {
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic',
+    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic' || activeProvider === 'openai',
     retry: false
   });
 
@@ -337,6 +341,7 @@ export default function Settings() {
     setTemperature(num(s.ollama_temperature, 0.7));
     setGroqTemperature(num(s.groq_temperature, 0.7));
     setOpenaiTemperature(num(s.openai_temperature, 0.7));
+    setAnthropicTemperature(num(s.anthropic_temperature, 0.7));
     setOpenclawUrl(s.openclaw_url || 'http://localhost:18789');
     setOpenclawTemperature(num(s.openclaw_temperature, 0.7));
 
@@ -402,7 +407,7 @@ export default function Settings() {
       refetchModels();
       queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
       refetchOllama();
-      const providerLabels = { openclaw: 'OpenClaw Gateway', groq: 'Groq Cloud', anthropic: 'Anthropic Claude', ollama: 'Ollama Local' };
+      const providerLabels = { openclaw: 'OpenClaw Gateway', groq: 'Groq Cloud', anthropic: 'Anthropic Claude', openai: 'OpenAI', ollama: 'Ollama Local' };
       showToast(`Switched to ${providerLabels[provider] || provider}`);
     } catch (err) {
       showToast(`Failed to switch: ${err.message}`, 'error');
@@ -420,6 +425,8 @@ export default function Settings() {
         ? { groq_temperature: String(groqTemperature) }
         : activeProvider === 'openai'
         ? { openai_temperature: String(openaiTemperature) }
+        : activeProvider === 'anthropic'
+        ? { anthropic_temperature: String(anthropicTemperature) }
         : { ollama_url: ollamaUrl, ollama_temperature: String(temperature) };
       await api.settings.update({
         ...base,
@@ -499,6 +506,30 @@ export default function Settings() {
     }
   };
 
+  const handleTestAnthropic = async () => {
+    setTestingAnthropic(true);
+    try {
+      const result = await api.settings.testAnthropic(anthropicKey || undefined);
+      if (result.valid) showToast('Anthropic API key is valid');
+      else showToast(result.error || 'Invalid API key', 'error');
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingAnthropic(false);
+    }
+  };
+
+  const handleSaveAnthropicKey = async () => {
+    try {
+      await api.settings.update({ anthropic_api_key: anthropicKey });
+      setAnthropicKey('');
+      refetchSettings();
+      showToast('Anthropic API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  };
+
   const handleTestOpenClaw = async () => {
     setTestingOpenClaw(true);
     try {
@@ -528,6 +559,7 @@ export default function Settings() {
       setDefaultModel(modelName);
       const modelKey = activeProvider === 'groq' ? 'groq_model'
         : activeProvider === 'anthropic' ? 'anthropic_model'
+        : activeProvider === 'openai' ? 'openai_model'
         : activeProvider === 'openclaw' ? 'openclaw_model'
         : 'ollama_model';
       await api.settings.update({ [modelKey]: modelName });
@@ -867,6 +899,7 @@ export default function Settings() {
             testingGroq={testingGroq}
             testingOpenai={testingOpenai}
             testingOpenClaw={testingOpenClaw}
+            testingAnthropic={testingAnthropic}
             savingAI={savingAI}
             maxTokens={maxTokens}
             setMaxTokens={setMaxTokens}
@@ -888,6 +921,8 @@ export default function Settings() {
             setShowOpenaiKey={setShowOpenaiKey}
             showOpenclawToken={showOpenclawToken}
             setShowOpenclawToken={setShowOpenclawToken}
+            showAnthropicKey={showAnthropicKey}
+            setShowAnthropicKey={setShowAnthropicKey}
             temperature={temperature}
             setTemperature={setTemperature}
             groqKey={groqKey}
@@ -898,6 +933,10 @@ export default function Settings() {
             setOpenaiKey={setOpenaiKey}
             openaiTemperature={openaiTemperature}
             setOpenaiTemperature={setOpenaiTemperature}
+            anthropicKey={anthropicKey}
+            setAnthropicKey={setAnthropicKey}
+            anthropicTemperature={anthropicTemperature}
+            setAnthropicTemperature={setAnthropicTemperature}
             ollamaUrl={ollamaUrl}
             setOllamaUrl={setOllamaUrl}
             openclawUrl={openclawUrl}
@@ -906,6 +945,7 @@ export default function Settings() {
             setOpenclawToken={setOpenclawToken}
             openclawTemperature={openclawTemperature}
             setOpenclawTemperature={setOpenclawTemperature}
+            model={model}
             handleSwitchProvider={handleSwitchProvider}
             handleSaveAIConfig={handleSaveAIConfig}
             handleTestOllama={handleTestOllama}
@@ -913,6 +953,8 @@ export default function Settings() {
             handleSaveGroqKey={handleSaveGroqKey}
             handleTestOpenai={handleTestOpenai}
             handleSaveOpenaiKey={handleSaveOpenaiKey}
+            handleTestAnthropic={handleTestAnthropic}
+            handleSaveAnthropicKey={handleSaveAnthropicKey}
             handleTestOpenClaw={handleTestOpenClaw}
             handleSaveOpenclawToken={handleSaveOpenclawToken}
             handleSetDefaultModel={handleSetDefaultModel}

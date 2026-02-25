@@ -63,7 +63,12 @@ export function addFileOperations(DatabaseService) {
   };
 
   /**
-   * Update file pipeline status and linked service IDs
+   * Update file pipeline status and linked service IDs.
+   *
+   * NOTE: COALESCE(?, column) is used for vision_project_id and docvault_id,
+   * which means passing null/undefined will keep the existing value rather than
+   * clearing it. To intentionally set these columns back to NULL, a separate
+   * method or direct SQL would be needed.
    */
   DatabaseService.prototype.updateFilePipeline = async function(id, status, visionProjectId, docvaultId) {
     const now = new Date().toISOString();
@@ -80,14 +85,17 @@ export function addFileOperations(DatabaseService) {
   };
 
   /**
-   * Delete a file record and all job_files links
+   * Delete a file record and all job_files links (transactional)
    */
   DatabaseService.prototype.deleteFile = async function(id) {
     const file = await this.getFileById(id);
     if (!file) return null;
 
-    await this.run('DELETE FROM job_files WHERE file_id = ?', [id]);
-    await this.run('DELETE FROM files WHERE id = ?', [id]);
+    const deleteOp = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM job_files WHERE file_id = ?').run(id);
+      this.db.prepare('DELETE FROM files WHERE id = ?').run(id);
+    });
+    deleteOp();
 
     return file;
   };
@@ -95,15 +103,22 @@ export function addFileOperations(DatabaseService) {
   // ==================== Job-File Linking ====================
 
   /**
-   * Link a file to a job (insert into junction table)
+   * Link a file to a job (insert into junction table).
+   * Returns the existing row if the link already exists (INSERT OR IGNORE).
    */
   DatabaseService.prototype.linkFileToJob = async function(fileId, jobId, notes) {
     const id = uuidv4();
-    await this.run(`
+    const result = await this.run(`
       INSERT OR IGNORE INTO job_files (id, job_id, file_id, notes)
       VALUES (?, ?, ?, ?)
     `, [id, jobId, fileId, notes || null]);
 
+    if (result.changes === 0) {
+      return await this.get(
+        'SELECT * FROM job_files WHERE file_id = ? AND job_id = ?',
+        [fileId, jobId]
+      );
+    }
     return { id, job_id: jobId, file_id: fileId, notes: notes || null };
   };
 

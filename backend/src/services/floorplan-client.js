@@ -205,6 +205,7 @@ class ComprehensiveBlueprintService {
   constructor() {
     this.floorplanClient = new FloorplanClient();
     this.aecvisionClient = null; // Will be loaded dynamically
+    this.structuralClient = null; // Will be loaded dynamically
     this.aiProvider = null;
   }
 
@@ -215,6 +216,14 @@ class ComprehensiveBlueprintService {
       this.aecvisionClient = aecvisionClient;
     } catch (e) {
       logger.warn('AECVision client not available');
+    }
+
+    // Dynamically import structural detector client if available
+    try {
+      const { structuralDetectorClient } = await import('./structural-detector-client.js');
+      this.structuralClient = structuralDetectorClient;
+    } catch (e) {
+      logger.warn('Structural detector client not available');
     }
 
     // Dynamically import AI provider
@@ -236,6 +245,7 @@ class ComprehensiveBlueprintService {
     const {
       useDimensions = true,
       useVision = true,
+      useStructural = true,
       useAI = true
     } = options;
 
@@ -244,6 +254,7 @@ class ComprehensiveBlueprintService {
     const results = {
       dimensions: null,
       vision: null,
+      structural: null,
       ai: null,
       combined: null,
       metadata: {
@@ -281,7 +292,21 @@ class ComprehensiveBlueprintService {
       }
     }
 
-    // 3. AI Analysis
+    // 3. Structural Element Detection (YOLOv8)
+    if (useStructural && this.structuralClient) {
+      try {
+        const structuralAvailable = await this.structuralClient.isAvailable();
+        if (structuralAvailable) {
+          logger.info('Running structural element detection', { filePath });
+          results.structural = await this.structuralClient.analyze(filePath);
+          results.metadata.servicesUsed.push('structural-detector');
+        }
+      } catch (error) {
+        logger.warn('Structural detection failed', { error: error.message });
+      }
+    }
+
+    // 4. AI Analysis
     if (useAI && this.aiProvider) {
       try {
         // Import existing blueprint service
@@ -299,7 +324,8 @@ class ComprehensiveBlueprintService {
             extraction.extractedInfo,
             pdfResult.text,
             results.dimensions,
-            results.vision
+            results.vision,
+            results.structural
           );
 
           const aiResult = await this.aiProvider.generate(prompt, { timeout: 300000 });
@@ -314,10 +340,11 @@ class ComprehensiveBlueprintService {
       }
     }
 
-    // 4. Combine Results
+    // 5. Combine Results
     results.combined = this.combineAllResults(
       results.dimensions,
       results.vision,
+      results.structural,
       results.ai
     );
 
@@ -327,7 +354,7 @@ class ComprehensiveBlueprintService {
   /**
    * Build comprehensive prompt with all data sources
    */
-  buildComprehensivePrompt(extractedData, blueprintText, dimensionData, visionData) {
+  buildComprehensivePrompt(extractedData, blueprintText, dimensionData, visionData, structuralData) {
     let dimensionContext = '';
     if (dimensionData?.summary) {
       const summary = dimensionData.summary;
@@ -344,9 +371,24 @@ FLOORPLAN DIMENSION DATA (extracted from PDF):
     let visionContext = '';
     if (visionData?.fixtures) {
       visionContext = `
-COMPUTER VISION DETECTION:
+COMPUTER VISION DETECTION (plumbing fixtures):
 - Walls detected: ${visionData.detections?.counts?.wall || 0}
 - Fixtures: ${JSON.stringify(visionData.fixtures)}
+`;
+    }
+
+    let structuralContext = '';
+    if (structuralData?.structural_summary) {
+      const ss = structuralData.structural_summary;
+      const sm = structuralData.spatial_metrics || {};
+      structuralContext = `
+STRUCTURAL ELEMENT DETECTION (YOLOv8):
+- Walls: ${ss.walls}, Curtain walls: ${ss.curtain_walls}
+- Doors: ${ss.doors}, Sliding doors: ${ss.sliding_doors}
+- Windows: ${ss.windows}, Columns: ${ss.columns}
+- Total wall length: ${sm.total_wall_length_feet || 0} feet
+- Estimated rooms: ${sm.estimated_rooms || 0}
+- Total openings: ${sm.openings_count || 0}
 `;
     }
 
@@ -363,11 +405,13 @@ TEXT-EXTRACTED FIXTURES: ${fixtureCount} total
 
 ${dimensionContext}
 ${visionContext}
+${structuralContext}
 
 ${blueprintText ? 'BLUEPRINT TEXT:\n' + blueprintText.substring(0, 4000) : ''}
 
 Use the dimension data to estimate pipe run lengths more accurately.
 Use cabinet codes to identify fixture locations.
+Use structural data (walls, doors, rooms) for layout understanding and pipe routing.
 
 Return JSON with:
 {
@@ -392,9 +436,10 @@ Return JSON with:
     }
   }
 
-  combineAllResults(dimensions, vision, ai) {
+  combineAllResults(dimensions, vision, structural, ai) {
     const combined = {
       fixtures: {},
+      structural: {},
       pipeRuns: {},
       materialTakeoff: [],
       sources: []
@@ -413,6 +458,15 @@ Return JSON with:
       combined.sources.push('ai');
     }
 
+    // Add structural element data
+    if (structural?.structural_summary) {
+      combined.structural = {
+        summary: structural.structural_summary,
+        spatialMetrics: structural.spatial_metrics
+      };
+      combined.sources.push('structural');
+    }
+
     // Use AI material takeoff if available (most detailed)
     if (ai?.takeoff) {
       combined.materialTakeoff = ai.takeoff;
@@ -423,6 +477,14 @@ Return JSON with:
       combined.pipeRuns.fromDimensions = {
         totalFeet: dimensions.summary.dimension_stats.total_feet,
         estimatedPipeFeet: dimensions.summary.dimension_stats.total_feet * 0.4
+      };
+    }
+
+    // Add pipe run estimates from structural wall lengths
+    if (structural?.spatial_metrics?.total_wall_length_feet) {
+      combined.pipeRuns.fromStructural = {
+        totalFeet: structural.spatial_metrics.total_wall_length_feet,
+        estimatedPipeFeet: structural.spatial_metrics.total_wall_length_feet * 0.4
       };
     }
 

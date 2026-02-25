@@ -24,7 +24,7 @@ router.post('/analyze', tryCatch(async (req, res) => {
   const {
     filePath,
     projectId,
-    services = ['dimensions', 'vision', 'ai'],
+    services = ['dimensions', 'vision', 'structural', 'ai'],
     priority = 'normal'
   } = req.body;
 
@@ -37,7 +37,7 @@ router.post('/analyze', tryCatch(async (req, res) => {
   }
 
   // Validate services
-  const validServices = ['dimensions', 'vision', 'ai'];
+  const validServices = ['dimensions', 'vision', 'structural', 'ai'];
   const invalidServices = services.filter(s => !validServices.includes(s));
   if (invalidServices.length > 0) {
     return res.error(
@@ -129,7 +129,7 @@ router.post('/analyze-sync', tryCatch(async (req, res) => {
   const {
     filePath,
     projectId,
-    services = ['dimensions', 'vision', 'ai'],
+    services = ['dimensions', 'vision', 'structural', 'ai'],
     timeout = 120000
   } = req.body;
 
@@ -268,10 +268,10 @@ router.post('/compare-methods', tryCatch(async (req, res) => {
     await waitForJob(job2);
     results.withDimensions = blueprintOrchestrator.getJob(job2).results;
 
-    // Comprehensive
+    // Comprehensive (all services including structural)
     const job3 = await blueprintOrchestrator.submitAnalysis({
       filePath,
-      services: ['dimensions', 'vision', 'ai'],
+      services: ['dimensions', 'vision', 'structural', 'ai'],
       priority: 'high'
     });
     await waitForJob(job3);
@@ -326,6 +326,7 @@ function getProcessingTime(results) {
   if (results.text) sources++;
   if (results.dimensions) sources++;
   if (results.vision) sources++;
+  if (results.structural) sources++;
   if (results.ai) sources++;
   
   return {

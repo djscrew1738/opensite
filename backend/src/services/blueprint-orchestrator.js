@@ -6,6 +6,7 @@
 
 import { aecvisionClient } from './aecvision-client.js';
 import { floorplanClient } from './floorplan-client.js';
+import { structuralDetectorClient } from './structural-detector-client.js';
 import { aiProvider } from './ai-provider.js';
 import { enhancedBlueprintService } from './blueprint-enhanced.js';
 import logger from './logger.js';
@@ -18,6 +19,7 @@ const JOB_STATUS = {
   PENDING: 'pending',
   EXTRACTING_TEXT: 'extracting_text',
   RUNNING_CV: 'running_cv',
+  RUNNING_STRUCTURAL: 'running_structural',
   RUNNING_DIMENSIONS: 'running_dimensions',
   RUNNING_AI: 'running_ai',
   COMBINING: 'combining',
@@ -45,7 +47,7 @@ class BlueprintOrchestrator {
       filePath,
       projectId = null,
       userId = null,
-      services = ['dimensions', 'vision', 'ai'],
+      services = ['dimensions', 'vision', 'structural', 'ai'],
       priority = 'normal',
       callback = null
     } = options;
@@ -95,6 +97,7 @@ class BlueprintOrchestrator {
       text: null,
       dimensions: null,
       vision: null,
+      structural: null,
       ai: null,
       combined: null
     };
@@ -114,19 +117,26 @@ class BlueprintOrchestrator {
 
       // Step 3: Run computer vision (if requested)
       if (job.services.includes('vision')) {
-        this.updateJob(jobId, { status: JOB_STATUS.RUNNING_CV, progress: 45 });
+        this.updateJob(jobId, { status: JOB_STATUS.RUNNING_CV, progress: 40 });
         results.vision = await this.runVisionAnalysis(job.filePath);
-        this.updateJob(jobId, { progress: 65, results: { vision: results.vision } });
+        this.updateJob(jobId, { progress: 55, results: { vision: results.vision } });
       }
 
-      // Step 4: Run AI analysis (if requested)
+      // Step 4: Run structural detection (if requested)
+      if (job.services.includes('structural')) {
+        this.updateJob(jobId, { status: JOB_STATUS.RUNNING_STRUCTURAL, progress: 58 });
+        results.structural = await this.runStructuralAnalysis(job.filePath);
+        this.updateJob(jobId, { progress: 68, results: { structural: results.structural } });
+      }
+
+      // Step 5: Run AI analysis (if requested)
       if (job.services.includes('ai')) {
         this.updateJob(jobId, { status: JOB_STATUS.RUNNING_AI, progress: 70 });
         results.ai = await this.runAIAnalysis(job.filePath, results);
         this.updateJob(jobId, { progress: 85, results: { ai: results.ai } });
       }
 
-      // Step 5: Combine results
+      // Step 6: Combine results
       this.updateJob(jobId, { status: JOB_STATUS.COMBINING, progress: 90 });
       results.combined = this.combineResults(results);
       
@@ -245,6 +255,34 @@ class BlueprintOrchestrator {
   }
 
   /**
+   * Run structural element detection (YOLOv8 walls/doors/windows/columns)
+   */
+  async runStructuralAnalysis(filePath) {
+    try {
+      const available = await structuralDetectorClient.isAvailable();
+      if (!available) {
+        logger.warn('Structural detector service not available, skipping');
+        return null;
+      }
+
+      const result = await structuralDetectorClient.analyze(filePath, {
+        confidence: 0.40,
+        pixelToFeet: 0.5
+      });
+
+      return {
+        detections: result.detections,
+        counts: result.counts,
+        structuralSummary: result.structural_summary,
+        spatialMetrics: result.spatial_metrics
+      };
+    } catch (error) {
+      logger.warn('Structural analysis failed:', error.message);
+      return { error: error.message };
+    }
+  }
+
+  /**
    * Run AI analysis
    */
   async runAIAnalysis(filePath, previousResults) {
@@ -272,10 +310,10 @@ class BlueprintOrchestrator {
    * Build AI prompt with all available data
    */
   buildAIPrompt(results) {
-    const { text, dimensions, vision } = results;
-    
+    const { text, dimensions, vision, structural } = results;
+
     let context = '';
-    
+
     // Add text extraction data
     if (text?.extractedInfo) {
       context += `\nEXTRACTED DATA:\n`;
@@ -291,15 +329,15 @@ class BlueprintOrchestrator {
       context += `- Total measured length: ${dimensions.summary.dimension_stats?.total_feet?.toFixed(1)} feet\n`;
       context += `- Plumbing connections: ${dimensions.summary.plumbing_codes}\n`;
       context += `- Room type: ${dimensions.roomType || 'unknown'}\n`;
-      
+
       if (dimensions.codes?.length > 0) {
         context += `- Cabinet codes: ${dimensions.codes.map(c => c.code).join(', ')}\n`;
       }
     }
 
-    // Add vision data
+    // Add vision data (AECVision plumbing fixtures)
     if (vision?.fixtures) {
-      context += `\nCOMPUTER VISION DETECTION:\n`;
+      context += `\nCOMPUTER VISION DETECTION (plumbing fixtures):\n`;
       Object.entries(vision.fixtures).forEach(([key, value]) => {
         if (typeof value === 'number') {
           context += `- ${key}: ${value}\n`;
@@ -310,6 +348,29 @@ class BlueprintOrchestrator {
     if (vision?.pipeRuns) {
       context += `\nCV PIPE RUN ESTIMATES:\n`;
       context += `- Total wall length: ${vision.pipeRuns.total_wall_length_feet} feet\n`;
+    }
+
+    // Add structural detection data (YOLOv8 walls/doors/windows/columns)
+    if (structural?.structuralSummary && !structural.error) {
+      const ss = structural.structuralSummary;
+      const sm = structural.spatialMetrics || {};
+      context += `\nSTRUCTURAL ELEMENT DETECTION (YOLOv8 floor plan analysis):\n`;
+      context += `- Walls: ${ss.walls}\n`;
+      context += `- Curtain walls: ${ss.curtain_walls}\n`;
+      context += `- Doors: ${ss.doors}\n`;
+      context += `- Sliding doors: ${ss.sliding_doors}\n`;
+      context += `- Windows: ${ss.windows}\n`;
+      context += `- Columns: ${ss.columns}\n`;
+      context += `- Staircases: ${ss.stairs}\n`;
+      context += `- Railings: ${ss.railings}\n`;
+      context += `- Dimension annotations: ${ss.dimensions_detected}\n`;
+      if (sm.total_wall_length_feet) {
+        context += `- Total wall length: ${sm.total_wall_length_feet} feet\n`;
+      }
+      if (sm.estimated_rooms) {
+        context += `- Estimated rooms: ${sm.estimated_rooms}\n`;
+      }
+      context += `- Total openings (doors + windows): ${sm.openings_count || 0}\n`;
     }
 
     return `You are an expert plumbing estimator for CTL Plumbing LLC in DFW.
@@ -370,10 +431,11 @@ Return JSON:
    * Combine results from all sources
    */
   combineResults(results) {
-    const { text, dimensions, vision, ai } = results;
-    
+    const { text, dimensions, vision, structural, ai } = results;
+
     const combined = {
       fixtures: {},
+      structural: {},
       pipeRuns: {},
       materials: [],
       totals: {},
@@ -404,7 +466,16 @@ Return JSON:
       }
     });
 
-    // Combine pipe runs
+    // Add structural element data
+    if (structural?.structuralSummary && !structural.error) {
+      combined.structural = {
+        summary: structural.structuralSummary,
+        spatialMetrics: structural.spatialMetrics,
+        counts: structural.counts
+      };
+    }
+
+    // Combine pipe runs from all wall-length sources
     if (dimensions?.summary?.dimension_stats?.total_feet) {
       combined.pipeRuns.fromDimensions = {
         totalFeet: dimensions.summary.dimension_stats.total_feet,
@@ -419,13 +490,26 @@ Return JSON:
       };
     }
 
-    // Average the two estimates if both available
-    if (combined.pipeRuns.fromDimensions && combined.pipeRuns.fromVision) {
-      const dimEst = combined.pipeRuns.fromDimensions.estimatedPipeFeet;
-      const visEst = combined.pipeRuns.fromVision.estimatedPipeFeet;
+    if (structural?.spatialMetrics?.total_wall_length_feet) {
+      combined.pipeRuns.fromStructural = {
+        totalFeet: structural.spatialMetrics.total_wall_length_feet,
+        estimatedPipeFeet: structural.spatialMetrics.total_wall_length_feet * 0.4
+      };
+    }
+
+    // Average all available wall-length estimates
+    const pipeEstimates = [
+      combined.pipeRuns.fromDimensions?.estimatedPipeFeet,
+      combined.pipeRuns.fromVision?.estimatedPipeFeet,
+      combined.pipeRuns.fromStructural?.estimatedPipeFeet,
+    ].filter(v => typeof v === 'number');
+
+    if (pipeEstimates.length > 1) {
+      const sum = pipeEstimates.reduce((a, b) => a + b, 0);
       combined.pipeRuns.combined = {
-        estimatedFeet: Math.round((dimEst + visEst) / 2),
-        method: 'average'
+        estimatedFeet: Math.round(sum / pipeEstimates.length),
+        method: 'average',
+        sourcesUsed: pipeEstimates.length
       };
     }
 
@@ -444,6 +528,7 @@ Return JSON:
     // Track sources used
     if (dimensions) combined.sources.push('dimensions');
     if (vision) combined.sources.push('vision');
+    if (structural && !structural.error) combined.sources.push('structural');
     if (ai) combined.sources.push('ai');
 
     // Calculate confidence based on number of sources

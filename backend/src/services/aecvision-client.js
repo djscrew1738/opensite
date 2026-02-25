@@ -347,6 +347,7 @@ ${cvContext}
 ${blueprintText ? 'BLUEPRINT TEXT:\n' + blueprintText.substring(0, 4000) : ''}
 
 IMPORTANT: Cross-reference the computer vision detections with extracted text. Use the higher count when they differ. CV detections are from direct image analysis and may be more accurate for fixture counts.
+If structural detection data is available, use wall counts and lengths to refine pipe run estimates.
 
 Return ONLY this JSON — no text before or after:
 

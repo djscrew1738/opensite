@@ -52,6 +52,31 @@ services:
       retries: 3
       start_period: 30s
 
+  # Structural Element Detection Service (YOLOv8)
+  structural-detector:
+    build:
+      context: ./workers/core/structural-detector
+      dockerfile: Dockerfile
+    container_name: opensite-structural
+    ports:
+      - "8004:8004"
+    environment:
+      - STRUCTURAL_PORT=8004
+      - STRUCTURAL_HOST=0.0.0.0
+      - STRUCTURAL_MODEL_PATH=/models/best.pt
+      - STRUCTURAL_DEVICE=cpu
+    volumes:
+      - ./workers/core/structural-detector/models:/models:ro
+      - ./tool/uploads:/uploads:ro
+      - structural-cache:/root/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # Redis for caching and job queue
   redis:
     image: redis:7-alpine
@@ -70,4 +95,5 @@ services:
 volumes:
   aecvision-cache:
   floorplan-output:
+  structural-cache:
   redis-data:

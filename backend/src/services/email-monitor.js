@@ -32,7 +32,7 @@ let isChecking = false;
  * Get IMAP config from database settings or environment
  */
 function getImapConfig() {
-  const host = db.getSetting('imap_host') || process.env.IMAP_HOST || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
+  const host = db.getSetting('imap_host') || process.env.IMAP_HOST || process.env.IMAP_DEFAULT_HOST || 'imap.outlook.com';
   const port = parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || process.env.IMAP_DEFAULT_PORT || '993');
   const user = db.getSetting('imap_user') || process.env.IMAP_USER || '';
   const encryptedPass = db.getSetting('imap_pass') || process.env.IMAP_PASS || '';
@@ -130,7 +130,7 @@ async function sendEmailAlertSms(emailData, matchedKeywords) {
  */
 export async function testImapConnection(config) {
   const client = new ImapFlow({
-    host: config.host || 'outlook.office365.com',
+    host: config.host || 'imap.outlook.com',
     port: parseInt(config.port || '993'),
     secure: true,
     auth: {

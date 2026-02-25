@@ -2,7 +2,7 @@ import { memo } from 'react';
 import {
   Bell, Mail, MessageSquare, CalendarDays, Phone, Key,
   Loader2, Save, Zap, RefreshCw, CheckCircle, Eye, EyeOff,
-  ExternalLink, Info
+  ExternalLink, Info, LogIn
 } from 'lucide-react';
 import { Section, SliderField, SettingsRow, Toggle } from '../primitives';
 
@@ -63,6 +63,8 @@ function SettingsNotifications({
   testingGoogle,
   handleTestGoogle,
   handleSaveGoogle,
+  handleConnectGoogle,
+  connectingGoogle,
   msClientId,
   setMsClientId,
   msClientSecret,
@@ -72,6 +74,8 @@ function SettingsNotifications({
   testingMicrosoft,
   handleTestMicrosoft,
   handleSaveMicrosoft,
+  handleConnectMicrosoft,
+  connectingMicrosoft,
   ewPollInterval,
   setEwPollInterval,
   ewMarkAsRead,
@@ -194,7 +198,7 @@ function SettingsNotifications({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label">IMAP Server</label>
-                  <input type="text" value={emHost} onChange={e => setEmHost(e.target.value)} className="input text-sm font-mono" placeholder="outlook.office365.com" />
+                  <input type="text" value={emHost} onChange={e => setEmHost(e.target.value)} className="input text-sm font-mono" placeholder="imap.outlook.com" />
                 </div>
                 <div>
                   <label className="label">IMAP Port</label>
@@ -333,8 +337,11 @@ function SettingsNotifications({
                 <button onClick={handleTestGoogle} disabled={testingGoogle} className="btn-secondary text-sm whitespace-nowrap">
                   {testingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
                 </button>
-                <button onClick={handleSaveGoogle} disabled={!googleClientId.trim() && !googleClientSecret.trim()} className="btn-primary text-sm whitespace-nowrap">
-                  <Save className="w-4 h-4" /> Save
+                <button onClick={handleSaveGoogle} disabled={!googleClientId.trim() && !googleClientSecret.trim()} className="btn-secondary text-sm whitespace-nowrap">
+                  <Save className="w-4 h-4" /> Save Credentials
+                </button>
+                <button onClick={handleConnectGoogle} disabled={connectingGoogle || (!settings.google_client_id_configured && !googleClientId.trim())} className="btn-primary text-sm whitespace-nowrap">
+                  {connectingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />} Connect Account
                 </button>
               </div>
             </div>
@@ -386,8 +393,11 @@ function SettingsNotifications({
                 <button onClick={handleTestMicrosoft} disabled={testingMicrosoft} className="btn-secondary text-sm whitespace-nowrap">
                   {testingMicrosoft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Test
                 </button>
-                <button onClick={handleSaveMicrosoft} disabled={!msClientId.trim() && !msClientSecret.trim()} className="btn-primary text-sm whitespace-nowrap">
-                  <Save className="w-4 h-4" /> Save
+                <button onClick={handleSaveMicrosoft} disabled={!msClientId.trim() && !msClientSecret.trim()} className="btn-secondary text-sm whitespace-nowrap">
+                  <Save className="w-4 h-4" /> Save Credentials
+                </button>
+                <button onClick={handleConnectMicrosoft} disabled={connectingMicrosoft || (!settings.microsoft_client_id_configured && !msClientId.trim())} className="btn-primary text-sm whitespace-nowrap">
+                  {connectingMicrosoft ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />} Connect Account
                 </button>
               </div>
             </div>

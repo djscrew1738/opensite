@@ -5,12 +5,14 @@
 
 import express from 'express';
 import { body, param, validationResult } from 'express-validator';
+import { randomUUID } from 'crypto';
 import { emailWatcherService } from '../../services/emailWatcher/EmailWatcherService.js';
 import { EmailProviderFactory } from '../../services/emailWatcher/emailProviderFactory.js';
 import { alertDispatcher } from '../../services/emailWatcher/alertDispatcher.js';
 import { db } from '../../services/database.js';
 import logger from '../../services/logger.js';
 import { tryCatch } from '../../utils/response.js';
+import { authenticateToken } from '../../middleware/auth-jwt.js';
 
 const router = express.Router();
 
@@ -18,7 +20,7 @@ const router = express.Router();
  * GET /api/email-alerts/health
  * Get watcher service health status
  */
-router.get('/health', tryCatch(async (req, res) => {
+router.get('/health', authenticateToken, tryCatch(async (req, res) => {
   const status = emailWatcherService.getStatus();
   const stats = emailWatcherService.getStats(1); // Last 24 hours
 
@@ -37,7 +39,7 @@ router.get('/health', tryCatch(async (req, res) => {
  * GET /api/email-alerts/providers
  * Get OAuth provider configuration statuses
  */
-router.get('/providers', tryCatch(async (req, res) => {
+router.get('/providers', authenticateToken, tryCatch(async (req, res) => {
   const providers = emailWatcherService.getProviderStatuses();
   res.success(providers);
 }));
@@ -46,7 +48,7 @@ router.get('/providers', tryCatch(async (req, res) => {
  * POST /api/email-alerts/trigger
  * Manually trigger a poll
  */
-router.post('/trigger', tryCatch(async (req, res) => {
+router.post('/trigger', authenticateToken, tryCatch(async (req, res) => {
   const result = await emailWatcherService.triggerPoll();
   res.success(result, 'Poll triggered successfully');
 }));
@@ -55,7 +57,7 @@ router.post('/trigger', tryCatch(async (req, res) => {
  * POST /api/email-alerts/reload
  * Reload rules from database
  */
-router.post('/reload', tryCatch(async (req, res) => {
+router.post('/reload', authenticateToken, tryCatch(async (req, res) => {
   const rules = await emailWatcherService.reloadRules();
   res.success({ rulesCount: rules.length }, 'Rules reloaded successfully');
 }));
@@ -64,7 +66,7 @@ router.post('/reload', tryCatch(async (req, res) => {
  * POST /api/email-alerts/test
  * Send test alerts to configured channels
  */
-router.post('/test', [
+router.post('/test', authenticateToken, [
   body('channels').optional().isArray(),
   body('channels.*').optional().isIn(['sms', 'telegram']),
   tryCatch(async (req, res) => {
@@ -85,7 +87,7 @@ router.post('/test', [
  * GET /api/email-alerts/accounts
  * Get all watcher accounts
  */
-router.get('/accounts', tryCatch(async (req, res) => {
+router.get('/accounts', authenticateToken, tryCatch(async (req, res) => {
   const accounts = await db.getAllEmailWatcherAccounts();
   res.success(accounts);
 }));
@@ -94,7 +96,7 @@ router.get('/accounts', tryCatch(async (req, res) => {
  * POST /api/email-alerts/accounts
  * Start OAuth flow for new account
  */
-router.post('/accounts', [
+router.post('/accounts', authenticateToken, [
   body('provider').isIn(['gmail', 'outlook']).withMessage('Provider must be gmail or outlook'),
   body('name').optional().trim(),
   tryCatch(async (req, res) => {
@@ -108,8 +110,8 @@ router.post('/accounts', [
     // Get OAuth URL for selected provider
     const authUrl = EmailProviderFactory.getAuthUrl(provider);
 
-    // Store pending account setup
-    const pendingId = Math.random().toString(36).substring(7);
+    // Store pending account setup (cryptographically random ID prevents CSRF)
+    const pendingId = randomUUID();
     await db.setSetting(`email_watcher_pending_${pendingId}`, JSON.stringify({
       provider,
       name: name || `${provider} Account`,
@@ -173,7 +175,7 @@ router.get('/auth/google/callback', tryCatch(async (req, res) => {
  * GET /api/email-alerts/accounts/:id/health
  * Check health of a specific account
  */
-router.get('/accounts/:id/health', tryCatch(async (req, res) => {
+router.get('/accounts/:id/health', authenticateToken, tryCatch(async (req, res) => {
   const account = await db.getEmailWatcherAccount(req.params.id);
   if (!account) {
     return res.error('Account not found', 'NOT_FOUND', null, 404);
@@ -198,7 +200,7 @@ router.get('/accounts/:id/health', tryCatch(async (req, res) => {
  * PATCH /api/email-alerts/accounts/:id
  * Update account
  */
-router.patch('/accounts/:id', [
+router.patch('/accounts/:id', authenticateToken, [
   body('name').optional().trim(),
   body('active').optional().isBoolean(),
   tryCatch(async (req, res) => {
@@ -225,7 +227,7 @@ router.patch('/accounts/:id', [
  * DELETE /api/email-alerts/accounts/:id
  * Delete an account
  */
-router.delete('/accounts/:id', tryCatch(async (req, res) => {
+router.delete('/accounts/:id', authenticateToken, tryCatch(async (req, res) => {
   const account = await db.getEmailWatcherAccount(req.params.id);
   if (!account) {
     return res.error('Account not found', 'NOT_FOUND', null, 404);
@@ -239,7 +241,7 @@ router.delete('/accounts/:id', tryCatch(async (req, res) => {
  * GET /api/email-alerts/config
  * Get email watcher configuration settings
  */
-router.get('/config', tryCatch(async (req, res) => {
+router.get('/config', authenticateToken, tryCatch(async (req, res) => {
   const config = {
     pollInterval: parseInt(await db.getSetting('email_watcher_poll_interval')) || 60,
     markAsRead: (await db.getSetting('email_watcher_mark_read')) === 'true',
@@ -254,7 +256,7 @@ router.get('/config', tryCatch(async (req, res) => {
  * PUT /api/email-alerts/config
  * Update email watcher configuration
  */
-router.put('/config', [
+router.put('/config', authenticateToken, [
   body('pollInterval').optional().isInt({ min: 30, max: 3600 }),
   body('markAsRead').optional().isBoolean(),
   body('maxAgeHours').optional().isInt({ min: 1, max: 168 }),

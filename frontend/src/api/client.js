@@ -349,6 +349,8 @@ export const api = {
     reloadRules: () => apiClient.post('/email-alerts/reload'),
     testAlerts: (channels) => apiClient.post('/email-alerts/test', { channels }),
     getAccounts: () => apiClient.get('/email-alerts/accounts'),
+    addAccount: (provider, name) => apiClient.post('/email-alerts/accounts', { provider, name }),
+    deleteAccount: (id) => apiClient.delete(`/email-alerts/accounts/${id}`),
     getConfig: () => apiClient.get('/email-alerts/config'),
     updateConfig: (data) => apiClient.put('/email-alerts/config', data),
   },

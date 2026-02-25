@@ -287,6 +287,8 @@ export default function Settings() {
   const [testingAnthropic, setTestingAnthropic] = useState(false);
   const [testingMicrosoft, setTestingMicrosoft] = useState(false);
   const [testingGoogle, setTestingGoogle] = useState(false);
+  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [savingPerformance, setSavingPerformance] = useState(false);
@@ -750,6 +752,28 @@ export default function Settings() {
     finally { setTestingGoogle(false); }
   };
 
+  const handleConnectMicrosoft = async () => {
+    setConnectingMicrosoft(true);
+    try {
+      const r = await api.emailAlerts.addAccount('outlook', 'Outlook Account');
+      const { authUrl } = r || {};
+      if (authUrl) window.location.href = authUrl;
+      else showToast('Failed to get Microsoft auth URL', 'error');
+    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
+    finally { setConnectingMicrosoft(false); }
+  };
+
+  const handleConnectGoogle = async () => {
+    setConnectingGoogle(true);
+    try {
+      const r = await api.emailAlerts.addAccount('gmail', 'Gmail Account');
+      const { authUrl } = r || {};
+      if (authUrl) window.location.href = authUrl;
+      else showToast('Failed to get Google auth URL', 'error');
+    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
+    finally { setConnectingGoogle(false); }
+  };
+
   /* ── Telegram — handlers moved to useAPIKeySettings hook ── */
 
   const handleSaveEmailWatcher = async () => {
@@ -1055,6 +1079,8 @@ export default function Settings() {
             testingGoogle={testingGoogle}
             handleTestGoogle={handleTestGoogle}
             handleSaveGoogle={handleSaveGoogle}
+            handleConnectGoogle={handleConnectGoogle}
+            connectingGoogle={connectingGoogle}
             msClientId={msClientId}
             setMsClientId={setMsClientId}
             msClientSecret={msClientSecret}
@@ -1064,6 +1090,8 @@ export default function Settings() {
             testingMicrosoft={testingMicrosoft}
             handleTestMicrosoft={handleTestMicrosoft}
             handleSaveMicrosoft={handleSaveMicrosoft}
+            handleConnectMicrosoft={handleConnectMicrosoft}
+            connectingMicrosoft={connectingMicrosoft}
             ewPollInterval={ewPollInterval}
             setEwPollInterval={setEwPollInterval}
             ewMarkAsRead={ewMarkAsRead}

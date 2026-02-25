@@ -10,8 +10,10 @@ import {
 } from '../services/email-monitor.js';
 import { db } from '../services/database.js';
 import { encrypt, isEncrypted } from '../utils/encryption.js';
+import { authenticateToken } from '../middleware/auth-jwt.js';
 
 const router = express.Router();
+router.use(authenticateToken);
 
 // POST /api/email-monitor/test — test IMAP connection
 router.post('/test', async (req, res) => {
@@ -23,7 +25,7 @@ router.post('/test', async (req, res) => {
     }
 
     const result = await testImapConnection({
-      host: host || 'outlook.office365.com',
+      host: host || 'imap.outlook.com',
       port: port || 993,
       user,
       pass,
@@ -81,7 +83,7 @@ router.put('/settings', async (req, res) => {
 router.get('/settings', async (req, res) => {
   const user = (await db.getSetting('imap_user')) || '';
   const pass = (await db.getSetting('imap_pass')) || '';
-  const host = (await db.getSetting('imap_host')) || process.env.IMAP_DEFAULT_HOST || 'outlook.office365.com';
+  const host = (await db.getSetting('imap_host')) || process.env.IMAP_DEFAULT_HOST || 'imap.outlook.com';
   const port = (await db.getSetting('imap_port')) || process.env.IMAP_DEFAULT_PORT || '993';
   const enabled = (await db.getSetting('email_monitor_enabled')) === 'true';
   const keywords = (await db.getSetting('email_monitor_keywords')) || DEFAULT_KEYWORDS.join(', ');

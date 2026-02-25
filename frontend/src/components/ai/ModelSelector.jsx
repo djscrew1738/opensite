@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
+import {
   Cpu, ChevronDown, Server, Cloud, Zap, AlertCircle,
   CheckCircle2, RefreshCw, HardDrive, Gauge, Activity
 } from 'lucide-react';
@@ -21,6 +21,19 @@ export function ModelSelector({
   size = 'md',
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  // Close on outside click (works reliably in any z-index context)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
   const { 
     providers, 
     activeProvider, 
@@ -88,7 +101,7 @@ export function ModelSelector({
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative ${className}`}>
       {/* Main Selector Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -141,13 +154,8 @@ export function ModelSelector({
 
       {/* Dropdown */}
       {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-          />
           <div className="
-            absolute top-full left-0 right-0 mt-2 z-50
+            absolute top-full left-0 right-0 mt-2 z-[60]
             bg-[#111318]
             border border-[#1F2430]
             rounded-xl shadow-xl
@@ -271,7 +279,6 @@ export function ModelSelector({
               </button>
             </div>
           </div>
-        </>
       )}
     </div>
   );

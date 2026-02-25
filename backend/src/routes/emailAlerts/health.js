@@ -21,8 +21,10 @@ const router = express.Router();
  * Get watcher service health status
  */
 router.get('/health', authenticateToken, tryCatch(async (req, res) => {
-  const status = emailWatcherService.getStatus();
-  const stats = emailWatcherService.getStats(1); // Last 24 hours
+  const [status, stats] = await Promise.all([
+    emailWatcherService.getStatus(),
+    emailWatcherService.getStats(1), // Last 24 hours
+  ]);
 
   res.success({
     service: status,

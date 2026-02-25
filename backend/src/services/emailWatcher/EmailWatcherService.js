@@ -141,7 +141,7 @@ class EmailWatcherService {
 
     try {
       // Check if we have any accounts configured
-      const accounts = db.getActiveEmailWatcherAccounts();
+      const accounts = await db.getActiveEmailWatcherAccounts();
       if (accounts.length === 0) {
         logger.debug('[emailWatcher] No accounts configured, skipping poll');
         return;
@@ -333,10 +333,10 @@ class EmailWatcherService {
   /**
    * Get service status
    */
-  getStatus() {
-    const accounts = db.getAllEmailWatcherAccounts();
-    const activeAccounts = accounts.filter(a => a.active);
-    
+  async getStatus() {
+    const accounts = await db.getAllEmailWatcherAccounts();
+    const activeAccounts = accounts.filter(a => a.isActive);
+
     return {
       isRunning: this.isRunning,
       lastPollTime: this.lastPollTime,
@@ -349,9 +349,9 @@ class EmailWatcherService {
         id: a.id,
         email: a.email_address,
         provider: a.provider,
-        active: a.active,
-        lastPollAt: a.last_poll_at,
-        lastError: a.last_error,
+        active: a.isActive,
+        lastPollAt: a.lastCheckedAt,
+        lastError: a.lastError,
       })),
       processedCacheSize: this.processedCache.size,
       alertChannels: alertDispatcher.getStatus(),
@@ -361,14 +361,14 @@ class EmailWatcherService {
   /**
    * Get recent statistics
    */
-  getStats(days = 7) {
-    const alertStats = db.getAlertStats(days);
-    const recentProcessed = db.getRecentProcessedEmails(10);
+  async getStats(days = 7) {
+    const alertStats = await db.getAlertStats(days);
+    const recentProcessed = await db.getRecentProcessedEmails(10);
 
     return {
       ...alertStats,
       recentEmails: recentProcessed,
-      service: this.getStatus(),
+      service: await this.getStatus(),
     };
   }
 

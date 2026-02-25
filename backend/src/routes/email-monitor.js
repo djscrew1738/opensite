@@ -48,16 +48,16 @@ router.post('/check-now', async (req, res) => {
 });
 
 // GET /api/email-monitor/status — get monitor status
-router.get('/status', (req, res) => {
-  const status = getMonitorStatus();
+router.get('/status', async (req, res) => {
+  const status = await getMonitorStatus();
   res.success(status);
 });
 
 // GET /api/email-monitor/alerts — list recent alerts
-router.get('/alerts', (req, res) => {
+router.get('/alerts', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const offset = parseInt(req.query.offset) || 0;
-  const alerts = getRecentAlerts(limit, offset);
+  const alerts = await getRecentAlerts(limit, offset);
   res.success({ alerts, limit, offset });
 });
 

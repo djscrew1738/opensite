@@ -31,12 +31,12 @@ let isChecking = false;
 /**
  * Get IMAP config from database settings or environment
  */
-function getImapConfig() {
-  const host = db.getSetting('imap_host') || process.env.IMAP_HOST || process.env.IMAP_DEFAULT_HOST || 'imap.outlook.com';
-  const port = parseInt(db.getSetting('imap_port') || process.env.IMAP_PORT || process.env.IMAP_DEFAULT_PORT || '993');
-  const user = db.getSetting('imap_user') || process.env.IMAP_USER || '';
-  const encryptedPass = db.getSetting('imap_pass') || process.env.IMAP_PASS || '';
-  
+async function getImapConfig() {
+  const host = (await db.getSetting('imap_host')) || process.env.IMAP_HOST || process.env.IMAP_DEFAULT_HOST || 'imap.outlook.com';
+  const port = parseInt((await db.getSetting('imap_port')) || process.env.IMAP_PORT || process.env.IMAP_DEFAULT_PORT || '993');
+  const user = (await db.getSetting('imap_user')) || process.env.IMAP_USER || '';
+  const encryptedPass = (await db.getSetting('imap_pass')) || process.env.IMAP_PASS || '';
+
   // Decrypt password if it's encrypted
   let pass = encryptedPass;
   try {
@@ -52,8 +52,8 @@ function getImapConfig() {
 /**
  * Get keyword list from database settings or use defaults
  */
-function getKeywords() {
-  const custom = db.getSetting('email_monitor_keywords');
+async function getKeywords() {
+  const custom = await db.getSetting('email_monitor_keywords');
   if (custom) {
     return custom.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
   }
@@ -63,11 +63,11 @@ function getKeywords() {
 /**
  * Get Twilio config for sending SMS
  */
-function getTwilioConfig() {
-  const accountSid = db.getSetting('twilio_account_sid') || process.env.TWILIO_ACCOUNT_SID;
-  const authToken = db.getSetting('twilio_auth_token') || process.env.TWILIO_AUTH_TOKEN;
-  const fromPhone = db.getSetting('twilio_from_phone') || process.env.TWILIO_FROM_NUMBER;
-  const toPhone = db.getSetting('notify_phone') || process.env.NOTIFY_PHONE_NUMBER;
+async function getTwilioConfig() {
+  const accountSid = (await db.getSetting('twilio_account_sid')) || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = (await db.getSetting('twilio_auth_token')) || process.env.TWILIO_AUTH_TOKEN;
+  const fromPhone = (await db.getSetting('twilio_from_phone')) || process.env.TWILIO_FROM_NUMBER;
+  const toPhone = (await db.getSetting('notify_phone')) || process.env.NOTIFY_PHONE_NUMBER;
 
   return { accountSid, authToken, fromPhone, toPhone };
 }
@@ -75,8 +75,8 @@ function getTwilioConfig() {
 /**
  * Check if the email monitor is enabled
  */
-function isEnabled() {
-  const enabled = db.getSetting('email_monitor_enabled');
+async function isEnabled() {
+  const enabled = await db.getSetting('email_monitor_enabled');
   return enabled === 'true' || enabled === '1';
 }
 
@@ -93,7 +93,7 @@ function findKeywordMatches(text, keywords) {
  * Send SMS alert for a matched email
  */
 async function sendEmailAlertSms(emailData, matchedKeywords) {
-  const { accountSid, authToken, fromPhone, toPhone } = getTwilioConfig();
+  const { accountSid, authToken, fromPhone, toPhone } = await getTwilioConfig();
 
   if (!accountSid || !authToken || !fromPhone || !toPhone) {
     log.warn('Twilio not fully configured — skipping SMS');
@@ -165,19 +165,19 @@ export async function checkEmails() {
     return { skipped: true };
   }
 
-  if (!isEnabled()) {
+  if (!await isEnabled()) {
     log.debug('Email monitor disabled');
     return { disabled: true };
   }
 
-  const { host, port, user, pass } = getImapConfig();
+  const { host, port, user, pass } = await getImapConfig();
   if (!user || !pass) {
     log.warn('IMAP credentials not configured');
     return { error: 'IMAP credentials not configured' };
   }
 
   isChecking = true;
-  const keywords = getKeywords();
+  const keywords = await getKeywords();
   let processed = 0;
   let matched = 0;
   let smsSent = 0;
@@ -225,7 +225,7 @@ export async function checkEmails() {
           const receivedAt = envelope.date ? new Date(envelope.date).toISOString() : new Date().toISOString();
 
           // Skip if already processed
-          if (db.emailAlertExists(messageId)) {
+          if (await db.emailAlertExists(messageId)) {
             processed++;
             continue;
           }
@@ -267,7 +267,7 @@ export async function checkEmails() {
             if (smsSid) smsSent++;
 
             // Log to database
-            db.createEmailAlert({
+            await db.createEmailAlert({
               messageId,
               fromAddress: fromAddr,
               fromName,
@@ -314,17 +314,21 @@ export async function checkEmails() {
 /**
  * Get monitor status
  */
-export function getMonitorStatus() {
-  const stats = db.getEmailAlertStats();
+export async function getMonitorStatus() {
+  const [stats, keywords, enabled] = await Promise.all([
+    db.getEmailAlertStats(),
+    getKeywords(),
+    isEnabled(),
+  ]);
   return {
-    enabled: isEnabled(),
+    enabled,
     isChecking,
     lastCheckTime,
     lastCheckResult,
     totalAlerts: stats.total,
     totalSmsSent: stats.smsSentCount,
     lastAlertTime: stats.lastCheck,
-    keywords: getKeywords(),
+    keywords,
   };
 }
 

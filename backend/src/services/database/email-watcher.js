@@ -204,8 +204,34 @@ export function addEmailWatcherOperations(DatabaseService) {
   DatabaseService.prototype.toggleEmailAlertRule = async function(id) {
     const rule = await this.getEmailAlertRule(id);
     if (!rule) return null;
-    
+
     return await this.updateEmailAlertRule(id, { isActive: !rule.isActive });
+  };
+
+  // ==================== Alert Stats ====================
+
+  // Get alert statistics for the past N days
+  DatabaseService.prototype.getAlertStats = async function(days = 7) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const row = await this.get(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN smsSent = 1 THEN 1 ELSE 0 END) AS sent,
+        0 AS failed
+      FROM email_alerts
+      WHERE receivedAt >= ?
+    `, [since]);
+    return { total: row?.total || 0, sent: row?.sent || 0, failed: row?.failed || 0, days };
+  };
+
+  // Get N most recently processed emails
+  DatabaseService.prototype.getRecentProcessedEmails = async function(limit = 10) {
+    return await this.all(`
+      SELECT id, subject, fromAddress AS sender, messageId, smsSent, receivedAt
+      FROM email_alerts
+      ORDER BY receivedAt DESC
+      LIMIT ?
+    `, [limit]);
   };
 }
 

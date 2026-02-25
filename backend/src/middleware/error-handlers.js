@@ -37,11 +37,22 @@ export function registerErrorHandlers(app) {
     });
 
     const details = process.env.NODE_ENV === 'development' ? { stack: err.stack } : null;
-    res.error(
-      err.message || 'Internal server error',
-      'INTERNAL_ERROR',
-      details,
-      err.status || 500
-    );
+    const status = err.status || 500;
+    const message = err.message || 'Internal server error';
+    const code = status === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR';
+
+    if (res.error) {
+      return res.error(message, code, details, status);
+    }
+
+    res.status(status).json({
+      success: false,
+      error: {
+        message,
+        code,
+        details,
+        timestamp: new Date().toISOString()
+      }
+    });
   });
 }

@@ -6,6 +6,7 @@ import { universalUpload, UPLOAD_DIR } from '../middleware/universalUpload.js';
 import { db } from '../services/database.js';
 import { visionService } from '../services/vision.js';
 import { extractText } from '../services/text-extractor.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -93,17 +94,18 @@ async function processFile(fileId, file, ext, pipelines, userId) {
     if (pipelines.includes('vision')) {
       try {
         const projectId = randomUUID();
+        const visionNow = new Date().toISOString();
         // Create vision project record
         db.prepare(`
-          INSERT INTO vision_projects (id, name, originalFile, storedFile, fileType, size, userId, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(projectId, file.originalname, file.originalname, file.filename, ext.slice(1), file.size, userId, new Date().toISOString());
+          INSERT INTO vision_projects (id, userId, name, originalFile, fileType, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(projectId, userId, file.originalname, file.originalname, ext.slice(1), visionNow, visionNow);
 
         // Generate tiles in background
         await visionService.generateTiles(file.path, projectId);
         visionProjectId = projectId;
       } catch (err) {
-        console.error(`Vision pipeline failed for ${fileId}:`, err.message);
+        logger.error(`Vision pipeline failed for ${fileId}:`, { error: err.message });
       }
     }
 
@@ -128,7 +130,7 @@ async function processFile(fileId, file, ext, pipelines, userId) {
 
         docvaultId = docId;
       } catch (err) {
-        console.error(`DocVault pipeline failed for ${fileId}:`, err.message);
+        logger.error(`DocVault pipeline failed for ${fileId}:`, { error: err.message });
       }
     }
 
@@ -138,7 +140,7 @@ async function processFile(fileId, file, ext, pipelines, userId) {
     `).run(visionProjectId, docvaultId, new Date().toISOString(), fileId);
 
   } catch (err) {
-    console.error(`Pipeline processing failed for ${fileId}:`, err.message);
+    logger.error(`Pipeline processing failed for ${fileId}:`, { error: err.message });
     db.prepare(`UPDATE files SET pipeline_status = 'error', updated_at = ? WHERE id = ?`)
       .run(new Date().toISOString(), fileId);
   }

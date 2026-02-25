@@ -72,7 +72,7 @@ export function registerRoutes(app) {
   router.use('/canvas', canvasRoutes);
   router.use('/users', usersRoutes);
   router.use('/docvault', docvaultRoutes);
-  router.use('/upload/universal', uploadLimiter, universalUploadRoutes);
+  router.use('/upload/universal', universalUploadRoutes);
   router.use('/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' }));
 
   // Mount at /api/v1 (canonical) and /api (backward-compatible with deprecation headers)

@@ -1,7 +1,25 @@
-import { Plus, X, MapPin, Building2, HardHat, CheckCircle2, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, X, MapPin, Building2, HardHat, CheckCircle2, FileText, Paperclip } from 'lucide-react';
+import { UploadDropzone } from '../upload';
 
 export default function NewJobModal({ show, onClose, jobData, setJobData, onSubmit, isPending, error }) {
+  const [pendingFiles, setPendingFiles] = useState([]);
+
   if (!show) return null;
+
+  const handleFiles = (fileList) => {
+    setPendingFiles(prev => [...prev, ...Array.from(fileList)]);
+  };
+
+  const removeFile = (index) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(e, pendingFiles);
+    setPendingFiles([]);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -39,7 +57,7 @@ export default function NewJobModal({ show, onClose, jobData, setJobData, onSubm
         </div>
 
         {/* Form */}
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#94A3B8' }}>
               <MapPin className="w-4 h-4 inline mr-1" />
@@ -116,6 +134,38 @@ export default function NewJobModal({ show, onClose, jobData, setJobData, onSubm
               onChange={(e) => setJobData({ ...jobData, notes: e.target.value })}
               className="w-full px-4 py-2.5 rounded-lg bg-[#0A0C10] border border-[#1F2430] text-[#F1F5F9] placeholder-[#64748B] focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-colors resize-none"
             />
+          </div>
+
+          {/* File Attachments */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: '#94A3B8' }}>
+              <Paperclip className="w-4 h-4 inline mr-1" />
+              Attachments
+            </label>
+            <UploadDropzone compact onFiles={handleFiles} />
+            {pendingFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {pendingFiles.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg"
+                    style={{ background: '#0F1117', border: '1px solid #1F2430' }}
+                  >
+                    <span className="text-sm truncate" style={{ color: '#F1F5F9' }}>{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="ml-2 shrink-0"
+                      style={{ color: '#64748B' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#EF4444'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#64748B'}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {error && (

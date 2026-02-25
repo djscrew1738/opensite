@@ -6,6 +6,7 @@ import {
   AlertCircle, Users, RefreshCw, Trash2
 } from 'lucide-react';
 import { api } from '../api/client';
+import { uploadApi } from '../api/upload';
 import { TabSystem, Tab } from '../components/tabs';
 import { PlumbingVisualizer } from '../plumbing-visualizer/PlumbingVisualizer';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
@@ -164,12 +165,6 @@ export default function Jobs() {
 
   const createJobMutation = useMutation({
     mutationFn: (data) => api.projects.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      setShowNewJobModal(false);
-      setNewJobData(EMPTY_JOB);
-      setActiveTab('overview');
-    },
   });
 
   const deleteJobMutation = useMutation({
@@ -181,16 +176,28 @@ export default function Jobs() {
     },
   });
 
-  const handleCreateJob = (e) => {
+  const handleCreateJob = async (e, pendingFiles = []) => {
     e.preventDefault();
     if (!newJobData.name.trim()) return;
-    createJobMutation.mutate({
-      name: newJobData.name,
-      builder: newJobData.builder || 'Unknown Builder',
-      phase: newJobData.phase,
-      status: newJobData.status,
-      notes: newJobData.notes,
-    });
+    try {
+      const newJob = await createJobMutation.mutateAsync({
+        name: newJobData.name,
+        builder: newJobData.builder || 'Unknown Builder',
+        phase: newJobData.phase,
+        status: newJobData.status,
+        notes: newJobData.notes,
+      });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      setShowNewJobModal(false);
+      setNewJobData(EMPTY_JOB);
+      setActiveTab('overview');
+      // Upload any attached files after job creation
+      if (pendingFiles.length > 0 && newJob?.id) {
+        uploadApi.upload(pendingFiles, { jobId: newJob.id }).catch(() => {});
+      }
+    } catch {
+      // error shown via createJobMutation.isError
+    }
   };
 
   // Loading state

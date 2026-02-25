@@ -51,3 +51,6 @@ data/
 
 .gemini/
 gha-creds-*.json
+
+# Playwright
+.playwright-cli/

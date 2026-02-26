@@ -70,6 +70,20 @@ export class DatabaseService {
       )
     `);
 
+    // Token blocklist — revoked JWTs (logout / force-expire)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS token_blocklist (
+        jti TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        expiresAt TEXT NOT NULL,
+        revokedAt TEXT NOT NULL
+      )
+    `);
+    // Index for fast lookup and periodic cleanup
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_token_blocklist_expires ON token_blocklist (expiresAt)
+    `);
+
     // Settings key/value store
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (

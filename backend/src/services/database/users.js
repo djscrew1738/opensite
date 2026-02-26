@@ -132,8 +132,36 @@ export function addUserOperations(DatabaseService) {
       cache.del(`user-by-email:${user.email}`);
       cache.del('users:all');
     }
-    
+
     return result.changes > 0;
+  };
+
+  // ----- Token blocklist (logout / revocation) -----
+
+  // Add a token JTI to the blocklist
+  DatabaseService.prototype.revokeToken = async function(jti, userId, expiresAt) {
+    await this.run(`
+      INSERT OR IGNORE INTO token_blocklist (jti, userId, expiresAt, revokedAt)
+      VALUES (?, ?, ?, ?)
+    `, [jti, userId, expiresAt, new Date().toISOString()]);
+  };
+
+  // Check whether a JTI has been revoked
+  DatabaseService.prototype.isTokenRevoked = async function(jti) {
+    const row = await this.get(
+      'SELECT 1 FROM token_blocklist WHERE jti = ?',
+      [jti]
+    );
+    return !!row;
+  };
+
+  // Purge expired entries (call periodically to keep the table small)
+  DatabaseService.prototype.cleanupExpiredTokens = async function() {
+    const now = new Date().toISOString();
+    await this.run(
+      'DELETE FROM token_blocklist WHERE expiresAt < ?',
+      [now]
+    );
   };
 }
 

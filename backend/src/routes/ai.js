@@ -17,6 +17,10 @@ function generateConversationId() {
   return `conv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
+// Cap how many messages from history are sent to the AI provider.
+// Keeps memory usage bounded and stays well within model context windows.
+const MAX_HISTORY_MESSAGES = 50;
+
 const router = express.Router();
 
 // Apply authentication to all AI routes
@@ -75,9 +79,9 @@ router.post('/chat', tryCatch(async (req, res) => {
     return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
   }
 
-  // Load conversation history from DB
+  // Load conversation history from DB; cap to avoid unbounded context growth
   const conversation = conversationId ? await db.getConversation(conversationId) : null;
-  const history = conversation?.messages || [];
+  const history = (conversation?.messages || []).slice(-MAX_HISTORY_MESSAGES);
 
   const newConvId = conversationId || generateConversationId();
   const modelToUse = model || aiProvider.getRecommendedModel('chat');
@@ -90,7 +94,7 @@ router.post('/chat', tryCatch(async (req, res) => {
     return res.error(result.error || 'AI generation failed', 'AI_ERROR', null, 503);
   }
 
-  // Persist conversation
+  // Persist conversation only after a successful AI response — avoids orphaned user messages
   await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
   await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: result.response });
 
@@ -131,12 +135,10 @@ router.post('/chat/stream', async (req, res) => {
 
   try {
     const conversation = conversationId ? await db.getConversation(conversationId) : null;
-    const history = conversation?.messages || [];
+    // Cap history to prevent unbounded context growth
+    const history = (conversation?.messages || []).slice(-MAX_HISTORY_MESSAGES);
     const newConvId = conversationId || generateConversationId();
     const modelToUse = model || aiProvider.getRecommendedModel('chat');
-
-    // Save user message first
-    await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
 
     let fullResponse = '';
 
@@ -149,8 +151,10 @@ router.post('/chat/stream', async (req, res) => {
       }
     }
 
-    // Save assistant response
+    // Only persist both messages together after streaming completes successfully.
+    // This avoids orphaned user messages when the AI stream fails mid-request.
     if (fullResponse) {
+      await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
       await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: fullResponse });
     }
 

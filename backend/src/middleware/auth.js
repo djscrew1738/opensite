@@ -91,7 +91,15 @@ export const requireAdminToken = (req, res, next) => {
       code: 'UNAUTHORIZED'
     });
   }
-  
+
+  // Audit log every successful admin request
+  logger.info('Admin action', {
+    ip: req.ip,
+    method: req.method,
+    path: req.path,
+    requestId: req.id,
+  });
+
   next();
 };
 

@@ -1,6 +1,38 @@
 // Intelligence Orchestration Layer - Prompt Registry
 // Centralized management for all AI prompts across the platform
 
+// Patterns that commonly signal prompt injection attempts
+const INJECTION_PATTERNS = [
+  /ignore\s+(all\s+)?(previous|above|prior|earlier)\s+(instructions?|prompts?|context)/gi,
+  /forget\s+(everything|all|what|your)\s/gi,
+  /you\s+are\s+now\s+(a|an)\s/gi,
+  /\bact\s+as\s+(a|an)\s/gi,
+  /\bnew\s+instructions?:/gi,
+  /\bsystem\s*:/gi,
+  /\bDAN\b/g,
+  /<\/?(?:system|instruction|prompt|context)>/gi,
+];
+
+/**
+ * Strip potential prompt injection patterns from user-supplied strings
+ * before they are interpolated into AI prompts.
+ *
+ * @param {string} value - Raw user-supplied string
+ * @param {number} [maxLength=500] - Hard cap on field length
+ * @returns {string}
+ */
+function sanitizeField(value, maxLength = 500) {
+  if (value == null) return '';
+  let s = String(value).trim();
+  // Remove null bytes and control characters (except common whitespace)
+  s = s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+  // Redact injection patterns
+  for (const pattern of INJECTION_PATTERNS) {
+    s = s.replace(pattern, '[REDACTED]');
+  }
+  return s.slice(0, maxLength);
+}
+
 export const PromptRegistry = {
   // Blueprint Analysis Prompts
   blueprint: {
@@ -10,16 +42,19 @@ export const PromptRegistry = {
         (extractedData.tubs || 0) + (extractedData.showerBases || 0) +
         (extractedData.mudPans || 0) + (extractedData.washingMachines || 0);
 
+      const safeFileName = sanitizeField(fileName, 200);
+      const safeBlueprintText = blueprintText ? sanitizeField(blueprintText, 6000) : null;
+
       return `You are an expert DFW plumbing estimator. Analyze this blueprint and return a supply-house-ready material takeoff.
 
-PROJECT: ${fileName}
-${extractedData.sqft ? `SQ FT: ${extractedData.sqft}` : ''}
-${extractedData.units ? `UNITS: ${extractedData.units}` : ''}
-${extractedData.stories ? `STORIES: ${extractedData.stories}` : ''}
-${extractedData.bathrooms ? `BATHROOMS: ${extractedData.bathrooms}` : ''}
+PROJECT: ${safeFileName}
+${extractedData.sqft ? `SQ FT: ${Number(extractedData.sqft) || 0}` : ''}
+${extractedData.units ? `UNITS: ${Number(extractedData.units) || 0}` : ''}
+${extractedData.stories ? `STORIES: ${Number(extractedData.stories) || 0}` : ''}
+${extractedData.bathrooms ? `BATHROOMS: ${Number(extractedData.bathrooms) || 0}` : ''}
 FIXTURES DETECTED: ${fixtureCount} total — ${extractedData.toilets || 0} toilets, ${extractedData.lavatories || 0} lavs, ${extractedData.kitchenFaucets || 0} kitchen, ${extractedData.barSinks || 0} bar, ${extractedData.tubs || 0} tubs, ${extractedData.showerBases || 0} showers, ${extractedData.mudPans || 0} mud pans, ${extractedData.washingMachines || 0} W/M, ${extractedData.waterSoftenerPreplumb || 0} WS pre-plumb
 
-${blueprintText ? 'BLUEPRINT TEXT:\n' + blueprintText.substring(0, 6000) : ''}
+${safeBlueprintText ? 'BLUEPRINT TEXT:\n' + safeBlueprintText : ''}
 
 Return ONLY this JSON — no text before or after:
 
@@ -47,13 +82,16 @@ RULES:
     },
     
     getComprehensivePrompt: (context, blueprintText) => {
+      const safeContext = sanitizeField(context, 2000);
+      const safeBlueprintText = blueprintText ? sanitizeField(blueprintText, 5000) : null;
+
       return `You are an expert plumbing estimator for CTL Plumbing LLC in DFW.
 
 Analyze this blueprint and provide a comprehensive material takeoff.
 
-${context}
+${safeContext}
 
-${blueprintText ? `BLUEPRINT TEXT:\n${blueprintText.substring(0, 5000)}` : ''}
+${safeBlueprintText ? `BLUEPRINT TEXT:\n${safeBlueprintText}` : ''}
 
 Provide a complete estimate including:
 1. Fixture counts (validated across all sources)
@@ -77,11 +115,16 @@ Return JSON:
   // Lead Scoring Prompts
   leads: {
     getScoringPrompt: (lead) => {
+      const safeTitle = sanitizeField(lead.title, 200);
+      const safeType = sanitizeField(lead.projectType, 100);
+      const safeValue = lead.value != null ? Number(lead.value) || 0 : 'Unknown';
+      const safeLocation = sanitizeField(lead.location, 200);
+
       return `Score this construction lead (0-100) and classify as hot/warm/cold:
-Project: ${lead.title}
-Type: ${lead.projectType}
-Value: $${lead.value || 'Unknown'}
-Location: ${lead.location || 'Unknown'}
+Project: ${safeTitle}
+Type: ${safeType}
+Value: $${safeValue}
+Location: ${safeLocation}
 
 Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
     }
@@ -90,9 +133,10 @@ Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
   // Assistant Chat Prompts
   chat: {
     getSystemPrompt: (pageContextTitle) => {
+      const safeContext = sanitizeField(pageContextTitle, 100);
       return `You are a specialized AI assistant for CTL Plumbing LLC, operating within their OpenSite intelligence platform.
 Your goal is to provide expert plumbing, estimating, and operational advice.
-Current User Context: ${pageContextTitle || 'General Dashboard'}
+Current User Context: ${safeContext || 'General Dashboard'}
 
 Rules:
 1. Be concise, direct, and professional.

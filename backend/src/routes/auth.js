@@ -87,7 +87,7 @@ router.post('/register', tryCatch(async (req, res) => {
     role
   });
 
-  const token = generateToken(user);
+  const { token } = generateToken(user);
 
   logger.info('User registered', { id: user.id, email: user.email, role });
 
@@ -163,7 +163,7 @@ router.post('/login', tryCatch(async (req, res) => {
   // Update last login
   await db.updateUser(user.id, { lastLoginAt: new Date().toISOString() });
 
-  const token = generateToken(user);
+  const { token } = generateToken(user);
 
   logger.info('User logged in', { id: user.id, email: user.email });
 
@@ -194,7 +194,7 @@ router.post('/login', tryCatch(async (req, res) => {
  */
 router.get('/me', authenticateToken, tryCatch(async (req, res) => {
   const user = await db.getUser(req.user.id);
-  
+
   if (!user) {
     return res.error('User not found', 'NOT_FOUND', null, 404);
   }
@@ -208,6 +208,35 @@ router.get('/me', authenticateToken, tryCatch(async (req, res) => {
       lastLoginAt: user.lastLoginAt
     }
   });
+}));
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Revoke the current JWT (logout)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/logout', authenticateToken, tryCatch(async (req, res) => {
+  const { jti, exp, id } = req.user;
+
+  if (jti) {
+    const expiresAt = exp
+      ? new Date(exp * 1000).toISOString()
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    await db.revokeToken(jti, id, expiresAt);
+    logger.info('User logged out — token revoked', { userId: id, jti });
+  }
+
+  res.success({}, 'Logged out successfully');
 }));
 
 export default router;

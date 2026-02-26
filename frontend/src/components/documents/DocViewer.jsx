@@ -39,6 +39,8 @@ export default function DocViewer({
 
   if (!document) return null;
 
+  const isDocumentReady = document?.status === 'ready';
+
   const metadataPills = [
     document.word_count && {
       icon: Type,
@@ -161,6 +163,7 @@ export default function DocViewer({
             document={document}
             onSummarize={onSummarize}
             isLoading={isAiLoading}
+            isDocumentReady={isDocumentReady}
           />
         )}
         {activeSubTab === 'entities' && (
@@ -168,6 +171,7 @@ export default function DocViewer({
             document={document}
             onExtract={onExtract}
             isLoading={isAiLoading}
+            isDocumentReady={isDocumentReady}
           />
         )}
         {activeSubTab === 'chat' && (
@@ -177,6 +181,7 @@ export default function DocViewer({
             onClearChat={onClearChat}
             chatHistory={chatHistory}
             isLoading={isAiLoading}
+            isDocumentReady={isDocumentReady}
           />
         )}
       </div>

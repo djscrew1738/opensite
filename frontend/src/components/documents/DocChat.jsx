@@ -109,10 +109,9 @@ function SuggestedQuestions({ onSelect }) {
   );
 }
 
-export default function DocChat({ document, chatHistory, onChat, onClearChat, isLoading }) {
+export default function DocChat({ document, chatHistory, onChat, onClearChat, isLoading, isDocumentReady = true }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   const hasMessages = chatHistory && chatHistory.length > 0;
 
@@ -126,7 +125,7 @@ export default function DocChat({ document, chatHistory, onChat, onClearChat, is
   function handleSubmit(e) {
     e?.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed || isLoading || !isDocumentReady) return;
     onChat(trimmed);
     setInput('');
   }
@@ -215,29 +214,45 @@ export default function DocChat({ document, chatHistory, onChat, onClearChat, is
         )}
       </div>
 
+      {/* Processing banner */}
+      {!isDocumentReady && (
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 shrink-0"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            borderTop: '1px solid rgba(245,158,11,0.2)',
+          }}
+        >
+          <Loader2 size={14} className="animate-spin" style={{ color: '#F59E0B' }} />
+          <p className="text-xs" style={{ color: '#F59E0B' }}>
+            Document is still processing — chat available when ready
+          </p>
+        </div>
+      )}
+
       {/* Input area */}
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 px-4 py-3 shrink-0"
+        className="flex items-end gap-2 px-4 py-3 shrink-0"
         style={{
           borderTop: '1px solid #1F2430',
           backgroundColor: '#111318',
         }}
       >
-        <input
-          ref={inputRef}
-          type="text"
+        <textarea
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask about this document..."
-          disabled={isLoading}
-          className="flex-1 text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
+          disabled={isLoading || !isDocumentReady}
+          className="flex-1 text-sm rounded-lg px-3 py-2.5 outline-none transition-colors min-h-[40px] max-h-[120px] overflow-y-auto"
           style={{
             backgroundColor: '#181C24',
             color: '#F1F5F9',
             border: '1px solid #1F2430',
             opacity: isLoading ? 0.5 : 1,
+            resize: 'none',
           }}
           onFocus={(e) => {
             e.currentTarget.style.borderColor = '#3B82F6';
@@ -248,11 +263,11 @@ export default function DocChat({ document, chatHistory, onChat, onClearChat, is
         />
         <button
           type="submit"
-          disabled={!input.trim() || isLoading}
+          disabled={!input.trim() || isLoading || !isDocumentReady}
           className="flex items-center justify-center w-10 h-10 rounded-lg transition-colors shrink-0 cursor-pointer"
           style={{
-            backgroundColor: input.trim() && !isLoading ? '#3B82F6' : '#181C24',
-            color: input.trim() && !isLoading ? '#FFFFFF' : '#64748B',
+            backgroundColor: input.trim() && !isLoading && isDocumentReady ? '#3B82F6' : '#181C24',
+            color: input.trim() && !isLoading && isDocumentReady ? '#FFFFFF' : '#64748B',
             border: 'none',
           }}
         >

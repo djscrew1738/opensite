@@ -37,7 +37,7 @@ const CATEGORY_LABELS = {
  *   - Entities array: Grouped pills with hover context
  *   - Raw extraction fallback: Preformatted text card
  */
-export default function DocEntities({ document, onExtract, isLoading }) {
+export default function DocEntities({ document, onExtract, isLoading, isDocumentReady = true }) {
   const entities = document?.entities;
 
   // -- Loading state --
@@ -103,14 +103,17 @@ export default function DocEntities({ document, onExtract, isLoading }) {
           </div>
           <button
             onClick={onExtract}
+            disabled={isLoading || !isDocumentReady}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-90"
             style={{
               backgroundColor: '#3B82F6',
               color: '#F1F5F9',
+              opacity: !isDocumentReady ? 0.5 : 1,
+              cursor: !isDocumentReady ? 'not-allowed' : 'pointer',
             }}
           >
             <Scan size={16} />
-            Extract Entities
+            {isDocumentReady ? 'Extract Entities' : 'Processing…'}
           </button>
         </div>
       </div>

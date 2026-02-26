@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { FileText, Trash2, Loader2, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 /**
@@ -143,6 +144,7 @@ function DocRow({ doc, isSelected, onSelect, onDelete }) {
 
   return (
     <div
+      data-doc-id={doc.id}
       onClick={() => onSelect(doc.id)}
       className="group flex items-start gap-3 px-3 py-3 cursor-pointer transition-colors"
       style={{
@@ -251,6 +253,15 @@ export default function DocSidebar({
   onDelete,
   isLoading = false,
 }) {
+  const scrollContainerRef = useRef(null);
+
+  // Auto-scroll selected document into view when selection changes
+  useEffect(() => {
+    if (!selectedId || !scrollContainerRef.current) return;
+    const el = scrollContainerRef.current.querySelector(`[data-doc-id="${selectedId}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
+
   // Loading state — 3 skeleton rows
   if (isLoading) {
     return (
@@ -357,7 +368,7 @@ export default function DocSidebar({
       </div>
 
       {/* Scrollable list */}
-      <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {documents.map((doc) => (
           <DocRow
             key={doc.id}

@@ -9,7 +9,7 @@ import { Sparkles, RefreshCw, Copy, Check, Loader2 } from 'lucide-react';
  *   - Loading: Skeleton pulse with status text
  *   - Summary exists: Readable card with Regenerate and Copy actions
  */
-export default function DocSummary({ document, onSummarize, isLoading }) {
+export default function DocSummary({ document, onSummarize, isLoading, isDocumentReady = true }) {
   const [copied, setCopied] = useState(false);
 
   const summary = document?.summary;
@@ -73,14 +73,17 @@ export default function DocSummary({ document, onSummarize, isLoading }) {
           </div>
           <button
             onClick={onSummarize}
+            disabled={isLoading || !isDocumentReady}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-90"
             style={{
               backgroundColor: '#3B82F6',
               color: '#F1F5F9',
+              opacity: !isDocumentReady ? 0.5 : 1,
+              cursor: !isDocumentReady ? 'not-allowed' : 'pointer',
             }}
           >
             <Sparkles size={16} />
-            Generate Summary
+            {isDocumentReady ? 'Generate Summary' : 'Processing…'}
           </button>
         </div>
       </div>

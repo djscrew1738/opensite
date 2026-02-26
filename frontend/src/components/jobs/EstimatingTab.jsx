@@ -43,6 +43,7 @@ export default function EstimatingTab({
   setEstimate
 }) {
   const [activePanel, setActivePanel] = useState(null);
+  const [selectedModel, setSelectedModel] = useState(null);
 
   const handleCalculate = () => {
     calculateMutation.mutate({ fixtures, projectInfo }, {
@@ -55,7 +56,7 @@ export default function EstimatingTab({
   const panelContent = {
     info: <ProjectInfoPanel projectInfo={projectInfo} setProjectInfo={setProjectInfo} />,
     fixtures: <FixtureGrid fixtures={fixtures} setFixtures={setFixtures} />,
-    blueprint: <BlueprintUpload />,
+    blueprint: <BlueprintUpload selectedModel={selectedModel} onModelChange={setSelectedModel} />,
   };
 
   return (

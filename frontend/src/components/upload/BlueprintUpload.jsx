@@ -5,23 +5,25 @@ import UploadProgress from './UploadProgress';
 import AnalysisResults from './AnalysisResults';
 import ExtractedDataEditor from './ExtractedDataEditor';
 import { UploadSuccess } from '../shared/SuccessAnimation';
-import { 
-  FileText, 
-  Upload, 
-  X, 
+import {
+  FileText,
+  Upload,
+  X,
   Sparkles,
   AlertCircle,
   RefreshCw,
   FileSearch
 } from 'lucide-react';
+import { ModelSelector } from '../ai/ModelSelector';
 
 const POLL_INTERVAL = 2000;
 const MAX_POLL_TIME = 300000;
 
-export default function BlueprintUpload({ 
-  onAnalysisComplete, 
+export default function BlueprintUpload({
+  onAnalysisComplete,
   selectedModel,
-  className = '' 
+  onModelChange,
+  className = ''
 }) {
   const { success: showSuccess, error: showError } = useToast();
   
@@ -389,6 +391,23 @@ export default function BlueprintUpload({
               </div>
             </div>
           )}
+
+          {/* Analysis Model */}
+          <div
+            className="rounded-xl p-4"
+            style={{ background: '#181C24', border: '1px solid #1F2430' }}
+          >
+            <p className="text-xs font-medium mb-3" style={{ color: '#94A3B8' }}>
+              ANALYSIS MODEL
+            </p>
+            <ModelSelector
+              value={selectedModel}
+              onChange={onModelChange}
+              size="sm"
+              showProvider={true}
+              showPerformance={true}
+            />
+          </div>
 
           <ExtractedDataEditor
             initialData={extractedData || {}}

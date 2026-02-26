@@ -2,26 +2,20 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  Files, Plus, Trash2, FileImage, LayoutGrid,
-  ChevronRight, Loader2, AlertCircle, Upload,
-  FolderOpen, Image, FileText, MoreVertical,
-  Download, Eye, EyeOff, Grid3X3, List,
-  Search, Filter, SortAsc, Calendar, Clock,
-  CheckCircle2, X, Maximize2, Copy, Move,
-  Star, Tag, Pin, Share2, Archive, ScanEye,
+  Files, Trash2, ChevronRight, Loader2, Upload,
+  Image, FileText, Grid3X3, List,
+  Search, CheckCircle2, ScanEye,
   BrainCircuit, BookOpenText
 } from 'lucide-react';
 import { visionApi } from '../api/vision';
 import { docvaultApi } from '../api/docvault';
 import VisionCanvas from '../components/vision/VisionCanvas';
-import BlueprintSelector from '../components/vision/BlueprintSelector';
 import { UploadModal, UploadDropzone } from '../components/upload';
 import DocSidebar from '../components/documents/DocSidebar';
 import DocViewer from '../components/documents/DocViewer';
 import { TabSystem, Tab } from '../components/tabs';
 import { NoDocumentsEmpty, NoAnalysisEmpty } from '../components/empty-states';
 import { ConfirmDialog } from '../components/shared';
-import { useToast } from '../hooks/useToast';
 import TabErrorBoundary from '../components/documents/TabErrorBoundary.jsx';
 
 // Document types configuration
@@ -574,7 +568,7 @@ function TextIntelligence() {
   });
 
   // Fetch selected document details
-  const { data: selectedDoc, isLoading: docDetailLoading } = useQuery({
+  const { data: selectedDoc } = useQuery({
     queryKey: ['docvault-document', selectedDocId],
     queryFn: () => docvaultApi.getOne(selectedDocId),
     enabled: !!selectedDocId,
@@ -729,8 +723,6 @@ export default function Documents() {
   const [hasMore, setHasMore] = useState(true);
   const [documents, setDocuments] = useState([]);
   const pageSize = viewMode === VIEW_MODES.LIST ? 50 : 24;
-  const { success: toastSuccess, error: toastError } = useToast();
-
   // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => {

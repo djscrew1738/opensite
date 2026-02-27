@@ -1,50 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadApi } from '../api/upload';
+import { 
+  categorizeFile, 
+  getFileIconType, 
+  getPipelineLabel,
+  validateFile,
+  generateFileId,
+  MAX_FILE_SIZE
+} from '../components/upload/utils';
 
 const MAX_CONCURRENT = 3;
-
-const ALLOWED_EXTENSIONS = new Set([
-  'pdf', 'png', 'jpg', 'jpeg', 'tiff', 'tif', 'webp', 'dwg',
-  'docx', 'doc', 'txt', 'md', 'csv', 'html', 'htm', 'json', 'xml',
-  'xlsx', 'xls'
-]);
-
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-
-// Category detection (mirrors backend)
-function categorizeFile(filename) {
-  const ext = (filename.split('.').pop() || '').toLowerCase();
-  const imageExts = new Set(['png', 'jpg', 'jpeg', 'tiff', 'tif', 'webp']);
-  const docExts = new Set(['docx', 'doc', 'txt', 'md', 'csv', 'html', 'htm', 'json', 'xml', 'xlsx', 'xls']);
-  if (ext === 'pdf') return 'blueprint';
-  if (imageExts.has(ext)) return 'image';
-  if (ext === 'dwg') return 'blueprint';
-  if (docExts.has(ext)) return 'document';
-  return 'other';
-}
-
-function getFileIcon(filename) {
-  const ext = (filename.split('.').pop() || '').toLowerCase();
-  const imageExts = new Set(['png', 'jpg', 'jpeg', 'tiff', 'tif', 'webp']);
-  if (ext === 'pdf') return 'pdf';
-  if (imageExts.has(ext)) return 'image';
-  if (['docx', 'doc'].includes(ext)) return 'word';
-  if (['xlsx', 'xls', 'csv'].includes(ext)) return 'spreadsheet';
-  if (ext === 'md') return 'markdown';
-  return 'text';
-}
-
-function getPipelineLabel(filename) {
-  const ext = (filename.split('.').pop() || '').toLowerCase();
-  const imageExts = new Set(['png', 'jpg', 'jpeg', 'tiff', 'tif', 'webp']);
-  const docExts = new Set(['docx', 'doc', 'txt', 'md', 'csv', 'html', 'htm', 'json', 'xml', 'xlsx', 'xls']);
-  if (ext === 'pdf') return 'Vision + Text extraction';
-  if (imageExts.has(ext)) return 'Vision tiles';
-  if (ext === 'dwg') return 'Blueprint storage';
-  if (docExts.has(ext)) return 'Text extraction';
-  return 'Storage';
-}
 
 /**
  * Queue states: 'queued' | 'uploading' | 'processing' | 'complete' | 'error'
@@ -53,13 +19,6 @@ export function useUniversalUpload({ jobId = null, onComplete } = {}) {
   const [queue, setQueue] = useState([]);
   const activeCount = useRef(0);
   const queryClient = useQueryClient();
-
-  const validateFile = useCallback((file) => {
-    const ext = (file.name.split('.').pop() || '').toLowerCase();
-    if (!ALLOWED_EXTENSIONS.has(ext)) return `Unsupported type: .${ext}`;
-    if (file.size > MAX_FILE_SIZE) return 'File exceeds 100MB limit';
-    return null;
-  }, []);
 
   const processQueue = useCallback(() => {
     setQueue(prev => {
@@ -119,17 +78,17 @@ export function useUniversalUpload({ jobId = null, onComplete } = {}) {
 
   const addFiles = useCallback((files) => {
     const newItems = Array.from(files).map(file => {
-      const error = validateFile(file);
+      const validation = validateFile(file, { maxSize: MAX_FILE_SIZE });
       return {
-        id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: generateFileId('upload'),
         file,
         name: file.name,
         size: file.size,
         category: categorizeFile(file.name),
-        icon: getFileIcon(file.name),
+        icon: getFileIconType(file.name),
         pipeline: getPipelineLabel(file.name),
-        status: error ? 'error' : 'queued',
-        error: error || null,
+        status: validation.valid ? 'queued' : 'error',
+        error: validation.valid ? null : validation.error,
         progress: 0,
         serverId: null,
       };
@@ -139,7 +98,7 @@ export function useUniversalUpload({ jobId = null, onComplete } = {}) {
     // Trigger processing after state update
     setTimeout(() => processQueue(), 50);
     return newItems;
-  }, [validateFile, processQueue]);
+  }, [processQueue]);
 
   const removeFile = useCallback((id) => {
     setQueue(prev => prev.filter(f => f.id !== id));

@@ -1,73 +1,47 @@
-import { useState, useRef, useCallback } from 'react';
 import { Upload, FileText, Image, FileSpreadsheet, File } from 'lucide-react';
+import { useDragDrop, useFileInput } from '../../hooks/upload/useDragDrop';
 
-const ACCEPT = '.pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.dwg,.docx,.doc,.txt,.md,.csv,.html,.json,.xml,.xlsx,.xls';
+const DEFAULT_ACCEPT = '.pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.dwg,.docx,.doc,.txt,.md,.csv,.html,.json,.xml,.xlsx,.xls';
 
+/**
+ * UploadDropzone Component
+ * Reusable dropzone for file uploads with compact and full variants
+ * 
+ * @param {Object} props
+ * @param {Function} props.onFiles - Called with FileList when files are selected
+ * @param {boolean} props.compact - Whether to show compact variant
+ * @param {boolean} props.disabled - Whether dropzone is disabled
+ * @param {string} props.className - Additional CSS classes
+ * @param {string} props.accept - Accepted file types (comma-separated)
+ * @param {ReactNode} props.children - Custom content (full mode only)
+ */
 export default function UploadDropzone({
   onFiles,
   compact = false,
   disabled = false,
   className = '',
-  accept = ACCEPT,
+  accept = DEFAULT_ACCEPT,
   children,
 }) {
-  const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0);
-  const fileInputRef = useRef(null);
-
-  const handleDragEnter = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current++;
-    if (e.dataTransfer.items?.length > 0) setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragging(false);
-  }, []);
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    dragCounter.current = 0;
-    if (disabled) return;
-    if (e.dataTransfer.files?.length > 0) {
-      onFiles?.(e.dataTransfer.files);
-    }
-  }, [disabled, onFiles]);
-
-  const handleClick = () => {
-    if (!disabled) fileInputRef.current?.click();
+  const handleFiles = (files) => {
+    onFiles?.(files);
   };
 
-  const handleFileInput = (e) => {
-    if (e.target.files?.length > 0) {
-      onFiles?.(e.target.files);
-      e.target.value = ''; // Reset for re-select
-    }
-  };
+  const dragDrop = useDragDrop({ disabled, onDrop: handleFiles });
+  const fileInput = useFileInput({ disabled, onSelect: handleFiles });
 
   if (compact) {
     return (
       <div
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onClick={handleClick}
+        onDragEnter={dragDrop.handlers.onDragEnter}
+        onDragLeave={dragDrop.handlers.onDragLeave}
+        onDragOver={dragDrop.handlers.onDragOver}
+        onDrop={dragDrop.handlers.onDrop}
+        onClick={fileInput.handlers.onClick}
         className={`
           flex items-center gap-3 p-3 rounded-xl border-2 border-dashed cursor-pointer
           transition-all duration-200
-          ${isDragging
+          ${dragDrop.isDragging
             ? 'border-[#3B82F6] bg-[#3B82F6]/5'
             : 'border-[#2D3548] hover:border-[#3B82F6]/40 bg-[#0F1117]'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
@@ -77,16 +51,16 @@ export default function UploadDropzone({
         <Upload className="w-5 h-5 text-[#64748B] shrink-0" />
         <div className="min-w-0">
           <p className="text-sm text-[#94A3B8]">
-            {isDragging ? 'Drop files here' : 'Drop files or click to browse'}
+            {dragDrop.isDragging ? 'Drop files here' : 'Drop files or click to browse'}
           </p>
         </div>
         <input
-          ref={fileInputRef}
+          ref={fileInput.inputRef}
           type="file"
           multiple
           accept={accept}
           className="hidden"
-          onChange={handleFileInput}
+          onChange={fileInput.handlers.onChange}
         />
       </div>
     );
@@ -94,15 +68,15 @@ export default function UploadDropzone({
 
   return (
     <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onClick={handleClick}
+      onDragEnter={dragDrop.handlers.onDragEnter}
+      onDragLeave={dragDrop.handlers.onDragLeave}
+      onDragOver={dragDrop.handlers.onDragOver}
+      onDrop={dragDrop.handlers.onDrop}
+      onClick={fileInput.handlers.onClick}
       className={`
         relative flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed
         cursor-pointer transition-all duration-200
-        ${isDragging
+        ${dragDrop.isDragging
           ? 'border-[#3B82F6] bg-[#3B82F6]/5 scale-[1.01]'
           : 'border-[#2D3548] hover:border-[#3B82F6]/40 bg-[#0F1117]/50'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
@@ -115,7 +89,7 @@ export default function UploadDropzone({
             <Upload className="w-6 h-6 text-[#3B82F6]" />
           </div>
           <p className="text-sm font-medium text-[#F1F5F9] mb-1">
-            {isDragging ? 'Drop files here' : 'Drop files or click to browse'}
+            {dragDrop.isDragging ? 'Drop files here' : 'Drop files or click to browse'}
           </p>
           <p className="text-xs text-[#64748B] text-center">
             PDF, Images, Docs, Spreadsheets — up to 100MB each
@@ -129,12 +103,12 @@ export default function UploadDropzone({
         </>
       )}
       <input
-        ref={fileInputRef}
+        ref={fileInput.inputRef}
         type="file"
         multiple
         accept={accept}
         className="hidden"
-        onChange={handleFileInput}
+        onChange={fileInput.handlers.onChange}
       />
     </div>
   );

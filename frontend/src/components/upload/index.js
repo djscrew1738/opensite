@@ -1,9 +1,13 @@
 // Upload components
-export { default as BlueprintUpload } from './BlueprintUpload';
 export { default as FileDropzone } from './FileDropzone';
-export { default as UploadDropzone } from './UploadDropzone';
-export { default as UploadModal } from './UploadModal';
 export { default as UploadProgress } from './UploadProgress';
-export { default as AnalysisResults } from './AnalysisResults';
-export { default as ExtractedDataEditor } from './ExtractedDataEditor';
-export { default as UploadFAB } from './UploadFAB';
+export { default as UploadModal } from './UploadModal';
+export { default as UploadDropzone } from './UploadDropzone';
+export { default as BlueprintUpload } from './BlueprintUpload';
+export { default as FileQueueItem } from './FileQueueItem';
+export { default as StepIndicator, HorizontalStepIndicator } from './StepIndicator';
+export { default as ErrorDisplay, CompactErrorDisplay } from './ErrorDisplay';
+export { default as FileIcon, FileIconWithBg } from './FileIcon';
+
+// Utilities
+export * from './utils';

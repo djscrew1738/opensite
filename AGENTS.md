@@ -12,6 +12,7 @@
 **Current Version:** 1.1.2  
 **Company:** CTL Plumbing LLC  
 **Service Area:** DFW Metroplex  
+**License:** MIT
 
 ### Core Features
 
@@ -24,8 +25,9 @@
 | **Canvas Workspace** | Visual workspace for project planning and blueprint annotation |
 | **AI Assistant** | Multi-provider AI chat with streaming responses |
 | **Email Watcher** | Outlook-based email monitoring with keyword alerts |
-| **AECVision CV** | Computer vision for blueprint analysis (walls, fixtures, pipe runs) |
+| **AECVision CV** | Computer vision for blueprint analysis (YOLOv5) |
 | **Floorplan Extractor** | Dimension and code extraction from floorplan PDFs |
+| **Material Takeoff** | Automated material quantity extraction from blueprints |
 
 ---
 
@@ -56,17 +58,24 @@
 | node-cron | 3.0.3 | Background job scheduling |
 | Helmet | 8.1.0 | Security headers |
 | express-rate-limit | 8.2.1 | Rate limiting |
+| BullMQ | 5.28.0 | Redis-based job queue |
+| Zod | 3.23.8 | Schema validation |
 
 ### AI Providers (Multi-Provider Support)
 The backend supports multiple AI providers with automatic fallback:
 
 | Provider | Type | Priority | Default Model |
 |----------|------|----------|---------------|
-| OpenClaw | Local Gateway | 1 | configurable |
-| Groq | Cloud API | 2 | llama-4-* |
-| OpenAI | Cloud API | 3 | gpt-4o |
-| Anthropic | Cloud API | 4 | claude-haiku-20240307 |
-| Ollama | Local | 5 | llama3.1 |
+| Anthropic | Cloud API | 1 | claude-haiku-20240307 |
+| Kimi | Cloud API | 2 | moonshot-v1-8k |
+| Ollama | Local | 3 | llama3.1 |
+
+### Python Services
+| Service | Port | Purpose |
+|---------|------|---------|
+| AECVision | 8002 | Computer vision for blueprint analysis |
+| Floorplan | 8003 | Dimension and cabinet code extraction |
+| Structural Detector | 8004 | Structural element detection |
 
 ### Infrastructure & Services
 - **Docker & Docker Compose** - Containerization with PostgreSQL, Redis, ChromaDB
@@ -75,9 +84,6 @@ The backend supports multiple AI providers with automatic fallback:
 - **nginx** - Reverse proxy & static serving
 - **PM2** - Process management in production
 - **Let's Encrypt** - SSL certificates
-- **AECVision** - Python CV service for blueprint analysis (YOLOv5)
-- **Floorplan Extractor** - Python service for dimension/code extraction
-- **Blueprint Orchestrator** - Unified service coordinating all analysis methods
 
 ---
 
@@ -99,7 +105,12 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── settings.js    # App settings CRUD
 │   │   │   ├── upload.js      # File uploads with Multer
 │   │   │   ├── vision.js      # Deep-zoom viewer for blueprints
-│   │   │   └── ...            # Other routes (estimates, projects, etc.)
+│   │   │   ├── aecvision.js   # AECVision CV integration
+│   │   │   ├── floorplan.js   # Floorplan dimension extraction
+│   │   │   ├── blueprint-orchestrator.js # Unified analysis API
+│   │   │   ├── blueprint-export.js # Export to PDF/Excel/CSV
+│   │   │   ├── docvault.js    # Document management
+│   │   │   └── ...            # Other routes
 │   │   ├── services/          # Business logic and data access
 │   │   │   ├── ai-provider.js # Multi-provider AI manager with fallback
 │   │   │   ├── database/      # Modular database layer
@@ -109,14 +120,7 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   │   ├── leads.js   # Lead queries
 │   │   │   │   └── ...        # Other database modules
 │   │   │   ├── discovery/     # Discovery pipeline services
-│   │   │   │   ├── pipeline.js # Main discovery orchestration
-│   │   │   │   ├── mapsScraper.js # Google Maps scraping
-│   │   │   │   ├── discoveryScorer.js # AI lead scoring
-│   │   │   │   └── ...        # Other discovery services
 │   │   │   ├── permits/       # Permit data services
-│   │   │   │   ├── adapters/  # Municipal data adapters
-│   │   │   │   ├── ingestion.js # Permit data ingestion
-│   │   │   │   └── scoring.js # Permit lead scoring
 │   │   │   ├── emailWatcher/  # Email monitoring service
 │   │   │   ├── logger.js      # Winston logger with daily rotation
 │   │   │   └── cache.js       # In-memory caching
@@ -126,14 +130,9 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── validation.js  # Input sanitization
 │   │   │   └── logging.js     # Request logging
 │   │   ├── jobs/              # Background job handlers
-│   │   │   └── permit-jobs.js # Cron jobs for permit processing
 │   │   ├── utils/             # Utility functions
-│   │   │   ├── response.js    # Standardized API responses
-│   │   │   ├── encryption.js  # AES-256-GCM encryption
-│   │   │   └── auth.js        # JWT utilities
 │   │   └── config/            # Configuration
-│   ├── package.json           # Dependencies and scripts
-│   └── .env                   # Environment config (created from .env.example)
+│   └── package.json
 │
 ├── frontend/                   # React SPA
 │   ├── src/
@@ -154,13 +153,12 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── jobs/          # Job-related components
 │   │   │   ├── leads/         # Lead-related components
 │   │   │   ├── plans/         # Plans/estimating components
-│   │   │   ├── settings/      # Settings components
-│   │   │   └── ...            # Other component categories
+│   │   │   └── settings/      # Settings components
 │   │   ├── hooks/             # Custom React hooks
 │   │   │   ├── useTheme.js    # Dark/light mode context
 │   │   │   ├── useToast.js    # Toast notifications
-│   │   │   ├── useFieldMode.js # Mobile field mode
-│   │   │   └── useAuth.jsx    # Authentication context
+│   │   │   ├── useAuth.jsx    # Authentication context
+│   │   │   └── useBlueprintAnalysis.js # Blueprint analysis hook
 │   │   ├── routes/            # Route definitions & prefetching
 │   │   │   └── prefetch.js    # Lazy loading and prefetch config
 │   │   └── styles/            # CSS and style utilities
@@ -172,36 +170,37 @@ The backend supports multiple AI providers with automatic fallback:
 ├── workers/                    # Python ARQ worker (background jobs)
 │   ├── tasks.py               # Job definitions (PDF processing)
 │   ├── settings.py            # ARQ worker configuration
-│   ├── core/                  # Worker utilities
-│   │   ├── llm/               # LLM client and schemas
-│   │   ├── aecvision/         # AECVision CV integration
-│   │   │   ├── api.py         # FastAPI CV service
-│   │   │   ├── detector.py    # YOLOv5 object detection
-│   │   │   ├── convert_pdf.py # PDF to image conversion
-│   │   │   └── analysis.py    # Plumbing estimation from CV
-│   │   └── floorplan/         # Floorplan dimension extraction
-│   │       ├── api.py         # FastAPI dimension service
-│   │       ├── dimension_parser.py  # Dimension text parsing
-│   │       ├── code_detector.py     # Cabinet/code detection
-│   │       └── pdf_processor.py     # PDF text extraction
+│   └── core/                  # Worker utilities
 │       ├── llm/               # LLM client and schemas
+│       ├── aecvision/         # AECVision CV integration
+│       │   ├── api.py         # FastAPI CV service
+│       │   ├── detector.py    # YOLOv5 object detection
+│       │   ├── convert_pdf.py # PDF to image conversion
+│       │   └── analysis.py    # Plumbing estimation from CV
+│       ├── floorplan/         # Floorplan dimension extraction
+│       │   ├── api.py         # FastAPI dimension service
+│       │   ├── dimension_parser.py
+│       │   ├── code_detector.py
+│       │   └── pdf_processor.py
 │       └── vision/            # PDF tiling and image processing
 │
 ├── database/
-│   └── schema.sql             # PostgreSQL schema (future migration)
+│   └── schema.sql             # PostgreSQL schema reference
 │
 ├── docs/                       # Documentation
 │
 ├── n8n-workflows/             # n8n automation workflows
 │
 ├── tool/                       # Runtime data (created at runtime)
-│   ├── data/                  # SQLite database, uploads
+│   ├── data/                  # SQLite database, uploads, backups
 │   └── logs/                  # Application logs
+│
+├── e2e/                        # Playwright end-to-end tests
 │
 ├── docker-compose.yml          # Container orchestration
 ├── nginx.conf / nginx-ssl.conf # Web server configurations
-├── start.sh                    # Quick start script
-└── deploy-production.sh        # Production deployment script
+├── blueprint-cli.js            # CLI tool for blueprint analysis
+└── start.sh                    # Quick start script
 ```
 
 ---
@@ -279,10 +278,7 @@ NODE_ENV=development
 PORT=5001
 
 # AI Providers (at least one required)
-OPENCLAW_URL=http://localhost:8000/v1
-GROQ_API_KEY=<groq-api-key>
 ANTHROPIC_API_KEY=<anthropic-key>
-OPENAI_API_KEY=<openai-key>
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
 
@@ -351,7 +347,7 @@ logger.error('Error occurred', { error: err.message });
 
 ### Design System ("Dark Forge")
 
-The project uses a custom dark-themed design system:
+The project uses a custom dark-themed design system defined in `tailwind.config.js`:
 
 **Key Color Tokens:**
 | Token | Value | Usage |
@@ -402,9 +398,13 @@ router.delete('/:id', (req, res) => { ... });
 export default router;
 ```
 
+Routes are registered in `backend/src/routes/index.js` with versioning:
+- `/api/v1/*` - Current version (canonical)
+- `/api/*` - Backward-compatible (deprecated, sunset 2026-09-01)
+
 ### Response Format
 
-All API responses use standardized wrapper:
+All API responses use standardized wrapper from `backend/src/utils/response.js`:
 
 ```javascript
 // Success (2xx)
@@ -429,7 +429,7 @@ All API responses use standardized wrapper:
 
 ### Rate Limiting
 
-Different endpoints have different rate limits:
+Different endpoints have different rate limits (defined in `middleware/security.js`):
 
 | Endpoint Type | Window | Max Requests |
 |---------------|--------|--------------|
@@ -455,15 +455,19 @@ Different endpoints have different rate limits:
 - `conversations` - AI chat history
 - `settings` - Application configuration (key-value)
 - `permits` - Permit data from municipal sources
-- `notifications` - User notification log
+- `blueprints` - Blueprint file metadata
+- `takeoffs` - Material takeoff data
+- `discovery_runs` / `discovery_leads` - Lead discovery pipeline
+- `email_alerts` / `email_accounts` - Email monitoring
+- `files` / `job_files` - Universal upload system
 - `canvas_nodes`, `canvas_edges` - Canvas workspace data
 
 **Access Pattern:**
 ```javascript
-import { db } from '../services/database.js';
+import { db } from '../services/database/index.js';
 
 // Query
-const rows = db.query('SELECT * FROM leads WHERE status = ?', ['hot']);
+const rows = await db.query('SELECT * FROM leads WHERE status = ?', ['hot']);
 
 // Transaction
 const result = db.transaction(() => {
@@ -476,7 +480,10 @@ import { usersDb } from '../services/database/users.js';
 const user = usersDb.findByEmail(email);
 ```
 
-**Note:** PostgreSQL schema exists in `database/schema.sql` for future migration.
+**Database Backup:**
+- Automated backups stored in `tool/data/backups/`
+- Admin endpoint: `POST /api/admin/backup`
+- List backups: `GET /api/admin/backups`
 
 ---
 
@@ -485,11 +492,9 @@ const user = usersDb.findByEmail(email);
 The backend uses a multi-provider AI system with automatic fallback:
 
 **Priority Order:**
-1. **OpenClaw** (local gateway, preferred)
-2. **Groq** (cloud, fastest)
-3. **OpenAI** (cloud, standard)
-4. **Anthropic** (cloud, best quality)
-5. **Ollama** (local, basic)
+1. **Anthropic** (cloud, best quality)
+2. **Kimi** (cloud, long context)
+3. **Ollama** (local)
 
 **Usage:**
 ```javascript
@@ -507,8 +512,51 @@ const config = aiProvider.getConfig();
 
 **Configuration stored in SQLite `settings` table:**
 - `ai_provider` - Active provider name
-- `groq_api_key`, `anthropic_api_key`, `openai_api_key` - Provider credentials
-- `openclaw_url` - OpenClaw gateway URL
+- `anthropic_api_key`, `kimi_api_key` - Provider credentials
+- `ollama_url` - Ollama server URL
+
+---
+
+## Testing
+
+### E2E Testing (Playwright)
+
+Configuration in `playwright.config.js`:
+
+```javascript
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 30000,
+  retries: 1,
+  use: {
+    baseURL: 'http://localhost:3000',
+    headless: true,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
+  },
+});
+```
+
+**Run tests:**
+```bash
+npx playwright test
+```
+
+### Storybook
+
+Component development and documentation:
+```bash
+cd frontend
+npm run storybook
+```
+
+### Vitest
+
+Unit testing framework (included in devDependencies):
+```bash
+cd frontend
+npx vitest
+```
 
 ---
 
@@ -532,25 +580,7 @@ Applied per endpoint type (see API Patterns). Rate limit headers included in res
 - Max file size: **100MB**
 - Stored in `tool/data/uploads/`
 - Multer handles multipart/form-data
-
----
-
-## Testing
-
-**Note:** No formal test framework is currently configured for the main application.
-Testing is primarily manual:
-
-1. **Health Check:** `curl http://localhost:5001/api/health`
-2. **Frontend:** Manual testing via browser at `http://localhost:3000`
-3. **API Testing:** Use curl or Postman against `http://localhost:5001/api/*`
-
-**Storybook** is configured for component development:
-```bash
-cd frontend
-npm run storybook
-```
-
-**Vitest** and Playwright are included in devDependencies for future testing implementation.
+- UUID-based file naming to prevent collisions
 
 ---
 
@@ -588,17 +618,30 @@ docker-compose up -d redis-plumber chromadb-plumber
 
 ## Background Jobs
 
-**Permit Jobs** (Node.js cron via `node-cron`):
-- Ingest: Daily at 6:00 AM CT
-- Scoring: Daily at 6:05 AM CT
-- Alerts: Daily at 6:10 AM CT
-- Digest: Daily at 8:00 AM CT
-- Rollup: Weekly at 2:00 AM Sunday
+### Node.js Cron Jobs (via `node-cron`)
 
-**Python Worker** (ARQ + Redis):
-- Blueprint PDF processing
-- Vision analysis pipeline
-- Long-running AI tasks
+**Permit Jobs** (configured in `backend/src/jobs/permit-jobs.js`):
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| Ingest | Daily 6:00 AM CT | Fetch new permits from municipal sources |
+| Scoring | Daily 6:05 AM CT | AI scoring of unprocessed permits |
+| Alerts | Daily 6:10 AM CT | Send notifications for hot leads |
+| Digest | Daily 8:00 AM CT | Daily summary email |
+| Rollup | Weekly Sun 2:00 AM | Weekly builder rollup |
+
+### Python ARQ Worker
+
+**Configuration** (`workers/settings.py`):
+```python
+class WorkerSettings:
+    functions = ["workers.tasks.process_pdf"]
+    redis_settings = RedisSettings(host="redis-plumber", port=6379)
+    concurrency = 1
+    job_timeout = 600
+```
+
+**Job types:**
+- `process_pdf` - Blueprint PDF processing with vision models
 
 Enable/disable jobs via environment:
 ```bash
@@ -608,30 +651,91 @@ EMAIL_WATCHER_ENABLED=false  # Disable email watcher
 
 ---
 
+## Blueprint Analysis Services
+
+### AECVision - Computer Vision
+
+OpenSite integrates AECVision for computer vision-based blueprint analysis.
+
+**Capabilities:**
+- **Wall Detection** - Identify wall locations for pipe run estimation
+- **Fixture Detection** - Detect toilets, sinks, showers, bathtubs
+- **Room Analysis** - Identify room types and validate layouts
+- **Material Estimation** - Calculate pipe lengths based on wall geometry
+
+**Starting the Service:**
+```bash
+./start-aecvision.sh
+```
+
+**API Endpoints:**
+- `POST /api/aecvision/detect` - Run object detection
+- `POST /api/aecvision/analyze` - Full CV analysis with plumbing estimates
+- `POST /api/aecvision/walls` - Wall detection for pipe runs
+
+### Floorplan Dimension Extractor
+
+OpenSite integrates Floorplan-Dimractor for extracting dimensions and cabinet codes from floorplan PDFs.
+
+**Capabilities:**
+- **Dimension Extraction** - Parse various formats (feet-inches, fractions, decimals)
+- **Cabinet Code Detection** - Identify SB36, DW, WC, etc.
+- **Room Type Detection** - Infer kitchen/bathroom/laundry from codes
+- **Pipe Estimation** - Calculate rough pipe lengths from dimensions
+
+**Starting the Service:**
+```bash
+./start-floorplan.sh
+```
+
+### Blueprint Orchestrator
+
+The Blueprint Orchestrator provides a unified interface for running multiple analysis services together.
+
+**API Endpoints:**
+- `POST /api/blueprint/analyze` - Submit analysis job
+- `GET /api/blueprint/jobs/:jobId` - Get job status
+- `POST /api/blueprint/analyze-sync` - Synchronous analysis
+- `POST /api/blueprint/quick-estimate` - Fast estimate
+- `POST /api/blueprint/export/:jobId` - Export results (pdf/csv/excel/json)
+
+**CLI Usage:**
+```bash
+# Analyze blueprint
+./blueprint-cli.js analyze path/to/blueprint.pdf
+
+# Export to PDF
+./blueprint-cli.js export JOB_ID -f pdf
+```
+
+---
+
 ## Common Tasks
 
 ### Adding a New API Route
 1. Create file in `backend/src/routes/my-route.js`
 2. Implement router with endpoints
-3. Import and register in `backend/src/server.js`:
+3. Import and register in `backend/src/routes/index.js`:
    ```javascript
    import myRoute from './routes/my-route.js';
-   app.use('/api/my-route', myRoute);
+   router.use('/my-route', myRoute);
    ```
 
 ### Adding a New Page
 1. Create component in `frontend/src/pages/MyPage.jsx`
-2. Add import to `frontend/src/App.jsx`:
+2. Add import to `frontend/src/routes/prefetch.js`:
    ```javascript
-   const MyPage = lazy(pageImports.myPage);
+   const pageImports = {
+     // ... existing imports
+     myPage: () => import('../pages/MyPage'),
+   };
    ```
-3. Add route in Routes component
-4. Add prefetch entry in `frontend/src/routes/prefetch.js`
+3. Add route in `frontend/src/App.jsx`
 
 ### Modifying the Database Schema
-1. Edit `database/schema.sql` for PostgreSQL reference
-2. Update `backend/src/services/database/core.js` initialization
-3. Add migration logic if needed for existing SQLite databases
+1. Edit `backend/src/services/database/core.js` `initializeTables()` method
+2. Use `safeAddColumn()` for migrations to handle existing databases
+3. Add indexes in `createIndexes()` method
 
 ### Adding an AI Provider
 1. Create service in `backend/src/services/my-provider.js`
@@ -648,7 +752,7 @@ EMAIL_WATCHER_ENABLED=false  # Disable email watcher
 tail -f backend.log
 
 # Verify database
-cd backend && node -e "import('./src/services/database.js').then(m => console.log('DB OK'))"
+cd backend && node -e "import('./src/services/database/index.js').then(m => console.log('DB OK'))"
 
 # Check port 5001
 lsof -i :5001
@@ -671,261 +775,13 @@ npm install
 npm run build
 ```
 
----
-
-## Blueprint Analysis Services (AECVision + Floorplan)
-
-OpenSite integrates multiple computer vision and text extraction services for comprehensive blueprint analysis.
-
-### AECVision - Computer Vision
-
-OpenSite integrates [AECVision](https://github.com/PawelKinczyk/AECVision) for computer vision-based blueprint analysis.
-
-### Capabilities
-- **Wall Detection** - Identify wall locations for pipe run estimation
-- **Fixture Detection** - Detect toilets, sinks, showers, bathtubs
-- **Room Analysis** - Identify room types and validate layouts
-- **Material Estimation** - Calculate pipe lengths based on wall geometry
-
-### Architecture
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  OpenSite       │────▶│  AECVision       │────▶│  YOLOv5         │
-│  Backend        │     │  Python Service  │     │  Object         │
-│  (Node.js)      │◀────│  (FastAPI)       │◀────│  Detection      │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-```
-
-### Components
-1. **Python CV Service** (`workers/core/aecvision/`)
-   - `api.py` - FastAPI HTTP service (port 8002)
-   - `detector.py` - YOLOv5 wrapper for blueprint detection
-   - `convert_pdf.py` - PDF to image conversion with tiling
-   - `analysis.py` - Plumbing estimation from detected elements
-
-2. **Node.js Integration** (`backend/src/services/aecvision-client.js`)
-   - `AECVisionClient` - HTTP client for Python service
-   - `EnhancedCVBlueprintService` - Combines CV + AI analysis
-
-3. **API Routes** (`backend/src/routes/aecvision.js`)
-   - `/api/aecvision/health` - Service health
-   - `/api/aecvision/detect` - Object detection
-   - `/api/aecvision/analyze` - Complete analysis
-   - `/api/aecvision/enhanced-analysis` - CV + AI combined
-
-### Starting the Service
+### Database issues
 ```bash
-# Start AECVision CV service
-./start-aecvision.sh
+# Backup database
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:5001/api/admin/backup
 
-# Or manually
-cd workers/core/aecvision
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 api.py
-```
-
-### API Endpoints
-- `POST /api/aecvision/detect` - Run object detection
-- `POST /api/aecvision/analyze` - Full CV analysis with plumbing estimates
-- `POST /api/aecvision/walls` - Wall detection for pipe runs
-- `POST /api/aecvision/enhanced-analysis` - Combined CV + AI
-
-### Model Setup
-Models from the original AECVision repo should be placed in:
-```
-train_results/
-├── model_12classes/weights/best.pt
-├── model_walls/weights/best.pt
-└── ...
-```
-
-If no custom model is found, the service falls back to YOLOv5m pretrained on COCO.
-
-### Environment Variables
-```bash
-AECVISION_URL=http://localhost:8002
-AECVISION_CONFIDENCE=0.5
-AECVISION_DEVICE=cuda  # or 'cpu'
-AECVISION_MODEL_PATH=./train_results/model_12classes/weights/best.pt
-```
-
-### Documentation
-- `AECVISION_INTEGRATION.md` - Complete integration guide
-- `test-aecvision.sh` - Test script
-
----
-
-### Floorplan Dimension Extractor
-
-OpenSite integrates [Floorplan-Dimractor](https://github.com/jasoncobra3/Floorplan-Dimractor) for extracting dimensions and cabinet codes from floorplan PDFs.
-
-#### Capabilities
-- **Dimension Extraction** - Parse various formats (feet-inches, fractions, decimals)
-- **Cabinet Code Detection** - Identify SB36, DW, WC, etc.
-- **Room Type Detection** - Infer kitchen/bathroom/laundry from codes
-- **Pipe Estimation** - Calculate rough pipe lengths from dimensions
-
-#### Architecture
-```
-Floorplan PDF → PyMuPDF/pdfplumber → Text Extraction
-                                        ↓
-                            ┌──────────────────────┐
-                            │ Dimension Parser     │
-                            │ Code Detector        │
-                            └──────────────────────┘
-                                        ↓
-                            JSON with measurements
-```
-
-#### Components
-1. **Python Service** (`workers/core/floorplan/`)
-   - `api.py` - FastAPI HTTP service (port 8003)
-   - `dimension_parser.py` - Parses dimension formats
-   - `code_detector.py` - Detects cabinet/appliance codes
-   - `pdf_processor.py` - Extracts text from PDFs
-
-2. **Node.js Integration** (`backend/src/services/floorplan-client.js`)
-   - `FloorplanClient` - HTTP client for Python service
-   - `ComprehensiveBlueprintService` - Combines all analysis methods
-
-#### Starting the Service
-```bash
-./start-floorplan.sh
-```
-
-#### API Endpoints
-- `POST /api/floorplan/extract` - Full extraction
-- `POST /api/floorplan/dimensions` - Dimensions only
-- `POST /api/floorplan/codes` - Codes only
-- `POST /api/floorplan/pipe-estimate` - Pipe estimation
-- `POST /api/floorplan/comprehensive` - Combined CV + AI
-
-#### Documentation
-- `FLOORPLAN_INTEGRATION.md` - Complete integration guide
-
----
-
-### Blueprint Orchestrator
-
-The Blueprint Orchestrator provides a unified interface for running multiple analysis services together with intelligent result combination.
-
-#### Capabilities
-- **Unified API** - Single endpoint for all analysis methods
-- **Parallel Processing** - Runs services concurrently
-- **Smart Combination** - Merges results with confidence scoring
-- **Real-time Updates** - WebSocket support for live progress
-- **Job Management** - Track and manage analysis jobs
-
-#### Architecture
-```
-┌─────────────────────────────────────────────────────────────┐
-│                Blueprint Orchestrator                        │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │   Text       │ │  Dimensions  │ │    Vision    │        │
-│  │ Extraction   │ │ Extraction   │ │   (AECVision)│        │
-│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘        │
-│         │                │                │                 │
-│         └────────────────┼────────────────┘                 │
-│                          ▼                                  │
-│               ┌──────────────────┐                         │
-│               │ Result Combiner  │                         │
-│               │ - Merge fixtures │                         │
-│               │ - Average pipes  │                         │
-│               │ - Confidence calc│                         │
-│               └────────┬─────────┘                         │
-│                        ▼                                    │
-│               ┌──────────────────┐                         │
-│               │  AI Enhancement  │                         │
-│               └──────────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### API Endpoints
-- `POST /api/blueprint/analyze` - Submit analysis job
-- `GET /api/blueprint/jobs/:jobId` - Get job status
-- `POST /api/blueprint/analyze-sync` - Synchronous analysis
-- `POST /api/blueprint/quick-estimate` - Fast estimate
-- `POST /api/blueprint/compare-methods` - Compare approaches
-- `WS /ws/blueprint` - Real-time updates
-
-#### Usage
-```bash
-# Submit comprehensive analysis
-curl -X POST /api/blueprint/analyze \
-  -d '{"filePath": "/path/to/blueprint.pdf", "services": ["dimensions", "vision", "ai"]}'
-
-# Get job status
-curl /api/blueprint/jobs/JOB_ID
-```
-
-#### Frontend Components
-- `BlueprintAnalysisPanel` - Complete upload/analysis UI
-- `useBlueprintAnalysis` - React hook for analysis
-
----
-
-### Export System
-
-Export analysis results to various formats.
-
-#### Supported Formats
-- **PDF** - Professional estimate document
-- **CSV** - Spreadsheet for import
-- **Excel** - Multi-sheet workbook
-- **JSON** - Machine-readable format
-- **QuickBooks IIF** - Import into QuickBooks
-
-#### API Endpoints
-- `POST /api/blueprint/export/:jobId` - Create export
-- `GET /api/blueprint/exports/:filename` - Download file
-- `GET /api/blueprint/formats` - List formats
-
-#### CLI Usage
-```bash
-# Export to PDF
-./blueprint-cli.js export JOB_ID -f pdf
-
-# Export to Excel
-./blueprint-cli.js export JOB_ID -f excel
-
-# Quick analysis and export
-./blueprint-cli.js analyze blueprint.pdf --sync && \
-./blueprint-cli.js export JOB_ID -f pdf
-```
-
----
-
-### CLI Tool
-
-Command-line interface for blueprint analysis.
-
-#### Installation
-```bash
-chmod +x blueprint-cli.js
-npm install -g commander chalk ora cli-table3
-```
-
-#### Commands
-```bash
-# Health check
-./blueprint-cli.js health
-
-# Analyze blueprint
-./blueprint-cli.js analyze path/to/blueprint.pdf
-
-# Analyze with specific services
-./blueprint-cli.js analyze blueprint.pdf -s dimensions,ai
-
-# Synchronous analysis
-./blueprint-cli.js analyze blueprint.pdf --sync
-
-# Export results
-./blueprint-cli.js export JOB_ID -f excel
-
-# Compare methods
-./blueprint-cli.js compare blueprint.pdf
+# List backups
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:5001/api/admin/backups
 ```
 
 ---
@@ -933,11 +789,10 @@ npm install -g commander chalk ora cli-table3
 ## Key Documentation Files
 
 - `README.md` - User-facing quick start documentation
-- `AECVISION_INTEGRATION.md` - Computer vision integration guide
 - `MODELS.md` - AI model selection guide
 - `DEPLOY.md` - Detailed deployment instructions
-- `QUICK_START.md` - Quick reference card
-- `UI_UX_AUDIT_REPORT.md` - Design system documentation
+- `QUICKSTART.md` - Quick reference card
+- `DESIGN_SYSTEM_CHEATSHEET.md` - Design system documentation
 - `CHANGELOG.md` - Version history
 - `AGENTS.md` - This file (AI agent guide)
 
@@ -952,8 +807,6 @@ npm install -g commander chalk ora cli-table3
 
 ---
 
-*Last updated: 2026-02-24*
+*Last updated: 2026-02-27*
 
----
-
-*Changes: Added AECVision computer vision integration for enhanced blueprint analysis with YOLOv5 object detection.*
+*Changes: Comprehensive review and update of project architecture, technology stack, and development workflows.*

@@ -9,6 +9,8 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
+import StepIndicator from './StepIndicator';
+import { formatDuration } from './utils';
 
 const STEPS = [
   { key: 'upload', label: 'Uploading', icon: Upload },
@@ -17,6 +19,17 @@ const STEPS = [
   { key: 'calculate', label: 'Calculating', icon: Calculator },
   { key: 'complete', label: 'Complete', icon: CheckCircle2 },
 ];
+
+/**
+ * Determine current step based on progress percentage
+ */
+function getCurrentStep(progress) {
+  if (progress < 20) return 0;
+  if (progress < 40) return 1;
+  if (progress < 70) return 2;
+  if (progress < 90) return 3;
+  return 4;
+}
 
 const UploadProgress = memo(function UploadProgress({
   progress = 0, 
@@ -36,21 +49,7 @@ const UploadProgress = memo(function UploadProgress({
     return () => clearInterval(interval);
   }, [status]);
 
-  // Determine current step based on progress - derived state using useMemo
-  const currentStep = useMemo(() => {
-    if (progress < 20) return 0;
-    if (progress < 40) return 1;
-    if (progress < 70) return 2;
-    if (progress < 90) return 3;
-    return 4;
-  }, [progress]);
-
-  const formatTime = (seconds) => {
-    if (seconds < 60) return `${seconds}s`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
-  };
+  const currentStep = useMemo(() => getCurrentStep(progress), [progress]);
 
   // Error state
   if (status === 'error' && error) {
@@ -120,7 +119,7 @@ const UploadProgress = memo(function UploadProgress({
           <span>{progress}%</span>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {formatTime(elapsed)}
+            {formatDuration(elapsed)}
           </span>
         </div>
         <div className="w-full bg-blue-100 dark:bg-blue-900/30 rounded-full h-2.5 overflow-hidden">
@@ -133,60 +132,17 @@ const UploadProgress = memo(function UploadProgress({
 
       {/* Steps */}
       {showDetails && (
-        <div className="space-y-2">
-          {STEPS.map((step, index) => {
-            const Icon = step.icon;
-            const isActive = index === currentStep;
-            const isCompleted = index < currentStep;
-            const isPending = index > currentStep;
-
-            return (
-              <div 
-                key={step.key}
-                className={`
-                  flex items-center gap-3 p-2 rounded-lg transition-colors
-                  ${isActive ? 'bg-blue-100/50 dark:bg-blue-900/30' : ''}
-                  ${isCompleted ? 'opacity-60' : ''}
-                  ${isPending ? 'opacity-40' : ''}
-                `}
-              >
-                <div className={`
-                  w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                  ${isCompleted 
-                    ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' 
-                    : isActive 
-                      ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
-                      : 'bg-blue-100/50 dark:bg-blue-900/20 text-blue-400 dark:text-blue-600'
-                  }
-                `}>
-                  {isCompleted ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <Icon className={`w-4 h-4 ${isActive ? 'animate-pulse' : ''}`} />
-                  )}
-                </div>
-                <span className={`
-                  text-sm font-medium
-                  ${isActive 
-                    ? 'text-blue-900 dark:text-blue-200' 
-                    : 'text-blue-700 dark:text-blue-400'
-                  }
-                `}>
-                  {step.label}
-                </span>
-                {isActive && (
-                  <Loader2 className="w-3 h-3 text-blue-600 dark:text-blue-400 animate-spin ml-auto" />
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <StepIndicator 
+          steps={STEPS} 
+          currentStep={currentStep}
+          showLabels={true}
+        />
       )}
 
       {/* Estimated time */}
       {estimatedTime && progress < 100 && (
         <p className="text-xs text-blue-600 dark:text-blue-400 mt-4 text-center">
-          Estimated time remaining: {formatTime(estimatedTime - elapsed)}
+          Estimated time remaining: {formatDuration(estimatedTime - elapsed)}
         </p>
       )}
     </div>

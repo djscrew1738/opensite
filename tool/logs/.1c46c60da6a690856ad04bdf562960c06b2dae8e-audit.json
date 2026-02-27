@@ -29,6 +29,11 @@
             "date": 1771981614468,
             "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-25.log",
             "hash": "97738c54b301096f96e60b83248d6f58f1c8fe23ab60721273bc03f4ccb39d1f"
+        },
+        {
+            "date": 1772178674444,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-27.log",
+            "hash": "1d59e7575525a4ede3592182ac1fc9a3d9ecbf9d3cd713138f8481144fb228f6"
         }
     ],
     "hashType": "sha256"

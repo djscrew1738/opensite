@@ -19,6 +19,10 @@ export { useSorting } from './useSorting';
 export { useStreamingResponse } from './useStreamingResponse';
 export { useUniversalUpload } from './useUniversalUpload';
 
+// Upload hooks
+export { useDragDrop, useFileInput, useFileSelection } from './upload/useDragDrop';
+export { useJobPolling, useVisionUpload } from './upload/useJobPolling';
+
 // UI utilities
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useScrollReset } from './useScrollReset';

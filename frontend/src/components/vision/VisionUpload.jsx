@@ -1,126 +1,105 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, FileImage, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileImage, Loader2, AlertCircle } from 'lucide-react';
+import { useVisionUpload } from '../../hooks/upload/useJobPolling';
+import { useDragDrop, useFileInput } from '../../hooks/upload/useDragDrop';
+import { MAX_FILE_SIZE, EXTENSION_SETS } from '../upload/utils';
 import { visionApi } from '../../api/vision';
 
+const ACCEPTED_EXTENSIONS = '.png,.jpg,.jpeg,.tiff,.tif,.webp,.pdf';
+const VISION_EXTENSIONS = new Set([...EXTENSION_SETS.image, 'pdf']);
+
+/**
+ * Validates file for vision upload
+ */
+function validateVisionFile(file) {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  
+  if (!VISION_EXTENSIONS.has(ext)) {
+    return { valid: false, error: 'Invalid file type. Supported: PNG, JPG, TIFF, WebP, PDF' };
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: 'File too large. Maximum size is 100MB.' };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * VisionUpload Component
+ * Upload component for vision/deep-zoom tile generation
+ */
 export default function VisionUpload({ onProjectCreated }) {
-  const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(null);
-  const [jobId, setJobId] = useState(null);
+  const [localError, setLocalError] = useState(null);
   const fileInputRef = useRef(null);
-  const pollRef = useRef(null);
+
+  const handleComplete = useCallback((result, status) => {
+    if (status?.projectId && onProjectCreated) {
+      onProjectCreated(status.projectId);
+    }
+  }, [onProjectCreated]);
+
+  const handleError = useCallback((type, error) => {
+    setLocalError(error);
+  }, []);
+
+  const upload = useVisionUpload({
+    uploadApi: visionApi.upload,
+    statusApi: visionApi.getJobStatus,
+    onComplete: handleComplete,
+    onError: handleError
+  });
 
   const handleFiles = useCallback(async (files) => {
     if (!files || files.length === 0) return;
     const file = files[0];
 
-    // Validate file size (100MB max)
-    if (file.size > 100 * 1024 * 1024) {
-      setError('File too large. Maximum size is 100MB.');
+    const validation = validateVisionFile(file);
+    if (!validation.valid) {
+      setLocalError(validation.error);
       return;
     }
 
-    setUploading(true);
-    setProgress(0);
-    setError(null);
-
+    setLocalError(null);
+    
     try {
-      const result = await visionApi.upload(file);
-
-      if (!result?.jobId || !result?.projectId) {
-        throw new Error('Upload response missing job or project ID');
-      }
-
-      setJobId(result.jobId);
-      setProgress(10);
-
-      // Poll for tile generation completion (timeout after 5 minutes)
-      let pollCount = 0;
-      const maxPolls = 200; // 200 * 1.5s = 5 minutes
-      let pollErrors = 0;
-
-      pollRef.current = setInterval(async () => {
-        pollCount++;
-
-        if (pollCount > maxPolls) {
-          clearInterval(pollRef.current);
-          setUploading(false);
-          setError('Tile generation is taking too long. The project may still be processing — try refreshing.');
-          return;
-        }
-
-        try {
-          const status = await visionApi.getJobStatus(result.jobId);
-          pollErrors = 0; // Reset on success
-          setProgress(status.progress || 0);
-
-          if (status.status === 'completed') {
-            clearInterval(pollRef.current);
-            setUploading(false);
-            setProgress(100);
-            if (onProjectCreated) onProjectCreated(result.projectId);
-          } else if (status.status === 'failed') {
-            clearInterval(pollRef.current);
-            setUploading(false);
-            setError(status.error || 'Tile generation failed');
-          }
-        } catch (err) {
-          pollErrors++;
-          if (pollErrors >= 5) {
-            clearInterval(pollRef.current);
-            setUploading(false);
-            setError('Lost connection to server. The project may still be processing — try refreshing.');
-          }
-        }
-      }, 1500);
+      await upload.actions.upload(file);
     } catch (err) {
-      setUploading(false);
-      setError(err.message || 'Upload failed. Please try again.');
+      // Error is handled by onError callback
     }
-  }, [onProjectCreated]);
+  }, [upload.actions]);
 
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    setDragging(false);
-    handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
+  const dragDrop = useDragDrop({ onDrop: handleFiles });
+  const fileInput = useFileInput({ onSelect: handleFiles });
 
-  const onDragOver = useCallback((e) => {
-    e.preventDefault();
-    setDragging(true);
-  }, []);
-
-  const onDragLeave = useCallback(() => {
-    setDragging(false);
-  }, []);
+  const isProcessing = upload.uploading || upload.progress > 0;
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-8">
       <div
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onClick={() => !uploading && fileInputRef.current?.click()}
+        onDrop={dragDrop.handlers.onDrop}
+        onDragOver={dragDrop.handlers.onDragOver}
+        onDragLeave={dragDrop.handlers.onDragLeave}
+        onClick={fileInput.handlers.onClick}
         className={`
           w-full max-w-lg rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer
           transition-all duration-300
-          ${dragging
+          ${dragDrop.isDragging
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10 scale-[1.02]'
             : 'border-surface-300 dark:border-gray-600 hover:border-primary-400 hover:bg-surface-50 dark:hover:bg-gray-800/50'
           }
-          ${uploading ? 'pointer-events-none' : ''}
+          ${isProcessing ? 'pointer-events-none' : ''}
         `}
       >
         <input
-          ref={fileInputRef}
+          ref={fileInput.inputRef}
           type="file"
-          accept=".png,.jpg,.jpeg,.tiff,.tif,.webp,.pdf"
+          accept={ACCEPTED_EXTENSIONS}
           className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={fileInput.handlers.onChange}
         />
 
-        {uploading ? (
+        {isProcessing ? (
           <div className="space-y-4">
             <Loader2 className="w-12 h-12 text-primary-500 mx-auto animate-spin" />
             <div>
@@ -128,13 +107,13 @@ export default function VisionUpload({ onProjectCreated }) {
                 Generating deep-zoom tiles...
               </p>
               <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">
-                {progress}% complete
+                {upload.progress}% complete
               </p>
             </div>
             <div className="w-full bg-surface-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
                 className="h-full bg-primary-500 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${upload.progress}%` }}
               />
             </div>
           </div>
@@ -162,10 +141,10 @@ export default function VisionUpload({ onProjectCreated }) {
         )}
       </div>
 
-      {error && (
+      {(localError || upload.error) && (
         <div className="mt-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="w-4 h-4" />
-          {error}
+          {localError || upload.error}
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import fs from 'fs/promises';
 import { authenticateToken } from '../middleware/auth-jwt.js';
 import { universalUpload, UPLOAD_DIR } from '../middleware/universalUpload.js';
 import { db } from '../services/database.js';
@@ -10,6 +11,10 @@ import logger from '../services/logger.js';
 
 const router = express.Router();
 router.use(authenticateToken);
+
+// Constants
+const MAX_USER_STORAGE = 1024 * 1024 * 1024; // 1GB per user
+const ANONYMOUS_TTL_HOURS = 24; // Anonymous files expire after 24 hours
 
 // Category detection from file extension
 function categorizeFile(ext) {
@@ -36,15 +41,121 @@ function getPipelines(ext) {
   return [];
 }
 
+/**
+ * Check user's storage quota
+ * @param {string} userId 
+ * @param {number} newFileSize 
+ * @returns {Promise<{allowed: boolean, used: number, limit: number}>}
+ */
+async function checkUserQuota(userId, newFileSize) {
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(size_bytes), 0) as total 
+    FROM files 
+    WHERE uploaded_by = ?
+  `).get(userId);
+  
+  const used = result?.total || 0;
+  const allowed = used + newFileSize <= MAX_USER_STORAGE;
+  
+  return { allowed, used, limit: MAX_USER_STORAGE };
+}
+
+/**
+ * Schedule anonymous file for cleanup
+ * @param {string} fileId 
+ * @param {number} ttlHours 
+ */
+async function scheduleAnonymousCleanup(fileId, ttlHours = ANONYMOUS_TTL_HOURS) {
+  const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+  
+  // Add expires_at column if not exists (for backwards compatibility)
+  try {
+    db.prepare(`
+      ALTER TABLE files ADD COLUMN expires_at TEXT
+    `).run();
+  } catch { /* Column may already exist */ }
+  
+  db.prepare(`
+    UPDATE files SET expires_at = ? WHERE id = ?
+  `).run(expiresAt, fileId);
+  
+  logger.info(`Scheduled anonymous file ${fileId} for cleanup at ${expiresAt}`);
+}
+
+/**
+ * Clean up expired anonymous files
+ */
+export async function cleanupExpiredAnonymousFiles() {
+  try {
+    const expiredFiles = db.prepare(`
+      SELECT id, stored_path FROM files 
+      WHERE uploaded_by = 'anonymous' 
+      AND expires_at IS NOT NULL 
+      AND expires_at < datetime('now')
+    `).all();
+    
+    for (const file of expiredFiles) {
+      try {
+        // Delete physical file
+        if (file.stored_path) {
+          await fs.unlink(file.stored_path).catch(() => {});
+        }
+        
+        // Delete from job_files first (foreign key)
+        db.prepare('DELETE FROM job_files WHERE file_id = ?').run(file.id);
+        
+        // Delete file record
+        db.prepare('DELETE FROM files WHERE id = ?').run(file.id);
+        
+        logger.info(`Cleaned up expired anonymous file: ${file.id}`);
+      } catch (err) {
+        logger.error(`Failed to cleanup anonymous file ${file.id}:`, err.message);
+      }
+    }
+    
+    if (expiredFiles.length > 0) {
+      logger.info(`Anonymous cleanup complete: ${expiredFiles.length} files removed`);
+    }
+  } catch (err) {
+    logger.error('Anonymous cleanup job failed:', err.message);
+  }
+}
+
 // POST /api/upload/universal
 router.post('/', universalUpload.array('files', 20), async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ success: false, error: 'No files uploaded' });
   }
 
+  // Reject anonymous uploads (option A from audit)
+  if (!req.user?.id) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Authentication required. Anonymous uploads are not allowed.' 
+    });
+  }
+
   const { jobId, notes } = req.body;
-  const userId = req.user?.id || 'anonymous';
+  const userId = req.user.id;
   const results = [];
+
+  // Calculate total size of upload batch
+  const totalBatchSize = req.files.reduce((sum, file) => sum + file.size, 0);
+  
+  // Check quota before processing
+  const quota = await checkUserQuota(userId, totalBatchSize);
+  if (!quota.allowed) {
+    return res.status(413).json({
+      success: false,
+      error: `Storage quota exceeded. Used: ${(quota.used / 1024 / 1024).toFixed(1)}MB / Limit: ${(quota.limit / 1024 / 1024).toFixed(0)}MB`,
+      code: 'QUOTA_EXCEEDED',
+      quota: {
+        used: quota.used,
+        limit: quota.limit,
+        available: quota.limit - quota.used
+      }
+    });
+  }
 
   for (const file of req.files) {
     const fileId = randomUUID();
@@ -176,6 +287,12 @@ router.get('/files', async (req, res) => {
 router.get('/files/:id', async (req, res) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ success: false, error: 'File not found' });
+  
+  // Ownership check
+  if (file.uploaded_by !== req.user?.id) {
+    return res.status(403).json({ success: false, error: 'Forbidden: Not file owner' });
+  }
+  
   res.json({ success: true, data: file });
 });
 
@@ -184,17 +301,42 @@ router.delete('/files/:id', async (req, res) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ success: false, error: 'File not found' });
 
+  // Ownership check - CRITICAL FIX
+  if (file.uploaded_by !== req.user?.id) {
+    return res.status(403).json({ success: false, error: 'Forbidden: Not file owner' });
+  }
+
   // Delete from job_files
   db.prepare('DELETE FROM job_files WHERE file_id = ?').run(req.params.id);
   // Delete file record
   db.prepare('DELETE FROM files WHERE id = ?').run(req.params.id);
-  // Try to delete physical file
-  try {
-    const fs = await import('fs');
-    if (fs.existsSync(file.stored_path)) {
-      fs.unlinkSync(file.stored_path);
+  
+  // Delete physical file with proper error handling
+  if (file.stored_path) {
+    try {
+      await fs.unlink(file.stored_path);
+      logger.info(`Deleted physical file: ${file.stored_path}`);
+    } catch (err) {
+      // Log detailed error but don't fail the request
+      logger.error('File deletion failed', {
+        fileId: file.id,
+        path: file.stored_path,
+        error: err.message,
+        code: err.code
+      });
+      
+      // Mark as orphaned for cleanup job
+      try {
+        db.prepare(`
+          INSERT INTO orphaned_files (id, original_path, file_id, reason, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(randomUUID(), file.stored_path, file.id, err.message, new Date().toISOString());
+      } catch (dbErr) {
+        // Table might not exist, just log
+        logger.warn('Could not mark file as orphaned:', dbErr.message);
+      }
     }
-  } catch (e) { /* ignore cleanup errors */ }
+  }
 
   res.json({ success: true, data: { deleted: req.params.id } });
 });
@@ -203,6 +345,13 @@ router.delete('/files/:id', async (req, res) => {
 router.post('/link', async (req, res) => {
   const { fileId, jobId, notes } = req.body;
   if (!fileId || !jobId) return res.status(400).json({ success: false, error: 'fileId and jobId required' });
+
+  // Verify ownership before linking
+  const file = db.prepare('SELECT uploaded_by FROM files WHERE id = ?').get(fileId);
+  if (!file) return res.status(404).json({ success: false, error: 'File not found' });
+  if (file.uploaded_by !== req.user?.id) {
+    return res.status(403).json({ success: false, error: 'Forbidden: Not file owner' });
+  }
 
   const linkId = randomUUID();
   db.prepare('INSERT OR IGNORE INTO job_files (id, job_id, file_id, notes, created_at) VALUES (?, ?, ?, ?, ?)')

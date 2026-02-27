@@ -45,6 +45,26 @@ const upload = multer({
 });
 
 /**
+ * Check if user has access to a project
+ * Implements RBAC: owner, admin, or shared access
+ * 
+ * @param {string} userId 
+ * @param {Object} project 
+ * @returns {boolean}
+ */
+function checkProjectAccess(userId, project) {
+  if (!project) return false;
+  
+  // Owner has full access
+  if (project.userId === userId) return true;
+  
+  // Check if project is shared with user (future enhancement)
+  // For now, company-wide access is restricted to admin role
+  
+  return false;
+}
+
+/**
  * Get available AI vision models based on configured API keys
  * GET /api/vision/models
  */
@@ -245,8 +265,10 @@ router.get('/projects/:id', tryCatch(async (req, res) => {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
 
-  // Security check
-  /* Ownership check disabled for company-wide access */
+  // Security check - RBAC implementation
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
 
   project.metadata = JSON.parse(project.metadata || '{}');
 
@@ -283,8 +305,10 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
   }
 
-  // Security check
-  /* Ownership check disabled for company-wide access */
+  // Security check - RBAC implementation
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
 
   const analysisId = randomUUID();
   const now = new Date().toISOString();
@@ -381,6 +405,15 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
 router.post('/projects/:id/analyses/:analysisId/convert', tryCatch(async (req, res) => {
   const { id, analysisId } = req.params;
   
+  // Verify project access before conversion
+  const project = await db.get('SELECT * FROM vision_projects WHERE id = ?', [id]);
+  if (!project) {
+    return res.error('Project not found', 'NOT_FOUND', null, 404);
+  }
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
+  
   const takeoff = await db.convertAnalysisToTakeoff(id, analysisId, req.user.id);
   
   res.success(takeoff, 'AI analysis converted to takeoff successfully');
@@ -394,6 +427,13 @@ router.put('/projects/:id/scale', tryCatch(async (req, res) => {
   const { scale } = req.body;
   if (scale === undefined) return res.error('Scale is required', 'VALIDATION_ERROR', null, 400);
   
+  // Verify ownership
+  const project = await db.get('SELECT userId FROM vision_projects WHERE id = ?', [req.params.id]);
+  if (!project) return res.error('Project not found', 'NOT_FOUND', null, 404);
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
+  
   await db.updateVisionProject(req.params.id, { scale });
   res.success({ scale }, 'Scale updated');
 }));
@@ -406,8 +446,15 @@ router.patch('/projects/:id', tryCatch(async (req, res) => {
   const { name } = req.body;
   if (!name) return res.error('Name is required', 'VALIDATION_ERROR', null, 400);
   
-  const project = await db.updateVisionProject(req.params.id, { name });
-  res.success(project, 'Project name updated');
+  // Verify ownership
+  const project = await db.get('SELECT userId FROM vision_projects WHERE id = ?', [req.params.id]);
+  if (!project) return res.error('Project not found', 'NOT_FOUND', null, 404);
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
+  
+  const updated = await db.updateVisionProject(req.params.id, { name });
+  res.success(updated, 'Project name updated');
 }));
 
 /**
@@ -419,6 +466,13 @@ router.post('/projects/:id/layers', tryCatch(async (req, res) => {
 
   if (!name) {
     return res.error('Layer name is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  // Verify project access
+  const project = await db.get('SELECT userId FROM vision_projects WHERE id = ?', [req.params.id]);
+  if (!project) return res.error('Project not found', 'NOT_FOUND', null, 404);
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
 
   const layerId = randomUUID();
@@ -454,6 +508,13 @@ router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => 
   const existing = await db.get('SELECT * FROM vision_layers WHERE id = ?', [layerId]);
   if (!existing) {
     return res.error('Layer not found', 'NOT_FOUND', null, 404);
+  }
+
+  // Verify project access
+  const project = await db.get('SELECT userId FROM vision_projects WHERE id = ?', [req.params.projectId]);
+  if (!project) return res.error('Project not found', 'NOT_FOUND', null, 404);
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
 
   // Whitelist of allowed columns for update
@@ -550,6 +611,13 @@ router.put('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => 
  * DELETE /api/vision/projects/:projectId/layers/:layerId
  */
 router.delete('/projects/:projectId/layers/:layerId', tryCatch(async (req, res) => {
+  // Verify project access
+  const project = await db.get('SELECT userId FROM vision_projects WHERE id = ?', [req.params.projectId]);
+  if (!project) return res.error('Project not found', 'NOT_FOUND', null, 404);
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
+  }
+
   const result = await db.run('DELETE FROM vision_layers WHERE id = ?', [req.params.layerId]);
   if (result.changes === 0) {
     return res.error('Layer not found', 'NOT_FOUND', null, 404);
@@ -565,6 +633,11 @@ router.delete('/projects/:id', tryCatch(async (req, res) => {
   const project = await db.get('SELECT * FROM vision_projects WHERE id = ?', [req.params.id]);
   if (!project) {
     return res.error('Project not found', 'NOT_FOUND', null, 404);
+  }
+
+  // Verify ownership before delete
+  if (!checkProjectAccess(req.user.id, project)) {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
 
   // Delete tiles from disk

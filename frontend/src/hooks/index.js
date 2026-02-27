@@ -19,6 +19,19 @@ export { useSorting } from './useSorting';
 export { useStreamingResponse } from './useStreamingResponse';
 export { useUniversalUpload } from './useUniversalUpload';
 
+// Dashboard
+export { useDashboardData } from './useDashboardData';
+
+// Documents
+export { useDocumentsLibrary } from './useDocumentsLibrary';
+
+// Settings
+export { useSettingsAI } from './useSettingsAI';
+export { useSettingsNotifications } from './useSettingsNotifications';
+export { useSettingsAppearance } from './useSettingsAppearance';
+export { useSettingsPerformance } from './useSettingsPerformance';
+export { useSettingsData } from './useSettingsData';
+
 // Upload hooks
 export { useDragDrop, useFileInput, useFileSelection } from './upload/useDragDrop';
 export { useJobPolling, useVisionUpload } from './upload/useJobPolling';

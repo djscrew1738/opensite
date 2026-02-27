@@ -1,7 +1,11 @@
-import React, { memo, useState, useRef, useMemo } from 'react';
+import { memo, useState, useRef, useMemo, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { motion as Motion } from 'framer-motion';
-import { Pin, Trash2, Palette, Type } from 'lucide-react';
+import { Pin, Trash2, Palette } from 'lucide-react';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 const STICKY_COLORS = [
   { bg: '#fef3c7', text: '#92400e', border: '#f59e0b' }, // Amber
@@ -11,7 +15,237 @@ const STICKY_COLORS = [
   { bg: '#f3e8ff', text: '#6b21a8', border: '#a855f7' }, // Purple
 ];
 
-const StickyNoteNode = memo(({ data, selected }) => {
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Push pin indicator
+ */
+const PushPin = memo(function PushPin() {
+  return (
+    <Motion.div
+      initial={{ scale: 0, y: -10 }}
+      animate={{ scale: 1, y: 0 }}
+      className="absolute -top-2 left-1/2 -translate-x-1/2 z-10"
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle at 30% 30%, #ef4444, #b91c1c)',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+      }}
+    />
+  );
+});
+
+/**
+ * Top shadow gradient for depth effect
+ */
+const TopShadow = memo(function TopShadow() {
+  return (
+    <div
+      className="absolute top-0 left-0 right-0 h-10 pointer-events-none rounded-t"
+      style={{
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, transparent 100%)',
+      }}
+    />
+  );
+});
+
+/**
+ * Toolbar button
+ */
+const ToolbarButton = memo(function ToolbarButton({ 
+  onClick, 
+  title, 
+  children,
+  isActive = false,
+  color = null,
+}) {
+  return (
+    <Motion.button
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      title={title}
+      className="flex items-center justify-center p-1.5 border-none rounded cursor-pointer"
+      style={{
+        background: isActive ? (color || 'rgba(245, 176, 65, 0.2)') : 'transparent',
+        color: isActive ? (color || '#3B82F6') : '#f5f3f0',
+      }}
+    >
+      {children}
+    </Motion.button>
+  );
+});
+
+/**
+ * Toolbar divider
+ */
+const ToolbarDivider = memo(function ToolbarDivider() {
+  return (
+    <div 
+      className="w-px my-1 mx-0.5"
+      style={{ background: 'rgba(255,255,255,0.1)' }}
+    />
+  );
+});
+
+/**
+ * Node toolbar (visible when selected)
+ */
+const NodeToolbar = memo(function NodeToolbar({ 
+  isPinned, 
+  onColorChange, 
+  onPinToggle 
+}) {
+  return (
+    <Motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="absolute -top-9 left-1/2 -translate-x-1/2 flex gap-1 p-1 rounded-lg z-20"
+      style={{
+        background: '#1a1d24',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <ToolbarButton onClick={onColorChange} title="Change color">
+        <Palette size={14} />
+      </ToolbarButton>
+      
+      <ToolbarButton 
+        onClick={onPinToggle} 
+        title={isPinned ? 'Unpin' : 'Pin'}
+        isActive={isPinned}
+        color="#3B82F6"
+      >
+        <Pin size={14} />
+      </ToolbarButton>
+      
+      <ToolbarDivider />
+      
+      <ToolbarButton title="Delete note" color="#ef4444">
+        <Trash2 size={14} />
+      </ToolbarButton>
+    </Motion.div>
+  );
+});
+
+/**
+ * Editable textarea
+ */
+const NoteEditor = memo(function NoteEditor({ 
+  value, 
+  onChange, 
+  onBlur, 
+  textColor,
+  textareaRef 
+}) {
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && e.metaKey) {
+      onBlur();
+    }
+  }, [onBlur]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      onKeyDown={handleKeyDown}
+      className="flex-1 w-full bg-transparent border-none resize-none outline-none p-0"
+      style={{
+        fontFamily: 'inherit',
+        fontSize: 14,
+        lineHeight: 1.5,
+        color: textColor,
+      }}
+    />
+  );
+});
+
+/**
+ * Display mode for note content
+ */
+const NoteDisplay = memo(function NoteDisplay({ 
+  content, 
+  textColor, 
+  onClick 
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="flex-1 text-sm leading-relaxed cursor-text break-words overflow-hidden"
+      style={{
+        color: textColor,
+        whiteSpace: 'pre-wrap',
+      }}
+    >
+      {content}
+    </div>
+  );
+});
+
+/**
+ * Note footer with date and save hint
+ */
+const NoteFooter = memo(function NoteFooter({ 
+  date, 
+  textColor, 
+  isEditing 
+}) {
+  return (
+    <div
+      className="flex justify-between items-center mt-auto pt-2 text-[10px]"
+      style={{ color: textColor, opacity: 0.6 }}
+    >
+      <span>{date}</span>
+      {isEditing && (
+        <span style={{ fontSize: 9 }}>⌘+Enter to save</span>
+      )}
+    </div>
+  );
+});
+
+/**
+ * Connection handles for the sticky note
+ */
+const ConnectionHandles = memo(function ConnectionHandles({ 
+  colors, 
+  isSelected 
+}) {
+  const handleStyle = {
+    width: 8,
+    height: 8,
+    background: colors.border,
+    border: `2px solid ${colors.bg}`,
+    opacity: isSelected ? 1 : 0,
+  };
+
+  return (
+    <>
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        style={handleStyle} 
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        style={handleStyle} 
+      />
+    </>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data.content || 'Click to edit...');
   const [colorIndex, setColorIndex] = useState(data.colorIndex || 0);
@@ -20,15 +254,27 @@ const StickyNoteNode = memo(({ data, selected }) => {
   
   const colors = STICKY_COLORS[colorIndex] || STICKY_COLORS[0];
   
-  // Memoize the formatted date to avoid calling Date() during render
+  // Memoize the formatted date
   const formattedDate = useMemo(() => {
     const date = data.createdAt ? new Date(data.createdAt) : new Date();
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }, [data.createdAt]);
-  
-  const handleColorChange = () => {
+
+  const handleColorChange = useCallback(() => {
     setColorIndex((prev) => (prev + 1) % STICKY_COLORS.length);
-  };
+  }, []);
+
+  const handlePinToggle = useCallback(() => {
+    setIsPinned(prev => !prev);
+  }, []);
+
+  const handleStartEditing = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const handleStopEditing = useCallback(() => {
+    setIsEditing(false);
+  }, []);
   
   return (
     <Motion.div
@@ -40,231 +286,52 @@ const StickyNoteNode = memo(({ data, selected }) => {
       }}
       whileHover={{ rotate: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className="w-full h-full rounded relative"
       style={{
-        width: '100%',
-        height: '100%',
         background: colors.bg,
-        borderRadius: 4,
         boxShadow: selected
           ? `0 8px 30px rgba(0,0,0,0.3), 0 0 0 2px ${colors.border}`
           : '0 4px 15px rgba(0,0,0,0.2)',
-        position: 'relative',
         transform: 'translateZ(0)', // GPU acceleration
       }}
     >
-      {/* Push Pin */}
-      {isPinned && (
-        <Motion.div
-          initial={{ scale: 0, y: -10 }}
-          animate={{ scale: 1, y: 0 }}
-          style={{
-            position: 'absolute',
-            top: -8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 20,
-            height: 20,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, #ef4444, #b91c1c)',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-            zIndex: 10,
-          }}
+      {isPinned && <PushPin />}
+      <TopShadow />
+      
+      {selected && (
+        <NodeToolbar
+          isPinned={isPinned}
+          onColorChange={handleColorChange}
+          onPinToggle={handlePinToggle}
         />
       )}
       
-      {/* Top Shadow Gradient for Depth */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 40,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, transparent 100%)',
-          borderRadius: '4px 4px 0 0',
-          pointerEvents: 'none',
-        }}
-      />
-      
-      {/* Toolbar */}
-      {selected && (
-        <Motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            position: 'absolute',
-            top: -36,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 4,
-            background: '#1a1d24',
-            padding: '4px 8px',
-            borderRadius: 8,
-            boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            zIndex: 20,
-          }}
-        >
-          <Motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleColorChange}
-            title="Change color"
-            style={{
-              padding: 6,
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 4,
-              color: '#f5f3f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Palette size={14} />
-          </Motion.button>
-          
-          <Motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsPinned(!isPinned)}
-            title={isPinned ? 'Unpin' : 'Pin'}
-            style={{
-              padding: 6,
-              background: isPinned ? 'rgba(245, 176, 65, 0.2)' : 'transparent',
-              border: 'none',
-              borderRadius: 4,
-              color: isPinned ? '#3B82F6' : '#f5f3f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Pin size={14} />
-          </Motion.button>
-          
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 2px' }} />
-          
-          <Motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            title="Delete note"
-            style={{
-              padding: 6,
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 4,
-              color: '#ef4444',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Trash2 size={14} />
-          </Motion.button>
-        </Motion.div>
-      )}
-      
       {/* Content */}
-      <div
-        style={{
-          padding: '16px 14px',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <div className="flex flex-col h-full px-3.5 py-4">
         {isEditing ? (
-          <textarea
-            ref={textareaRef}
+          <NoteEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.metaKey) {
-                setIsEditing(false);
-              }
-            }}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              resize: 'none',
-              outline: 'none',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: colors.text,
-              padding: 0,
-            }}
+            onChange={setContent}
+            onBlur={handleStopEditing}
+            textColor={colors.text}
+            textareaRef={textareaRef}
           />
         ) : (
-          <div
-            onClick={() => setIsEditing(true)}
-            style={{
-              flex: 1,
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: colors.text,
-              cursor: 'text',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              overflow: 'hidden',
-            }}
-          >
-            {content}
-          </div>
+          <NoteDisplay
+            content={content}
+            textColor={colors.text}
+            onClick={handleStartEditing}
+          />
         )}
         
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: 'auto',
-            paddingTop: 8,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: 10,
-            color: colors.text,
-            opacity: 0.6,
-          }}
-        >
-          <span>{formattedDate}</span>
-          {isEditing && (
-            <span style={{ fontSize: 9 }}>
-              ⌘+Enter to save
-            </span>
-          )}
-        </div>
+        <NoteFooter
+          date={formattedDate}
+          textColor={colors.text}
+          isEditing={isEditing}
+        />
       </div>
       
-      {/* Connection Handles (subtle for sticky notes) */}
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        style={{ 
-          width: 8, 
-          height: 8, 
-          background: colors.border, 
-          border: '2px solid ' + colors.bg,
-          opacity: selected ? 1 : 0,
-        }} 
-      />
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        style={{ 
-          width: 8, 
-          height: 8, 
-          background: colors.border, 
-          border: '2px solid ' + colors.bg,
-          opacity: selected ? 1 : 0,
-        }} 
-      />
+      <ConnectionHandles colors={colors} isSelected={selected} />
     </Motion.div>
   );
 });

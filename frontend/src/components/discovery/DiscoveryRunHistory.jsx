@@ -1,5 +1,17 @@
-import { Clock, CheckCircle2, XCircle, Loader2, Trash2, ChevronRight } from 'lucide-react';
+import { 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2, 
+  Trash2, 
+  ChevronRight 
+} from 'lucide-react';
 import { formatRelativeTime } from '../../utils/format';
+import { useCallback, memo } from 'react';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 const STATUS_ICONS = {
   completed: CheckCircle2,
@@ -15,8 +27,112 @@ const STATUS_STYLES = {
   pending: 'text-gray-400',
 };
 
-export default function DiscoveryRunHistory({ runs, onSelectRun, activeRunId, onDeleteRun }) {
-  if (!runs || runs.length === 0) return null;
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Status icon component
+ */
+const StatusIcon = memo(function StatusIcon({ status }) {
+  const Icon = STATUS_ICONS[status] || Clock;
+  const style = STATUS_STYLES[status] || STATUS_STYLES.pending;
+  
+  return <Icon className={`w-4 h-4 shrink-0 ${style}`} />;
+});
+
+/**
+ * Delete button for run
+ */
+const DeleteButton = memo(function DeleteButton({ onDelete, runId }) {
+  const handleClick = useCallback((e) => {
+    e.stopPropagation();
+    onDelete(runId);
+  }, [onDelete, runId]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className="text-gray-400 hover:text-red-500 p-1 transition-colors"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  );
+});
+
+/**
+ * Individual run item
+ */
+const RunItem = memo(function RunItem({ 
+  run, 
+  isActive, 
+  onSelect, 
+  onDelete 
+}) {
+  const handleClick = useCallback(() => {
+    onSelect(run.id);
+  }, [onSelect, run.id]);
+
+  const getContainerStyles = () => {
+    if (isActive) {
+      return 'bg-accent-50 dark:bg-accent-950/20 border border-accent-200 dark:border-accent-700';
+    }
+    return 'hover:bg-concrete-50 dark:hover:bg-gray-800 border border-transparent';
+  };
+
+  const getMetaText = () => {
+    const parts = [formatRelativeTime(run.createdAt)];
+    if (run.totalFound > 0) parts.push(`${run.totalFound} found`);
+    if (run.scored > 0) parts.push(`${run.scored} scored`);
+    return parts.join(' · ');
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${getContainerStyles()}`}
+    >
+      <StatusIcon status={run.status} />
+      
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+          {run.keyword} — {run.city}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {getMetaText()}
+        </p>
+      </div>
+      
+      <div className="flex items-center gap-1 shrink-0">
+        {onDelete && run.status !== 'running' && (
+          <DeleteButton onDelete={onDelete} runId={run.id} />
+        )}
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Empty state when no runs
+ */
+const EmptyState = memo(function EmptyState() {
+  return null; // Component returns null when no runs, as per original
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+export default function DiscoveryRunHistory({ 
+  runs, 
+  onSelectRun, 
+  activeRunId, 
+  onDeleteRun 
+}) {
+  if (!runs?.length) {
+    return <EmptyState />;
+  }
 
   return (
     <div className="card">
@@ -24,49 +140,17 @@ export default function DiscoveryRunHistory({ runs, onSelectRun, activeRunId, on
         <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-3">
           Past Runs
         </h3>
+        
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          {runs.map((run) => {
-            const Icon = STATUS_ICONS[run.status] || Clock;
-            const isActive = run.id === activeRunId;
-
-            return (
-              <div
-                key={run.id}
-                onClick={() => onSelectRun(run.id)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  isActive
-                    ? 'bg-accent-50 dark:bg-accent-950/20 border border-accent-200 dark:border-accent-700'
-                    : 'hover:bg-concrete-50 dark:hover:bg-gray-800 border border-transparent'
-                }`}
-              >
-                <Icon className={`w-4 h-4 shrink-0 ${STATUS_STYLES[run.status]}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                    {run.keyword} — {run.city}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatRelativeTime(run.createdAt)}
-                    {run.totalFound > 0 && ` · ${run.totalFound} found`}
-                    {run.scored > 0 && ` · ${run.scored} scored`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {onDeleteRun && run.status !== 'running' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteRun(run.id);
-                      }}
-                      className="text-gray-400 hover:text-red-500 p-1 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </div>
-            );
-          })}
+          {runs.map((run) => (
+            <RunItem
+              key={run.id}
+              run={run}
+              isActive={run.id === activeRunId}
+              onSelect={onSelectRun}
+              onDelete={onDeleteRun}
+            />
+          ))}
         </div>
       </div>
     </div>

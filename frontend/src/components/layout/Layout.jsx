@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
 import StickyHeader from './StickyHeader';
 import PageHeaderBar, { PageHeaderBarSkeleton } from './PageHeaderBar';
@@ -8,6 +9,7 @@ import OfflineBanner from '../shared/OfflineBanner';
 import { ErrorBoundary, SectionErrorBoundary } from '../ui/ErrorBoundary';
 import { NotificationCenter, NotificationBellCompact } from '../notifications';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useToast } from '../../hooks/useToast';
 import { AISidebar, AIFloatingButton } from '../ai';
 import { GlobalSearch } from '../search';
 import { UploadFAB } from '../upload';
@@ -15,6 +17,9 @@ import { PageHeaderContext } from '../../hooks/usePageHeader';
 import { useSwipe } from '../../hooks/useSwipe';
 import { QuickAddFAB } from '../shared/QuickAddFAB';
 import { api } from '../../api/client';
+import { uploadApi } from '../../api/upload';
+
+const QUICK_NOTES_KEY = 'ctlplumbing_quicknotes';
 
 // Import mock data for notifications
 const MOCK_JOBS = [
@@ -80,6 +85,20 @@ export default function Layout() {
   const [pageTitle, setPageTitle] = useState(null);
   const [pageActions, setPageActions] = useState(null);
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToast();
+
+  // Poll for files still being processed (used by QuickAddFAB pulse indicator)
+  const { data: processingFiles = [] } = useQuery({
+    queryKey: ['processing-files'],
+    queryFn: () => uploadApi.getFiles({ limit: 10 }),
+    select: (files) => (Array.isArray(files) ? files.filter(f => f.pipeline_status === 'processing') : []),
+    refetchInterval: (query) => {
+      const hasProcessing = (query.state.data?.length ?? 0) > 0;
+      return hasProcessing ? 5000 : 30000;
+    },
+    staleTime: 5000,
+  });
 
   // Use the notifications hook
   const {
@@ -147,11 +166,16 @@ export default function Layout() {
 
   // QuickAddFAB callbacks
   const handleFileUpload = useCallback(async (file) => {
-    // Navigate to documents/jobs with the file for upload
-    console.log('Upload file:', file.name);
-    // TODO: Implement file upload handling
-    // Could open a modal or navigate to upload page
-  }, []);
+    try {
+      await uploadApi.upload([file], {});
+      queryClient.invalidateQueries({ queryKey: ['universal-files'] });
+      queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['processing-files'] });
+      toastSuccess(`Uploaded: ${file.name}`);
+    } catch {
+      toastError('Upload failed — try again');
+    }
+  }, [queryClient, toastSuccess, toastError]);
 
   const handleAddLead = useCallback(async (formData) => {
     try {
@@ -165,7 +189,6 @@ export default function Layout() {
         notes: formData.notes,
         status: 'new',
       });
-      console.log('Lead created:', formData);
     } catch (err) {
       console.error('Failed to create lead:', err);
       throw err;
@@ -173,9 +196,12 @@ export default function Layout() {
   }, []);
 
   const handleAddNote = useCallback((note) => {
-    console.log('Note added:', note);
-    // TODO: Implement note storage - could be stored in localStorage or sent to API
-  }, []);
+    if (!note?.trim()) return;
+    const existing = JSON.parse(localStorage.getItem(QUICK_NOTES_KEY) || '[]');
+    const newNote = { id: Date.now(), text: note.trim(), createdAt: new Date().toISOString() };
+    localStorage.setItem(QUICK_NOTES_KEY, JSON.stringify([newNote, ...existing].slice(0, 50)));
+    toastSuccess('Note saved');
+  }, [toastSuccess]);
 
   return (
     <ErrorBoundary componentName="App">
@@ -306,7 +332,7 @@ export default function Layout() {
           onUpload={handleFileUpload}
           onAddLead={handleAddLead}
           onAddNote={handleAddNote}
-          hasUnprocessedBlueprints={false} // TODO: Connect to actual blueprint processing state
+          hasUnprocessedBlueprints={processingFiles.length > 0}
         />
 
         {/* Upload FAB - Global */}

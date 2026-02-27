@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { ensureArray } from '../utils/safeArray';
@@ -47,7 +47,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { connected, model, available, refetch: refetchOllama } = useOllama();
   const { defaultModel, setDefaultModel } = useModelPreference();
-  const { theme } = useTheme();
+  useTheme(); // Initialize theme context
   const { success: showToastSuccess, error: showToastError, warning: showToastWarning } = useToast();
   
   const showToast = useCallback((message, type = 'success') => {
@@ -109,7 +109,8 @@ export default function Settings() {
     refetchInterval: 15000,
   });
 
-  const { data: healthData } = useQuery({
+  // Health data query - fetched for cache freshness even if not directly used
+  useQuery({
     queryKey: ['health-data'],
     queryFn: () => api.health(),
     refetchInterval: 30000,

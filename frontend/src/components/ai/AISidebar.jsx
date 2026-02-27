@@ -248,14 +248,7 @@ const QuickActionChip = memo(function QuickActionChip({
   onClick, 
   disabled 
 }) {
-  const IconKey = Object.keys(QUICK_ACTION_ICONS).find(key => 
-    action.label.toLowerCase().includes(key.toLowerCase())
-  );
-  const iconName = QUICK_ACTION_ICONS[IconKey] || 'ChevronRight';
-
-  // Map icon names to components (simplified for this example)
-  const iconClass = "w-3.5 h-3.5";
-  const IconComponent = ChevronRight;
+  const iconClass = 'w-3.5 h-3.5';
 
   return (
     <button
@@ -269,7 +262,7 @@ const QuickActionChip = memo(function QuickActionChip({
         transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
       "
     >
-      <IconComponent className={iconClass} />
+      <ChevronRight className={iconClass} />
       <span>{action.label}</span>
     </button>
   );
@@ -400,17 +393,26 @@ const MessagesList = memo(function MessagesList({
  * - Persistent across all pages
  */
 function AISidebar({ isOpen, onClose }) {
-  const [messages, setMessages] = useState([]);
+  const pageContext = usePageContext();
+  
+  // Initialize messages with context-aware greeting
+  const [messages, setMessages] = useState(() => 
+    isOpen ? [{
+      role: 'assistant',
+      content: pageContext.greeting,
+      isContextGreeting: true,
+      timestamp: new Date().toISOString(),
+    }] : []
+  );
   const [inputMessage, setInputMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const hasInitializedRef = useRef(isOpen);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   
   const { isStreaming, streamingMessage, sendMessage } = useStreamingResponse();
   const { defaultModel } = useModelPreference();
-  const pageContext = usePageContext();
   
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;
@@ -425,19 +427,22 @@ function AISidebar({ isOpen, onClose }) {
 
   const activeProvider = modelsData?.provider || 'ollama';
 
-  // Initialize with context-aware greeting when opened
+  // Initialize messages when sidebar opens - using scheduler to avoid cascading renders
   useEffect(() => {
-    if (isOpen && !hasInitialized) {
-      const greeting = {
-        role: 'assistant',
-        content: pageContext.greeting,
-        isContextGreeting: true,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages([greeting]);
-      setHasInitialized(true);
+    if (isOpen && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      // Use scheduler to defer state update to next tick
+      const timer = setTimeout(() => {
+        setMessages([{
+          role: 'assistant',
+          content: pageContext.greeting,
+          isContextGreeting: true,
+          timestamp: new Date().toISOString(),
+        }]);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, hasInitialized, pageContext.greeting]);
+  }, [isOpen, pageContext.greeting]);
 
   // Auto-focus input when opened
   useAutoFocus(isOpen, inputRef);
@@ -497,7 +502,7 @@ function AISidebar({ isOpen, onClose }) {
   const handleClearConversation = useCallback(() => {
     setMessages([]);
     setConversationId(null);
-    setHasInitialized(false);
+    hasInitializedRef.current = false;
   }, []);
 
   if (!isOpen) return null;

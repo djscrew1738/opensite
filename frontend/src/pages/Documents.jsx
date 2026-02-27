@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Files, ScanEye, BookOpenText } from 'lucide-react';
-import { visionApi } from '../api/vision';
+
 import { useDocumentsLibrary } from '../hooks/useDocumentsLibrary';
 import VisionCanvas from '../components/vision/VisionCanvas';
 import { UploadModal } from '../components/upload';
@@ -18,7 +18,7 @@ import TextIntelligence from '../components/documents/tabs/TextIntelligence';
  */
 export default function Documents() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('library');
+  const [, setActiveTab] = useState('library');
   const [showCanvas, setShowCanvas] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);

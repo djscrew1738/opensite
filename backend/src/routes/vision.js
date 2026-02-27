@@ -207,11 +207,14 @@ router.post('/upload', uploadLimiter, upload.single('file'), tryCatch(async (req
  * GET /api/vision/projects
  */
 router.get('/projects', tryCatch(async (req, res) => {
-  const { q, type } = req.query;
-  const projects = await db.searchDocuments({ 
-    query: q, 
+  const { q, type, limit = 50, offset = 0, sort = 'date' } = req.query;
+  const projects = await db.searchDocuments({
+    query: q,
     type,
-    userId: req.user.id 
+    userId: req.user.id,
+    limit: Number(limit),
+    offset: Number(offset),
+    sort,
   });
 
   // Add thumbnail URLs

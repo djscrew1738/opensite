@@ -130,6 +130,14 @@ export default function Dashboard() {
     staleTime: 120000,
   });
 
+  // Fetch weather — non-blocking, fails silently
+  const { data: weatherData } = useQuery({
+    queryKey: ['weather-forecast'],
+    queryFn: () => api.weather.getForecast(),
+    staleTime: 30 * 60 * 1000, // 30 min — matches backend cache
+    retry: 1,
+  });
+
   const isLoading = isLoadingJobs || isLoadingStats;
   const error = jobsError || statsError;
 
@@ -240,6 +248,7 @@ export default function Dashboard() {
         jobs={jobs}
         metrics={metrics}
         focusItems={focusItems}
+        weather={Array.isArray(weatherData) ? weatherData : null}
         isLoading={isLoading}
         onJobClick={handleJobClick}
       />

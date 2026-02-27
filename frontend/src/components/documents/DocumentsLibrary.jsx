@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Loader2, Upload, Search, Grid3X3, List } from 'lucide-react';
+import { Loader2, Upload, Search, Grid3X3, List, Trash2, X } from 'lucide-react';
 import { NoDocumentsEmpty } from '../empty-states';
 import { VIEW_MODES } from './docHelpers';
 import DocumentCard from './DocumentCard';
@@ -22,6 +22,7 @@ export default function DocumentsLibrary({
   setSelectedItems,
   onSelectProject,
   onDelete,
+  onBulkDelete,
   onOpenUpload,
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -172,6 +173,40 @@ export default function DocumentsLibrary({
           </button>
         </div>
       </div>
+
+      {/* Bulk selection bar */}
+      {selectedItems.size > 0 && (
+        <div
+          className="flex items-center justify-between gap-3 px-4 py-2.5"
+          style={{ background: 'rgba(59, 130, 246, 0.08)', borderBottom: '1px solid rgba(59, 130, 246, 0.2)' }}
+        >
+          <span className="text-sm font-medium" style={{ color: '#93C5FD' }}>
+            {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onBulkDelete?.(Array.from(selectedItems))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.25)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete selected
+            </button>
+            <button
+              onClick={() => setSelectedItems(new Set())}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: '#64748B' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#1F2430'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#64748B'; e.currentTarget.style.background = 'transparent'; }}
+              title="Clear selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Drop zone overlay */}
       {isDragging && (

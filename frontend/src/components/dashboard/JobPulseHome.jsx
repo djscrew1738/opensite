@@ -7,10 +7,72 @@ import {
   DollarSign,
   TrendingUp,
   HardHat,
+  CloudSun,
 } from 'lucide-react';
 import { JobCard } from '../jobs';
 import { PHASES, PHASE_MAP } from '../../styles/tokens';
 import { DashboardSkeleton } from '../shared/LoadingStates';
+
+// ── Compact 5-day DFW weather strip ──────────────────────────────────────────
+function WeatherStrip({ weather }) {
+  if (!weather || weather.length === 0) return null;
+  const today = weather[0];
+  const upcoming = weather.slice(1, 5);
+  const precipColor = today.precip >= 50 ? '#60A5FA' : today.precip >= 20 ? '#94A3B8' : '#475569';
+
+  return (
+    <div
+      className="rounded-xl border overflow-hidden"
+      style={{ background: '#0D1117', borderColor: '#1F2430' }}
+    >
+      <div
+        className="flex items-center gap-2 px-4 py-2"
+        style={{ borderBottom: '1px solid #1F2430', background: '#111318' }}
+      >
+        <CloudSun size={14} style={{ color: '#64748B' }} />
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748B' }}>
+          DFW Weather
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 px-4 py-3 overflow-x-auto scrollbar-hide">
+        {/* Today — prominent */}
+        <div className="flex items-center gap-3 shrink-0 pr-4" style={{ borderRight: '1px solid #1F2430' }}>
+          <span className="text-3xl leading-none" role="img" aria-label={today.forecast}>
+            {today.icon}
+          </span>
+          <div>
+            <p className="text-xs font-semibold" style={{ color: '#94A3B8' }}>Today</p>
+            <p className="text-lg font-extrabold tabular-nums leading-tight" style={{ color: '#F1F5F9' }}>
+              {today.hi}°
+              {today.lo !== null && (
+                <span className="text-sm font-normal ml-1" style={{ color: '#64748B' }}>/{today.lo}°</span>
+              )}
+            </p>
+            <p className="text-xs truncate max-w-[120px]" style={{ color: '#64748B' }}>{today.forecast}</p>
+            {today.precip > 0 && (
+              <p className="text-xs mt-0.5 font-medium" style={{ color: precipColor }}>{today.precip}% precip</p>
+            )}
+          </div>
+        </div>
+
+        {/* Next 4 days — mini */}
+        <div className="flex items-center gap-3">
+          {upcoming.map((d) => (
+            <div key={d.date} className="flex flex-col items-center gap-0.5 shrink-0 w-12 text-center">
+              <p className="text-xs font-medium" style={{ color: '#64748B' }}>{d.day}</p>
+              <span className="text-xl leading-none" role="img" aria-label={d.forecast}>{d.icon}</span>
+              <p className="text-xs font-bold tabular-nums" style={{ color: '#CBD5E1' }}>{d.hi}°</p>
+              {d.lo !== null && (
+                <p className="text-[10px] tabular-nums" style={{ color: '#475569' }}>{d.lo}°</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Icon mapping for metrics
 const iconMap = {
@@ -37,11 +99,12 @@ const PHASE_TABS = [
  * - onJobClick: Function(job) called when a job is clicked
  */
 const JobPulseHome = memo(function JobPulseHome({
-  jobs = [], 
+  jobs = [],
   metrics = [],
   focusItems = [],
+  weather = null,
   isLoading = false,
-  onJobClick 
+  onJobClick,
 }) {
   const [activePhase, setActivePhase] = useState('all');
   
@@ -94,7 +157,10 @@ const JobPulseHome = memo(function JobPulseHome({
         </div>
       </div>
 
-      {/* ── 2. TODAY'S FOCUS ──────────────────────── */}
+      {/* ── 2. WEATHER STRIP ─────────────────────── */}
+      <WeatherStrip weather={weather} />
+
+      {/* ── 3. TODAY'S FOCUS ──────────────────────── */}
       {focusItems.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3">
@@ -130,7 +196,7 @@ const JobPulseHome = memo(function JobPulseHome({
         </section>
       )}
 
-      {/* ── 3. PHASE TAB SWITCHER + JOB BOARD ─────── */}
+      {/* ── 4. PHASE TAB SWITCHER + JOB BOARD ─────── */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <LayoutDashboard size={18} className="text-accent" />

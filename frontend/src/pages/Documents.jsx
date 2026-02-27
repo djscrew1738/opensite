@@ -265,6 +265,20 @@ export default function Documents() {
     }
   };
 
+  const handleBulkDelete = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    try {
+      await Promise.all(ids.map(id => visionApi.deleteProject(id)));
+      setSelectedItems(new Set());
+      setPage(0);
+      setDocuments([]);
+      queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+      success(`${ids.length} document${ids.length !== 1 ? 's' : ''} deleted`);
+    } catch {
+      showError('Failed to delete some documents');
+    }
+  };
+
   const handleSelectProject = (project) => {
     setSelectedProject(project);
     setShowCanvas(true);
@@ -315,6 +329,7 @@ export default function Documents() {
               setSelectedItems={setSelectedItems}
               onSelectProject={handleSelectProject}
               onDelete={handleDelete}
+              onBulkDelete={handleBulkDelete}
               onOpenUpload={() => setShowUploadModal(true)}
             />
           </TabErrorBoundary>

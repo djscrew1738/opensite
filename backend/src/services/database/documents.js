@@ -12,10 +12,10 @@ export function addDocumentOperations(DatabaseService) {
   
   // Get all vision projects with full-text search on OCR content or name
   DatabaseService.prototype.searchDocuments = async function(filters = {}) {
-    const { query, userId, type } = filters;
+    const { query, userId, type, limit = 50, offset = 0, sort = 'date' } = filters;
     let sql = 'SELECT id, name, originalFile, fileType, width, height, pageCount, createdAt, updatedAt FROM vision_projects WHERE 1=1';
     const params = [];
-    
+
     if (userId) {
       sql += ' AND userId = ?';
       params.push(userId);
@@ -32,9 +32,18 @@ export function addDocumentOperations(DatabaseService) {
       const searchTerm = `%${query}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }
-    
-    sql += ' ORDER BY updatedAt DESC';
-    
+
+    if (sort === 'name') {
+      sql += ' ORDER BY name ASC';
+    } else if (sort === 'size') {
+      sql += ' ORDER BY (COALESCE(width, 0) * COALESCE(height, 0)) DESC, updatedAt DESC';
+    } else {
+      sql += ' ORDER BY updatedAt DESC';
+    }
+
+    sql += ' LIMIT ? OFFSET ?';
+    params.push(Number(limit), Number(offset));
+
     return await this.all(sql, params);
   };
 

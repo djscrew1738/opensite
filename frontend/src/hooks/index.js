@@ -3,6 +3,14 @@ export { useTheme, ThemeProvider } from './useTheme';
 export { useFieldMode, FieldModeProvider } from './useFieldMode';
 export { useToast, ToastProvider } from './useToast';
 
+// Authentication
+export { 
+  useAuth, 
+  AuthProvider, 
+  useHasRole, 
+  useUserDisplayName,
+} from './useAuth';
+
 // URL and Form State
 export { useUrlState } from './useUrlState';
 export { useFormValidation } from './useFormValidation';
@@ -24,6 +32,14 @@ export { useDashboardData } from './useDashboardData';
 
 // Documents
 export { useDocumentsLibrary } from './useDocumentsLibrary';
+export { 
+  useDocuments, 
+  useRelativeTime, 
+  formatRelativeTime, 
+  truncateFilename, 
+  formatWordCount,
+  formatFileSize 
+} from './useDocuments';
 
 // Settings
 export { useSettingsAI } from './useSettingsAI';
@@ -35,6 +51,45 @@ export { useSettingsData } from './useSettingsData';
 // Upload hooks
 export { useDragDrop, useFileInput, useFileSelection } from './upload/useDragDrop';
 export { useJobPolling, useVisionUpload } from './upload/useJobPolling';
+
+// Blueprint & Vision
+export { useFixtureDetection } from './useFixtureDetection';
+export { useBlueprintAnalysis } from './useBlueprintAnalysis';
+export { 
+  useJobStatus, 
+  useMultipleJobStatus, 
+  useJobsList 
+} from './useJobStatus';
+
+// Performance & Optimization
+export {
+  useDebounce,
+  useDebouncedCallback,
+  useDebouncedState,
+  useDebouncedFetch,
+} from './useDebounce';
+export {
+  useMemoizedCallback,
+  useEventCallback,
+  useMemoizedValue,
+  useMemoizedSelector,
+} from './useMemoizedCallback';
+export {
+  useVirtualizedList,
+  useVirtualizedGrid,
+  useDynamicVirtualizedList,
+  useInfiniteVirtualizedList,
+} from './useVirtualizedList';
+export {
+  useHydration,
+  useIsClient,
+  useHydrationSafe,
+  useHydrationState,
+  useHydrationDelay,
+  useInteractive,
+  withHydrationSafe,
+  HydrationSafe,
+} from './useHydration';
 
 // UI utilities
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';

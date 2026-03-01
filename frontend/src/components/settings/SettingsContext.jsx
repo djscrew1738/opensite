@@ -269,6 +269,8 @@ export function SettingsProvider({ children }) {
     queryKey: ['ollama-metrics'],
     queryFn: () => api.settings.getMetrics(),
     refetchInterval: 15000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const availableModels = modelsData?.models || [];

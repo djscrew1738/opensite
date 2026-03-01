@@ -3,7 +3,7 @@ import {
   Settings, Cpu, Building2, Calculator, Search, Bell, Key,
   Gauge, Palette, Database, Activity, CheckCircle2, AlertCircle,
   Clock, Zap, ChevronRight, BarChart3, Shield, Server, Sparkles,
-  TrendingUp, AlertTriangle, Info, RefreshCw, ExternalLink
+  TrendingUp, AlertTriangle, RefreshCw
 } from 'lucide-react';
 
 /* ================================================================
@@ -143,6 +143,7 @@ export default function SettingsHome({
   activeProvider = 'openclaw',
   connected = false,
   availableModels = [],
+  themePreference = 'system',
   onTabChange,
   onRefreshMetrics,
   isLoading = false
@@ -424,7 +425,7 @@ export default function SettingsHome({
           </h3>
           <div className="space-y-3">
             {[
-              { label: 'Dark Mode', value: localStorage.getItem('theme') === 'dark', icon: Palette, tab: 'appearance' },
+              { label: 'Dark Mode', value: themePreference === 'dark', icon: Palette, tab: 'appearance' },
               { label: 'Email Notifications', value: settings.notify_email_enabled === 'true', icon: Bell, tab: 'notifications' },
               { label: 'Auto-Score Leads', value: settings.discovery_auto_score === 'true', icon: Search, tab: 'discovery' },
               { label: 'Background Jobs', value: settings.perf_bg_jobs !== 'false', icon: Server, tab: 'performance' },
@@ -447,30 +448,7 @@ export default function SettingsHome({
         </div>
       </div>
 
-      {/* Resources */}
-      <div className="p-5 rounded-xl border border-[#1F2430] bg-gradient-to-br from-blue-500/5 to-indigo-500/5">
-        <h3 className="text-sm font-bold text-[#F1F5F9] mb-4 flex items-center gap-2">
-          <Info className="w-4 h-4 text-blue-400" />
-          Resources & Support
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Documentation', href: '#', icon: ExternalLink },
-            { label: 'API Reference', href: '#', icon: ExternalLink },
-            { label: 'Release Notes', href: '#', icon: ExternalLink },
-            { label: 'Get Support', href: '#', icon: ExternalLink },
-          ].map((resource) => (
-            <a
-              key={resource.label}
-              href={resource.href}
-              className="p-3 rounded-lg bg-[#111318] text-center hover:bg-[#181C24] transition-colors border border-[#1F2430]"
-            >
-              <resource.icon className="w-4 h-4 text-blue-400 mx-auto mb-2" />
-              <p className="text-xs font-medium text-[#94A3B8]">{resource.label}</p>
-            </a>
-          ))}
-        </div>
-      </div>
+      {/* Resources — only rendered when real URLs are wired up */}
     </div>
   );
 }

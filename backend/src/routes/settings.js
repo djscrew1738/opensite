@@ -27,27 +27,31 @@ function validateTemperature(value) {
   return { valid: true, value: temp };
 }
 
-// Get all settings
-router.get('/', tryCatch(async (req, res) => {
-  const settings = await db.getAllSettings();
+const KEYS_TO_MASK = [
+  'serper_api_key', 'google_places_api_key', 'groq_api_key',
+  'openclaw_token', 'anthropic_api_key', 'openai_api_key',
+  'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key',
+  'google_maps_api_key', 'microsoft_client_secret',
+  'google_client_secret', 'telegram_bot_token'
+];
 
-  // Mask API keys for security
-  const keysToMask = [
-    'serper_api_key', 'google_places_api_key', 'groq_api_key', 
-    'openclaw_token', 'anthropic_api_key', 'openai_api_key', 
-    'twilio_auth_token', 'sendgrid_api_key', 'stripe_api_key', 
-    'google_maps_api_key', 'microsoft_client_secret', 
-    'google_client_secret', 'telegram_bot_token'
-  ];
-
-  for (const keyName of keysToMask) {
+function maskSecretKeys(settings) {
+  for (const keyName of KEYS_TO_MASK) {
     if (settings[keyName]) {
       const key = settings[keyName];
-      settings[`${keyName}_masked`] = key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '';
+      settings[`${keyName}_masked`] = `${key.slice(0, 4)}...${key.slice(-4)}`;
       settings[`${keyName}_configured`] = key.length > 0;
       delete settings[keyName];
     }
   }
+  return settings;
+}
+
+// Get all settings — admin only
+router.get('/', requireRole(['admin']), tryCatch(async (req, res) => {
+  const settings = await db.getAllSettings();
+
+  maskSecretKeys(settings);
 
   // Add current provider info
   settings.ai_provider = aiProvider.activeProviderName;
@@ -136,6 +140,7 @@ router.put('/', requireRole(['admin']), tryCatch(async (req, res) => {
   }
 
   const finalSettings = await db.getAllSettings();
+  maskSecretKeys(finalSettings);
   res.success(finalSettings, 'Settings updated');
 }));
 

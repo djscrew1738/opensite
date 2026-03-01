@@ -8,6 +8,7 @@ function SettingsOverview({
   activeProvider,
   connected,
   availableModels,
+  themePreference,
   onTabChange,
   onRefreshMetrics,
   settingsData,
@@ -20,6 +21,7 @@ function SettingsOverview({
       activeProvider={activeProvider}
       connected={connected}
       availableModels={availableModels}
+      themePreference={themePreference}
       onTabChange={onTabChange}
       onRefreshMetrics={onRefreshMetrics}
       isLoading={!settingsData}

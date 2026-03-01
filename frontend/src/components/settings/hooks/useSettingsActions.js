@@ -7,6 +7,15 @@ import { useCallback } from 'react';
 import { useSettings } from '../SettingsContext';
 import { api } from '../../../api/client';
 
+/* ── Validation helpers ── */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?[\d\s\-().]{7,20}$/;
+const ZIP_RE   = /^\d{5}(-\d{4})?$/;
+
+function validateUrl(value) {
+  try { new URL(value); return true; } catch { return false; }
+}
+
 export function useSettingsActions() {
   const ctx = useSettings();
   const { showToast, refetchSettings, refetchModels, refetchOllama, queryClient } = ctx;
@@ -184,6 +193,18 @@ export function useSettingsActions() {
 
   /* ── Business ── */
   const handleSaveBusiness = useCallback(async () => {
+    if (ctx.businessEmail && !EMAIL_RE.test(ctx.businessEmail)) {
+      showToast('Invalid business email address', 'error'); return;
+    }
+    if (ctx.businessPhone && !PHONE_RE.test(ctx.businessPhone)) {
+      showToast('Invalid business phone number', 'error'); return;
+    }
+    if (ctx.businessZip && !ZIP_RE.test(ctx.businessZip)) {
+      showToast('Invalid ZIP code (use 5 or 9 digits)', 'error'); return;
+    }
+    if (ctx.businessWebsite && !validateUrl(ctx.businessWebsite)) {
+      showToast('Invalid website URL — include https://', 'error'); return;
+    }
     ctx.setSavingBusiness(true);
     try {
       await api.settings.update({
@@ -209,6 +230,21 @@ export function useSettingsActions() {
 
   /* ── Estimating ── */
   const handleSaveEstimating = useCallback(async () => {
+    if (ctx.laborRate <= 0 || ctx.laborRate > 10000) {
+      showToast('Labor rate must be between $1 and $10,000/hr', 'error'); return;
+    }
+    if (ctx.materialMarkup < 0 || ctx.materialMarkup > 500) {
+      showToast('Material markup must be between 0% and 500%', 'error'); return;
+    }
+    if (ctx.taxRate < 0 || ctx.taxRate > 30) {
+      showToast('Tax rate must be between 0% and 30%', 'error'); return;
+    }
+    if (ctx.depositPct < 0 || ctx.depositPct > 100) {
+      showToast('Deposit must be between 0% and 100%', 'error'); return;
+    }
+    if (ctx.expiryDays < 1 || ctx.expiryDays > 365) {
+      showToast('Quote expiry must be between 1 and 365 days', 'error'); return;
+    }
     ctx.setSavingEstimating(true);
     try {
       await api.settings.update({
@@ -256,6 +292,12 @@ export function useSettingsActions() {
 
   /* ── Notifications ── */
   const handleSaveNotifications = useCallback(async () => {
+    if (ctx.notifyEmailEnabled && ctx.notifyEmailAddr && !EMAIL_RE.test(ctx.notifyEmailAddr)) {
+      showToast('Invalid notification email address', 'error'); return;
+    }
+    if (ctx.notifySmsEnabled && ctx.notifyAdminPhone && !PHONE_RE.test(ctx.notifyAdminPhone)) {
+      showToast('Invalid admin phone number for SMS', 'error'); return;
+    }
     ctx.setSavingNotifications(true);
     try {
       await api.settings.update({

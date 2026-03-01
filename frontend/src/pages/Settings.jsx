@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { ensureArray } from '../utils/safeArray';
 import { useOllama } from '../hooks/useOllama';
 import { useModelPreference } from '../hooks/useModelPreference';
 import { useTheme } from '../hooks/useTheme';
@@ -10,6 +9,11 @@ import { useBusinessSettings } from '../hooks/useBusinessSettings';
 import { useEstimatingSettings } from '../hooks/useEstimatingSettings';
 import { useDiscoverySettings } from '../hooks/useDiscoverySettings';
 import { useAPIKeySettings } from '../hooks/useAPIKeySettings';
+import { useAIProviderSettings } from '../hooks/useAIProviderSettings';
+import { useNotificationsSettings } from '../hooks/useNotificationsSettings';
+import { useEmailWatcherSettings } from '../hooks/useEmailWatcherSettings';
+import { usePerformanceSettings } from '../hooks/usePerformanceSettings';
+import { useAppearanceSettings } from '../hooks/useAppearanceSettings';
 import {
   Building2, Cpu, Key, Activity, Bell, Search, Calculator,
   Gauge, Palette, Database, Loader2, ChevronRight, LayoutDashboard, AlertCircle,
@@ -143,14 +147,15 @@ export default function Settings() {
     else showToastWarning(message);
   }, [showToastSuccess, showToastError, showToastWarning]);
 
-  /* ── Settings query (needed by hooks below) ── */
+  /* ── Settings query ── */
   const { data: settingsData, refetch: refetchSettings } = useQuery({
     queryKey: ['app-settings'],
     queryFn: () => api.settings.get(),
   });
 
-  /* ── Domain hooks ── */
   const hookDeps = { settingsData, refetchSettings, showToast };
+
+  /* ── Domain hooks ── */
   const businessProps = useBusinessSettings(hookDeps);
   const estimatingProps = useEstimatingSettings(hookDeps);
   const discoveryProps = useDiscoverySettings(hookDeps);
@@ -178,662 +183,44 @@ export default function Settings() {
     return () => clearTimeout(timer);
   }, [activeTab]);
 
-  /* ── AI provider ── */
-  const [activeProvider, setActiveProvider] = useState('ollama');
-  const [ollamaUrl, setOllamaUrl] = useState('');
-  const [temperature, setTemperature] = useState(0.7);
-  const [groqKey, setGroqKey] = useState('');
-  const [showGroqKey, setShowGroqKey] = useState(false);
-  const [groqTemperature, setGroqTemperature] = useState(0.7);
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
-  const [openaiTemperature, setOpenaiTemperature] = useState(0.7);
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [anthropicTemperature, setAnthropicTemperature] = useState(0.7);
-  const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
-  const [openclawToken, setOpenclawToken] = useState('');
-  const [showOpenclawToken, setShowOpenclawToken] = useState(false);
-  const [openclawTemperature, setOpenclawTemperature] = useState(0.7);
+  /* ── Domain hooks ── */
+  const aiProps = useAIProviderSettings({
+    ...hookDeps, connected, refetchOllama, queryClient, defaultModel, setDefaultModel,
+  });
+  const notifProps = useNotificationsSettings(hookDeps);
+  const watcherProps = useEmailWatcherSettings(hookDeps);
+  const perfProps = usePerformanceSettings(hookDeps);
+  const appearProps = useAppearanceSettings({ showToast });
 
-  /* ── AI advanced ── */
-  const [maxTokens, setMaxTokens] = useState(2048);
-  const [topP, setTopP] = useState(0.9);
-  const [streamingEnabled, setStreamingEnabled] = useState(true);
-  const [systemPrompt, setSystemPrompt] = useState('');
-
-  /* ── Business / Estimating / Discovery — managed by hooks above ── */
-
-  /* ── Notifications ── */
-  const [notifyEnabled, setNotifyEnabled] = useState(false);
-  const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(false);
-  const [notifyEmailAddr, setNotifyEmailAddr] = useState('');
-  const [notifySmsEnabled, setNotifySmsEnabled] = useState(false);
-  const [notifyAdminPhone, setNotifyAdminPhone] = useState('');
-  const [notifyOnNewLead, setNotifyOnNewLead] = useState(true);
-  const [notifyOnHighScore, setNotifyOnHighScore] = useState(true);
-  const [notifyOnPermit, setNotifyOnPermit] = useState(true);
-  const [notifyDigestEnabled, setNotifyDigestEnabled] = useState(false);
-  const [notifyDigestDay, setNotifyDigestDay] = useState('Monday');
-  const [notifyDigestTime, setNotifyDigestTime] = useState('08:00');
-
-  /* ── Email Monitor ── */
-  const [emEnabled, setEmEnabled] = useState(false);
-  const [emHost, setEmHost] = useState('outlook.office365.com');
-  const [emPort, setEmPort] = useState('993');
-  const [emUser, setEmUser] = useState('');
-  const [emPass, setEmPass] = useState('');
-  const [emKeywords, setEmKeywords] = useState('');
-  const [emTesting, setEmTesting] = useState(false);
-  const [emChecking, setEmChecking] = useState(false);
-  const [emSaving, setEmSaving] = useState(false);
-  const [emStatus, setEmStatus] = useState(null);
-  const [emAlerts, setEmAlerts] = useState([]);
-
-  /* ── API keys — managed by useAPIKeySettings hook ── */
-
-  /* ── Email Watcher (Microsoft Graph) ── */
-  const [msClientId, setMsClientId] = useState('');
-  const [msClientSecret, setMsClientSecret] = useState('');
-  const [showMsClientSecret, setShowMsClientSecret] = useState(false);
-
-  /* ── Email Watcher (Google Gmail) ── */
-  const [googleClientId, setGoogleClientId] = useState('');
-  const [googleClientSecret, setGoogleClientSecret] = useState('');
-  const [showGoogleClientSecret, setShowGoogleClientSecret] = useState(false);
-
-  /* ── Telegram — managed by useAPIKeySettings hook ── */
-  const [ewPollInterval, setEwPollInterval] = useState(60);
-  const [ewMarkAsRead, setEwMarkAsRead] = useState(false);
-
-  /* ── Performance ── */
-  const [perfCacheTtl, setPerfCacheTtl] = useState(5);
-  const [perfRateLimit, setPerfRateLimit] = useState(100);
-  const [perfTimeout, setPerfTimeout] = useState(30);
-  const [perfCbEnabled, setPerfCbEnabled] = useState(true);
-  const [perfCbThreshold, setPerfCbThreshold] = useState(5);
-  const [perfLowMemory, setPerfLowMemory] = useState(false);
-  const [perfBgJobs, setPerfBgJobs] = useState(true);
-
-  /* ── Appearance (localStorage) ── */
-  const [themePreference, setThemePreference] = useState(() =>
-    localStorage.getItem('theme_preference') || 'system'
-  );
-  const [compactSidebar, setCompactSidebar] = useState(() =>
-    localStorage.getItem('compact_sidebar') === 'true'
-  );
-  const [denseMode, setDenseMode] = useState(() =>
-    localStorage.getItem('dense_mode') === 'true'
-  );
-  const [animationsEnabled, setAnimationsEnabled] = useState(() =>
-    localStorage.getItem('animations_enabled') !== 'false'
-  );
-  const [dateFormat, setDateFormat] = useState(() =>
-    localStorage.getItem('date_format') || 'MM/DD/YYYY'
-  );
-  const [numberFormat, setNumberFormat] = useState(() =>
-    localStorage.getItem('number_format') || 'US'
-  );
-
-  /* ── Misc ── */
-  const [pullModelName, setPullModelName] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  /* ── Loading states ── */
-  const [testingOllama, setTestingOllama] = useState(false);
-  const [testingGroq, setTestingGroq] = useState(false);
-  const [testingOpenai, setTestingOpenai] = useState(false);
-  const [testingOpenClaw, setTestingOpenClaw] = useState(false);
-  const [testingAnthropic, setTestingAnthropic] = useState(false);
-  const [testingMicrosoft, setTestingMicrosoft] = useState(false);
-  const [testingGoogle, setTestingGoogle] = useState(false);
-  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false);
-  const [connectingGoogle, setConnectingGoogle] = useState(false);
-  const [savingAI, setSavingAI] = useState(false);
-  const [savingNotifications, setSavingNotifications] = useState(false);
-  const [savingPerformance, setSavingPerformance] = useState(false);
-  const [switchingProvider, setSwitchingProvider] = useState(false);
-  const [pullingModel, setPullingModel] = useState(false);
-  const [deletingModel, setDeletingModel] = useState(null);
+  /* ── Data section loading states ── */
+  const [exportingData, setExportingData] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
-  const [exportingData, setExportingData] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
 
   /* ─────────────────────────────────────────────
-     QUERIES
+     SHARED QUERIES
   ───────────────────────────────────────────── */
-  const { data: modelsData, refetch: refetchModels } = useQuery({
-    queryKey: ['ollama-models', activeProvider],
-    queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic' || activeProvider === 'openai',
-    retry: false
-  });
-
   const { data: metricsData, refetch: refetchMetrics } = useQuery({
     queryKey: ['ollama-metrics'],
     queryFn: () => api.settings.getMetrics(),
     refetchInterval: 15000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
-  const { data: healthData } = useQuery({
+  useQuery({
     queryKey: ['health-data'],
     queryFn: () => api.health(),
     refetchInterval: 30000,
   });
 
-  // Defensive: ensure arrays are actually arrays
-  const availableModels = ensureArray(modelsData?.models);
+  const { activeProvider, availableModels } = aiProps;
   const settings = settingsData && typeof settingsData === 'object' ? settingsData : {};
   const metrics = metricsData?.metrics && typeof metricsData.metrics === 'object' ? metricsData.metrics : {};
   const config = metricsData?.config && typeof metricsData.config === 'object' ? metricsData.config : {};
 
-  /* ─────────────────────────────────────────────
-     SYNC SETTINGS → STATE
-  ───────────────────────────────────────────── */
-  useEffect(() => {
-    if (!settingsData) return;
-    const s = settingsData;
-    const bool = (v, fallback = false) => v === undefined ? fallback : String(v) === 'true';
-    const num = (v, fallback) => v !== undefined ? parseFloat(v) || fallback : fallback;
-
-    // AI provider
-    setActiveProvider(s.ai_provider || 'ollama');
-    setOllamaUrl(s.ollama_url || 'http://localhost:11434');
-    setTemperature(num(s.ollama_temperature, 0.7));
-    setGroqTemperature(num(s.groq_temperature, 0.7));
-    setOpenaiTemperature(num(s.openai_temperature, 0.7));
-    setAnthropicTemperature(num(s.anthropic_temperature, 0.7));
-    setOpenclawUrl(s.openclaw_url || 'http://localhost:18789');
-    setOpenclawTemperature(num(s.openclaw_temperature, 0.7));
-
-    // AI advanced
-    setMaxTokens(num(s.ai_max_tokens, 2048));
-    setTopP(num(s.ai_top_p, 0.9));
-    setStreamingEnabled(bool(s.ai_streaming, true));
-    setSystemPrompt(s.ai_system_prompt || '');
-
-    // Business / Estimating / Discovery — synced in their own hooks
-
-    // Notifications
-    setNotifyEnabled(bool(s.notify_enabled, false));
-    setNotifyEmailEnabled(bool(s.notify_email_enabled, false));
-    setNotifyEmailAddr(s.notify_email_address || '');
-    setNotifySmsEnabled(bool(s.notify_sms_enabled, false));
-    setNotifyAdminPhone(s.notify_admin_phone || '');
-    setNotifyOnNewLead(bool(s.notify_on_new_lead, true));
-    setNotifyOnHighScore(bool(s.notify_on_high_score, true));
-    setNotifyOnPermit(bool(s.notify_on_permit, true));
-    setNotifyDigestEnabled(bool(s.notify_digest_enabled, false));
-    setNotifyDigestDay(s.notify_digest_day || 'Monday');
-    setNotifyDigestTime(s.notify_digest_time || '08:00');
-
-    // Email Monitor — load from dedicated endpoint
-    api.emailMonitor.getSettings().then(emData => {
-      if (emData) {
-        setEmEnabled(emData.enabled || false);
-        setEmHost(emData.host || 'outlook.office365.com');
-        setEmPort(String(emData.port || 993));
-        setEmUser(emData.user || '');
-        setEmKeywords(emData.keywords || '');
-      }
-    }).catch(() => {});
-    api.emailMonitor.getStatus().then(st => setEmStatus(st)).catch(() => {});
-    api.emailMonitor.getAlerts({ limit: 10 }).then(d => {
-      setEmAlerts(ensureArray(d?.alerts));
-    }).catch(() => setEmAlerts([]));
-
-    // Performance
-    setPerfCacheTtl(num(s.perf_cache_ttl, 5));
-    setPerfRateLimit(num(s.perf_rate_limit_max, 100));
-    setPerfTimeout(num(s.perf_request_timeout, 30));
-    setPerfCbEnabled(bool(s.perf_cb_enabled, true));
-    setPerfCbThreshold(num(s.perf_cb_threshold, 5));
-    setPerfLowMemory(bool(s.perf_low_memory, false));
-    setPerfBgJobs(bool(s.perf_bg_jobs, true));
-
-    // Email Watcher
-    setEwPollInterval(num(s.email_watcher_poll_interval, 60));
-    setEwMarkAsRead(bool(s.email_watcher_mark_read, false));
-  }, [settingsData]);
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — AI
-  ───────────────────────────────────────────── */
-  const handleSwitchProvider = async (provider) => {
-    setSwitchingProvider(true);
-    try {
-      await api.settings.update({ ai_provider: provider });
-      setActiveProvider(provider);
-      refetchSettings();
-      refetchModels();
-      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      refetchOllama();
-      const providerLabels = { openclaw: 'OpenClaw Gateway', groq: 'Groq Cloud', anthropic: 'Anthropic Claude', openai: 'OpenAI', ollama: 'Ollama Local' };
-      showToast(`Switched to ${providerLabels[provider] || provider}`);
-    } catch (err) {
-      showToast(`Failed to switch: ${err.message}`, 'error');
-    } finally {
-      setSwitchingProvider(false);
-    }
-  };
-
-  const handleSaveAIConfig = async () => {
-    setSavingAI(true);
-    try {
-      const base = activeProvider === 'openclaw'
-        ? { openclaw_url: openclawUrl, openclaw_temperature: String(openclawTemperature) }
-        : activeProvider === 'groq'
-        ? { groq_temperature: String(groqTemperature) }
-        : activeProvider === 'openai'
-        ? { openai_temperature: String(openaiTemperature) }
-        : activeProvider === 'anthropic'
-        ? { anthropic_temperature: String(anthropicTemperature) }
-        : { ollama_url: ollamaUrl, ollama_temperature: String(temperature) };
-      await api.settings.update({
-        ...base,
-        ai_max_tokens: String(maxTokens),
-        ai_top_p: String(topP),
-        ai_streaming: String(streamingEnabled),
-        ai_system_prompt: systemPrompt,
-      });
-      refetchSettings();
-      refetchOllama();
-      showToast('AI configuration saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingAI(false);
-    }
-  };
-
-  const handleTestOllama = async () => {
-    setTestingOllama(true);
-    try {
-      const result = await api.settings.testOllama(ollamaUrl);
-      if (result.connected) showToast(`Connected to Ollama (${result.modelCount} models available)`);
-      else showToast(`Cannot connect: ${result.error}`, 'error');
-    } catch (err) {
-      showToast(`Connection test failed: ${err.message}`, 'error');
-    } finally {
-      setTestingOllama(false);
-    }
-  };
-
-  const handleTestGroq = async () => {
-    setTestingGroq(true);
-    try {
-      const result = await api.settings.testGroq(groqKey || undefined);
-      if (result.valid) showToast(`Groq API valid (${result.modelCount} models available)`);
-      else showToast(result.error || 'Invalid API key', 'error');
-    } catch (err) {
-      showToast(`Test failed: ${err.message}`, 'error');
-    } finally {
-      setTestingGroq(false);
-    }
-  };
-
-  const handleTestOpenai = async () => {
-    setTestingOpenai(true);
-    try {
-      const result = await api.settings.testOpenai(openaiKey || undefined);
-      if (result.valid) showToast(`OpenAI API valid (${result.modelCount} models available)`);
-      else showToast(result.error || 'Invalid API key', 'error');
-    } catch (err) {
-      showToast(`Test failed: ${err.message}`, 'error');
-    } finally {
-      setTestingOpenai(false);
-    }
-  };
-
-  const handleSaveGroqKey = async () => {
-    try {
-      await api.settings.update({ groq_api_key: groqKey });
-      setGroqKey('');
-      refetchSettings();
-      showToast('Groq API key saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    }
-  };
-
-  const handleSaveOpenaiKey = async () => {
-    try {
-      await api.settings.update({ openai_api_key: openaiKey });
-      setOpenaiKey('');
-      refetchSettings();
-      showToast('OpenAI API key saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    }
-  };
-
-  const handleTestAnthropic = async () => {
-    setTestingAnthropic(true);
-    try {
-      const result = await api.settings.testAnthropic(anthropicKey || undefined);
-      if (result.valid) showToast('Anthropic API key is valid');
-      else showToast(result.error || 'Invalid API key', 'error');
-    } catch (err) {
-      showToast(`Test failed: ${err.message}`, 'error');
-    } finally {
-      setTestingAnthropic(false);
-    }
-  };
-
-  const handleSaveAnthropicKey = async () => {
-    try {
-      await api.settings.update({ anthropic_api_key: anthropicKey });
-      setAnthropicKey('');
-      refetchSettings();
-      showToast('Anthropic API key saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    }
-  };
-
-  const handleTestOpenClaw = async () => {
-    setTestingOpenClaw(true);
-    try {
-      const result = await api.settings.testOpenClaw(openclawUrl, openclawToken || undefined);
-      if (result.connected) showToast(`Connected to OpenClaw (${result.model})`);
-      else showToast(`Cannot connect: ${result.error}`, 'error');
-    } catch (err) {
-      showToast(`Connection test failed: ${err.message}`, 'error');
-    } finally {
-      setTestingOpenClaw(false);
-    }
-  };
-
-  const handleSaveOpenclawToken = async () => {
-    try {
-      await api.settings.update({ openclaw_token: openclawToken });
-      setOpenclawToken('');
-      refetchSettings();
-      showToast('OpenClaw token saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    }
-  };
-
-  const handleSetDefaultModel = async (modelName) => {
-    try {
-      setDefaultModel(modelName);
-      const modelKey = activeProvider === 'groq' ? 'groq_model'
-        : activeProvider === 'anthropic' ? 'anthropic_model'
-        : activeProvider === 'openai' ? 'openai_model'
-        : activeProvider === 'openclaw' ? 'openclaw_model'
-        : 'ollama_model';
-      await api.settings.update({ [modelKey]: modelName });
-      refetchSettings();
-      showToast(`Default model set to ${modelName}`);
-    } catch (err) {
-      showToast(`Failed: ${err.message}`, 'error');
-    }
-  };
-
-  const handlePullModel = async () => {
-    if (!pullModelName.trim()) return;
-    setPullingModel(true);
-    try {
-      const response = await fetch('/api/ai/models/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: pullModelName.trim() }),
-      });
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let lastStatus = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split('\n').filter(l => l.startsWith('data: '));
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.status) lastStatus = data.status;
-            if (data.done) break;
-          } catch { /* skip */ }
-        }
-      }
-      setPullModelName('');
-      refetchModels();
-      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      showToast(`Model pulled successfully: ${lastStatus}`);
-    } catch (err) {
-      showToast(`Failed to pull model: ${err.message}`, 'error');
-    } finally {
-      setPullingModel(false);
-    }
-  };
-
-  const handleDeleteModel = async (modelName) => {
-    setDeletingModel(modelName);
-    try {
-      await api.ai.deleteModel(modelName);
-      setDeleteConfirm(null);
-      refetchModels();
-      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      showToast(`Model ${modelName} deleted`);
-    } catch (err) {
-      showToast(`Failed to delete: ${err.message}`, 'error');
-    } finally {
-      setDeletingModel(null);
-    }
-  };
-
-  /* ── Business / Estimating / Discovery handlers — in hooks ── */
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — NOTIFICATIONS
-  ───────────────────────────────────────────── */
-  const handleSaveNotifications = async () => {
-    setSavingNotifications(true);
-    try {
-      await api.settings.update({
-        notify_enabled: String(notifyEnabled),
-        notify_email_enabled: String(notifyEmailEnabled),
-        notify_email_address: notifyEmailAddr,
-        notify_sms_enabled: String(notifySmsEnabled),
-        notify_admin_phone: notifyAdminPhone,
-        notify_on_new_lead: String(notifyOnNewLead),
-        notify_on_high_score: String(notifyOnHighScore),
-        notify_on_permit: String(notifyOnPermit),
-        notify_digest_enabled: String(notifyDigestEnabled),
-        notify_digest_day: notifyDigestDay,
-        notify_digest_time: notifyDigestTime,
-      });
-      refetchSettings();
-      showToast('Notification settings saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setSavingNotifications(false);
-    }
-  };
-
-  const handleSaveEmailMonitor = async () => {
-    setEmSaving(true);
-    try {
-      await api.emailMonitor.saveSettings({
-        enabled: emEnabled,
-        host: emHost,
-        port: parseInt(emPort),
-        user: emUser,
-        ...(emPass ? { pass: emPass } : {}),
-        keywords: emKeywords,
-      });
-      setEmPass('');
-      showToast('Email monitor settings saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    } finally {
-      setEmSaving(false);
-    }
-  };
-
-  const handleTestEmailMonitor = async () => {
-    if (!emUser) { showToast('Enter email address first', 'error'); return; }
-    setEmTesting(true);
-    try {
-      const result = await api.emailMonitor.testConnection({
-        host: emHost,
-        port: parseInt(emPort),
-        user: emUser,
-        pass: emPass || undefined,
-      });
-      showToast(`Connected! ${result.messages} messages in inbox, ${result.unseen} unseen`);
-    } catch (err) {
-      showToast(`Connection failed: ${err.message}`, 'error');
-    } finally {
-      setEmTesting(false);
-    }
-  };
-
-  const handleCheckNow = async () => {
-    setEmChecking(true);
-    try {
-      const result = await api.emailMonitor.checkNow();
-      if (result.disabled) {
-        showToast('Email monitor is disabled — enable it first', 'warning');
-      } else if (result.error) {
-        showToast(`Check failed: ${result.error}`, 'error');
-      } else {
-        showToast(`Checked: ${result.processed} emails, ${result.matched} matches, ${result.smsSent} SMS sent`);
-      }
-      const alerts = await api.emailMonitor.getAlerts({ limit: 10 });
-      setEmAlerts(ensureArray(alerts?.alerts));
-      const st = await api.emailMonitor.getStatus();
-      setEmStatus(st);
-    } catch (err) {
-      showToast(`Check failed: ${err.message}`, 'error');
-    } finally {
-      setEmChecking(false);
-    }
-  };
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — OAUTH
-  ───────────────────────────────────────────── */
-  const handleSaveMicrosoft = async () => {
-    try {
-      const u = {};
-      if (msClientId) u.microsoft_client_id = msClientId;
-      if (msClientSecret) u.microsoft_client_secret = msClientSecret;
-      await api.settings.update(u);
-      setMsClientId(''); setMsClientSecret('');
-      refetchSettings(); showToast('Microsoft OAuth credentials saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-
-  const handleTestMicrosoft = async () => {
-    setTestingMicrosoft(true);
-    try { const r = await api.settings.testMicrosoft(msClientId || undefined, msClientSecret || undefined); if (r.valid) showToast('Microsoft OAuth credentials valid'); else showToast(r.error || 'Invalid credentials', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingMicrosoft(false); }
-  };
-
-  const handleSaveGoogle = async () => {
-    try {
-      const u = {};
-      if (googleClientId) u.google_client_id = googleClientId;
-      if (googleClientSecret) u.google_client_secret = googleClientSecret;
-      await api.settings.update(u);
-      setGoogleClientId(''); setGoogleClientSecret('');
-      refetchSettings(); showToast('Google OAuth credentials saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-
-  const handleTestGoogle = async () => {
-    setTestingGoogle(true);
-    try { const r = await api.settings.testGoogle(googleClientId || undefined, googleClientSecret || undefined); if (r.valid) showToast(r.message || 'Google OAuth credentials valid'); else showToast(r.error || 'Invalid credentials', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { setTestingGoogle(false); }
-  };
-
-  const handleConnectMicrosoft = async () => {
-    setConnectingMicrosoft(true);
-    try {
-      const r = await api.emailAlerts.addAccount('outlook', 'Outlook Account');
-      const { authUrl } = r || {};
-      if (authUrl) window.location.href = authUrl;
-      else showToast('Failed to get Microsoft auth URL', 'error');
-    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
-    finally { setConnectingMicrosoft(false); }
-  };
-
-  const handleConnectGoogle = async () => {
-    setConnectingGoogle(true);
-    try {
-      const r = await api.emailAlerts.addAccount('gmail', 'Gmail Account');
-      const { authUrl } = r || {};
-      if (authUrl) window.location.href = authUrl;
-      else showToast('Failed to get Google auth URL', 'error');
-    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
-    finally { setConnectingGoogle(false); }
-  };
-
-  /* ── Telegram — handlers moved to useAPIKeySettings hook ── */
-
-  const handleSaveEmailWatcher = async () => {
-    try {
-      await api.settings.update({
-        email_watcher_poll_interval: String(ewPollInterval),
-        email_watcher_mark_read: String(ewMarkAsRead),
-      });
-      refetchSettings(); showToast('Email watcher settings saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  };
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — PERFORMANCE
-  ───────────────────────────────────────────── */
-  const handleSavePerformance = async () => {
-    setSavingPerformance(true);
-    try {
-      await api.settings.update({
-        perf_cache_ttl: String(perfCacheTtl),
-        perf_rate_limit_max: String(perfRateLimit),
-        perf_request_timeout: String(perfTimeout),
-        perf_cb_enabled: String(perfCbEnabled),
-        perf_cb_threshold: String(perfCbThreshold),
-        perf_low_memory: String(perfLowMemory),
-        perf_bg_jobs: String(perfBgJobs),
-      });
-      refetchSettings();
-      showToast('Performance settings saved — some changes require a server restart');
-    } catch (err) {
-      showToast(`Failed: ${err.message}`, 'error');
-    } finally {
-      setSavingPerformance(false);
-    }
-  };
-
-  /* ─────────────────────────────────────────────
-     HANDLERS — APPEARANCE
-  ───────────────────────────────────────────── */
-  const handleApplyTheme = (pref) => {
-    setThemePreference(pref);
-    localStorage.setItem('theme_preference', pref);
-    if (pref === 'system') {
-      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      document.documentElement.classList.toggle('dark', isDark);
-    } else {
-      localStorage.setItem('theme', pref);
-      document.documentElement.classList.toggle('dark', pref === 'dark');
-    }
-  };
-
-  const handleSaveAppearance = () => {
-    localStorage.setItem('compact_sidebar', String(compactSidebar));
-    localStorage.setItem('dense_mode', String(denseMode));
-    localStorage.setItem('animations_enabled', String(animationsEnabled));
-    localStorage.setItem('date_format', dateFormat);
-    localStorage.setItem('number_format', numberFormat);
-    showToast('Appearance settings saved');
-  };
+  /* ── All domain handlers are now in their respective hooks ── */
 
   /* ─────────────────────────────────────────────
      HANDLERS — DATA
@@ -883,7 +270,6 @@ export default function Settings() {
   /* ─────────────────────────────────────────────
      COMPUTED
   ───────────────────────────────────────────── */
-  const temperatureLabel = t => t <= 0.3 ? 'Precise' : t <= 0.7 ? 'Balanced' : 'Creative';
   const successRate = metrics.totalRequests > 0
     ? ((metrics.successCount / metrics.totalRequests) * 100).toFixed(1) : '0.0';
   const uptimeFormatted = metrics.uptimeMs
@@ -904,6 +290,7 @@ export default function Settings() {
             activeProvider={activeProvider}
             connected={connected}
             availableModels={availableModels}
+            themePreference={appearProps.themePreference}
             onTabChange={handleTabChange}
             onRefreshMetrics={refetchMetrics}
             settingsData={settingsData}
@@ -912,79 +299,12 @@ export default function Settings() {
       case 'ai':
         return (
           <SettingsAI
-            activeProvider={activeProvider}
             settings={settings}
-            availableModels={availableModels}
             connected={connected}
             defaultModel={defaultModel}
             config={config}
-            switchingProvider={switchingProvider}
-            testingOllama={testingOllama}
-            testingGroq={testingGroq}
-            testingOpenai={testingOpenai}
-            testingOpenClaw={testingOpenClaw}
-            testingAnthropic={testingAnthropic}
-            savingAI={savingAI}
-            maxTokens={maxTokens}
-            setMaxTokens={setMaxTokens}
-            topP={topP}
-            setTopP={setTopP}
-            streamingEnabled={streamingEnabled}
-            setStreamingEnabled={setStreamingEnabled}
-            systemPrompt={systemPrompt}
-            setSystemPrompt={setSystemPrompt}
-            pullModelName={pullModelName}
-            setPullModelName={setPullModelName}
-            pullingModel={pullingModel}
-            deleteConfirm={deleteConfirm}
-            setDeleteConfirm={setDeleteConfirm}
-            deletingModel={deletingModel}
-            showGroqKey={showGroqKey}
-            setShowGroqKey={setShowGroqKey}
-            showOpenaiKey={showOpenaiKey}
-            setShowOpenaiKey={setShowOpenaiKey}
-            showOpenclawToken={showOpenclawToken}
-            setShowOpenclawToken={setShowOpenclawToken}
-            showAnthropicKey={showAnthropicKey}
-            setShowAnthropicKey={setShowAnthropicKey}
-            temperature={temperature}
-            setTemperature={setTemperature}
-            groqKey={groqKey}
-            setGroqKey={setGroqKey}
-            groqTemperature={groqTemperature}
-            setGroqTemperature={setGroqTemperature}
-            openaiKey={openaiKey}
-            setOpenaiKey={setOpenaiKey}
-            openaiTemperature={openaiTemperature}
-            setOpenaiTemperature={setOpenaiTemperature}
-            anthropicKey={anthropicKey}
-            setAnthropicKey={setAnthropicKey}
-            anthropicTemperature={anthropicTemperature}
-            setAnthropicTemperature={setAnthropicTemperature}
-            ollamaUrl={ollamaUrl}
-            setOllamaUrl={setOllamaUrl}
-            openclawUrl={openclawUrl}
-            setOpenclawUrl={setOpenclawUrl}
-            openclawToken={openclawToken}
-            setOpenclawToken={setOpenclawToken}
-            openclawTemperature={openclawTemperature}
-            setOpenclawTemperature={setOpenclawTemperature}
             model={model}
-            handleSwitchProvider={handleSwitchProvider}
-            handleSaveAIConfig={handleSaveAIConfig}
-            handleTestOllama={handleTestOllama}
-            handleTestGroq={handleTestGroq}
-            handleSaveGroqKey={handleSaveGroqKey}
-            handleTestOpenai={handleTestOpenai}
-            handleSaveOpenaiKey={handleSaveOpenaiKey}
-            handleTestAnthropic={handleTestAnthropic}
-            handleSaveAnthropicKey={handleSaveAnthropicKey}
-            handleTestOpenClaw={handleTestOpenClaw}
-            handleSaveOpenclawToken={handleSaveOpenclawToken}
-            handleSetDefaultModel={handleSetDefaultModel}
-            handlePullModel={handlePullModel}
-            handleDeleteModel={handleDeleteModel}
-            temperatureLabel={temperatureLabel}
+            {...aiProps}
           />
         );
       case 'business':
@@ -996,107 +316,15 @@ export default function Settings() {
       case 'jobpulse':
         return (
           <SettingsJobPulse
-            emEnabled={emEnabled}
-            setEmEnabled={setEmEnabled}
-            emUser={emUser}
-            setEmUser={setEmUser}
-            emPass={emPass}
-            setEmPass={setEmPass}
-            emHost={emHost}
-            setEmHost={setEmHost}
-            emPort={emPort}
-            setEmPort={setEmPort}
-            emKeywords={emKeywords}
-            setEmKeywords={setEmKeywords}
-            emTesting={emTesting}
-            emChecking={emChecking}
-            emSaving={emSaving}
-            emStatus={emStatus}
-            emAlerts={emAlerts}
-            handleTestEmailMonitor={handleTestEmailMonitor}
-            handleCheckNow={handleCheckNow}
-            handleSaveEmailMonitor={handleSaveEmailMonitor}
-            notifySmsEnabled={notifySmsEnabled}
-            setNotifySmsEnabled={setNotifySmsEnabled}
-            notifyAdminPhone={notifyAdminPhone}
-            setNotifyAdminPhone={setNotifyAdminPhone}
+            {...notifProps}
           />
         );
       case 'notifications':
         return (
           <SettingsNotifications
-            notifyEnabled={notifyEnabled}
-            setNotifyEnabled={setNotifyEnabled}
-            notifyEmailEnabled={notifyEmailEnabled}
-            setNotifyEmailEnabled={setNotifyEmailEnabled}
-            notifyEmailAddr={notifyEmailAddr}
-            setNotifyEmailAddr={setNotifyEmailAddr}
-            notifyOnNewLead={notifyOnNewLead}
-            setNotifyOnNewLead={setNotifyOnNewLead}
-            notifyOnHighScore={notifyOnHighScore}
-            setNotifyOnHighScore={setNotifyOnHighScore}
-            notifyOnPermit={notifyOnPermit}
-            setNotifyOnPermit={setNotifyOnPermit}
-            notifySmsEnabled={notifySmsEnabled}
-            setNotifySmsEnabled={setNotifySmsEnabled}
-            notifyAdminPhone={notifyAdminPhone}
-            setNotifyAdminPhone={setNotifyAdminPhone}
-            notifyDigestEnabled={notifyDigestEnabled}
-            setNotifyDigestEnabled={setNotifyDigestEnabled}
-            notifyDigestDay={notifyDigestDay}
-            setNotifyDigestDay={setNotifyDigestDay}
-            notifyDigestTime={notifyDigestTime}
-            setNotifyDigestTime={setNotifyDigestTime}
-            savingNotifications={savingNotifications}
-            handleSaveNotifications={handleSaveNotifications}
-            emEnabled={emEnabled}
-            setEmEnabled={setEmEnabled}
-            emUser={emUser}
-            setEmUser={setEmUser}
-            emPass={emPass}
-            setEmPass={setEmPass}
-            emHost={emHost}
-            setEmHost={setEmHost}
-            emPort={emPort}
-            setEmPort={setEmPort}
-            emKeywords={emKeywords}
-            setEmKeywords={setEmKeywords}
-            emTesting={emTesting}
-            emChecking={emChecking}
-            emSaving={emSaving}
-            emStatus={emStatus}
-            emAlerts={emAlerts}
-            handleTestEmailMonitor={handleTestEmailMonitor}
-            handleCheckNow={handleCheckNow}
-            handleSaveEmailMonitor={handleSaveEmailMonitor}
             settings={settings}
-            googleClientId={googleClientId}
-            setGoogleClientId={setGoogleClientId}
-            googleClientSecret={googleClientSecret}
-            setGoogleClientSecret={setGoogleClientSecret}
-            showGoogleClientSecret={showGoogleClientSecret}
-            setShowGoogleClientSecret={setShowGoogleClientSecret}
-            testingGoogle={testingGoogle}
-            handleTestGoogle={handleTestGoogle}
-            handleSaveGoogle={handleSaveGoogle}
-            handleConnectGoogle={handleConnectGoogle}
-            connectingGoogle={connectingGoogle}
-            msClientId={msClientId}
-            setMsClientId={setMsClientId}
-            msClientSecret={msClientSecret}
-            setMsClientSecret={setMsClientSecret}
-            showMsClientSecret={showMsClientSecret}
-            setShowMsClientSecret={setShowMsClientSecret}
-            testingMicrosoft={testingMicrosoft}
-            handleTestMicrosoft={handleTestMicrosoft}
-            handleSaveMicrosoft={handleSaveMicrosoft}
-            handleConnectMicrosoft={handleConnectMicrosoft}
-            connectingMicrosoft={connectingMicrosoft}
-            ewPollInterval={ewPollInterval}
-            setEwPollInterval={setEwPollInterval}
-            ewMarkAsRead={ewMarkAsRead}
-            setEwMarkAsRead={setEwMarkAsRead}
-            handleSaveEmailWatcher={handleSaveEmailWatcher}
+            {...notifProps}
+            {...watcherProps}
           />
         );
       case 'quickbooks':
@@ -1113,52 +341,18 @@ export default function Settings() {
             settings={settings}
             providers={apiKeyProps}
             openai={{
-              key: openaiKey, setKey: setOpenaiKey,
-              show: showOpenaiKey, setShow: setShowOpenaiKey,
-              testing: testingOpenai, test: handleTestOpenai, save: handleSaveOpenaiKey,
+              key: aiProps.openaiKey, setKey: aiProps.setOpenaiKey,
+              show: aiProps.showOpenaiKey, setShow: aiProps.setShowOpenaiKey,
+              testing: aiProps.testingOpenai,
+              test: aiProps.handleTestOpenai,
+              save: aiProps.handleSaveOpenaiKey,
             }}
           />
         );
       case 'performance':
-        return (
-          <SettingsPerformance
-            perfCacheTtl={perfCacheTtl}
-            setPerfCacheTtl={setPerfCacheTtl}
-            perfLowMemory={perfLowMemory}
-            setPerfLowMemory={setPerfLowMemory}
-            perfRateLimit={perfRateLimit}
-            setPerfRateLimit={setPerfRateLimit}
-            perfTimeout={perfTimeout}
-            setPerfTimeout={setPerfTimeout}
-            perfCbEnabled={perfCbEnabled}
-            setPerfCbEnabled={setPerfCbEnabled}
-            perfCbThreshold={perfCbThreshold}
-            setPerfCbThreshold={setPerfCbThreshold}
-            perfBgJobs={perfBgJobs}
-            setPerfBgJobs={setPerfBgJobs}
-            cbState={cbState}
-            savingPerformance={savingPerformance}
-            handleSavePerformance={handleSavePerformance}
-          />
-        );
+        return <SettingsPerformance cbState={cbState} {...perfProps} />;
       case 'appearance':
-        return (
-          <SettingsAppearance
-            themePreference={themePreference}
-            handleApplyTheme={handleApplyTheme}
-            compactSidebar={compactSidebar}
-            setCompactSidebar={setCompactSidebar}
-            denseMode={denseMode}
-            setDenseMode={setDenseMode}
-            animationsEnabled={animationsEnabled}
-            setAnimationsEnabled={setAnimationsEnabled}
-            dateFormat={dateFormat}
-            setDateFormat={setDateFormat}
-            numberFormat={numberFormat}
-            setNumberFormat={setNumberFormat}
-            handleSaveAppearance={handleSaveAppearance}
-          />
-        );
+        return <SettingsAppearance {...appearProps} />;
       case 'data':
         return (
           <SettingsData
@@ -1188,6 +382,7 @@ export default function Settings() {
             refetchMetrics={refetchMetrics}
             refetchOllama={refetchOllama}
             showToast={showToast}
+            connected={connected}
           />
         );
       case 'users':

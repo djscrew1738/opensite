@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background gradient: vibrant orange top-left to deep red bottom-right -->
+    <radialGradient id="bgGrad" cx="30%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#FF7A1A"/>
+      <stop offset="50%" stop-color="#E84E0F"/>
+      <stop offset="100%" stop-color="#B01010"/>
+    </radialGradient>
+    <!-- Globe gradient: dark navy -->
+    <radialGradient id="globeGrad" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#1A3A6B"/>
+      <stop offset="100%" stop-color="#0D1F3C"/>
+    </radialGradient>
+    <!-- Land mass gradient -->
+    <radialGradient id="landGrad" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#C85A0A"/>
+      <stop offset="100%" stop-color="#9B3A08"/>
+    </radialGradient>
+    <!-- Magnifier lens gradient -->
+    <radialGradient id="lensGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.08)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
+    </radialGradient>
+    <!-- Clip for globe circle -->
+    <clipPath id="globeClip">
+      <circle cx="230" cy="210" r="178"/>
+    </clipPath>
+    <!-- Clip for lens circle -->
+    <clipPath id="lensClip">
+      <circle cx="210" cy="220" r="130"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bgGrad)"/>
+
+  <!-- Globe circle -->
+  <circle cx="230" cy="210" r="178" fill="url(#globeGrad)"/>
+
+  <!-- Latitude lines on globe -->
+  <g clip-path="url(#globeClip)" fill="none" stroke="rgba(100,150,220,0.35)" stroke-width="2.5">
+    <!-- Equator -->
+    <ellipse cx="230" cy="210" rx="178" ry="44"/>
+    <!-- Upper latitude -->
+    <ellipse cx="230" cy="165" rx="152" ry="32"/>
+    <!-- Upper latitude 2 -->
+    <ellipse cx="230" cy="122" rx="110" ry="22"/>
+    <!-- Lower latitude -->
+    <ellipse cx="230" cy="255" rx="152" ry="32"/>
+    <!-- Lower latitude 2 -->
+    <ellipse cx="230" cy="298" rx="110" ry="22"/>
+  </g>
+
+  <!-- Longitude lines on globe -->
+  <g clip-path="url(#globeClip)" fill="none" stroke="rgba(100,150,220,0.35)" stroke-width="2.5">
+    <!-- Center vertical -->
+    <line x1="230" y1="32" x2="230" y2="388"/>
+    <!-- Left longitudes -->
+    <ellipse cx="230" cy="210" rx="80" ry="178"/>
+    <ellipse cx="230" cy="210" rx="140" ry="178"/>
+    <!-- Right longitudes (as additional ellipses) -->
+  </g>
+
+  <!-- Land masses (simplified continents) -->
+  <!-- North America -->
+  <path d="M 110 120 C 120 110, 145 108, 160 115 C 175 122, 185 135, 190 150 C 195 165, 188 180, 180 192 C 172 204, 162 210, 150 215 C 138 220, 125 218, 118 210 C 110 202, 105 188, 104 174 C 103 160, 106 148, 110 138 Z"
+        fill="url(#landGrad)" opacity="0.9" clip-path="url(#globeClip)"/>
+  <!-- Europe/Africa -->
+  <path d="M 230 105 C 248 100, 268 105, 278 118 C 288 131, 286 148, 280 162 C 274 176, 264 185, 258 198 C 252 211, 252 228, 255 242 C 258 256, 265 268, 268 280 C 271 292, 268 305, 260 312 C 252 319, 240 320, 232 315 C 224 310, 220 300, 218 288 C 216 276, 218 262, 220 248 C 222 234, 226 220, 224 206 C 222 192, 215 180, 212 168 C 209 156, 210 142, 216 130 C 222 118, 228 108, 230 105 Z"
+        fill="url(#landGrad)" opacity="0.85" clip-path="url(#globeClip)"/>
+  <!-- Asia -->
+  <path d="M 280 120 C 300 112, 330 110, 358 118 C 386 126, 400 142, 405 160 C 410 178, 402 196, 390 210 C 378 224, 360 232, 348 242 C 336 252, 330 265, 320 270 C 310 275, 295 272, 285 264 C 275 256, 272 242, 274 228 C 276 214, 282 202, 284 188 C 286 174, 282 158, 278 144 C 274 130, 272 122, 280 120 Z"
+        fill="url(#landGrad)" opacity="0.85" clip-path="url(#globeClip)"/>
+
+  <!-- Magnifying glass assembly -->
+  <!-- Handle shadow/depth -->
+  <rect x="315" y="330" width="28" height="115" rx="14" ry="14"
+        transform="rotate(42, 329, 387)"
+        fill="rgba(0,0,0,0.4)"/>
+
+  <!-- Handle -->
+  <rect x="313" y="328" width="26" height="112" rx="13" ry="13"
+        transform="rotate(42, 326, 384)"
+        fill="#E8E8E8"/>
+  <!-- Handle highlight -->
+  <rect x="318" y="330" width="8" height="108" rx="4" ry="4"
+        transform="rotate(42, 326, 384)"
+        fill="rgba(255,255,255,0.4)"/>
+
+  <!-- Lens outer ring (dark rim) -->
+  <circle cx="210" cy="220" r="138" fill="rgba(60,60,60,0.5)"/>
+
+  <!-- Lens ring -->
+  <circle cx="210" cy="220" r="130" fill="url(#lensGrad)" stroke="#D0D0D0" stroke-width="18"/>
+
+  <!-- Globe visible through lens (slightly brighter to show lens effect) -->
+  <circle cx="210" cy="220" r="112" fill="#1E3F70" clip-path="url(#lensClip)"/>
+
+  <!-- Globe grid lines inside lens -->
+  <g clip-path="url(#lensClip)" fill="none" stroke="rgba(120,170,240,0.4)" stroke-width="2">
+    <ellipse cx="230" cy="210" rx="178" ry="44"/>
+    <ellipse cx="230" cy="165" rx="152" ry="32"/>
+    <ellipse cx="230" cy="255" rx="152" ry="32"/>
+    <line x1="230" y1="32" x2="230" y2="388"/>
+    <ellipse cx="230" cy="210" rx="80" ry="178"/>
+    <ellipse cx="230" cy="210" rx="140" ry="178"/>
+  </g>
+
+  <!-- Compass/navigation arrow inside lens -->
+  <!-- Arrow shadow -->
+  <g transform="translate(212, 222) rotate(-35)">
+    <polygon points="0,-60 12,20 0,5 -12,20" fill="rgba(0,0,0,0.3)" transform="translate(3,3)"/>
+    <polygon points="0,60 10,-20 0,-5 -10,-20" fill="rgba(0,0,0,0.25)" transform="translate(3,3)"/>
+  </g>
+  <!-- North arrow (white/bright) -->
+  <g transform="translate(210, 220) rotate(-35)">
+    <polygon points="0,-62 11,18 0,4 -11,18" fill="white"/>
+    <!-- South arrow (darker) -->
+    <polygon points="0,62 10,-18 0,-4 -10,-18" fill="rgba(200,200,200,0.7)"/>
+  </g>
+
+  <!-- Center dot of compass -->
+  <circle cx="210" cy="220" r="6" fill="white" opacity="0.9"/>
+  <circle cx="210" cy="220" r="3" fill="#CC3300"/>
+
+  <!-- Lens glass sheen -->
+  <ellipse cx="190" cy="195" rx="42" ry="28" fill="rgba(255,255,255,0.06)" transform="rotate(-20, 190, 195)"/>
+</svg>

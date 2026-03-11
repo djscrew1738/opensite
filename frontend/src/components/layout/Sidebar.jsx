@@ -226,14 +226,8 @@ export default function Sidebar({
         className="relative z-10 px-3.5 py-4 flex items-center gap-3"
         style={{ borderBottom: '1px solid #1F2430' }}
       >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%)',
-            boxShadow: '0 2px 10px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
-          }}
-        >
-          <Command className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
+          <img src="/logo.svg" alt="OpenSite logo" className="w-full h-full object-cover" />
         </div>
 
         <div

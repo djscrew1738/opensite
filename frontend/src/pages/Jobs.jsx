@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Calculator, Box, Calendar,
   HardHat, Plus, Clock, DollarSign,
@@ -14,14 +15,16 @@ import { TabSystem, Tab, MobileTabBar } from '../components/tabs';
 import { PlumbingVisualizer } from '../plumbing-visualizer/PlumbingVisualizer';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import LeadFinder from './LeadFinder';
-import { 
+import {
   AnimatedCard,
   AnimatedStatCard,
-  useCountUp, 
+  useCountUp,
   useInView,
   pageTransitions,
-  cx 
+  cx,
+  PullToRefresh,
 } from '../components/shared';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { 
   Button, 
   EmptyJobs, 
@@ -370,21 +373,54 @@ const EMPTY_JOB = {
   notes: ''
 };
 
+const JOB_TAB_IDS = ['blueprints', 'projects', 'estimating', 'plumbing', 'analysis-jobs', 'leads'];
+
 /* ─────────────────────────────────────────────
    MAIN JOBS PAGE
 ───────────────────────────────────────────── */
 export default function Jobs() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isMobile, isTablet } = useBreakpoint();
   const isTouch = useIsTouchDevice();
-  
-  const [activeTab, setActiveTab] = useState('blueprints');
+
+  const queryTab = searchParams.get('tab');
+  const initialTab = JOB_TAB_IDS.includes(queryTab) ? queryTab : 'blueprints';
+
+  const [activeTab, setActiveTabState] = useState(initialTab);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobData, setNewJobData] = useState(EMPTY_JOB);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
+  const setActiveTab = useCallback((nextTab) => {
+    if (!JOB_TAB_IDS.includes(nextTab)) return;
+
+    setActiveTabState(nextTab);
+
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextTab === 'blueprints') {
+      nextParams.delete('tab');
+    } else {
+      nextParams.set('tab', nextTab);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (queryTab && !JOB_TAB_IDS.includes(queryTab)) {
+      const cleaned = new URLSearchParams(searchParams);
+      cleaned.delete('tab');
+      setSearchParams(cleaned, { replace: true });
+      return;
+    }
+
+    if (queryTab && queryTab !== activeTab) {
+      setActiveTabState(queryTab);
+    }
+  }, [queryTab, activeTab, searchParams, setSearchParams]);
 
   // Blueprint analysis state
   const [analysisState, setAnalysisState] = useState(ANALYSIS_STAGES.IDLE);
@@ -404,6 +440,8 @@ export default function Jobs() {
     retry: 1,
     staleTime: 30000,
   });
+
+  const ptr = usePullToRefresh(() => refetch(), { enabled: isMobile });
 
   const jobs = Array.isArray(jobsData?.data?.projects) ? jobsData.data.projects :
                Array.isArray(jobsData?.projects) ? jobsData.projects : [];
@@ -616,9 +654,10 @@ export default function Jobs() {
   }
 
   return (
-    <div className="h-full flex flex-col page-transition-wrapper">
+    <div ref={ptr.ref} className="h-full flex flex-col page-transition-wrapper momentum-scroll">
+      <PullToRefresh {...ptr} />
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-[#1F2430] bg-[#0A0B0D]/80 backdrop-blur-sm sticky top-0 z-10"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -647,7 +686,7 @@ export default function Jobs() {
       {/* Desktop Tabs */}
       {!isMobile && (
         <TabSystem
-          defaultTab="blueprints"
+          defaultTab={activeTab}
           variant="default"
           className="border-b border-[#1F2430]"
           onChange={setActiveTab}

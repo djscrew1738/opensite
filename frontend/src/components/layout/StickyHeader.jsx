@@ -4,9 +4,6 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Search, Command, ChevronLeft, Sun, Zap, Bell } from 'lucide-react';
 import { useFieldMode } from '../../hooks/useFieldMode';
-import Breadcrumbs from './Breadcrumbs';
-import { NotificationBell } from '../notifications';
-import { colors, shadows } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
@@ -120,7 +117,7 @@ export default function StickyHeader({
   return (
     <header 
       className={`
-        sticky top-0 z-40 w-full transition-all duration-300 px-4 py-2
+        sticky top-0 z-40 w-full transition-all duration-300 px-4 py-2 safe-area-pt
         ${isScrolled 
           ? 'bg-surface-primary/90 border-b border-surface-700/50 shadow-lg' 
           : 'bg-transparent'
@@ -131,6 +128,17 @@ export default function StickyHeader({
       <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
         {/* Left: Navigation/Logo */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isHome && (
+            <motion.button
+              onClick={onMenuClick}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="w-10 h-10 rounded-xl bg-surface-elevated/50 border border-surface-700/50 flex items-center justify-center text-surface-300 transition-colors"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </motion.button>
+          )}
           <MobilePageTitle title={pageTitle} isHome={isHome} />
         </div>
 
@@ -140,17 +148,21 @@ export default function StickyHeader({
           <FieldModeIndicator active={isFieldMode} onClick={toggleFieldMode} />
 
           {/* Search Trigger */}
-          <button
+          <motion.button
             onClick={onCommandPaletteOpen}
-            className="w-10 h-10 rounded-xl bg-surface-elevated/50 border border-surface-700/50 flex items-center justify-center text-surface-400 active:scale-95 transition-all"
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="w-10 h-10 rounded-xl bg-surface-elevated/50 border border-surface-700/50 flex items-center justify-center text-surface-400 transition-colors"
           >
             <Search className="w-5 h-5" />
-          </button>
-          
+          </motion.button>
+
           {/* Notifications Trigger */}
-          <button
+          <motion.button
             onClick={onNotificationsOpen}
-            className="relative w-10 h-10 rounded-xl bg-surface-elevated/50 border border-surface-700/50 flex items-center justify-center text-surface-400 active:scale-95 transition-all"
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="relative w-10 h-10 rounded-xl bg-surface-elevated/50 border border-surface-700/50 flex items-center justify-center text-surface-400 transition-colors"
           >
             <Bell className="w-5 h-5" />
             {notificationCount > 0 && (
@@ -158,7 +170,7 @@ export default function StickyHeader({
                 {notificationCount > 9 ? '9+' : notificationCount}
               </span>
             )}
-          </button>
+          </motion.button>
         </div>
       </div>
       

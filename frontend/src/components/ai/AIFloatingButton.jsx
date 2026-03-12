@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, memo } from 'react';
+import { motion } from 'framer-motion';
 import { Bot, Sparkles } from 'lucide-react';
 import { usePageContext } from '../../hooks/usePageContext';
+import { useHaptic } from '../../hooks/useHaptic';
 
 // ═══════════════════════════════════════════════════════════════
 // Custom Hooks
@@ -89,9 +91,13 @@ const ContextIndicator = memo(function ContextIndicator({ title }) {
  * Main floating action button
  */
 const FloatingButton = memo(function FloatingButton({ onClick, isPulsing }) {
+  const haptic = useHaptic();
   return (
-    <button
-      onClick={onClick}
+    <motion.button
+      onClick={() => { haptic.select(); onClick(); }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.87 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className={`
         group relative flex items-center justify-center
         w-14 h-14 rounded-full
@@ -99,8 +105,7 @@ const FloatingButton = memo(function FloatingButton({ onClick, isPulsing }) {
         text-white
         shadow-lg shadow-accent-blue/30
         hover:shadow-xl hover:shadow-accent-blue/40
-        transition-all duration-300
-        hover:scale-105 active:scale-95
+        transition-[box-shadow] duration-300
         ${isPulsing ? 'animate-pulse-glow' : ''}
       `}
       aria-label="Open AI Assistant"
@@ -129,7 +134,7 @@ const FloatingButton = memo(function FloatingButton({ onClick, isPulsing }) {
           />
         </>
       )}
-    </button>
+    </motion.button>
   );
 });
 
@@ -173,24 +178,27 @@ function AIFloatingButton({ onClick, isOpen }) {
  * Alternative compact version for mobile nav or tight spaces
  */
 export function AICompactButton({ onClick, isOpen }) {
+  const haptic = useHaptic();
   if (isOpen) return null;
 
   return (
-    <button
-      onClick={onClick}
+    <motion.button
+      onClick={() => { haptic.select(); onClick(); }}
+      whileTap={{ scale: 0.91 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 30 }}
       className="
         flex items-center gap-2 px-4 py-2 rounded-full
         bg-accent-blue text-white
         text-sm font-medium
         shadow-lg shadow-accent-blue/30
         hover:bg-accent-hover
-        transition-all active:scale-95
+        transition-[background-color] duration-200
       "
       aria-label="Open AI Assistant"
     >
       <Bot className="w-4 h-4" />
       <span>AI Assistant</span>
-    </button>
+    </motion.button>
   );
 }
 

@@ -18,6 +18,7 @@ import { UploadFAB } from '../upload';
 import { PageHeaderContext } from '../../hooks/usePageHeader';
 import { useSwipe } from '../../hooks/useSwipe';
 import { useInputFocusScroll } from '../../hooks/useInputFocusScroll';
+import { useHaptic } from '../../hooks/useHaptic';
 import { QuickAddFAB } from '../shared/QuickAddFAB';
 import { ScrollToTop } from '../shared/ScrollToTop';
 import { api } from '../../api/client';
@@ -141,6 +142,7 @@ const EdgeSwipeDetector = memo(function EdgeSwipeDetector({ onSwipeRight }) {
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const EDGE_WIDTH = 20;
+  const haptic = useHaptic();
 
   const handleTouchStart = useCallback((e) => {
     const touch = e.touches[0];
@@ -158,6 +160,7 @@ const EdgeSwipeDetector = memo(function EdgeSwipeDetector({ onSwipeRight }) {
     const deltaY = Math.abs(touch.clientY - touchStartY.current);
 
     if (deltaX > 50 && deltaY < deltaX * 0.5) {
+      haptic.confirm();
       onSwipeRight?.();
     }
 

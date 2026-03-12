@@ -1,13 +1,15 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import PropTypes from 'prop-types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
+import MobileNav from './MobileNav';
 import StickyHeader from './StickyHeader';
 import PageHeaderBar, { PageHeaderBarSkeleton } from './PageHeaderBar';
 import CommandPalette from './CommandPalette';
 import OfflineBanner from '../shared/OfflineBanner';
 import { ErrorBoundary, SectionErrorBoundary } from '../ui/ErrorBoundary';
-import { NotificationCenter, NotificationBellCompact } from '../notifications';
+import { NotificationCenter } from '../notifications';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useToast } from '../../hooks/useToast';
 import { AISidebar, AIFloatingButton } from '../ai';
@@ -42,11 +44,157 @@ const MOCK_LEADS = [
   { id: 'lead-4', name: 'Perry Homes', company: 'Perry', aiScore: 67, status: 'archived', archivedDate: new Date().toISOString(), address: '789 Pine Ln' },
 ];
 
-// Keyboard shortcuts hook — uses refs to avoid re-attaching listeners on every render
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Radial gradient background overlay
+ */
+const RadialGradient = memo(function RadialGradient() {
+  return (
+    <div 
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.02) 0%, transparent 50%)',
+      }}
+    />
+  );
+});
+
+/**
+ * Grain texture overlay
+ */
+const GrainOverlay = memo(function GrainOverlay() {
+  return <div className="bg-grain pointer-events-none fixed inset-0 z-[1] opacity-60" />;
+});
+
+/**
+ * Mobile sidebar drawer with animations
+ */
+const MobileSidebarDrawer = memo(function MobileSidebarDrawer({ 
+  isOpen, 
+  onClose, 
+  onCommandPaletteOpen, 
+  onNotificationsOpen, 
+  notificationCount, 
+  hasUrgent 
+}) {
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: onClose,
+    threshold: 50,
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/70 animate-fade-in"
+        onClick={onClose}
+      />
+      
+      {/* Sidebar */}
+      <div 
+        {...swipeHandlers}
+        className="absolute left-0 top-0 bottom-0 w-[280px] touch-pan-y animate-slide-in-left"
+      >
+        <Sidebar 
+          onCommandPaletteOpen={() => {
+            onClose();
+            setTimeout(onCommandPaletteOpen, 100);
+          }}
+          onNotificationsOpen={() => {
+            onClose();
+            setTimeout(onNotificationsOpen, 100);
+          }}
+          onItemClick={onClose}
+          notificationCount={notificationCount}
+          hasUrgent={hasUrgent}
+        />
+      </div>
+    </div>
+  );
+});
+
+MobileSidebarDrawer.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onCommandPaletteOpen: PropTypes.func.isRequired,
+  onNotificationsOpen: PropTypes.func.isRequired,
+  notificationCount: PropTypes.number.isRequired,
+  hasUrgent: PropTypes.bool.isRequired,
+};
+
+/**
+ * Edge swipe detector for opening mobile sidebar
+ */
+const EdgeSwipeDetector = memo(function EdgeSwipeDetector({ onSwipeRight }) {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const EDGE_WIDTH = 20;
+
+  const handleTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    if (touch.clientX <= EDGE_WIDTH) {
+      touchStartX.current = touch.clientX;
+      touchStartY.current = touch.clientY;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (touchStartX.current === null) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+
+    if (deltaX > 50 && deltaY < deltaX * 0.5) {
+      onSwipeRight?.();
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [onSwipeRight]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (touchStartX.current !== null) {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartX.current;
+      if (deltaX > 10) {
+        e.preventDefault();
+      }
+    }
+  }, []);
+
+  return (
+    <div
+      className="fixed left-0 top-0 bottom-0 z-30 w-5 touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      aria-hidden="true"
+    />
+  );
+});
+
+EdgeSwipeDetector.propTypes = {
+  onSwipeRight: PropTypes.func.isRequired,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Hooks
+// ═══════════════════════════════════════════════════════════════
+
 function useKeyboardShortcuts({ onCommandPalette, onNotifications, onAI, onSearch }) {
   const handlersRef = useRef({ onCommandPalette, onNotifications, onAI, onSearch });
 
-  // Keep ref in sync without re-running the effect
   useEffect(() => {
     handlersRef.current = { onCommandPalette, onNotifications, onAI, onSearch };
   });
@@ -71,48 +219,13 @@ function useKeyboardShortcuts({ onCommandPalette, onNotifications, onAI, onSearc
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); // stable — attaches once
+  }, []);
 }
 
-export default function Layout() {
+function useViewportSize() {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showAI, setShowAI] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [pageTitle, setPageTitle] = useState(null);
-  const [pageActions, setPageActions] = useState(null);
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToast();
 
-  // Poll for files still being processed (used by QuickAddFAB pulse indicator)
-  const { data: processingFiles = [] } = useQuery({
-    queryKey: ['processing-files'],
-    queryFn: () => uploadApi.getFiles({ limit: 10 }),
-    select: (files) => (Array.isArray(files) ? files.filter(f => f.pipeline_status === 'processing') : []),
-    refetchInterval: (query) => {
-      const hasProcessing = (query.state.data?.length ?? 0) > 0;
-      return hasProcessing ? 5000 : 30000;
-    },
-    staleTime: 5000,
-  });
-
-  // Use the notifications hook
-  const {
-    notifications,
-    groupedNotifications,
-    unreadCount,
-    hasUrgent,
-    markAsRead,
-    markAllAsRead,
-    dismiss,
-    clearAll,
-  } = useNotifications(MOCK_JOBS, MOCK_LEADS);
-
-  // Detect viewport size
   useEffect(() => {
     const checkSize = () => {
       const width = window.innerWidth;
@@ -124,10 +237,57 @@ export default function Layout() {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
-  // Close mobile sidebar on route change
+  return { isMobile, isTablet };
+}
+
+function useProcessingFiles() {
+  const { data: processingFiles = [] } = useQuery({
+    queryKey: ['processing-files'],
+    queryFn: () => uploadApi.getFiles({ limit: 10 }),
+    select: (files) => (Array.isArray(files) ? files.filter(f => f.pipeline_status === 'processing') : []),
+    refetchInterval: (query) => {
+      const hasProcessing = (query.state.data?.length ?? 0) > 0;
+      return hasProcessing ? 5000 : 30000;
+    },
+    staleTime: 5000,
+  });
+
+  return processingFiles;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+export default function Layout() {
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [pageTitle, setPageTitle] = useState(null);
+  const [pageActions, setPageActions] = useState(null);
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToast();
+  
+  const { isMobile, isTablet } = useViewportSize();
+  const processingFiles = useProcessingFiles();
+
+  const {
+    notifications,
+    groupedNotifications,
+    unreadCount,
+    hasUrgent,
+    markAsRead,
+    markAllAsRead,
+    dismiss,
+    clearAll,
+  } = useNotifications([], []);
+
+  // Reset page header state on route change
   useEffect(() => {
-    const timer = setTimeout(() => setShowMobileSidebar(false), 0);
-    return () => clearTimeout(timer);
+    setPageTitle(null);
+    setPageActions(null);
   }, [location.pathname]);
 
   // Keyboard shortcuts
@@ -137,32 +297,6 @@ export default function Layout() {
     onAI: () => setShowAI(prev => !prev),
     onSearch: () => setShowSearch(true),
   });
-
-  // Handle mobile sidebar as drawer
-  const handleMobileMenuClick = useCallback(() => {
-    setShowMobileSidebar(true);
-  }, []);
-  
-  // Reset page header state on route change
-  useEffect(() => {
-    setPageTitle(null);
-    setPageActions(null);
-  }, [location.pathname]);
-
-  // Handle notification action
-  const handleNotificationAction = useCallback((notification) => {
-    // Close notification center
-    setShowNotifications(false);
-    
-    // Navigate based on entity type
-    if (notification.entityType === 'job') {
-      // Navigate to job detail
-      console.log('Navigate to job:', notification.entityId);
-    } else if (notification.entityType === 'lead') {
-      // Navigate to lead detail
-      console.log('Navigate to lead:', notification.entityId);
-    }
-  }, []);
 
   // QuickAddFAB callbacks
   const handleFileUpload = useCallback(async (file) => {
@@ -179,7 +313,6 @@ export default function Layout() {
 
   const handleAddLead = useCallback(async (formData) => {
     try {
-      // Create lead via API
       await api.leads.create({
         name: formData.builderName,
         company: formData.builderName,
@@ -190,7 +323,7 @@ export default function Layout() {
         status: 'new',
       });
     } catch (err) {
-      console.error('Failed to create lead:', err);
+      // Error is already handled by the API client
       throw err;
     }
   }, []);
@@ -203,10 +336,23 @@ export default function Layout() {
     toastSuccess('Note saved');
   }, [toastSuccess]);
 
+  const handleNotificationAction = useCallback((notification) => {
+    setShowNotifications(false);
+    // Navigation is handled by the notification click handler
+    if (notification.entityType === 'job' || notification.entityType === 'lead') {
+      // Navigation logic handled by parent component
+    }
+  }, []);
+
+  const pageHeaderContextValue = {
+    setTitle: setPageTitle,
+    setActions: setPageActions,
+    reset: () => { setPageTitle(null); setPageActions(null); }
+  };
+
   return (
     <ErrorBoundary componentName="App">
       <div className="flex h-screen h-[100dvh] overflow-hidden bg-forge">
-        {/* Offline detection banner */}
         <OfflineBanner />
 
         {/* Desktop Sidebar */}
@@ -219,43 +365,15 @@ export default function Layout() {
           />
         )}
 
-        {/* Mobile Sidebar Drawer */}
-        {isMobile && showMobileSidebar && (
-          <MobileSidebarDrawer 
-            isOpen={showMobileSidebar}
-            onClose={() => setShowMobileSidebar(false)}
-            onCommandPaletteOpen={() => setShowCommandPalette(true)}
-            onNotificationsOpen={() => setShowNotifications(true)}
-            notificationCount={unreadCount}
-            hasUrgent={hasUrgent}
-          />
-        )}
-
         {/* Main Content */}
-        <PageHeaderContext.Provider 
-          value={{ 
-            setTitle: setPageTitle, 
-            setActions: setPageActions,
-            reset: () => { setPageTitle(null); setPageActions(null); }
-          }}
-        >
-          <main
-            className="flex-1 overflow-y-auto relative flex flex-col"
-          >
-            {/* Subtle radial depth gradient */}
-            <div
-              className="pointer-events-none fixed inset-0 z-0"
-              style={{
-                background: 'radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.02) 0%, transparent 50%)',
-              }}
-            />
-
-            {/* Grain texture overlay */}
-            <div className="bg-grain pointer-events-none fixed inset-0 z-[1] opacity-60" />
+        <PageHeaderContext.Provider value={pageHeaderContextValue}>
+          <main className="flex-1 overflow-y-auto relative flex flex-col">
+            <RadialGradient />
+            <GrainOverlay />
 
             {/* Content wrapper */}
             <div className="min-h-full relative z-[2] flex flex-col">
-              {/* Consistent Page Header Bar - Desktop */}
+              {/* Desktop Page Header */}
               {!isMobile && (
                 <PageHeaderBar
                   title={pageTitle}
@@ -265,10 +383,10 @@ export default function Layout() {
                 />
               )}
               
-              {/* Sticky Header - Mobile/Tablet (legacy, can be phased out) */}
+              {/* Mobile/Tablet Sticky Header */}
               {(isMobile || isTablet) && (
                 <StickyHeader
-                  onMenuClick={handleMobileMenuClick}
+                  onMenuClick={() => {}}
                   onCommandPaletteOpen={() => setShowCommandPalette(true)}
                   onNotificationsOpen={() => setShowNotifications(true)}
                   notificationCount={unreadCount}
@@ -279,10 +397,6 @@ export default function Layout() {
 
               {/* Page Content */}
               <div className="flex-1 relative">
-                {/* Edge swipe detector for opening mobile sidebar */}
-                {isMobile && (
-                  <EdgeSwipeDetector onSwipeRight={() => setShowMobileSidebar(true)} />
-                )}
                 <SectionErrorBoundary>
                   <div className="page-transition-wrapper">
                     <Outlet />
@@ -293,13 +407,12 @@ export default function Layout() {
           </main>
         </PageHeaderContext.Provider>
 
-        {/* Command Palette - Global */}
+        {/* Global Modals & Overlays */}
         <CommandPalette 
           isOpen={showCommandPalette}
           onClose={() => setShowCommandPalette(false)}
         />
 
-        {/* Notification Center - Global */}
         <NotificationCenter
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
@@ -313,21 +426,12 @@ export default function Layout() {
           onAction={handleNotificationAction}
         />
 
-        {/* AI Sidebar - Global */}
-        <AISidebar
-          isOpen={showAI}
-          onClose={() => setShowAI(false)}
-        />
+        <AISidebar isOpen={showAI} onClose={() => setShowAI(false)} />
 
-        {/* AI Floating Button */}
         {!isMobile && (
-          <AIFloatingButton
-            onClick={() => setShowAI(true)}
-            isOpen={showAI}
-          />
+          <AIFloatingButton onClick={() => setShowAI(true)} isOpen={showAI} />
         )}
 
-        {/* Quick Add FAB - Global */}
         <QuickAddFAB
           onUpload={handleFileUpload}
           onAddLead={handleAddLead}
@@ -335,142 +439,21 @@ export default function Layout() {
           hasUnprocessedBlueprints={processingFiles.length > 0}
         />
 
-        {/* Upload FAB - Global */}
         <UploadFAB />
 
-        {/* Global Search Overlay */}
-        <GlobalSearch
-          isOpen={showSearch}
-          onClose={() => setShowSearch(false)}
-        />
+        {isMobile && (
+          <MobileNav
+            alertCount={unreadCount}
+            hasUrgent={hasUrgent}
+            onCommandPaletteOpen={() => setShowCommandPalette(true)}
+            onNotificationsOpen={() => setShowNotifications(true)}
+            onAIOpen={() => setShowAI(true)}
+            isAIOpen={showAI}
+          />
+        )}
+
+        <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
       </div>
     </ErrorBoundary>
-  );
-}
-
-// Mobile sidebar drawer overlay
-function MobileSidebarDrawer({ isOpen, onClose, onCommandPaletteOpen, onNotificationsOpen, notificationCount, hasUrgent }) {
-  // Swipe to close
-  const swipeHandlers = useSwipe({
-    onSwipeLeft: onClose,
-    threshold: 50,
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          animation: 'fadeIn 0.2s ease-out',
-        }}
-        onClick={onClose}
-      />
-      
-      {/* Sidebar - with swipe to close */}
-      <div 
-        {...swipeHandlers}
-        className="absolute left-0 top-0 bottom-0 w-[280px] touch-pan-y"
-        style={{
-          animation: 'slideIn 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
-        }}
-      >
-        <Sidebar 
-          onCommandPaletteOpen={() => {
-            onClose();
-            setTimeout(onCommandPaletteOpen, 100);
-          }}
-          onNotificationsOpen={() => {
-            onClose();
-            setTimeout(onNotificationsOpen, 100);
-          }}
-          onItemClick={onClose}
-          notificationCount={notificationCount}
-          hasUrgent={hasUrgent}
-        />
-      </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/**
- * EdgeSwipeDetector - Invisible edge area that detects right swipes to open sidebar
- * Only active when touching within 20px of left edge
- */
-function EdgeSwipeDetector({ onSwipeRight }) {
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-  const EDGE_WIDTH = 20; // px from left edge
-
-  const handleTouchStart = useCallback((e) => {
-    const touch = e.touches[0];
-    // Only activate if touching within edge width
-    if (touch.clientX <= EDGE_WIDTH) {
-      touchStartX.current = touch.clientX;
-      touchStartY.current = touch.clientY;
-    }
-  }, []);
-
-  const handleTouchEnd = useCallback((e) => {
-    if (touchStartX.current === null) return;
-
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX.current;
-    const deltaY = Math.abs(touch.clientY - touchStartY.current);
-
-    // Trigger if swiped right more than 50px and mostly horizontal
-    if (deltaX > 50 && deltaY < deltaX * 0.5) {
-      onSwipeRight?.();
-    }
-
-    touchStartX.current = null;
-    touchStartY.current = null;
-  }, [onSwipeRight]);
-
-  const handleTouchMove = useCallback((e) => {
-    // Prevent default if we started on the edge
-    if (touchStartX.current !== null) {
-      const touch = e.touches[0];
-      const deltaX = touch.clientX - touchStartX.current;
-      if (deltaX > 10) {
-        e.preventDefault();
-      }
-    }
-  }, []);
-
-  return (
-    <div
-      className="fixed left-0 top-0 bottom-0 z-30"
-      style={{ width: `${EDGE_WIDTH}px`, touchAction: 'pan-y' }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchMove}
-      aria-hidden="true"
-    />
   );
 }

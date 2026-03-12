@@ -1,10 +1,20 @@
+/**
+ * BuilderBadge Component
+ * Colored pill showing builder identity
+ * 
+ * @module components/jobs/BuilderBadge
+ */
+
+import { memo } from 'react';
 import { getBuilder } from '../../styles/tokens';
 
 /**
  * BuilderBadge — Colored pill showing builder identity
  * DRH = blue, HH = amber, others = purple with initials
+ * 
+ * @param {{builder: string, size?: 'xs' | 'sm' | 'md'}} props
  */
-export default function BuilderBadge({ builder, size = 'sm' }) {
+const BuilderBadge = memo(function BuilderBadge({ builder, size = 'sm' }) {
   const b = getBuilder(builder);
 
   const sizeStyles = {
@@ -25,8 +35,13 @@ export default function BuilderBadge({ builder, size = 'sm' }) {
         letterSpacing: '0.05em',
         lineHeight: 1.4,
       }}
+      title={b.label}
     >
       {b.abbr}
     </span>
   );
-}
+});
+
+BuilderBadge.displayName = 'BuilderBadge';
+
+export default BuilderBadge;

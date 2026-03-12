@@ -118,14 +118,15 @@ function extractRelevantPassages(text, query, maxChars = MAX_CHAT_CHARS) {
 /**
  * Generate a summary of the document
  * @param {string} text - Document text
+ * @param {string} model - Optional model name
  * @returns {Promise<string>} Summary
  */
-export async function summarize(text) {
+export async function summarize(text, model = null) {
   const truncated = text.slice(0, MAX_SUMMARY_CHARS);
   const system = 'You are a professional document analyst. Provide clear, structured summaries with key points, findings, and conclusions.';
   const prompt = `Summarize the following document:\n\n${truncated}`;
 
-  const result = await aiProvider.generate(prompt, { system });
+  const result = await aiProvider.generate(prompt, { system, model });
   if (!result.success) throw new Error(result.error || 'Summarization failed');
   return result.response;
 }
@@ -133,14 +134,15 @@ export async function summarize(text) {
 /**
  * Extract named entities from document
  * @param {string} text - Document text
+ * @param {string} model - Optional model name
  * @returns {Promise<object>} Extracted entities
  */
-export async function extractEntities(text) {
+export async function extractEntities(text, model = null) {
   const truncated = text.slice(0, MAX_SUMMARY_CHARS);
   const system = `You are a data extraction specialist. Extract structured entities from documents. Return valid JSON with these categories: people, organizations, locations, dates, monetary_values, contact_info, key_terms, action_items. Each category should be an array. For people, use objects with name, role, and context fields.`;
   const prompt = `Extract all entities from this document and return as JSON:\n\n${truncated}`;
 
-  const result = await aiProvider.generate(prompt, { system });
+  const result = await aiProvider.generate(prompt, { system, model });
   if (!result.success) throw new Error(result.error || 'Entity extraction failed');
 
   // Try parsing JSON from response
@@ -158,9 +160,10 @@ export async function extractEntities(text) {
  * @param {string} text - Full document text
  * @param {string} question - User question
  * @param {Array} history - Chat history
+ * @param {string} model - Optional model name
  * @returns {Promise<string>} AI response
  */
-export async function chat(text, question, history = []) {
+export async function chat(text, question, history = [], model = null) {
   // Extract relevant passages based on the question (not just first 10KB)
   const relevantContext = extractRelevantPassages(text, question, MAX_CHAT_CHARS);
   
@@ -183,7 +186,7 @@ export async function chat(text, question, history = []) {
     contextRatio: (relevantContext.length / text.length * 100).toFixed(1) + '%'
   });
 
-  const result = await aiProvider.generate(prompt, { system });
+  const result = await aiProvider.generate(prompt, { system, model });
   if (!result.success) throw new Error(result.error || 'Chat failed');
   return result.response;
 }

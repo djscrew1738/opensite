@@ -33,13 +33,13 @@ export const docvaultApi = {
   delete: (id) => apiClient.delete(`/docvault/${id}`),
 
   // Generate AI summary
-  summarize: (id) => apiClient.post(`/docvault/${id}/summarize`),
+  summarize: (id, model = null) => apiClient.post(`/docvault/${id}/summarize`, { model }),
 
   // Extract entities
-  extract: (id) => apiClient.post(`/docvault/${id}/extract`),
+  extract: (id, model = null) => apiClient.post(`/docvault/${id}/extract`, { model }),
 
   // Send chat message
-  chat: (id, message) => apiClient.post(`/docvault/${id}/chat`, { question: message }),
+  chat: (id, message, model = null) => apiClient.post(`/docvault/${id}/chat`, { question: message, model }),
 
   // Get chat history
   getChatHistory: (id) => apiClient.get(`/docvault/${id}/chat`),

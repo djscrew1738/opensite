@@ -409,4 +409,5 @@ export function Scene3D({ onFloorClick }: { onFloorClick?: (point: THREE.Vector3
   );
 }
 
+// Default export for lazy loading
 export default Scene3D;

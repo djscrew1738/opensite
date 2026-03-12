@@ -287,7 +287,7 @@ export default function LeadFinder() {
           >
             <Command className="w-4 h-4" />
             <span className="hidden sm:inline text-sm">Search</span>
-            <kbd className="hidden md:inline text-2xs font-mono px-1.5 py-0.5 rounded bg-concrete-200/50 dark:bg-surface-700 text-gray-400">
+            <kbd className="hidden md:inline text-2xs font-mono px-1.5 py-0.5 rounded bg-concrete-200/50 dark:bg-surface-700 text-surface-400">
               ⌘K
             </kbd>
           </button>
@@ -311,7 +311,7 @@ export default function LeadFinder() {
                 className={`relative flex items-center gap-2 px-5 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
                   activeTab === tab.key
                     ? 'text-accent-600 dark:text-accent-400'
-                    : 'text-surface-500 dark:text-surface-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'
                 }`}
               >
                 <Icon className="w-4 h-4" strokeWidth={activeTab === tab.key ? 2.5 : 2} />
@@ -372,10 +372,10 @@ export default function LeadFinder() {
           {/* Search and Filters */}
           <div className="space-y-3">
             <div className="card">
-              <div className="card-body p-4">
+              <div className="card-body p-5">
                 <div className="flex gap-3">
                   <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
                     <input
                       type="text"
                       placeholder={
@@ -415,7 +415,7 @@ export default function LeadFinder() {
                         </>
                       )}
                     </select>
-                    <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
                   </div>
 
                   {/* Selection mode toggle (manual only) */}
@@ -444,7 +444,7 @@ export default function LeadFinder() {
 
             {/* Filters */}
             <div className={`card transition-all duration-300 ${showFilters ? 'block md:block' : 'hidden md:block'}`}>
-              <div className="card-body p-4">
+              <div className="card-body p-5">
                 <div className="flex items-center justify-between mb-3 md:hidden">
                   <h3 className="font-bold text-surface-900 dark:text-surface-100">Filters</h3>
                   <button onClick={() => setShowFilters(false)} className="tap-target text-surface-500">
@@ -554,10 +554,10 @@ export default function LeadFinder() {
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                   <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-2">
                   Failed to load {activeTab === 'manual' ? 'leads' : 'permits'}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md mx-auto">
+                <p className="text-sm text-surface-500 dark:text-surface-400 mb-4 max-w-md mx-auto">
                   {error?.message || 'Something went wrong while fetching the data. Please try again.'}
                 </p>
                 <button 

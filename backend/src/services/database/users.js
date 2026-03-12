@@ -3,137 +3,223 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import cache from '../cache.js';
+import logger from '../logger.js';
 
 /**
  * User operations mixin
  * Adds user-related methods to DatabaseService
  */
 export function addUserOperations(DatabaseService) {
-  // Create new user
+  /**
+   * Create new user
+   * @param {Object} data - User data
+   * @returns {Promise<Object>} The created user
+   */
   DatabaseService.prototype.createUser = async function(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    await this.run(`
-      INSERT INTO users (
-        id, username, email, passwordHash, role, isActive, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      data.username,
-      data.email,
-      data.passwordHash,
-      data.role || 'viewer',
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
-      now,
-      now
-    ]);
-    
-    cache.del('users:all');
-    return await this.getUser(id);
+    try {
+      await this.run(`
+        INSERT INTO users (
+          id, username, email, passwordHash, role, isActive, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        data.username,
+        data.email,
+        data.passwordHash,
+        data.role || 'viewer',
+        data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
+        now,
+        now
+      ]);
+      
+      this._invalidateUserCache(id, data.email);
+      return await this.getUser(id);
+    } catch (error) {
+      logger.error('Failed to create user', { error: error.message, email: data.email });
+      throw error;
+    }
   };
 
-  // Get single user by ID
+  /**
+   * Get single user by ID
+   * @param {string} id - User UUID
+   * @returns {Promise<Object|null>}
+   */
   DatabaseService.prototype.getUser = async function(id) {
     const cacheKey = `user:${id}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
-    const user = await this.get('SELECT * FROM users WHERE id = ?', [id]);
-    if (user) {
-      user.isActive = Boolean(user.isActive);
-      cache.set(cacheKey, user, 3600); // Cache for 1 hour
+    try {
+      const user = await this.get('SELECT * FROM users WHERE id = ?', [id]);
+      if (user) {
+        user.isActive = Boolean(user.isActive);
+        cache.set(cacheKey, user, 3600); // Cache for 1 hour
+      }
+      return user;
+    } catch (error) {
+      logger.error(`Error getting user: ${id}`, { error: error.message });
+      return null;
     }
-    return user;
   };
 
-  // Get user by email
+  /**
+   * Get user by email
+   * @param {string} email 
+   * @returns {Promise<Object|null>}
+   */
   DatabaseService.prototype.getUserByEmail = async function(email) {
-    const cacheKey = `user-by-email:${email}`;
+    if (!email) return null;
+    
+    const cacheKey = `user-by-email:${email.toLowerCase()}`;
     const cachedId = cache.get(cacheKey);
     if (cachedId) {
-      const cachedUser = await this.getUser(cachedId);
-      if (cachedUser) return cachedUser;
+      return await this.getUser(cachedId);
     }
 
-    const user = await this.get('SELECT * FROM users WHERE email = ?', [email]);
-    if (user) {
-      user.isActive = Boolean(user.isActive);
-      cache.set(cacheKey, user.id, 3600); // Cache ID by email
-      cache.set(`user:${user.id}`, user, 3600); // Cache full user object
+    try {
+      const user = await this.get('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
+      if (user) {
+        user.isActive = Boolean(user.isActive);
+        cache.set(cacheKey, user.id, 3600);
+        cache.set(`user:${user.id}`, user, 3600);
+      }
+      return user;
+    } catch (error) {
+      logger.error(`Error getting user by email: ${email}`, { error: error.message });
+      return null;
     }
-    return user;
   };
 
-  // Get user by username
+  /**
+   * Get user by username
+   * @param {string} username 
+   * @returns {Promise<Object|null>}
+   */
   DatabaseService.prototype.getUserByUsername = async function(username) {
-    // This is less frequently cached as it's a fallback
-    const user = await this.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [username]);
-    if (user) {
-      user.isActive = Boolean(user.isActive);
+    if (!username) return null;
+    
+    const cacheKey = `user-by-username:${username}`;
+    const cachedId = cache.get(cacheKey);
+    if (cachedId) {
+      return await this.getUser(cachedId);
     }
-    return user;
+
+    try {
+      const user = await this.get('SELECT * FROM users WHERE username = ?', [username]);
+      if (user) {
+        user.isActive = Boolean(user.isActive);
+        cache.set(cacheKey, user.id, 3600);
+        cache.set(`user:${user.id}`, user, 3600);
+      }
+      return user;
+    } catch (error) {
+      logger.error(`Error getting user by username: ${username}`, { error: error.message });
+      return null;
+    }
   };
 
-  // Get all users
+  /**
+   * Get all users
+   * @returns {Promise<Array>}
+   */
   DatabaseService.prototype.getAllUsers = async function() {
     const cached = cache.get('users:all');
     if (cached) return cached;
 
-    const users = await this.all('SELECT id, username, email, role, isActive, lastLoginAt, createdAt FROM users ORDER BY createdAt DESC');
-    const result = users.map(u => ({ ...u, isActive: Boolean(u.isActive) }));
-    cache.set('users:all', result, 3600);
-    return result;
+    try {
+      const users = await this.all(`
+        SELECT id, username, email, role, isActive, lastLoginAt, createdAt 
+        FROM users 
+        ORDER BY createdAt DESC
+      `);
+      
+      const result = users.map(u => ({ ...u, isActive: Boolean(u.isActive) }));
+      cache.set('users:all', result, 1800); // Cache for 30 mins
+      return result;
+    } catch (error) {
+      logger.error('Error getting all users', { error: error.message });
+      return [];
+    }
   };
 
-  // Update user
+  /**
+   * Update user
+   * @param {string} id - User UUID
+   * @param {Object} data - Update data
+   * @returns {Promise<Object|null>} Updated user
+   */
   DatabaseService.prototype.updateUser = async function(id, data) {
+    const fields = [];
+    const params = [];
     const now = new Date().toISOString();
-    const sets = [];
-    const values = [];
 
-    const user = await this.getUser(id);
-
-    if (data.username !== undefined) { sets.push('username = ?'); values.push(data.username); }
-    if (data.email !== undefined) { sets.push('email = ?'); values.push(data.email); }
-    if (data.passwordHash !== undefined) { sets.push('passwordHash = ?'); values.push(data.passwordHash); }
-    if (data.role !== undefined) { sets.push('role = ?'); values.push(data.role); }
-    if (data.isActive !== undefined) { sets.push('isActive = ?'); values.push(data.isActive ? 1 : 0); }
-    if (data.lastLoginAt !== undefined) { sets.push('lastLoginAt = ?'); values.push(data.lastLoginAt); }
-
-    if (sets.length === 0) return user;
-
-    sets.push('updatedAt = ?');
-    values.push(now);
-    values.push(id);
-
-    await this.run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, values);
+    const allowedFields = ['username', 'email', 'passwordHash', 'role', 'isActive', 'lastLoginAt'];
     
-    // Invalidate caches
-    cache.del(`user:${id}`);
-    if (user && user.email) {
-      cache.del(`user-by-email:${user.email}`);
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        fields.push(`${key} = ?`);
+        params.push(key === 'isActive' ? (data[key] ? 1 : 0) : data[key]);
+      }
     }
-    if (data.email && data.email !== user.email) {
-      cache.del(`user-by-email:${data.email}`);
+
+    if (fields.length === 0) return await this.getUser(id);
+
+    fields.push('updatedAt = ?');
+    params.push(now);
+    params.push(id);
+
+    try {
+      const existing = await this.getUser(id);
+      if (!existing) return null;
+
+      const result = await this.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, params);
+      
+      if (result.changes > 0) {
+        this._invalidateUserCache(id, existing.email, data.email);
+      }
+      
+      return await this.getUser(id);
+    } catch (error) {
+      logger.error(`Failed to update user: ${id}`, { error: error.message });
+      throw error;
     }
-    cache.del('users:all');
-    
-    return await this.getUser(id);
   };
 
-  // Delete user
+  /**
+   * Delete user
+   * @param {string} id - User UUID
+   * @returns {Promise<boolean>}
+   */
   DatabaseService.prototype.deleteUser = async function(id) {
-    const user = await this.getUser(id);
-    const result = await this.run('DELETE FROM users WHERE id = ?', [id]);
+    try {
+      const user = await this.getUser(id);
+      if (!user) return false;
 
-    if (result.changes > 0 && user) {
-      cache.del(`user:${id}`);
-      cache.del(`user-by-email:${user.email}`);
-      cache.del('users:all');
+      const result = await this.run('DELETE FROM users WHERE id = ?', [id]);
+
+      if (result.changes > 0) {
+        this._invalidateUserCache(id, user.email);
+      }
+      
+      return result.changes > 0;
+    } catch (error) {
+      logger.error(`Failed to delete user: ${id}`, { error: error.message });
+      return false;
     }
-    
-    return result.changes > 0;
+  };
+
+  /**
+   * Internal helper to invalidate user-related caches
+   */
+  DatabaseService.prototype._invalidateUserCache = function(id, oldEmail, newEmail = null) {
+    cache.del(`user:${id}`);
+    if (oldEmail) cache.del(`user-by-email:${oldEmail.toLowerCase()}`);
+    if (newEmail) cache.del(`user-by-email:${newEmail.toLowerCase()}`);
+    cache.del('users:all');
   };
 }
 

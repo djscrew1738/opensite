@@ -1,9 +1,10 @@
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { colors } from '../../styles/tokens';
 
 /**
  * TabErrorBoundary Component
- * Error boundary for settings tab panels
+ * Error boundary for settings tab panels using Dark Forge design system
  */
 export default class TabErrorBoundary extends React.Component {
   constructor(props) {
@@ -27,15 +28,21 @@ export default class TabErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h3 className="text-lg font-semibold text-red-700 mb-2">Failed to load section</h3>
-          <p className="text-sm text-gray-500 mb-4">{this.state.error?.message || 'Unknown error'}</p>
+        <div className="card p-12 text-center border-dashed border-2 border-danger-border bg-danger-muted/5">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-danger-muted flex items-center justify-center border border-danger-border shadow-inner">
+            <AlertCircle className="w-8 h-8 text-danger-light" />
+          </div>
+          <h3 className="text-lg font-bold text-text-primary mb-2 tracking-tight">Intelligence Component Failure</h3>
+          <p className="text-sm text-text-muted max-w-xs mx-auto leading-relaxed mb-6">
+            The requested configuration section encountered a runtime error: 
+            <span className="block mt-2 font-mono text-xs text-danger-light opacity-80">{this.state.error?.message || 'Unexpected exception'}</span>
+          </p>
           <button 
             onClick={this.handleRetry}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="btn-primary h-10 px-6 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 mx-auto"
           >
-            Retry
+            <RefreshCw className="w-3.5 h-3.5" />
+            Reload Component
           </button>
         </div>
       );

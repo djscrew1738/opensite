@@ -157,8 +157,8 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
   if (!takeoffId) {
     return (
       <div className="card text-center py-12">
-        <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-        <p className="text-gray-500">Select or create a takeoff to view the report</p>
+        <FileText className="w-12 h-12 mx-auto mb-3 text-surface-300" />
+        <p className="text-surface-500">Select or create a takeoff to view the report</p>
       </div>
     );
   }
@@ -167,11 +167,11 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
     return (
       <div className="card">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-8 bg-surface-200 rounded w-1/3"></div>
+          <div className="h-4 bg-surface-200 rounded w-1/4"></div>
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-10 bg-gray-200 rounded"></div>
+              <div key={i} className="h-10 bg-surface-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -193,8 +193,8 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
       <div className="card">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">{takeoffName || 'Takeoff Report'}</h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <h3 className="text-xl font-bold text-surface-900">{takeoffName || 'Takeoff Report'}</h3>
+            <p className="text-sm text-surface-500 mt-1">
               {summary.itemCount || 0} line items &middot; Generated {new Date().toLocaleDateString()}
             </p>
           </div>
@@ -257,9 +257,9 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
       {/* Material Table by Category */}
       {items.length === 0 ? (
         <div className="card text-center py-12">
-          <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">No items in this takeoff yet</p>
-          <p className="text-sm text-gray-400 mt-1">Add measurements and assign materials to generate a report</p>
+          <Package className="w-12 h-12 mx-auto mb-3 text-surface-300" />
+          <p className="text-surface-500">No items in this takeoff yet</p>
+          <p className="text-sm text-surface-400 mt-1">Add measurements and assign materials to generate a report</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -269,11 +269,11 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
             return (
               <div key={category} className="card">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <h4 className="font-semibold text-surface-900 flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-primary-600" />
                     {CATEGORY_LABELS[category] || category}
                   </h4>
-                  <span className="font-semibold text-gray-700">
+                  <span className="font-semibold text-surface-700">
                     ${categoryTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -281,26 +281,26 @@ export default function TakeoffReport({ takeoffId, takeoffName }) {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-2 text-gray-500 font-medium">Material</th>
-                        <th className="text-right py-2 px-2 text-gray-500 font-medium">Quantity</th>
-                        <th className="text-center py-2 px-2 text-gray-500 font-medium">Unit</th>
-                        <th className="text-right py-2 px-2 text-gray-500 font-medium">Unit Cost</th>
-                        <th className="text-right py-2 px-2 text-gray-500 font-medium">Total</th>
+                      <tr className="border-b border-surface-200">
+                        <th className="text-left py-2 px-2 text-surface-500 font-medium">Material</th>
+                        <th className="text-right py-2 px-2 text-surface-500 font-medium">Quantity</th>
+                        <th className="text-center py-2 px-2 text-surface-500 font-medium">Unit</th>
+                        <th className="text-right py-2 px-2 text-surface-500 font-medium">Unit Cost</th>
+                        <th className="text-right py-2 px-2 text-surface-500 font-medium">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {categoryItems.map((item, idx) => (
-                        <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50">
-                          <td className="py-2 px-2 text-gray-900">{item.materialName}</td>
-                          <td className="py-2 px-2 text-right text-gray-700">
+                        <tr key={idx} className="border-b border-surface-50 hover:bg-surface-50">
+                          <td className="py-2 px-2 text-surface-900">{item.materialName}</td>
+                          <td className="py-2 px-2 text-right text-surface-700">
                             {item.totalQuantity.toFixed(item.unit === 'ea' ? 0 : 1)}
                           </td>
-                          <td className="py-2 px-2 text-center text-gray-500">{item.unit}</td>
-                          <td className="py-2 px-2 text-right text-gray-700">
+                          <td className="py-2 px-2 text-center text-surface-500">{item.unit}</td>
+                          <td className="py-2 px-2 text-right text-surface-700">
                             ${item.unitCost.toFixed(2)}
                           </td>
-                          <td className="py-2 px-2 text-right font-medium text-gray-900">
+                          <td className="py-2 px-2 text-right font-medium text-surface-900">
                             ${item.totalCost.toFixed(2)}
                           </td>
                         </tr>

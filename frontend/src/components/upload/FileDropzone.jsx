@@ -118,10 +118,10 @@ export default function FileDropzone({
               <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+              <p className="font-medium text-surface-900 dark:text-surface-100 truncate">
                 {selectedFile.name}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-surface-500 dark:text-surface-400">
                 {formatFileSize(selectedFile.size)}
               </p>
             </div>
@@ -129,7 +129,7 @@ export default function FileDropzone({
               <button
                 type="button"
                 onClick={handleRemoveFile}
-                className="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                className="flex-shrink-0 p-2 text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
                 title="Remove file"
               >
                 <X className="w-5 h-5" />
@@ -159,10 +159,10 @@ export default function FileDropzone({
           relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
           transition-all duration-200 ease-out
           ${disabled 
-            ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 cursor-not-allowed' 
+            ? 'border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 cursor-not-allowed' 
             : isDragging 
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 scale-[1.02]' 
-              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+              : 'border-surface-300 dark:border-surface-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-surface-50 dark:hover:bg-surface-800/30'
           }
         `}
       >
@@ -178,14 +178,14 @@ export default function FileDropzone({
         <div className={`
           w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center
           transition-all duration-200
-          ${isDragging ? 'bg-blue-100 dark:bg-blue-900/50 scale-110' : 'bg-gray-100 dark:bg-gray-800'}
+          ${isDragging ? 'bg-blue-100 dark:bg-blue-900/50 scale-110' : 'bg-surface-100 dark:bg-surface-800'}
         `}>
           <Upload className={`w-8 h-8 transition-colors duration-200 ${
-            isDragging ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+            isDragging ? 'text-blue-600 dark:text-blue-400' : 'text-surface-400 dark:text-surface-500'
           }`} />
         </div>
         
-        <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <p className="text-base font-medium text-surface-700 dark:text-surface-300 mb-1">
           {isDragging ? (
             'Drop file here'
           ) : (
@@ -194,10 +194,10 @@ export default function FileDropzone({
             </>
           )}
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-surface-500 dark:text-surface-400">
           PDF files up to 100MB
         </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+        <p className="text-xs text-surface-400 dark:text-surface-500 mt-2">
           Supports: Text-based PDFs • Scanned PDFs (limited)
         </p>
         

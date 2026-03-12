@@ -40,7 +40,7 @@ export const Interactive = Template.bind({});
 Interactive.args = {
   isInteractive: true,
   ariaLabel: 'View job details: Project Alpha',
-  onClick: () => console.log('Card clicked'),
+  onClick: () => {},
   children: (
     <div className="p-4">
       <div className="flex items-start gap-3">

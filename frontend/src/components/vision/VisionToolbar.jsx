@@ -1,14 +1,18 @@
+import { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCw, Fullscreen,
   Layers, Sparkles, Loader2, ChevronDown, Cpu, Network,
-  Ruler
+  Ruler, Scan, LayoutGrid, GitBranch
 } from 'lucide-react';
 import { visionApi } from '../../api/vision';
 
 export default function VisionToolbar({
   zoom, maxZoom, onZoomIn, onZoomOut, onFit, onRotate, onFullscreen,
   onToggleLayers, showLayers, onAnalyze, analyzing, hasLayers,
-  selectedModel, onModelChange, onCalibrate, calibrating
+  selectedModel, onModelChange, onCalibrate, calibrating,
+  onToggleFixturePanel, showFixturePanel, fixturesCount,
+  onToggleWallPipePanel, showWallPipePanel, wallsCount, pipesCount
 }) {
   const [showModelMenu, setShowModelMenu] = useState(false);
   const menuRef = useRef(null);
@@ -51,16 +55,18 @@ export default function VisionToolbar({
     null, // separator
     { icon: Ruler, onClick: onCalibrate, label: 'Calibrate scale', active: calibrating },
     { icon: Layers, onClick: onToggleLayers, label: 'Toggle layers', active: showLayers },
+    { icon: Scan, onClick: onToggleFixturePanel, label: 'Toggle fixture panel', active: showFixturePanel },
+    { icon: LayoutGrid, onClick: onToggleWallPipePanel, label: 'Toggle wall & pipe panel', active: showWallPipePanel },
     null,
     { icon: Fullscreen, onClick: onFullscreen, label: 'Fullscreen', key: 'F' },
   ];
 
   return (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-surface-200 dark:border-gray-700
-                    bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm z-10">
+    <div className="flex items-center gap-1 px-3 py-2 border-b border-surface-200 dark:border-surface-700
+                    bg-white/90 dark:bg-surface-900/90 backdrop-blur-sm z-10">
       {tools.map((tool, i) => {
         if (!tool) {
-          return <div key={i} className="w-px h-6 bg-surface-200 dark:bg-gray-700 mx-1" />;
+          return <div key={i} className="w-px h-6 bg-surface-200 dark:bg-surface-700 mx-1" />;
         }
         return (
           <button
@@ -69,7 +75,7 @@ export default function VisionToolbar({
             title={tool.label}
             className={`
               p-2 rounded-lg transition-colors text-surface-500 dark:text-surface-400
-              hover:bg-surface-100 dark:hover:bg-gray-800 hover:text-surface-700 dark:hover:text-surface-200
+              hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-700 dark:hover:text-surface-200
               ${tool.active ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : ''}
             `}
           >
@@ -97,9 +103,9 @@ export default function VisionToolbar({
           <button
             onClick={() => setShowModelMenu(!showModelMenu)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                       border border-surface-200 dark:border-gray-700
+                       border border-surface-200 dark:border-surface-700
                        text-surface-600 dark:text-surface-300
-                       hover:bg-surface-50 dark:hover:bg-gray-800 transition-colors"
+                       hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
           >
             <Cpu className="w-3.5 h-3.5" />
             <span className="max-w-[100px] truncate">{currentModel?.name || 'Model'}</span>
@@ -107,8 +113,8 @@ export default function VisionToolbar({
           </button>
 
           {showModelMenu && (
-            <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-surface-200 dark:border-gray-700
-                            bg-white dark:bg-gray-900 shadow-xl z-50 py-1 overflow-hidden">
+            <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-surface-200 dark:border-surface-700
+                            bg-white dark:bg-surface-900 shadow-xl z-50 py-1 overflow-hidden">
               {models.map((m) => (
                 <button
                   key={m.id}
@@ -116,7 +122,7 @@ export default function VisionToolbar({
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
                     ${selectedModel === m.id
                       ? 'bg-primary-50 dark:bg-primary-900/20'
-                      : 'hover:bg-surface-50 dark:hover:bg-gray-800/50'
+                      : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'
                     }`}
                 >
                   <div className="flex-1 min-w-0">
@@ -128,17 +134,17 @@ export default function VisionToolbar({
                       {m.name}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] uppercase font-medium text-surface-400 dark:text-surface-500">
+                      <span className="text-xs uppercase font-medium text-surface-400 dark:text-surface-500">
                         {m.provider}
                       </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                         m.speed === 'fast'
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                           : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                       }`}>
                         {m.speed}
                       </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                         m.quality === 'excellent'
                           ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                           : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
@@ -166,9 +172,9 @@ export default function VisionToolbar({
           inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
           transition-all ml-1.5
           ${analyzing
-            ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-wait'
+            ? 'bg-surface-100 dark:bg-surface-800 text-surface-400 cursor-wait'
             : !hasKeys
-              ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-not-allowed'
+              ? 'bg-surface-100 dark:bg-surface-800 text-surface-400 cursor-not-allowed'
               : 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-sm'
           }
         `}
@@ -190,9 +196,9 @@ export default function VisionToolbar({
           inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
           transition-all ml-1.5
           ${analyzing
-            ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-wait'
+            ? 'bg-surface-100 dark:bg-surface-800 text-surface-400 cursor-wait'
             : !hasKeys
-              ? 'bg-surface-100 dark:bg-gray-800 text-surface-400 cursor-not-allowed'
+              ? 'bg-surface-100 dark:bg-surface-800 text-surface-400 cursor-not-allowed'
               : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
           }
         `}

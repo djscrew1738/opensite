@@ -1,16 +1,20 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
+import PropTypes from 'prop-types';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, HardHat, Files, MessageSquare,
   Network, Settings, ChevronLeft, ChevronRight, Wifi,
-  Command, LogOut, User, Sparkles
+  Command, LogOut, User, Sparkles, BookOpen
 } from 'lucide-react';
 import ThemeToggle from '../shared/ThemeToggle';
 import { prefetchRoute } from '../../routes/prefetch';
 import { NotificationBell } from '../notifications';
 import { useAuth } from '../../hooks/useAuth';
 
-// New simplified navigation structure
+// ═══════════════════════════════════════════════════════════════
+// Navigation Configuration
+// ═══════════════════════════════════════════════════════════════
+
 const navGroups = {
   core: [
     { path: '/',          icon: LayoutDashboard, label: 'Dashboard',    shortcut: '1', badge: null },
@@ -20,6 +24,7 @@ const navGroups = {
   ],
   tools: [
     { path: '/canvas',    icon: Network,         label: 'Canvas',       shortcut: '6', badge: null },
+    { path: '/knowledge', icon: BookOpen,        label: 'Knowledge',    shortcut: '7', badge: null },
   ],
 };
 
@@ -27,7 +32,14 @@ const bottomNav = [
   { path: '/settings', icon: Settings, label: 'Settings', shortcut: '0' },
 ];
 
-function NavItem({ item, expanded, onClick }) {
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Individual navigation item
+ */
+const NavItem = memo(function NavItem({ item, expanded, onClick }) {
   const prefetchTimeout = useRef(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -46,14 +58,12 @@ function NavItem({ item, expanded, onClick }) {
       <NavLink
         to={item.path}
         end={item.path === '/'}
-        className="group/item relative flex items-center gap-3 rounded-lg transition-all duration-150"
-        style={({ isActive }) => ({
-          padding: expanded ? '10px 12px' : '10px 0',
-          justifyContent: expanded ? 'flex-start' : 'center',
-          background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-          color: isActive ? '#3B82F6' : 'rgba(148, 163, 184, 0.45)',
-          minHeight: '44px',
-        })}
+        className={({ isActive }) => `
+          group/item relative flex items-center gap-3 rounded-lg transition-all duration-150
+          ${expanded ? 'px-3 justify-start' : 'justify-center'}
+          ${isActive ? 'bg-accent-500/10 text-accent-500' : 'text-surface-400/45 hover:text-surface-400'}
+          min-h-[44px] py-2.5
+        `}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onTouchStart={() => prefetchRoute(item.path)}
@@ -64,10 +74,7 @@ function NavItem({ item, expanded, onClick }) {
           <>
             {/* Active left indicator */}
             {isActive && (
-              <div
-                className="absolute left-0 top-2 bottom-2 w-[2.5px] rounded-full"
-                style={{ background: '#3B82F6' }}
-              />
+              <div className="absolute left-0 top-2 bottom-2 w-[2.5px] rounded-full bg-accent-500" />
             )}
 
             <item.icon
@@ -76,57 +83,32 @@ function NavItem({ item, expanded, onClick }) {
             />
 
             <span
-              className="text-sm font-semibold whitespace-nowrap overflow-hidden"
-              style={{
-                opacity: expanded ? 1 : 0,
-                width: expanded ? 'auto' : 0,
-                transition: 'opacity 0.2s ease',
-                transitionDelay: expanded ? '0.07s' : '0s',
-              }}
+              className={`
+                text-sm font-semibold whitespace-nowrap overflow-hidden transition-opacity duration-200
+                ${expanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}
+              `}
+              style={{ transitionDelay: expanded ? '0.07s' : '0s' }}
             >
               {item.label}
             </span>
 
             {/* Badge */}
             {item.badge && expanded && (
-              <span
-                className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                style={{
-                  background: '#EF4444',
-                  color: '#FFFFFF',
-                }}
-              >
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold bg-danger-500 text-white">
                 {item.badge}
               </span>
             )}
 
             {/* Shortcut key */}
             {expanded && (
-              <span
-                className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                style={{
-                  opacity: 0.18,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  color: 'rgba(148, 163, 184, 0.6)',
-                }}
-              >
+              <span className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded shrink-0 opacity-20 bg-white/[0.04] border border-white/5 text-surface-400">
                 {item.shortcut}
               </span>
             )}
 
             {/* Tooltip when collapsed */}
             {!expanded && (
-              <div
-                className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50"
-                style={{
-                  background: 'rgba(24, 28, 36, 0.96)',
-                  border: '1px solid rgba(45, 53, 72, 0.5)',
-                  color: '#F1F5F9',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                  backdropFilter: 'blur(12px)',
-                }}
-              >
+              <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50 bg-surface-800/96 border border-surface-700/50 text-surface-100 shadow-xl backdrop-blur-md">
                 {item.label}
               </div>
             )}
@@ -135,11 +117,29 @@ function NavItem({ item, expanded, onClick }) {
       </NavLink>
     </li>
   );
-}
+});
 
-function NavGroup({ title, items, expanded, onItemClick }) {
+NavItem.propTypes = {
+  item: PropTypes.shape({
+    path: PropTypes.string.isRequired,
+    icon: PropTypes.elementType.isRequired,
+    label: PropTypes.string.isRequired,
+    shortcut: PropTypes.string.isRequired,
+    badge: PropTypes.number,
+  }).isRequired,
+  expanded: PropTypes.bool.isRequired,
+  onClick: PropTypes.func,
+};
+
+NavItem.defaultProps = {
+  onClick: null,
+};
+
+/**
+ * Navigation group with optional header
+ */
+const NavGroup = memo(function NavGroup({ title, items, expanded, onItemClick }) {
   if (!expanded) {
-    // When sidebar is collapsed, just show items without group headers
     return (
       <ul className="space-y-0.5">
         {items.map((item) => (
@@ -151,10 +151,7 @@ function NavGroup({ title, items, expanded, onItemClick }) {
 
   return (
     <div className="mb-1">
-      <div
-        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider"
-        style={{ color: 'rgba(148, 163, 184, 0.25)' }}
-      >
+      <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-surface-400/25">
         {title}
       </div>
       <ul className="space-y-0.5">
@@ -164,9 +161,237 @@ function NavGroup({ title, items, expanded, onItemClick }) {
       </ul>
     </div>
   );
-}
+});
 
-export default function Sidebar({ 
+NavGroup.propTypes = {
+  title: PropTypes.string.isRequired,
+  items: PropTypes.array.isRequired,
+  expanded: PropTypes.bool.isRequired,
+  onItemClick: PropTypes.func,
+};
+
+NavGroup.defaultProps = {
+  onItemClick: null,
+};
+
+/**
+ * Logo component
+ */
+const Logo = memo(function Logo({ isExpanded }) {
+  return (
+    <div className="relative z-10 px-3.5 py-4 flex items-center gap-3 border-b border-surface-700">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-accent-500 to-accent-700 shadow-lg shadow-accent-500/35">
+        <Command className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+      </div>
+
+      <div
+        className={`
+          overflow-hidden flex-1 min-w-0 transition-all duration-200
+          ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}
+        `}
+        style={{ transitionDelay: isExpanded ? '0.06s' : '0s' }}
+      >
+        <h1 className="text-[15px] font-extrabold tracking-tight whitespace-nowrap leading-none text-surface-100">
+          Job Pulse
+        </h1>
+        <p className="text-[9px] font-bold tracking-[0.22em] uppercase whitespace-nowrap mt-0.5 text-surface-400/35">
+          CTL Plumbing
+        </p>
+      </div>
+    </div>
+  );
+});
+
+Logo.propTypes = {
+  isExpanded: PropTypes.bool.isRequired,
+};
+
+/**
+ * Global actions bar (Command palette, Notifications)
+ */
+const GlobalActions = memo(function GlobalActions({ 
+  isExpanded, 
+  onCommandPaletteOpen, 
+  onNotificationsOpen, 
+  notificationCount, 
+  hasUrgent 
+}) {
+  return (
+    <div className="relative z-10 px-2 pt-3 pb-2 border-b border-surface-700">
+      <div className={`flex items-center gap-2 ${isExpanded ? 'px-1' : 'justify-center'}`}>
+        <button
+          onClick={onCommandPaletteOpen}
+          className={`
+            flex items-center gap-2 rounded-lg transition-all duration-150 
+            hover:bg-white/5 text-surface-400/60 min-h-[36px]
+            ${isExpanded ? 'px-2.5' : 'px-2'}
+          `}
+          title="Command Palette (Ctrl+K)"
+        >
+          <Command className="w-4 h-4 flex-shrink-0" />
+          {isExpanded && (
+            <>
+              <span className="text-xs font-medium flex-1 text-left">Command...</span>
+              <kbd className="font-mono text-xs px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/6 text-surface-400/40">
+                ⌘K
+              </kbd>
+            </>
+          )}
+        </button>
+        
+        <NotificationBell
+          count={notificationCount}
+          hasUrgent={hasUrgent}
+          onClick={onNotificationsOpen}
+          size="sm"
+        />
+      </div>
+    </div>
+  );
+});
+
+GlobalActions.propTypes = {
+  isExpanded: PropTypes.bool.isRequired,
+  onCommandPaletteOpen: PropTypes.func.isRequired,
+  onNotificationsOpen: PropTypes.func.isRequired,
+  notificationCount: PropTypes.number.isRequired,
+  hasUrgent: PropTypes.bool.isRequired,
+};
+
+/**
+ * Logout button
+ */
+const LogoutButton = memo(function LogoutButton({ isExpanded, onLogout }) {
+  return (
+    <button
+      onClick={onLogout}
+      className={`
+        group/item relative flex items-center gap-3 rounded-lg transition-all duration-150 w-full
+        ${isExpanded ? 'px-3 justify-start' : 'justify-center'}
+        text-surface-400/45 hover:text-danger-400 min-h-[44px] py-2.5
+      `}
+    >
+      <LogOut
+        className="w-[18px] h-[18px] flex-shrink-0 group-hover/item:text-danger-400 transition-colors"
+        strokeWidth={1.75}
+      />
+
+      <span
+        className={`
+          text-sm font-semibold whitespace-nowrap overflow-hidden group-hover/item:text-danger-400 transition-colors
+          ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}
+        `}
+        style={{ transitionDelay: isExpanded ? '0.07s' : '0s' }}
+      >
+        Logout
+      </span>
+
+      {!isExpanded && (
+        <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50 bg-surface-800/96 border border-surface-700/50 text-surface-100 shadow-xl backdrop-blur-md">
+          Logout
+        </div>
+      )}
+    </button>
+  );
+});
+
+LogoutButton.propTypes = {
+  isExpanded: PropTypes.bool.isRequired,
+  onLogout: PropTypes.func.isRequired,
+};
+
+/**
+ * User card in footer
+ */
+const UserCard = memo(function UserCard({ isExpanded, user }) {
+  return (
+    <div
+      className={`
+        mx-1 rounded-lg p-2.5 flex items-center gap-2.5 transition-all duration-200
+        ${isExpanded ? 'bg-white/[0.02] border border-surface-700' : 'justify-center'}
+      `}
+    >
+      <div
+        className={`
+          rounded-md flex items-center justify-center font-bold text-white flex-shrink-0
+          bg-gradient-to-br from-surface-700 to-surface-900
+          ${isExpanded ? 'w-7 h-7 text-[9px]' : 'w-8 h-8 text-xs'}
+        `}
+      >
+        {user?.username?.charAt(0) || <User className="w-4 h-4" />}
+      </div>
+      
+      {isExpanded && (
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold truncate text-surface-300">
+            {user?.username || 'Guest User'}
+          </p>
+          <p className="text-[9px] mt-0.5 text-surface-500 capitalize">
+            {user?.role || 'Viewer'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+UserCard.propTypes = {
+  isExpanded: PropTypes.bool.isRequired,
+  user: PropTypes.shape({
+    username: PropTypes.string,
+    role: PropTypes.string,
+  }),
+};
+
+UserCard.defaultProps = {
+  user: null,
+};
+
+/**
+ * Time display component
+ */
+const TimeDisplay = memo(function TimeDisplay() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span className="font-mono text-xs tabular-nums text-surface-400/25">
+      {time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+    </span>
+  );
+});
+
+/**
+ * Sidebar pin toggle button
+ */
+const PinToggle = memo(function PinToggle({ pinned, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="tap-target rounded-lg transition-colors duration-150 hover:bg-white/5 text-surface-400/40"
+      title={pinned ? 'Collapse sidebar (Ctrl+B)' : 'Pin sidebar (Ctrl+B)'}
+      aria-label={pinned ? 'Collapse sidebar' : 'Pin sidebar'}
+      aria-pressed={pinned}
+    >
+      {pinned ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+    </button>
+  );
+});
+
+PinToggle.propTypes = {
+  pinned: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+function Sidebar({ 
   onCommandPaletteOpen, 
   onNotificationsOpen, 
   onItemClick,
@@ -194,134 +419,40 @@ export default function Sidebar({
     <aside
       onMouseEnter={() => !pinned && setExpanded(true)}
       onMouseLeave={() => !pinned && setExpanded(false)}
-      className="relative h-screen flex flex-col z-40 flex-shrink-0"
-      style={{
-        width: isExpanded ? '240px' : '64px',
-        transition: 'width 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
-      }}
+      className="relative h-screen flex flex-col z-40 flex-shrink-0 transition-all duration-200 ease-out"
+      style={{ width: isExpanded ? '240px' : '64px' }}
     >
       {/* Background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, #0C0D10 0%, #0A0B0D 100%)',
-          borderRight: '1px solid #1F2430',
-        }}
-      />
+      <div className="absolute inset-0 bg-gradient-to-b from-surface-900 to-surface-950 border-r border-surface-700" />
 
       {/* Blueprint grid overlay */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-[0.012]"
         style={{
           backgroundImage:
             'linear-gradient(rgba(59,130,246,0.4) 1px, transparent 1px),' +
             'linear-gradient(90deg, rgba(59,130,246,0.4) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
-          opacity: 0.012,
         }}
       />
 
       {/* Logo area */}
-      <div
-        className="relative z-10 px-3.5 py-4 flex items-center gap-3"
-        style={{ borderBottom: '1px solid #1F2430' }}
-      >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%)',
-            boxShadow: '0 2px 10px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
-          }}
-        >
-          <Command className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
-        </div>
-
-        <div
-          className="overflow-hidden flex-1 min-w-0"
-          style={{
-            opacity: isExpanded ? 1 : 0,
-            transform: isExpanded ? 'translateX(0)' : 'translateX(-8px)',
-            transition: 'opacity 0.2s ease, transform 0.2s ease',
-            transitionDelay: isExpanded ? '0.06s' : '0s',
-          }}
-        >
-          <h1
-            className="text-[15px] font-extrabold tracking-tight whitespace-nowrap leading-none"
-            style={{ color: '#F1F5F9' }}
-          >
-            Job Pulse
-          </h1>
-          <p
-            className="text-[9px] font-bold tracking-[0.22em] uppercase whitespace-nowrap mt-0.5"
-            style={{ color: 'rgba(148,163,184,0.35)' }}
-          >
-            CTL Plumbing
-          </p>
-        </div>
-
-        {/* Pin/collapse toggle */}
-        {isExpanded && (
-          <button
-            onClick={() => setPinned(!pinned)}
-            className="tap-target rounded-lg transition-colors duration-150 hover:bg-white/5"
-            style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            title={pinned ? 'Collapse sidebar (Ctrl+B)' : 'Pin sidebar (Ctrl+B)'}
-          >
-            {pinned ? (
-              <ChevronLeft className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-        )}
+      <div className="relative z-10 flex items-center gap-3 border-b border-surface-700 px-3.5 py-4">
+        <Logo isExpanded={isExpanded} />
+        {isExpanded && <PinToggle pinned={pinned} onToggle={() => setPinned(!pinned)} />}
       </div>
 
       {/* Global Actions */}
-      <div 
-        className="relative z-10 px-2 pt-3 pb-2"
-        style={{ borderBottom: '1px solid #1F2430' }}
-      >
-        <div className={`flex items-center gap-2 ${isExpanded ? 'px-1' : 'justify-center'}`}>
-          <button
-            onClick={onCommandPaletteOpen}
-            className="flex items-center gap-2 rounded-lg transition-all duration-150 hover:bg-white/5"
-            style={{ 
-              padding: isExpanded ? '8px 10px' : '8px',
-              color: 'rgba(148, 163, 184, 0.6)',
-              minHeight: '36px',
-            }}
-            title="Command Palette (Ctrl+K)"
-          >
-            <Command className="w-4 h-4 flex-shrink-0" />
-            {isExpanded && (
-              <>
-                <span className="text-xs font-medium flex-1 text-left">Command...</span>
-                <kbd 
-                  className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-                  style={{ 
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    color: 'rgba(148, 163, 184, 0.4)',
-                  }}
-                >
-                  ⌘K
-                </kbd>
-              </>
-            )}
-          </button>
-          
-          <NotificationBell
-            count={notificationCount}
-            hasUrgent={hasUrgent}
-            onClick={onNotificationsOpen}
-            size="sm"
-          />
-        </div>
-      </div>
+      <GlobalActions
+        isExpanded={isExpanded}
+        onCommandPaletteOpen={onCommandPaletteOpen}
+        onNotificationsOpen={onNotificationsOpen}
+        notificationCount={notificationCount}
+        hasUrgent={hasUrgent}
+      />
 
       {/* Main navigation */}
       <nav className="relative z-10 flex-1 py-2 px-2 overflow-y-auto scrollbar-hide">
-        {/* Core */}
         <NavGroup 
           title="Core"
           items={navGroups.core}
@@ -329,9 +460,8 @@ export default function Sidebar({
           onItemClick={onItemClick}
         />
         
-        {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
+        {isExpanded && <div className="my-2 mx-2 h-px bg-surface-700" />}
         
-        {/* Tools */}
         <NavGroup 
           title="Tools"
           items={navGroups.tools}
@@ -339,108 +469,35 @@ export default function Sidebar({
           onItemClick={onItemClick}
         />
 
-        {isExpanded && <div className="my-2 mx-2 h-px" style={{ background: '#1F2430' }} />}
+        {isExpanded && <div className="my-2 mx-2 h-px bg-surface-700" />}
 
-        {/* Settings */}
+        {/* Settings & Logout */}
         <ul className="space-y-0.5">
           {bottomNav.map((item) => (
             <NavItem key={item.path} item={item} expanded={isExpanded} onClick={onItemClick} />
           ))}
           <li>
-            <button
-              onClick={logout}
-              className="group/item relative flex items-center gap-3 rounded-lg transition-all duration-150 w-full"
-              style={{
-                padding: isExpanded ? '10px 12px' : '10px 0',
-                justifyContent: isExpanded ? 'flex-start' : 'center',
-                background: 'transparent',
-                color: 'rgba(148, 163, 184, 0.45)',
-                minHeight: '44px',
-              }}
-            >
-              <LogOut
-                className="w-[18px] h-[18px] flex-shrink-0 group-hover/item:text-red-400 transition-colors"
-                strokeWidth={1.75}
-              />
-
-              <span
-                className="text-sm font-semibold whitespace-nowrap overflow-hidden group-hover/item:text-red-400 transition-colors"
-                style={{
-                  opacity: isExpanded ? 1 : 0,
-                  width: isExpanded ? 'auto' : 0,
-                  transition: 'opacity 0.2s ease',
-                  transitionDelay: isExpanded ? '0.07s' : '0s',
-                }}
-              >
-                Logout
-              </span>
-
-              {!isExpanded && (
-                <div
-                  className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 z-50"
-                  style={{
-                    background: 'rgba(24, 28, 36, 0.96)',
-                    border: '1px solid rgba(45, 53, 72, 0.5)',
-                    color: '#F1F5F9',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                    backdropFilter: 'blur(12px)',
-                  }}
-                >
-                  Logout
-                </div>
-              )}
-            </button>
+            <LogoutButton isExpanded={isExpanded} onLogout={logout} />
           </li>
         </ul>
       </nav>
 
       {/* Footer */}
-      <div className="relative z-10 px-2 pt-2 pb-3" style={{ borderTop: '1px solid #1F2430' }}>
+      <div className="relative z-10 px-2 pt-2 pb-3 border-t border-surface-700">
         <div className={`flex items-center mb-2 ${isExpanded ? 'px-2 justify-between' : 'justify-center'}`}>
           <ThemeToggle compact={!isExpanded} />
           {isExpanded && (
             <div className="flex items-center gap-1.5">
-              <Wifi className="w-3 h-3" style={{ color: 'rgba(16,185,129,0.6)' }} />
-              <span
-                className="text-[9px] font-bold uppercase tracking-widest"
-                style={{ color: 'rgba(16,185,129,0.45)' }}
-              >
+              <Wifi className="w-3 h-3 text-emerald-500/60" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/45">
                 Online
               </span>
             </div>
           )}
         </div>
 
-        {/* User Card */}
-        <div
-          className={`mx-1 rounded-lg p-2.5 flex items-center gap-2.5 transition-all duration-200 ${
-            isExpanded ? 'bg-white/0.02 border border-[#1F2430]' : 'justify-center'
-          }`}
-        >
-          <div
-            className={`rounded-md flex items-center justify-center font-bold text-white flex-shrink-0 ${
-              isExpanded ? 'w-7 h-7 text-[9px]' : 'w-8 h-8 text-[10px]'
-            }`}
-            style={{
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-            }}
-          >
-            {user?.username?.charAt(0) || <User className="w-4 h-4" />}
-          </div>
-          
-          {isExpanded && (
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold truncate text-slate-300">
-                {user?.username || 'Guest User'}
-              </p>
-              <p className="text-[9px] mt-0.5 text-slate-500 capitalize">
-                {user?.role || 'Viewer'}
-              </p>
-            </div>
-          )}
-        </div>
+        <UserCard isExpanded={isExpanded} user={user} />
 
-        {/* Time */}
         {isExpanded && (
           <div className="mt-2 px-3 text-center">
             <TimeDisplay />
@@ -451,17 +508,18 @@ export default function Sidebar({
   );
 }
 
-function TimeDisplay() {
-  const [time, setTime] = useState(new Date());
+Sidebar.propTypes = {
+  onCommandPaletteOpen: PropTypes.func.isRequired,
+  onNotificationsOpen: PropTypes.func.isRequired,
+  onItemClick: PropTypes.func,
+  notificationCount: PropTypes.number,
+  hasUrgent: PropTypes.bool,
+};
 
-  useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 60000);
-    return () => clearInterval(interval);
-  }, []);
+Sidebar.defaultProps = {
+  onItemClick: null,
+  notificationCount: 0,
+  hasUrgent: false,
+};
 
-  return (
-    <span className="font-mono text-[10px] tabular-nums" style={{ color: 'rgba(148,163,184,0.25)' }}>
-      {time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-    </span>
-  );
-}
+export default Sidebar;

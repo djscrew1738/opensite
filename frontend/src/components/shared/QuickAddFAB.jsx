@@ -1,4 +1,18 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+/**
+ * QuickAddFAB Component
+ * Global floating action button with radial menu
+ * 
+ * Features:
+ * - Radial menu with 3 options (Upload Blueprint, Manual Lead, Quick Note)
+ * - Staggered animation from center
+ * - Icon rotation on open
+ * - Pulsing animation when unprocessed items exist
+ * - Responsive positioning (avoids mobile gesture zones)
+ * 
+ * @module components/shared/QuickAddFAB
+ */
+
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -9,42 +23,40 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import { colors, shadows } from '../../styles/tokens';
 
-/**
- * QuickAddFAB - Global floating action button with radial menu
- * 
- * Features:
- * - Radial menu with 3 options (Upload Blueprint, Manual Lead, Quick Note)
- * - Staggered animation from center
- * - Icon rotation on open
- * - Pulsing animation when unprocessed items exist
- * - Responsive positioning (avoids mobile gesture zones)
- */
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
-// Menu item configuration
+// Menu item configuration with design tokens
 const MENU_ITEMS = [
   {
     id: 'blueprint',
     label: 'Upload Blueprint',
     icon: FileUp,
-    color: 'bg-blue-500',
-    angle: -30, // degrees from vertical
+    color: colors.info.DEFAULT,
+    angle: -30,
   },
   {
     id: 'lead',
     label: 'Manual Lead',
     icon: UserPlus,
-    color: 'bg-emerald-500',
-    angle: 0, // straight up
+    color: colors.success.DEFAULT,
+    angle: 0,
   },
   {
     id: 'note',
     label: 'Quick Note',
     icon: StickyNote,
-    color: 'bg-amber-500',
-    angle: 30, // degrees from vertical
+    color: colors.warning.DEFAULT,
+    angle: 30,
   },
 ];
+
+// FAB primary color (orange accent)
+const FAB_COLOR = '#f97316';
+const FAB_COLOR_HOVER = '#fb923c';
 
 // Animation variants
 const backdropVariants = {
@@ -60,8 +72,8 @@ const menuItemVariants = {
     y: 0,
   },
   visible: (angle) => {
-    const radius = 100; // Distance from center
-    const radian = (angle - 90) * (Math.PI / 180); // -90 to start from top
+    const radius = 100;
+    const radian = (angle - 90) * (Math.PI / 180);
     return {
       scale: 1,
       opacity: 1,
@@ -79,9 +91,7 @@ const menuItemVariants = {
     opacity: 0,
     x: 0,
     y: 0,
-    transition: {
-      duration: 0.2,
-    },
+    transition: { duration: 0.2 },
   },
 };
 
@@ -90,22 +100,166 @@ const labelVariants = {
   visible: { 
     opacity: 1, 
     x: 0,
-    transition: {
-      delay: 0.1,
-      duration: 0.2,
-    },
+    transition: { delay: 0.1, duration: 0.2 },
   },
   exit: { 
     opacity: 0, 
     x: -10,
-    transition: {
-      duration: 0.1,
-    },
+    transition: { duration: 0.1 },
   },
 };
 
-// Manual Lead Form Modal
-function ManualLeadModal({ isOpen, onClose, onSubmit }) {
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Menu button item
+ * @param {{item: any, onClick: () => void}} props
+ */
+const MenuButton = memo(function MenuButton({ item, onClick }) {
+  const Icon = item.icon;
+  
+  return (
+    <div className="relative group">
+      {/* Label - Desktop (left side) */}
+      <motion.span
+        variants={labelVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="hidden md:block absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap"
+      >
+        <span 
+          className="px-3 py-1.5 rounded-lg text-sm font-medium shadow-lg"
+          style={{
+            backgroundColor: colors.surface.card,
+            border: `1px solid ${colors.border.default}`,
+            color: colors.text.primary,
+          }}
+        >
+          {item.label}
+        </span>
+      </motion.span>
+      
+      {/* Menu Button */}
+      <button
+        onClick={onClick}
+        className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+        style={{ 
+          backgroundColor: item.color,
+          boxShadow: `0 4px 15px ${item.color}40`,
+        }}
+        title={item.label}
+      >
+        <Icon style={{ width: '20px', height: '20px', color: colors.text.inverse }} />
+      </button>
+      
+      {/* Label - Mobile (below) */}
+      <motion.span
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -5 }}
+        transition={{ delay: 0.15 }}
+        className="md:hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap"
+      >
+        <span 
+          className="px-2 py-0.5 rounded text-xs font-medium shadow-md"
+          style={{
+            backgroundColor: colors.surface.card,
+            color: colors.text.primary,
+          }}
+        >
+          {item.label}
+        </span>
+      </motion.span>
+    </div>
+  );
+});
+
+MenuButton.displayName = 'MenuButton';
+
+/**
+ * Main FAB Button
+ * @param {{isOpen: boolean, hasUnprocessed: boolean, onClick: () => void}} props
+ */
+const MainFabButton = memo(function MainFabButton({ isOpen, hasUnprocessed, onClick }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      animate={{
+        rotate: isOpen ? 45 : 0,
+        scale: hasUnprocessed && !isOpen ? [1, 1.05, 1] : 1,
+      }}
+      transition={{
+        rotate: { type: 'spring', stiffness: 300, damping: 20 },
+        scale: hasUnprocessed && !isOpen ? {
+          repeat: Infinity,
+          duration: 3,
+          ease: 'easeInOut',
+        } : {},
+      }}
+      className="relative w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-colors z-50"
+      style={{
+        backgroundColor: FAB_COLOR,
+        boxShadow: `0 8px 30px ${FAB_COLOR}59, 0 0 0 1px ${FAB_COLOR}33`,
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = FAB_COLOR_HOVER}
+      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = FAB_COLOR}
+    >
+      <Plus style={{ width: '28px', height: '28px', color: colors.text.inverse }} strokeWidth={2.5} />
+      
+      {/* Pulse ring for unprocessed blueprints */}
+      {hasUnprocessed && !isOpen && (
+        <motion.span
+          className="absolute inset-0 rounded-full"
+          style={{ backgroundColor: FAB_COLOR }}
+          animate={{
+            scale: [1, 1.4, 1.4],
+            opacity: [0.5, 0, 0],
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeOut',
+          }}
+        />
+      )}
+    </motion.button>
+  );
+});
+
+MainFabButton.displayName = 'MainFabButton';
+
+/**
+ * Modal backdrop
+ * @param {{onClick: () => void}} props
+ */
+const Backdrop = memo(function Backdrop({ onClick }) {
+  return (
+    <motion.div
+      variants={backdropVariants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      className="fixed inset-0 z-40"
+      style={{ backgroundColor: `${colors.surface.primary}66` }} // 40% opacity
+      onClick={onClick}
+    />
+  );
+});
+
+Backdrop.displayName = 'Backdrop';
+
+// ═══════════════════════════════════════════════════════════════
+// Modals
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Manual Lead Form Modal
+ * @param {{isOpen: boolean, onClose: () => void, onSubmit: (data: any) => void}} props
+ */
+const ManualLeadModal = memo(function ManualLeadModal({ isOpen, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
     builderName: '',
     address: '',
@@ -137,44 +291,53 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-          />
+          <Backdrop onClick={onClose} />
           
-          {/* Slide-up Modal */}
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 bg-surface-card rounded-t-3xl z-50 max-h-[90vh] overflow-auto"
+            className="fixed bottom-0 left-0 right-0 rounded-t-3xl z-50 max-h-[90vh] overflow-auto"
+            style={{
+              backgroundColor: colors.surface.card,
+            }}
           >
             <div className="p-6">
               {/* Handle */}
               <div className="flex justify-center mb-6">
-                <div className="w-12 h-1.5 bg-surface-600 rounded-full" />
+                <div 
+                  className="w-12 h-1.5 rounded-full"
+                  style={{ backgroundColor: colors.surface.elevated }}
+                />
               </div>
               
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-text-primary">Add Manual Lead</h2>
+                <h2 
+                  className="text-xl font-bold"
+                  style={{ color: colors.text.primary }}
+                >
+                  Add Manual Lead
+                </h2>
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-surface-700 rounded-full transition-colors"
+                  className="p-2 rounded-full transition-colors"
+                  style={{ backgroundColor: 'transparent' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.surface.elevated}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <X className="w-5 h-5 text-text-secondary" />
+                  <X style={{ width: '20px', height: '20px', color: colors.text.secondary }} />
                 </button>
               </div>
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  <label 
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: colors.text.secondary }}
+                  >
                     Builder Name
                   </label>
                   <input
@@ -188,7 +351,10 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  <label 
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: colors.text.secondary }}
+                  >
                     Address
                   </label>
                   <input
@@ -203,7 +369,10 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                    <label 
+                      className="block text-sm font-medium mb-1.5"
+                      style={{ color: colors.text.secondary }}
+                    >
                       Permit #
                     </label>
                     <input
@@ -216,7 +385,10 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                    <label 
+                      className="block text-sm font-medium mb-1.5"
+                      style={{ color: colors.text.secondary }}
+                    >
                       Phase
                     </label>
                     <select
@@ -234,7 +406,10 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  <label 
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: colors.text.secondary }}
+                  >
                     Notes
                   </label>
                   <textarea
@@ -259,9 +434,9 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
                     className="btn-primary flex-1 flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" />
                     ) : (
-                      <UserPlus className="w-4 h-4" />
+                      <UserPlus style={{ width: '16px', height: '16px' }} />
                     )}
                     Add Lead
                   </button>
@@ -273,10 +448,15 @@ function ManualLeadModal({ isOpen, onClose, onSubmit }) {
       )}
     </AnimatePresence>
   );
-}
+});
 
-// Quick Note Popover
-function QuickNotePopover({ isOpen, onClose, onSubmit }) {
+ManualLeadModal.displayName = 'ManualLeadModal';
+
+/**
+ * Quick Note Popover
+ * @param {{isOpen: boolean, onClose: () => void, onSubmit: (note: string) => void}} props
+ */
+const QuickNotePopover = memo(function QuickNotePopover({ isOpen, onClose, onSubmit }) {
   const [note, setNote] = useState('');
   const textareaRef = useRef(null);
 
@@ -309,18 +489,29 @@ function QuickNotePopover({ isOpen, onClose, onSubmit }) {
             initial={{ scale: 0.9, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 10 }}
-            className="fixed bottom-24 right-6 w-80 bg-surface-card rounded-2xl shadow-2xl border border-border p-4 z-50"
+            className="fixed bottom-24 right-6 w-80 rounded-2xl p-4 z-50"
+            style={{
+              backgroundColor: colors.surface.card,
+              boxShadow: shadows.cardHover,
+              border: `1px solid ${colors.border.default}`,
+            }}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                <StickyNote className="w-4 h-4 text-amber-500" />
+              <h3 
+                className="font-semibold flex items-center gap-2"
+                style={{ color: colors.text.primary }}
+              >
+                <StickyNote style={{ width: '16px', height: '16px', color: colors.warning.DEFAULT }} />
                 Quick Note
               </h3>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-surface-700 rounded transition-colors"
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: 'transparent' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.surface.elevated}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <X className="w-4 h-4 text-text-secondary" />
+                <X style={{ width: '16px', height: '16px', color: colors.text.secondary }} />
               </button>
             </div>
             <textarea
@@ -336,7 +527,10 @@ function QuickNotePopover({ isOpen, onClose, onSubmit }) {
               }}
             />
             <div className="flex justify-between items-center mt-3">
-              <span className="text-xs text-text-muted">
+              <span 
+                className="text-xs"
+                style={{ color: colors.text.muted }}
+              >
                 Press Cmd+Enter to save
               </span>
               <button
@@ -352,9 +546,18 @@ function QuickNotePopover({ isOpen, onClose, onSubmit }) {
       )}
     </AnimatePresence>
   );
-}
+});
 
-// File Upload Handler
+QuickNotePopover.displayName = 'QuickNotePopover';
+
+// ═══════════════════════════════════════════════════════════════
+// Hooks
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * File Upload Handler Hook
+ * @param {{onUpload: (file: File) => void}} props
+ */
 function useFileUpload(onUpload) {
   const fileInputRef = useRef(null);
   const { success, error } = useToast();
@@ -363,14 +566,12 @@ function useFileUpload(onUpload) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
       error('Please upload a PDF, PNG, or JPG file');
       return;
     }
 
-    // Validate file size (50MB max)
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
       error('File too large. Maximum size is 50MB.');
@@ -380,7 +581,6 @@ function useFileUpload(onUpload) {
     onUpload?.(file);
     success(`Selected: ${file.name}`);
     
-    // Reset input
     e.target.value = '';
   }, [onUpload, success, error]);
 
@@ -391,8 +591,21 @@ function useFileUpload(onUpload) {
   return { fileInputRef, handleFileSelect, triggerFileInput };
 }
 
-// Main FAB Component
-export function QuickAddFAB({ 
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * QuickAddFAB - Global floating action button with radial menu
+ * @param {{
+ *   onUpload?: (file: File) => void;
+ *   onAddLead?: (data: any) => void;
+ *   onAddNote?: (note: string) => void;
+ *   hasUnprocessedBlueprints?: boolean;
+ *   className?: string;
+ * }} props
+ */
+export const QuickAddFAB = memo(function QuickAddFAB({ 
   onUpload, 
   onAddLead, 
   onAddNote,
@@ -400,7 +613,7 @@ export function QuickAddFAB({
   className = ''
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); // 'lead' | 'note' | null
+  const [activeModal, setActiveModal] = useState(null);
   const fabRef = useRef(null);
   
   const { fileInputRef, handleFileSelect, triggerFileInput } = useFileUpload(onUpload);
@@ -419,7 +632,6 @@ export function QuickAddFAB({
     }
   }, [isOpen]);
 
-  // Handle menu item click
   const handleMenuItemClick = useCallback((itemId) => {
     setIsOpen(false);
     
@@ -438,12 +650,10 @@ export function QuickAddFAB({
     }
   }, [triggerFileInput]);
 
-  // Handle lead submission
   const handleLeadSubmit = useCallback(async (formData) => {
     await onAddLead?.(formData);
   }, [onAddLead]);
 
-  // Handle note submission
   const handleNoteSubmit = useCallback((note) => {
     onAddNote?.(note);
   }, [onAddNote]);
@@ -461,16 +671,7 @@ export function QuickAddFAB({
 
       {/* Backdrop */}
       <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            variants={backdropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-            onClick={() => setIsOpen(false)}
-          />
-        )}
+        {isOpen && <Backdrop onClick={() => setIsOpen(false)} />}
       </AnimatePresence>
 
       {/* FAB Container */}
@@ -478,7 +679,6 @@ export function QuickAddFAB({
         ref={fabRef}
         className={`fixed bottom-6 right-6 md:bottom-6 md:right-6 z-50 ${className}`}
         style={{ 
-          // Mobile safe area inset to avoid system gestures
           bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
         }}
       >
@@ -486,109 +686,32 @@ export function QuickAddFAB({
         <AnimatePresence>
           {isOpen && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              {MENU_ITEMS.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <motion.div
-                    key={item.id}
-                    custom={item.angle}
-                    variants={menuItemVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    transition={{ delay: index * 0.05 }}
-                    className="absolute pointer-events-auto"
-                  >
-                    <div className="relative group">
-                      {/* Label - Desktop (left side) */}
-                      <motion.span
-                        variants={labelVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        className="hidden md:block absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap"
-                      >
-                        <span className="px-3 py-1.5 bg-surface-card border border-border rounded-lg text-sm font-medium text-text-primary shadow-lg">
-                          {item.label}
-                        </span>
-                      </motion.span>
-                      
-                      {/* Menu Button */}
-                      <button
-                        onClick={() => handleMenuItemClick(item.id)}
-                        className={`w-11 h-11 rounded-full ${item.color} flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}
-                        title={item.label}
-                      >
-                        <Icon className="w-5 h-5 text-white" />
-                      </button>
-                      
-                      {/* Label - Mobile (below) */}
-                      <motion.span
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ delay: 0.15 + index * 0.05 }}
-                        className="md:hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap"
-                      >
-                        <span className="px-2 py-0.5 bg-surface-card rounded text-xs font-medium text-text-primary shadow-md">
-                          {item.label}
-                        </span>
-                      </motion.span>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {MENU_ITEMS.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  custom={item.angle}
+                  variants={menuItemVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  transition={{ delay: index * 0.05 }}
+                  className="absolute pointer-events-auto"
+                >
+                  <MenuButton 
+                    item={item} 
+                    onClick={() => handleMenuItemClick(item.id)}
+                  />
+                </motion.div>
+              ))}
             </div>
           )}
         </AnimatePresence>
 
-        {/* Main FAB Button */}
-        <motion.button
+        <MainFabButton
+          isOpen={isOpen}
+          hasUnprocessed={hasUnprocessedBlueprints}
           onClick={() => setIsOpen(!isOpen)}
-          animate={{
-            rotate: isOpen ? 45 : 0,
-            scale: hasUnprocessedBlueprints && !isOpen ? [1, 1.05, 1] : 1,
-          }}
-          transition={{
-            rotate: { type: 'spring', stiffness: 300, damping: 20 },
-            scale: hasUnprocessedBlueprints && !isOpen ? {
-              repeat: Infinity,
-              duration: 3,
-              ease: 'easeInOut',
-            } : {},
-          }}
-          className={`
-            relative w-14 h-14 rounded-full 
-            bg-orange-500 
-            flex items-center justify-center
-            shadow-lg shadow-orange-500/25
-            hover:bg-orange-400
-            active:scale-95
-            transition-colors
-            z-50
-          `}
-          style={{
-            boxShadow: '0 8px 30px rgba(249, 115, 22, 0.35), 0 0 0 1px rgba(249, 115, 22, 0.2)',
-          }}
-        >
-          <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />
-          
-          {/* Pulse ring for unprocessed blueprints */}
-          {hasUnprocessedBlueprints && !isOpen && (
-            <motion.span
-              className="absolute inset-0 rounded-full bg-orange-500"
-              animate={{
-                scale: [1, 1.4, 1.4],
-                opacity: [0.5, 0, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: 'easeOut',
-              }}
-            />
-          )}
-        </motion.button>
+        />
       </div>
 
       {/* Manual Lead Modal */}
@@ -606,6 +729,8 @@ export function QuickAddFAB({
       />
     </>
   );
-}
+});
+
+QuickAddFAB.displayName = 'QuickAddFAB';
 
 export default QuickAddFAB;

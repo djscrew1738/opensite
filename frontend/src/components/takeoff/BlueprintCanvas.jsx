@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+/**
+ * BlueprintCanvas Component
+ * Interactive canvas for blueprint measurements and takeoffs
+ * 
+ * @module components/takeoff/BlueprintCanvas
+ */
+
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Ruler } from 'lucide-react';
 
 import {
@@ -11,12 +18,164 @@ import useCanvasHistory from './useCanvasHistory';
 import BlueprintToolbar from './BlueprintToolbar';
 import BlueprintMinimap from './BlueprintMinimap';
 import { ConfirmDialog } from '../shared';
+import { colors } from '../../styles/tokens';
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
 
-export default function BlueprintCanvas({
+/**
+ * Empty state when no blueprint is loaded
+ */
+const EmptyState = memo(function EmptyState() {
+  return (
+    <div 
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ color: colors.text.muted }}
+    >
+      <div className="text-center">
+        <Ruler 
+          className="w-16 h-16 mx-auto mb-4"
+          style={{ color: colors.border.strong }}
+        />
+        <p 
+          className="text-lg font-medium"
+          style={{ color: colors.text.secondary }}
+        >
+          No blueprint loaded
+        </p>
+        <p className="text-sm">Upload a blueprint image to begin measuring</p>
+      </div>
+    </div>
+  );
+});
+
+EmptyState.displayName = 'EmptyState';
+
+/**
+ * Calibration instruction overlay
+ */
+const CalibrationOverlay = memo(function CalibrationOverlay({ 
+  calibrationPoints, 
+  onCancel 
+}) {
+  return (
+    <div 
+      className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2"
+      style={{ 
+        backgroundColor: colors.accent.purple,
+        color: colors.text.inverse,
+      }}
+    >
+      <Ruler className="w-4 h-4" />
+      Click two points on a known dimension ({calibrationPoints.length}/2)
+      <button
+        onClick={onCancel}
+        className="ml-2 transition-colors"
+        style={{ color: `${colors.text.inverse}99` }}
+        onMouseEnter={(e) => e.currentTarget.style.color = colors.text.inverse}
+        onMouseLeave={(e) => e.currentTarget.style.color = `${colors.text.inverse}99`}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+});
+
+CalibrationOverlay.displayName = 'CalibrationOverlay';
+
+/**
+ * Tool hint overlay for area tool
+ */
+const AreaToolHint = memo(function AreaToolHint({ pointCount }) {
+  return (
+    <div 
+      className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg shadow-lg text-xs font-medium"
+      style={{ 
+        backgroundColor: colors.success.DEFAULT,
+        color: colors.text.inverse,
+      }}
+    >
+      Click to add points ({pointCount}). Double-click to close polygon. Esc to cancel.
+    </div>
+  );
+});
+
+AreaToolHint.displayName = 'AreaToolHint';
+
+/**
+ * Tool hint overlay for length/rectangle/circle tools
+ */
+const DrawToolHint = memo(function DrawToolHint({ tool }) {
+  const messages = {
+    [TOOL_TYPES.LENGTH]: 'Click second point to complete. Esc to cancel.',
+    [TOOL_TYPES.RECTANGLE]: 'Click opposite corner to complete. Esc to cancel.',
+    [TOOL_TYPES.CIRCLE]: 'Click edge point to set radius. Esc to cancel.',
+  };
+
+  return (
+    <div 
+      className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg shadow-lg text-xs font-medium"
+      style={{ 
+        backgroundColor: colors.surface.elevated,
+        color: colors.text.primary,
+        border: `1px solid ${colors.border.default}`,
+      }}
+    >
+      {messages[tool]}
+    </div>
+  );
+});
+
+DrawToolHint.displayName = 'DrawToolHint';
+
+/**
+ * Coordinates display
+ */
+const CoordinatesDisplay = memo(function CoordinatesDisplay({ 
+  mouseImg, 
+  scale 
+}) {
+  if (!mouseImg) return null;
+
+  return (
+    <div 
+      className="absolute bottom-3 right-3 rounded px-2 py-1 text-xs font-mono tabular-nums select-none"
+      style={{ 
+        backgroundColor: `${colors.surface.card}CC`,
+        backdropFilter: 'blur(4px)',
+        border: `1px solid ${colors.border.default}`,
+        color: colors.text.muted,
+      }}
+    >
+      {Math.round(mouseImg.x)}, {Math.round(mouseImg.y)}
+      {scale?.pixelsPerUnit && (
+        <span style={{ color: colors.text.disabled }}>
+          {' '}({(mouseImg.x / scale.pixelsPerUnit).toFixed(1)}, {(mouseImg.y / scale.pixelsPerUnit).toFixed(1)} {scale.unit})
+        </span>
+      )}
+    </div>
+  );
+});
+
+CoordinatesDisplay.displayName = 'CoordinatesDisplay';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * BlueprintCanvas - Interactive blueprint measurement canvas
+ * 
+ * @param {{
+ *   imageUrl?: string,
+ *   measurements?: Array<any>,
+ *   onMeasurementsChange: (measurements: Array<any>) => void,
+ *   scale?: { pixelsPerUnit: number, unit: string },
+ *   onScaleChange?: (scale: { pixelsPerUnit: number, unit: string }) => void,
+ * }} props
+ */
+const BlueprintCanvas = memo(function BlueprintCanvas({
   imageUrl,
   measurements = [],
   onMeasurementsChange,
@@ -1282,16 +1441,13 @@ export default function BlueprintCanvas({
       <div
         ref={containerRef}
         className="flex-1 relative overflow-hidden"
-        style={{ minHeight: 400, backgroundColor: '#f1f5f9' }}
+        style={{ 
+          minHeight: 400, 
+          backgroundColor: '#f1f5f9',
+        }}
       >
         {!imageUrl ? (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <Ruler className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No blueprint loaded</p>
-              <p className="text-sm">Upload a blueprint image to begin measuring</p>
-            </div>
-          </div>
+          <EmptyState />
         ) : (
           <canvas
             ref={canvasRef}
@@ -1321,43 +1477,22 @@ export default function BlueprintCanvas({
 
         {/* Calibration instruction overlay */}
         {calibrating && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2">
-            <Ruler className="w-4 h-4" />
-            Click two points on a known dimension ({calibrationPoints.length}/2)
-            <button
-              onClick={() => { setCalibrating(false); setCalibrationPoints([]); }}
-              className="ml-2 text-purple-200 hover:text-white"
-            >
-              Cancel
-            </button>
-          </div>
+          <CalibrationOverlay 
+            calibrationPoints={calibrationPoints}
+            onCancel={() => { setCalibrating(false); setCalibrationPoints([]); }}
+          />
         )}
 
-        {/* Tool hint overlay */}
+        {/* Tool hint overlays */}
         {tool === TOOL_TYPES.AREA && currentPoints.length > 0 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-xs font-medium">
-            Click to add points ({currentPoints.length}). Double-click to close polygon. Esc to cancel.
-          </div>
+          <AreaToolHint pointCount={currentPoints.length} />
         )}
         {(tool === TOOL_TYPES.LENGTH || tool === TOOL_TYPES.RECTANGLE || tool === TOOL_TYPES.CIRCLE) && currentPoints.length === 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-3 py-1.5 rounded-lg shadow-lg text-xs font-medium">
-            {tool === TOOL_TYPES.LENGTH && 'Click second point to complete. Esc to cancel.'}
-            {tool === TOOL_TYPES.RECTANGLE && 'Click opposite corner to complete. Esc to cancel.'}
-            {tool === TOOL_TYPES.CIRCLE && 'Click edge point to set radius. Esc to cancel.'}
-          </div>
+          <DrawToolHint tool={tool} />
         )}
 
         {/* Coordinates display */}
-        {mouseImg && image && (
-          <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded px-2 py-1 text-[10px] font-mono text-gray-500 tabular-nums select-none">
-            {Math.round(mouseImg.x)}, {Math.round(mouseImg.y)}
-            {scale?.pixelsPerUnit && (
-              <span className="ml-2 text-gray-400">
-                ({(mouseImg.x / scale.pixelsPerUnit).toFixed(1)}, {(mouseImg.y / scale.pixelsPerUnit).toFixed(1)} {scale.unit})
-              </span>
-            )}
-          </div>
-        )}
+        <CoordinatesDisplay mouseImg={mouseImg} scale={scale} />
       </div>
 
       {/* Clear Confirmation */}
@@ -1373,4 +1508,8 @@ export default function BlueprintCanvas({
       )}
     </div>
   );
-}
+});
+
+BlueprintCanvas.displayName = 'BlueprintCanvas';
+
+export default BlueprintCanvas;

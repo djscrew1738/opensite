@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, Command, Loader2 } from 'lucide-react';
 import { api } from '../../api/client';
+import { useToast } from '../../hooks/useToast';
 import SearchResultRow from '../leads/SearchResultRow';
 
 /**
@@ -16,6 +17,7 @@ import SearchResultRow from '../leads/SearchResultRow';
  */
 export default function GlobalSearch({ isOpen, onClose }) {
   const navigate = useNavigate();
+  const { error: showToastError } = useToast();
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [results, setResults] = useState(null);
@@ -60,6 +62,7 @@ export default function GlobalSearch({ isOpen, onClose }) {
         setHighlightedIndex(0);
       } catch (err) {
         console.error('Search error:', err);
+        showToastError(`Search failed: ${err.message}`);
       } finally {
         setIsSearching(false);
       }
@@ -182,7 +185,7 @@ export default function GlobalSearch({ isOpen, onClose }) {
                 role="tab"
                 aria-selected={typeFilter === f.key}
                 onClick={() => setTypeFilter(f.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
                   typeFilter === f.key
                     ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/30'
                     : 'text-text-muted hover:bg-surface-elevated'

@@ -218,7 +218,7 @@ export default function AnalysisResults({
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-surface-200 dark:border-surface-700">
         <div className="flex gap-1">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
@@ -228,7 +228,7 @@ export default function AnalysisResults({
                 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
                 ${activeTab === key 
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  : 'border-transparent text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'
                 }
               `}
             >
@@ -254,12 +254,12 @@ export default function AnalysisResults({
                 { label: 'Total Fixtures', value: totalFixtures, icon: CheckCircle2 },
                 { label: 'Complexity', value: aiAnalysis?.projectComplexity, icon: TrendingUp },
               ].filter(item => item.value != null).map(({ label, value, icon: Icon }) => (
-                <div key={label} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+                <div key={label} className="bg-surface-50 dark:bg-surface-800/50 rounded-xl p-4 border border-surface-100 dark:border-surface-700">
+                  <div className="flex items-center gap-2 text-surface-500 dark:text-surface-400 mb-1">
                     <Icon className="w-4 h-4" />
                     <span className="text-xs uppercase tracking-wider">{label}</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                     {typeof value === 'number' ? value.toLocaleString() : value}
                   </p>
                 </div>
@@ -269,7 +269,7 @@ export default function AnalysisResults({
             {/* Phase Breakdown */}
             {estimate?.breakdown && (
               <div className="card p-5">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-surface-900 dark:text-surface-100 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Calculator className="w-4 h-4 text-blue-600" />
                   Phase Breakdown
                 </h4>
@@ -281,13 +281,13 @@ export default function AnalysisResults({
                   ].map(({ key, label, percent, color }) => {
                     const amount = estimate.breakdown?.[key]?.amount || Math.round(estimate.total * percent / 100);
                     return (
-                      <div key={key} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                      <div key={key} className="bg-surface-50 dark:bg-surface-800/50 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
-                          <span className="text-xs text-gray-500">{percent}%</span>
+                          <span className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</span>
+                          <span className="text-xs text-surface-500">{percent}%</span>
                         </div>
-                        <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(amount)}</p>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-3">
+                        <p className="text-xl font-bold text-surface-900 dark:text-surface-100">{formatCurrency(amount)}</p>
+                        <div className="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-1.5 mt-3">
                           <div className={`${color} h-1.5 rounded-full`} style={{ width: `${percent}%` }} />
                         </div>
                       </div>
@@ -321,11 +321,11 @@ export default function AnalysisResults({
                   rounded-xl p-4 border text-center
                   ${count > 0 
                     ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' 
-                    : 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 opacity-50'
+                    : 'bg-surface-50 dark:bg-surface-800/30 border-surface-200 dark:border-surface-700 opacity-50'
                   }
                 `}>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{count}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{label}</p>
+                  <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">{count}</p>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">{label}</p>
                 </div>
               );
             })}
@@ -339,16 +339,16 @@ export default function AnalysisResults({
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-5 h-5 text-blue-600" />
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                <h4 className="font-semibold text-surface-900 dark:text-surface-100">
                   Material Takeoff
                 </h4>
-                <span className="text-sm text-gray-500">({takeoff.length} items)</span>
+                <span className="text-sm text-surface-500">({takeoff.length} items)</span>
               </div>
               <div className="flex items-center gap-2">
                 {takeoff.length > 0 && (
                   <button
                     onClick={handleExportCSV}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-600 transition-colors"
                   >
                     <Download className="w-4 h-4" />
                     Export CSV
@@ -356,7 +356,7 @@ export default function AnalysisResults({
                 )}
                 <button
                   onClick={() => setTakeoffExpanded(!takeoffExpanded)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg"
+                  className="p-1.5 text-surface-400 hover:text-surface-600 rounded-lg"
                 >
                   {takeoffExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </button>
@@ -374,7 +374,7 @@ export default function AnalysisResults({
                       text-xs px-3 py-1.5 rounded-full font-medium transition-colors
                       ${takeoffFilter === cat 
                         ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                        : 'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-200'
                       }
                     `}
                   >
@@ -387,46 +387,46 @@ export default function AnalysisResults({
             {/* Takeoff Table */}
             {takeoffExpanded && takeoff.length > 0 && (
               <>
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-700">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-gray-50 dark:bg-gray-800">
-                        <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold">Item</th>
-                        <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold hidden sm:table-cell">Category</th>
-                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold">Qty</th>
-                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold hidden sm:table-cell">Unit</th>
-                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold hidden md:table-cell">Each</th>
-                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-semibold">Total</th>
+                      <tr className="bg-surface-50 dark:bg-surface-800">
+                        <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold">Item</th>
+                        <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold hidden sm:table-cell">Category</th>
+                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold">Qty</th>
+                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold hidden sm:table-cell">Unit</th>
+                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold hidden md:table-cell">Each</th>
+                        <th className="text-right px-4 py-3 text-xs uppercase tracking-wider text-surface-500 font-semibold">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {filteredTakeoff.map((item, i) => (
-                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <tr key={i} className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
                           <td className="px-4 py-3">
-                            <p className="font-medium text-gray-900 dark:text-gray-100">{item.item}</p>
+                            <p className="font-medium text-surface-900 dark:text-surface-100">{item.item}</p>
                             {item.description && (
-                              <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                              <p className="text-xs text-surface-500 mt-0.5">{item.description}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell">
-                            <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                            <span className="text-xs px-2 py-0.5 bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300 rounded">
                               {item.category}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold">{item.quantity?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">{item.unit}</td>
-                          <td className="px-4 py-3 text-right text-gray-600 hidden md:table-cell">
+                          <td className="px-4 py-3 text-right text-surface-500 hidden sm:table-cell">{item.unit}</td>
+                          <td className="px-4 py-3 text-right text-surface-600 hidden md:table-cell">
                             ${item.unitCost?.toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-gray-900 dark:text-gray-100">
+                          <td className="px-4 py-3 text-right font-bold text-surface-900 dark:text-surface-100">
                             ${item.totalCost?.toLocaleString()}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-gray-50 dark:bg-gray-800 font-bold border-t-2 border-gray-200 dark:border-gray-700">
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100" colSpan={2}>Material Total</td>
+                      <tr className="bg-surface-50 dark:bg-surface-800 font-bold border-t-2 border-surface-200 dark:border-surface-700">
+                        <td className="px-4 py-3 text-surface-900 dark:text-surface-100" colSpan={2}>Material Total</td>
                         <td colSpan={3} className="hidden sm:table-cell"></td>
                         <td className="px-4 py-3 text-right text-lg text-blue-600 dark:text-blue-400">
                           {formatCurrency(grandTotal)}
@@ -439,17 +439,17 @@ export default function AnalysisResults({
                 {/* Category Breakdown */}
                 {takeoffFilter === 'All' && categories.length > 2 && (
                   <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">Category Breakdown</h5>
+                    <h5 className="text-sm font-medium text-surface-700 dark:text-surface-300">Category Breakdown</h5>
                     {categories.filter(c => c !== 'All').map(cat => {
                       const catTotal = takeoff.filter(m => m.category === cat).reduce((s, m) => s + (m.totalCost || 0), 0);
                       const pct = grandTotal > 0 ? (catTotal / grandTotal * 100) : 0;
                       return (
                         <div key={cat}>
                           <div className="flex items-center justify-between text-sm mb-1">
-                            <span className="text-gray-700 dark:text-gray-300">{cat}</span>
-                            <span className="text-gray-500">{formatCurrency(catTotal)} ({pct.toFixed(0)}%)</span>
+                            <span className="text-surface-700 dark:text-surface-300">{cat}</span>
+                            <span className="text-surface-500">{formatCurrency(catTotal)} ({pct.toFixed(0)}%)</span>
                           </div>
-                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                          <div className="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-2">
                             <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -461,9 +461,9 @@ export default function AnalysisResults({
             )}
 
             {takeoff.length === 0 && !isPartial && (
-              <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400">No material takeoff available</p>
+              <div className="text-center py-12 bg-surface-50 dark:bg-surface-800/30 rounded-xl border border-dashed border-surface-200 dark:border-surface-700">
+                <FileText className="w-12 h-12 text-surface-300 mx-auto mb-3" />
+                <p className="text-surface-500 dark:text-surface-400">No material takeoff available</p>
               </div>
             )}
           </div>
@@ -472,16 +472,16 @@ export default function AnalysisResults({
 
       {/* Raw AI Response (fallback) */}
       {aiAnalysisText && !aiAnalysis?.materialTakeoff?.length && !aiAnalysis?.overview && (
-        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">AI Response</h4>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+        <div className="mt-6 border-t border-surface-200 dark:border-surface-700 pt-6">
+          <h4 className="font-semibold text-surface-900 dark:text-surface-100 mb-3">AI Response</h4>
+          <div className="bg-surface-50 dark:bg-surface-800/50 rounded-xl p-4 text-sm text-surface-700 dark:text-surface-300 whitespace-pre-wrap">
             {aiAnalysisText}
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
         <button
           onClick={onUploadAnother}
           className="btn-secondary flex items-center gap-2"

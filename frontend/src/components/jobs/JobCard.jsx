@@ -31,7 +31,7 @@ export default function JobCard({
   if (loading) {
     return <JobCardSkeleton count={1} />;
   }
-  
+
   const {
     id,
     address,
@@ -317,4 +317,4 @@ export default function JobCard({
   );
 }
 
-
+JobCard.displayName = 'JobCard';

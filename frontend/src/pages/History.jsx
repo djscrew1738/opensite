@@ -51,7 +51,7 @@ function ConversationModal({ conversation, onClose }) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
           <div>
-            <h2 className="text-lg font-display font-bold text-surface-900 dark:text-surface-100">Conversation</h2>
+            <h2 className="text-lg font-bold text-surface-900 dark:text-surface-100">Conversation</h2>
             <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{conversation.messages?.length || 0} messages · {formatDate(conversation.createdAt)}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
@@ -73,7 +73,7 @@ function ConversationModal({ conversation, onClose }) {
               }`}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 {msg.timestamp && (
-                  <p className={`text-[10px] mt-1.5 ${msg.role === 'user' ? 'text-white/50' : 'text-surface-400'}`}>
+                  <p className={`text-xs mt-1.5 ${msg.role === 'user' ? 'text-white/50' : 'text-surface-400'}`}>
                     {formatDate(msg.timestamp)}
                   </p>
                 )}
@@ -120,7 +120,7 @@ function EstimateModal({ estimate, onClose }) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
           <div>
-            <h2 className="text-lg font-display font-bold text-surface-900 dark:text-surface-100">Estimate Details</h2>
+            <h2 className="text-lg font-bold text-surface-900 dark:text-surface-100">Estimate Details</h2>
             <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
               {estimate.sqft?.toLocaleString()} sqft · {estimate.units} units · {formatDate(estimate.createdAt)}
             </p>
@@ -136,7 +136,7 @@ function EstimateModal({ estimate, onClose }) {
                 Sync to QBO
               </button>
             ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase border border-emerald-100 dark:border-emerald-800">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase border border-emerald-100 dark:border-emerald-800">
                 <CheckCircle2 className="w-3 h-3" />
                 QBO Synced
               </div>
@@ -155,7 +155,7 @@ function EstimateModal({ estimate, onClose }) {
               { label: 'Margin', value: estimate.margin || '--' },
             ].map(s => (
               <div key={s.label} className="bg-surface-50 dark:bg-surface-800 rounded-xl p-4 text-center border border-surface-200 dark:border-surface-700">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">{s.label}</p>
+                <p className="text-xs uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">{s.label}</p>
                 <p className="text-lg font-bold text-surface-900 dark:text-surface-100 mt-1">{s.value}</p>
               </div>
             ))}
@@ -500,13 +500,13 @@ function EstimatesTab({ data, loading, onSelect, onDelete }) {
           meta={
             <div className="flex items-center gap-2">
               {est.qboId && (
-                <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase flex items-center gap-1">
+                <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   QBO Synced
                 </span>
               )}
               {est.margin && (
-                <span className="text-[10px] px-2 py-1 rounded-full bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 font-semibold uppercase">
+                <span className="text-xs px-2 py-1 rounded-full bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 font-semibold uppercase">
                   {est.margin}
                 </span>
               )}

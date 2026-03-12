@@ -27,7 +27,7 @@ export default function NotificationBell({
 
   const sizeClasses = {
     sm: { button: 'w-8 h-8', icon: 'w-4 h-4', badge: 'text-[9px] min-w-[14px] h-[14px]' },
-    default: { button: 'w-10 h-10', icon: 'w-5 h-5', badge: 'text-[10px] min-w-[18px] h-[18px]' },
+    default: { button: 'w-10 h-10', icon: 'w-5 h-5', badge: 'text-xs min-w-[18px] h-[18px]' },
     lg: { button: 'w-12 h-12', icon: 'w-6 h-6', badge: 'text-xs min-w-[20px] h-[20px]' },
   };
 
@@ -45,15 +45,15 @@ export default function NotificationBell({
       `}
       style={{
         background: 'transparent',
-        color: 'rgba(148, 163, 184, 0.6)',
+        color: colors.text.muted,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-        e.currentTarget.style.color = 'rgba(148, 163, 184, 0.9)';
+        e.currentTarget.style.background = colors.surface.elevated;
+        e.currentTarget.style.color = colors.text.secondary;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.color = 'rgba(148, 163, 184, 0.6)';
+        e.currentTarget.style.color = colors.text.muted;
       }}
       aria-label={`Notifications${count > 0 ? `, ${count} unread` : ''}${hasUrgent ? ', urgent items require attention' : ''}`}
       aria-expanded={false}
@@ -150,7 +150,7 @@ export function NotificationBellCompact({ count = 0, hasUrgent = false, onClick 
         <Bell
           className="w-[22px] h-[22px]"
           strokeWidth={1.75}
-          style={{ color: 'rgba(148, 163, 184, 0.5)' }}
+          style={{ color: colors.text.muted }}
           aria-hidden="true"
         />
         
@@ -195,7 +195,7 @@ export function NotificationBellCompact({ count = 0, hasUrgent = false, onClick 
         className="font-semibold leading-none"
         style={{
           fontSize: '10px',
-          color: 'rgba(148, 163, 184, 0.4)',
+          color: colors.text.muted,
         }}
       >
         Alerts

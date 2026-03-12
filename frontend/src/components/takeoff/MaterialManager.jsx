@@ -401,7 +401,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
     return (
       <div
         key={material.id}
-        className={`flex items-center gap-2 px-4 py-3 hover:bg-gray-50 transition-colors ${
+        className={`flex items-center gap-2 px-4 py-3 hover:bg-surface-50 transition-colors ${
           selectionMode ? 'cursor-pointer' : ''
         } ${isSelected ? 'bg-primary-50' : ''}`}
         onClick={selectionMode ? () => onSelect(material) : undefined}
@@ -413,7 +413,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
               type="checkbox"
               checked={isSelected}
               onChange={() => handleToggleSelect(material.id)}
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="rounded border-surface-300 text-primary-600 focus:ring-primary-500"
             />
           </label>
         )}
@@ -428,7 +428,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             className={`flex-shrink-0 p-0.5 rounded transition-colors ${
               material.isFavorite
                 ? 'text-yellow-500 hover:text-yellow-600'
-                : 'text-gray-300 hover:text-yellow-400'
+                : 'text-surface-300 hover:text-yellow-400'
             }`}
             title={material.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
@@ -446,14 +446,14 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
           }}
         >
           <div className="flex items-center gap-2">
-            <p className="font-medium text-gray-900 truncate">{material.name}</p>
+            <p className="font-medium text-surface-900 truncate">{material.name}</p>
             {material.usageCount > 0 && (
-              <span className="flex-shrink-0 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+              <span className="flex-shrink-0 text-xs bg-surface-100 text-surface-500 px-1.5 py-0.5 rounded-full">
                 {material.usageCount}x used
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 truncate">
+          <p className="text-sm text-surface-500 truncate">
             {material.supplier && <span>{material.supplier}</span>}
             {material.supplier && material.partNumber && <span> &middot; </span>}
             {material.partNumber && <span className="font-mono text-xs">{material.partNumber}</span>}
@@ -464,11 +464,11 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
         {/* Price info */}
         <div className="flex items-center gap-3 ml-4 flex-shrink-0">
           <div className="text-right">
-            <span className="font-semibold text-gray-900 whitespace-nowrap">
+            <span className="font-semibold text-surface-900 whitespace-nowrap">
               ${Number(material.unitCost).toFixed(2)}/{material.unit}
             </span>
             {priceWithMarkup && (
-              <p className="text-[10px] text-green-600">
+              <p className="text-xs text-green-600">
                 +{material.markup}% = ${priceWithMarkup.toFixed(2)}
               </p>
             )}
@@ -479,28 +479,28 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             <div className="flex gap-0.5">
               <button
                 onClick={(e) => { e.stopPropagation(); setDetailMaterialId(material.id); }}
-                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                 title="View details"
               >
                 <Eye className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); startEdit(material); }}
-                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                 title="Edit"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); duplicateMutation.mutate(material.id); }}
-                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                 title="Duplicate"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(material.id, material.name); }}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                className="p-1.5 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded"
                 title="Delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -513,32 +513,32 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
   };
 
   const renderTableView = () => (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white border border-surface-200 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
+            <tr className="bg-surface-50 border-b border-surface-200">
               {!selectionMode && (
                 <th className="w-10 px-3 py-2">
                   <input
                     type="checkbox"
                     checked={selectedIds.size === materials.length && materials.length > 0}
                     onChange={handleSelectAll}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="rounded border-surface-300 text-primary-600 focus:ring-primary-500"
                   />
                 </th>
               )}
               <th className="w-8 px-1 py-2"></th>
-              <th className="text-left px-3 py-2 text-gray-600 font-semibold">Material</th>
-              <th className="text-left px-3 py-2 text-gray-600 font-semibold">Category</th>
-              <th className="text-left px-3 py-2 text-gray-600 font-semibold">Supplier</th>
-              <th className="text-left px-3 py-2 text-gray-600 font-semibold">Part #</th>
-              <th className="text-center px-3 py-2 text-gray-600 font-semibold">Unit</th>
-              <th className="text-right px-3 py-2 text-gray-600 font-semibold">Cost</th>
-              <th className="text-right px-3 py-2 text-gray-600 font-semibold">Markup</th>
-              <th className="text-center px-3 py-2 text-gray-600 font-semibold">Used</th>
+              <th className="text-left px-3 py-2 text-surface-600 font-semibold">Material</th>
+              <th className="text-left px-3 py-2 text-surface-600 font-semibold">Category</th>
+              <th className="text-left px-3 py-2 text-surface-600 font-semibold">Supplier</th>
+              <th className="text-left px-3 py-2 text-surface-600 font-semibold">Part #</th>
+              <th className="text-center px-3 py-2 text-surface-600 font-semibold">Unit</th>
+              <th className="text-right px-3 py-2 text-surface-600 font-semibold">Cost</th>
+              <th className="text-right px-3 py-2 text-surface-600 font-semibold">Markup</th>
+              <th className="text-center px-3 py-2 text-surface-600 font-semibold">Used</th>
               {!selectionMode && (
-                <th className="text-right px-3 py-2 text-gray-600 font-semibold w-24">Actions</th>
+                <th className="text-right px-3 py-2 text-surface-600 font-semibold w-24">Actions</th>
               )}
             </tr>
           </thead>
@@ -548,7 +548,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
               return (
                 <tr
                   key={material.id}
-                  className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-primary-50' : ''} ${
+                  className={`hover:bg-surface-50 transition-colors ${isSelected ? 'bg-primary-50' : ''} ${
                     selectionMode ? 'cursor-pointer' : ''
                   }`}
                   onClick={selectionMode ? () => onSelect(material) : undefined}
@@ -559,14 +559,14 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleToggleSelect(material.id)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        className="rounded border-surface-300 text-primary-600 focus:ring-primary-500"
                       />
                     </td>
                   )}
                   <td className="px-1 py-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFavoriteMutation.mutate(material.id); }}
-                      className={material.isFavorite ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}
+                      className={material.isFavorite ? 'text-yellow-500' : 'text-surface-300 hover:text-yellow-400'}
                     >
                       <Star className="w-3.5 h-3.5" fill={material.isFavorite ? 'currentColor' : 'none'} />
                     </button>
@@ -574,7 +574,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                   <td className="px-3 py-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); setDetailMaterialId(material.id); }}
-                      className="text-left font-medium text-gray-900 hover:text-primary-600 transition-colors"
+                      className="text-left font-medium text-surface-900 hover:text-primary-600 transition-colors"
                     >
                       {material.name}
                     </button>
@@ -591,16 +591,16 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                       {CATEGORY_LABELS[material.category] || material.category}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-gray-600">{material.supplier || '-'}</td>
-                  <td className="px-3 py-2 text-gray-600 font-mono text-xs">{material.partNumber || '-'}</td>
-                  <td className="px-3 py-2 text-center text-gray-600">{material.unit}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                  <td className="px-3 py-2 text-surface-600">{material.supplier || '-'}</td>
+                  <td className="px-3 py-2 text-surface-600 font-mono text-xs">{material.partNumber || '-'}</td>
+                  <td className="px-3 py-2 text-center text-surface-600">{material.unit}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-surface-900">
                     ${Number(material.unitCost).toFixed(2)}
                   </td>
-                  <td className="px-3 py-2 text-right text-gray-600">
+                  <td className="px-3 py-2 text-right text-surface-600">
                     {material.markup ? `${material.markup}%` : '-'}
                   </td>
-                  <td className="px-3 py-2 text-center text-gray-500">
+                  <td className="px-3 py-2 text-center text-surface-500">
                     {material.usageCount || 0}
                   </td>
                   {!selectionMode && (
@@ -608,21 +608,21 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                       <div className="flex justify-end gap-0.5">
                         <button
                           onClick={(e) => { e.stopPropagation(); startEdit(material); }}
-                          className="p-1 text-gray-400 hover:text-primary-600 rounded"
+                          className="p-1 text-surface-400 hover:text-primary-600 rounded"
                           title="Edit"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); duplicateMutation.mutate(material.id); }}
-                          className="p-1 text-gray-400 hover:text-primary-600 rounded"
+                          className="p-1 text-surface-400 hover:text-primary-600 rounded"
                           title="Duplicate"
                         >
                           <Copy className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(material.id, material.name); }}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded"
+                          className="p-1 text-surface-400 hover:text-red-600 rounded"
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -651,7 +651,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
           <div
             key={material.id}
             className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all ${
-              isSelected ? 'border-primary-300 bg-primary-50 ring-1 ring-primary-200' : 'border-gray-200'
+              isSelected ? 'border-primary-300 bg-primary-50 ring-1 ring-primary-200' : 'border-surface-200'
             } ${selectionMode ? 'cursor-pointer' : ''}`}
             onClick={selectionMode ? () => onSelect(material) : undefined}
           >
@@ -660,7 +660,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 {!selectionMode && (
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleFavoriteMutation.mutate(material.id); }}
-                    className={material.isFavorite ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}
+                    className={material.isFavorite ? 'text-yellow-500' : 'text-surface-300 hover:text-yellow-400'}
                   >
                     <Star className="w-4 h-4" fill={material.isFavorite ? 'currentColor' : 'none'} />
                   </button>
@@ -670,12 +670,12 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                     type="checkbox"
                     checked={isSelected}
                     onChange={(e) => { e.stopPropagation(); handleToggleSelect(material.id); }}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="rounded border-surface-300 text-primary-600 focus:ring-primary-500"
                   />
                 )}
               </div>
               <span
-                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
                 style={{
                   backgroundColor: (CATEGORY_COLORS[material.category] || '#6b7280') + '15',
                   color: CATEGORY_COLORS[material.category] || '#6b7280'
@@ -694,12 +694,12 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
               }}
               className="text-left w-full"
             >
-              <h4 className="font-semibold text-gray-900 text-sm leading-tight hover:text-primary-600 transition-colors">
+              <h4 className="font-semibold text-surface-900 text-sm leading-tight hover:text-primary-600 transition-colors">
                 {material.name}
               </h4>
             </button>
 
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+            <div className="mt-2 flex items-center gap-2 text-xs text-surface-500">
               {material.supplier && <span>{material.supplier}</span>}
               {material.partNumber && (
                 <>
@@ -711,36 +711,36 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
             <div className="mt-3 flex items-end justify-between">
               <div>
-                <p className="text-lg font-bold text-gray-900">${Number(material.unitCost).toFixed(2)}</p>
-                <p className="text-xs text-gray-500">per {material.unit}</p>
+                <p className="text-lg font-bold text-surface-900">${Number(material.unitCost).toFixed(2)}</p>
+                <p className="text-xs text-surface-500">per {material.unit}</p>
                 {priceWithMarkup && (
-                  <p className="text-[10px] text-green-600 font-medium">
+                  <p className="text-xs text-green-600 font-medium">
                     w/ {material.markup}% markup: ${priceWithMarkup.toFixed(2)}
                   </p>
                 )}
               </div>
               {material.usageCount > 0 && (
-                <span className="text-xs text-gray-400">{material.usageCount}x used</span>
+                <span className="text-xs text-surface-400">{material.usageCount}x used</span>
               )}
             </div>
 
             {!selectionMode && (
-              <div className="mt-3 pt-2 border-t border-gray-100 flex gap-1">
+              <div className="mt-3 pt-2 border-t border-surface-100 flex gap-1">
                 <button
                   onClick={(e) => { e.stopPropagation(); setDetailMaterialId(material.id); }}
-                  className="flex-1 text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center justify-center gap-1"
+                  className="flex-1 text-xs px-2 py-1 text-surface-600 hover:bg-surface-100 rounded transition-colors flex items-center justify-center gap-1"
                 >
                   <Eye className="w-3 h-3" /> View
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(material); }}
-                  className="flex-1 text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center justify-center gap-1"
+                  className="flex-1 text-xs px-2 py-1 text-surface-600 hover:bg-surface-100 rounded transition-colors flex items-center justify-center gap-1"
                 >
                   <Edit3 className="w-3 h-3" /> Edit
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); duplicateMutation.mutate(material.id); }}
-                  className="flex-1 text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center justify-center gap-1"
+                  className="flex-1 text-xs px-2 py-1 text-surface-600 hover:bg-surface-100 rounded transition-colors flex items-center justify-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Copy
                 </button>
@@ -762,7 +762,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
           <div key={category}>
             <button
               onClick={() => toggleCategory(category)}
-              className="w-full flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 hover:text-gray-900 transition-colors px-1 py-1"
+              className="w-full flex items-center gap-2 text-xs font-semibold text-surface-600 uppercase tracking-wider mb-1.5 hover:text-surface-900 transition-colors px-1 py-1"
             >
               {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               <span
@@ -770,13 +770,13 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 style={{ backgroundColor: CATEGORY_COLORS[category] || '#6b7280' }}
               />
               {CATEGORY_LABELS[category] || category}
-              <span className="text-gray-400 font-normal">({items.length})</span>
-              <span className="ml-auto text-gray-400 font-normal normal-case text-[10px]">
+              <span className="text-surface-400 font-normal">({items.length})</span>
+              <span className="ml-auto text-surface-400 font-normal normal-case text-xs">
                 avg ${(categoryTotal / items.length).toFixed(2)}
               </span>
             </button>
             {!isCollapsed && (
-              <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              <div className="bg-white border border-surface-200 rounded-lg divide-y divide-gray-100">
                 {items.map(material => renderMaterialRow(material))}
               </div>
             )}
@@ -791,33 +791,33 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       {/* Stats bar */}
       {!selectionMode && stats.total > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-0.5">
+          <div className="bg-white border border-surface-200 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-surface-500 mb-0.5">
               <Package className="w-3.5 h-3.5" />
               Total Materials
             </div>
-            <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xl font-bold text-surface-900">{stats.total}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-0.5">
+          <div className="bg-white border border-surface-200 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-surface-500 mb-0.5">
               <Star className="w-3.5 h-3.5" />
               Favorites
             </div>
-            <p className="text-xl font-bold text-gray-900">{stats.favorites || 0}</p>
+            <p className="text-xl font-bold text-surface-900">{stats.favorites || 0}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-0.5">
+          <div className="bg-white border border-surface-200 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-surface-500 mb-0.5">
               <DollarSign className="w-3.5 h-3.5" />
               Suppliers
             </div>
-            <p className="text-xl font-bold text-gray-900">{stats.suppliers || 0}</p>
+            <p className="text-xl font-bold text-surface-900">{stats.suppliers || 0}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-0.5">
+          <div className="bg-white border border-surface-200 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-surface-500 mb-0.5">
               <History className="w-3.5 h-3.5" />
               Price Changes (30d)
             </div>
-            <p className="text-xl font-bold text-gray-900">{stats.recentPriceChanges || 0}</p>
+            <p className="text-xl font-bold text-surface-900">{stats.recentPriceChanges || 0}</p>
           </div>
         </div>
       )}
@@ -838,7 +838,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               quickFilter === id
                 ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-200'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                : 'bg-white text-surface-600 hover:bg-surface-100 border border-surface-200'
             }`}
           >
             <IconComponent className="w-3.5 h-3.5" />
@@ -852,7 +852,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
         <div className="flex flex-col sm:flex-row gap-2">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
             <input
               type="text"
               placeholder="Search materials, suppliers, part numbers..."
@@ -863,7 +863,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -900,7 +900,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
               className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${
                 showAdvancedFilters || supplierFilter || minPrice || maxPrice
                   ? 'border-primary-300 bg-primary-50 text-primary-700'
-                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  : 'border-surface-300 text-surface-600 hover:bg-surface-50'
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
@@ -911,7 +911,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             </button>
 
             {/* View mode toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex border border-surface-300 rounded-lg overflow-hidden">
               {[
                 { mode: VIEW_MODES.GROUPED, icon: List, label: 'Grouped' },
                 { mode: VIEW_MODES.TABLE, icon: Table2, label: 'Table' },
@@ -925,7 +925,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                   className={`p-2 transition-colors ${
                     viewMode === mode
                       ? 'bg-primary-50 text-primary-600'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                      : 'text-surface-400 hover:text-surface-600 hover:bg-surface-50'
                   }`}
                   title={label}
                 >
@@ -938,7 +938,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
         {/* Advanced Filters (collapsible) */}
         {showAdvancedFilters && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-wrap items-end gap-4">
+          <div className="bg-white border border-surface-200 rounded-lg p-4 flex flex-wrap items-end gap-4">
             <div>
               <label className="label">Supplier</label>
               <select
@@ -982,7 +982,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 setMinPrice('');
                 setMaxPrice('');
               }}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              className="text-sm text-surface-500 hover:text-surface-700 underline"
             >
               Clear filters
             </button>
@@ -1043,7 +1043,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
 
           {/* Bulk action bar */}
           {selectedIds.size > 0 && !selectionMode && (
-            <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-300">
+            <div className="flex items-center gap-2 ml-2 pl-2 border-l border-surface-300">
               <span className="text-sm font-medium text-primary-600">
                 {selectedIds.size} selected
               </span>
@@ -1066,7 +1066,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
           )}
 
           {/* Material count */}
-          <span className="text-xs text-gray-400 ml-auto">
+          <span className="text-xs text-surface-400 ml-auto">
             {materials.length} material{materials.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -1076,10 +1076,10 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       {showAddForm && (
         <div className="card border-primary-200 bg-primary-50/50">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="font-semibold text-gray-900">
+            <h4 className="font-semibold text-surface-900">
               {editingId ? 'Edit Material' : 'New Material'}
             </h4>
-            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+            <button onClick={resetForm} className="text-surface-400 hover:text-surface-600">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -1211,17 +1211,17 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
       {showImportPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-surface-200 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="font-semibold text-surface-900 flex items-center gap-2">
                   <FileSpreadsheet className="w-5 h-5 text-primary-600" />
                   Import Preview
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-surface-500 mt-0.5">
                   {importData.length} materials ready to import
                 </p>
               </div>
-              <button onClick={() => { setShowImportPreview(false); setImportData([]); }} className="p-1 text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setShowImportPreview(false); setImportData([]); }} className="p-1 text-surface-400 hover:text-surface-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1238,30 +1238,30 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
             <div className="flex-1 overflow-auto px-6 py-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-2 text-gray-600 font-semibold">Name</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-semibold">Category</th>
-                    <th className="text-center py-2 px-2 text-gray-600 font-semibold">Unit</th>
-                    <th className="text-right py-2 px-2 text-gray-600 font-semibold">Cost</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-semibold">Supplier</th>
+                  <tr className="border-b border-surface-200">
+                    <th className="text-left py-2 px-2 text-surface-600 font-semibold">Name</th>
+                    <th className="text-left py-2 px-2 text-surface-600 font-semibold">Category</th>
+                    <th className="text-center py-2 px-2 text-surface-600 font-semibold">Unit</th>
+                    <th className="text-right py-2 px-2 text-surface-600 font-semibold">Cost</th>
+                    <th className="text-left py-2 px-2 text-surface-600 font-semibold">Supplier</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {importData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 px-2 text-gray-900">{item.name}</td>
-                      <td className="py-2 px-2 text-gray-600">{CATEGORY_LABELS[item.category] || item.category}</td>
-                      <td className="py-2 px-2 text-center text-gray-600">{item.unit}</td>
+                    <tr key={idx} className="hover:bg-surface-50">
+                      <td className="py-2 px-2 text-surface-900">{item.name}</td>
+                      <td className="py-2 px-2 text-surface-600">{CATEGORY_LABELS[item.category] || item.category}</td>
+                      <td className="py-2 px-2 text-center text-surface-600">{item.unit}</td>
                       <td className="py-2 px-2 text-right font-medium">${Number(item.unitCost).toFixed(2)}</td>
-                      <td className="py-2 px-2 text-gray-600">{item.supplier || '-'}</td>
+                      <td className="py-2 px-2 text-surface-600">{item.supplier || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+            <div className="px-6 py-4 border-t border-surface-200 flex items-center justify-between">
+              <p className="text-sm text-surface-500">
                 This will add {importData.length} new materials to your catalog.
               </p>
               <div className="flex gap-2">
@@ -1294,15 +1294,15 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="font-semibold text-surface-900 flex items-center gap-2">
                 <Percent className="w-5 h-5 text-green-600" />
                 Bulk Price Update
               </h3>
-              <button onClick={() => { setShowBulkPriceModal(false); setBulkPricePercent(''); }} className="p-1 text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setShowBulkPriceModal(false); setBulkPricePercent(''); }} className="p-1 text-surface-400 hover:text-surface-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-surface-600 mb-4">
               Adjust prices for {selectedIds.size} selected material{selectedIds.size !== 1 ? 's' : ''} by a percentage.
             </p>
             <div className="mb-4">
@@ -1319,7 +1319,7 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
                 />
               </div>
               {bulkPricePercent && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-surface-500 mt-2">
                   {Number(bulkPricePercent) > 0 ? (
                     <span className="text-red-600 flex items-center gap-1">
                       <TrendingUp className="w-3 h-3" /> Increase by {bulkPricePercent}%
@@ -1358,15 +1358,15 @@ export default function MaterialManager({ onSelect, selectionMode = false }) {
         <div className="text-center py-8">
           <div className="animate-pulse space-y-3">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-14 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-14 bg-surface-200 rounded-lg"></div>
             ))}
           </div>
         </div>
       ) : materials.length === 0 ? (
         <div className="card text-center py-12">
-          <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500 font-medium">No materials found</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <Package className="w-12 h-12 mx-auto mb-3 text-surface-300" />
+          <p className="text-surface-500 font-medium">No materials found</p>
+          <p className="text-sm text-surface-400 mt-1">
             {search || categoryFilter || supplierFilter || minPrice || maxPrice || quickFilter !== QUICK_FILTERS.ALL
               ? 'Try adjusting your filters or search terms'
               : 'Add your first material to get started'}

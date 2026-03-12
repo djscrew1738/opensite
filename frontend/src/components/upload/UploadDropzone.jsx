@@ -1,21 +1,205 @@
-import { Upload, FileText, Image, FileSpreadsheet, File } from 'lucide-react';
-import { useDragDrop, useFileInput } from '../../hooks/upload/useDragDrop';
-
-const DEFAULT_ACCEPT = '.pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.dwg,.docx,.doc,.txt,.md,.csv,.html,.json,.xml,.xlsx,.xls';
-
 /**
  * UploadDropzone Component
  * Reusable dropzone for file uploads with compact and full variants
  * 
- * @param {Object} props
- * @param {Function} props.onFiles - Called with FileList when files are selected
- * @param {boolean} props.compact - Whether to show compact variant
- * @param {boolean} props.disabled - Whether dropzone is disabled
- * @param {string} props.className - Additional CSS classes
- * @param {string} props.accept - Accepted file types (comma-separated)
- * @param {ReactNode} props.children - Custom content (full mode only)
+ * @module components/upload/UploadDropzone
  */
-export default function UploadDropzone({
+
+import { memo, useCallback } from 'react';
+import { Upload, FileText, Image, FileSpreadsheet, File } from 'lucide-react';
+import { useDragDrop, useFileInput } from '../../hooks/upload/useDragDrop';
+import { colors } from '../../styles/tokens';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
+
+const DEFAULT_ACCEPT = '.pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.dwg,.docx,.doc,.txt,.md,.csv,.html,.json,.xml,.xlsx,.xls';
+
+const FILE_ICONS = [
+  { Icon: FileText, color: colors.danger.DEFAULT },
+  { Icon: Image, color: colors.accent.DEFAULT },
+  { Icon: FileSpreadsheet, color: colors.success.DEFAULT },
+  { Icon: File, color: colors.accent.purple },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * File type icons row
+ */
+const FileTypeIcons = memo(function FileTypeIcons() {
+  return (
+    <div className="flex items-center gap-3 mt-3">
+      {FILE_ICONS.map(({ Icon, color }, i) => (
+        <Icon 
+          key={i} 
+          className="w-4 h-4" 
+          style={{ color: `${color}99` }} // 60% opacity
+          aria-hidden="true" 
+        />
+      ))}
+    </div>
+  );
+});
+
+FileTypeIcons.displayName = 'FileTypeIcons';
+
+/**
+ * Compact dropzone variant
+ */
+const CompactDropzone = memo(function CompactDropzone({
+  isDragging,
+  disabled,
+  onClick,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
+  onDrop,
+  inputRef,
+  onChange,
+  accept,
+  className,
+}) {
+  return (
+    <div
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onClick={onClick}
+      className={`
+        flex items-center gap-3 p-3 rounded-xl border-2 border-dashed cursor-pointer
+        transition-all duration-200
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+        ${className}
+      `}
+      style={{
+        borderColor: isDragging ? colors.accent.DEFAULT : colors.border.strong,
+        backgroundColor: isDragging ? colors.accent.muted : colors.surface.primary,
+      }}
+    >
+      <Upload 
+        className="w-5 h-5 shrink-0" 
+        style={{ color: colors.text.muted }}
+      />
+      <div className="min-w-0">
+        <p 
+          className="text-sm"
+          style={{ color: colors.text.secondary }}
+        >
+          {isDragging ? 'Drop files here' : 'Drop files or click to browse'}
+        </p>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={accept}
+        className="hidden"
+        onChange={onChange}
+      />
+    </div>
+  );
+});
+
+CompactDropzone.displayName = 'CompactDropzone';
+
+/**
+ * Full dropzone variant
+ */
+const FullDropzone = memo(function FullDropzone({
+  isDragging,
+  disabled,
+  onClick,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
+  onDrop,
+  inputRef,
+  onChange,
+  accept,
+  className,
+  children,
+}) {
+  return (
+    <div
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onClick={onClick}
+      className={`
+        relative flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed
+        cursor-pointer transition-all duration-200
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+        ${className}
+      `}
+      style={{
+        borderColor: isDragging ? colors.accent.DEFAULT : colors.border.strong,
+        backgroundColor: isDragging ? colors.accent.muted : `${colors.surface.primary}80`,
+        transform: isDragging ? 'scale(1.01)' : 'scale(1)',
+      }}
+    >
+      {children || (
+        <>
+          <div 
+            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+            style={{ backgroundColor: colors.surface.elevated }}
+          >
+            <Upload 
+              className="w-6 h-6" 
+              style={{ color: colors.accent.DEFAULT }}
+            />
+          </div>
+          <p 
+            className="text-sm font-medium mb-1"
+            style={{ color: colors.text.primary }}
+          >
+            {isDragging ? 'Drop files here' : 'Drop files or click to browse'}
+          </p>
+          <p 
+            className="text-xs text-center"
+            style={{ color: colors.text.muted }}
+          >
+            PDF, Images, Docs, Spreadsheets — up to 100MB each
+          </p>
+          <FileTypeIcons />
+        </>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={accept}
+        className="hidden"
+        onChange={onChange}
+      />
+    </div>
+  );
+});
+
+FullDropzone.displayName = 'FullDropzone';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * UploadDropzone - Reusable dropzone for file uploads
+ * 
+ * @param {{
+ *   onFiles: (files: FileList) => void,
+ *   compact?: boolean,
+ *   disabled?: boolean,
+ *   className?: string,
+ *   accept?: string,
+ *   children?: React.ReactNode
+ * }} props
+ */
+const UploadDropzone = memo(function UploadDropzone({
   onFiles,
   compact = false,
   disabled = false,
@@ -23,93 +207,34 @@ export default function UploadDropzone({
   accept = DEFAULT_ACCEPT,
   children,
 }) {
-  const handleFiles = (files) => {
+  const handleFiles = useCallback((files) => {
     onFiles?.(files);
-  };
+  }, [onFiles]);
 
   const dragDrop = useDragDrop({ disabled, onDrop: handleFiles });
   const fileInput = useFileInput({ disabled, onSelect: handleFiles });
 
+  const commonProps = {
+    isDragging: dragDrop.isDragging,
+    disabled,
+    onClick: fileInput.handlers.onClick,
+    onDragEnter: dragDrop.handlers.onDragEnter,
+    onDragLeave: dragDrop.handlers.onDragLeave,
+    onDragOver: dragDrop.handlers.onDragOver,
+    onDrop: dragDrop.handlers.onDrop,
+    inputRef: fileInput.inputRef,
+    onChange: fileInput.handlers.onChange,
+    accept,
+    className,
+  };
+
   if (compact) {
-    return (
-      <div
-        onDragEnter={dragDrop.handlers.onDragEnter}
-        onDragLeave={dragDrop.handlers.onDragLeave}
-        onDragOver={dragDrop.handlers.onDragOver}
-        onDrop={dragDrop.handlers.onDrop}
-        onClick={fileInput.handlers.onClick}
-        className={`
-          flex items-center gap-3 p-3 rounded-xl border-2 border-dashed cursor-pointer
-          transition-all duration-200
-          ${dragDrop.isDragging
-            ? 'border-[#3B82F6] bg-[#3B82F6]/5'
-            : 'border-[#2D3548] hover:border-[#3B82F6]/40 bg-[#0F1117]'}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${className}
-        `}
-      >
-        <Upload className="w-5 h-5 text-[#64748B] shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm text-[#94A3B8]">
-            {dragDrop.isDragging ? 'Drop files here' : 'Drop files or click to browse'}
-          </p>
-        </div>
-        <input
-          ref={fileInput.inputRef}
-          type="file"
-          multiple
-          accept={accept}
-          className="hidden"
-          onChange={fileInput.handlers.onChange}
-        />
-      </div>
-    );
+    return <CompactDropzone {...commonProps} />;
   }
 
-  return (
-    <div
-      onDragEnter={dragDrop.handlers.onDragEnter}
-      onDragLeave={dragDrop.handlers.onDragLeave}
-      onDragOver={dragDrop.handlers.onDragOver}
-      onDrop={dragDrop.handlers.onDrop}
-      onClick={fileInput.handlers.onClick}
-      className={`
-        relative flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed
-        cursor-pointer transition-all duration-200
-        ${dragDrop.isDragging
-          ? 'border-[#3B82F6] bg-[#3B82F6]/5 scale-[1.01]'
-          : 'border-[#2D3548] hover:border-[#3B82F6]/40 bg-[#0F1117]/50'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${className}
-      `}
-    >
-      {children || (
-        <>
-          <div className="w-12 h-12 rounded-xl bg-[#181C24] flex items-center justify-center mb-3">
-            <Upload className="w-6 h-6 text-[#3B82F6]" />
-          </div>
-          <p className="text-sm font-medium text-[#F1F5F9] mb-1">
-            {dragDrop.isDragging ? 'Drop files here' : 'Drop files or click to browse'}
-          </p>
-          <p className="text-xs text-[#64748B] text-center">
-            PDF, Images, Docs, Spreadsheets — up to 100MB each
-          </p>
-          <div className="flex items-center gap-3 mt-3">
-            <FileText className="w-4 h-4 text-[#EF4444]/60" />
-            <Image className="w-4 h-4 text-[#3B82F6]/60" />
-            <FileSpreadsheet className="w-4 h-4 text-[#10B981]/60" />
-            <File className="w-4 h-4 text-[#8B5CF6]/60" />
-          </div>
-        </>
-      )}
-      <input
-        ref={fileInput.inputRef}
-        type="file"
-        multiple
-        accept={accept}
-        className="hidden"
-        onChange={fileInput.handlers.onChange}
-      />
-    </div>
-  );
-}
+  return <FullDropzone {...commonProps}>{children}</FullDropzone>;
+});
+
+UploadDropzone.displayName = 'UploadDropzone';
+
+export default UploadDropzone;

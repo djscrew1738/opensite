@@ -180,7 +180,7 @@ export default function OcrOverlay({
                           style={{ width: `${item.confidence * 100}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-surface-400">
+                      <span className="text-xs text-surface-400">
                         {(item.confidence * 100).toFixed(0)}%
                       </span>
                     </div>
@@ -213,7 +213,7 @@ export default function OcrOverlay({
           <FileText className="w-4 h-4" />
           {filteredItems.length > 0 && (
             <span className="absolute -top-1 -right-1 w-4 h-4 
-                             bg-primary-500 text-white text-[10px] rounded-full
+                             bg-primary-500 text-white text-xs rounded-full
                              flex items-center justify-center">
               {filteredItems.length}
             </span>

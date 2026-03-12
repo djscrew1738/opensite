@@ -1,10 +1,13 @@
 import { useState, useCallback, useMemo, memo } from 'react';
+import PropTypes from 'prop-types';
 import { Search, MapPin, Loader2, Grid3X3, Type, Zap } from 'lucide-react';
+import { colors, shadows, radius } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
 // ═══════════════════════════════════════════════════════════════
 
+/** @type {Array<{ label: string; keyword: string }>} */
 const CATEGORIES = [
   { label: 'Property Mgmt', keyword: 'property management company' },
   { label: 'Water Damage', keyword: 'water damage restoration' },
@@ -16,6 +19,7 @@ const CATEGORIES = [
   { label: 'Insurance', keyword: 'insurance adjuster' },
 ];
 
+/** @type {Array<{ name: string; lat: number; lng: number; radius: number }>} */
 const DFW_ZONES = [
   { name: 'Denton', lat: 33.2148, lng: -97.1331, radius: 15000 },
   { name: 'Allen/McKinney', lat: 33.1032, lng: -96.6706, radius: 15000 },
@@ -28,11 +32,33 @@ const DFW_ZONES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+// Type Definitions
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * @typedef {Object} Zone
+ * @property {string} name - Zone name
+ * @property {number} lat - Latitude
+ * @property {number} lng - Longitude
+ * @property {number} radius - Search radius in meters
+ */
+
+/**
+ * @typedef {Object} SearchOptions
+ * @property {Zone[]} [zones] - Multiple zones for search
+ * @property {number} [lat] - Single search latitude
+ * @property {number} [lng] - Single search longitude
+ * @property {number} [radius] - Single search radius
+ * @property {string} [zone] - Zone name
+ */
+
+// ═══════════════════════════════════════════════════════════════
 // Custom Hooks
 // ═══════════════════════════════════════════════════════════════
 
 /**
  * Hook to manage form state
+ * @returns {Object} Form state and handlers
  */
 function useSearchFormState() {
   const [keyword, setKeyword] = useState('');
@@ -78,6 +104,14 @@ function useSearchFormState() {
     setSelectedCategory(null);
   }, []);
 
+  const resetForm = useCallback(() => {
+    setKeyword('');
+    setCity('');
+    setSelectedZone(null);
+    setMultiZone(false);
+    setSelectedCategory(null);
+  }, []);
+
   return {
     keyword,
     setKeyword,
@@ -92,6 +126,7 @@ function useSearchFormState() {
     selectedCategory,
     handleCategoryClick,
     clearCategory,
+    resetForm,
   };
 }
 
@@ -101,6 +136,11 @@ function useSearchFormState() {
 
 /**
  * Category chip button
+ * @param {Object} props
+ * @param {{ label: string; keyword: string }} props.category - Category data
+ * @param {boolean} props.isSelected - Whether category is selected
+ * @param {() => void} props.onClick - Click handler
+ * @param {boolean} [props.disabled] - Whether button is disabled
  */
 const CategoryChip = memo(function CategoryChip({ 
   category, 
@@ -108,24 +148,69 @@ const CategoryChip = memo(function CategoryChip({
   onClick, 
   disabled 
 }) {
+  const buttonStyle = useMemo(() => ({
+    backgroundColor: isSelected ? colors.accent.DEFAULT : colors.surface.card,
+    color: isSelected ? colors.text.inverse : colors.text.secondary,
+    borderColor: isSelected ? colors.accent.DEFAULT : colors.border.default,
+    borderRadius: radius.full,
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  }), [isSelected, disabled]);
+
+  const handleMouseEnter = useCallback((e) => {
+    if (!isSelected && !disabled) {
+      e.currentTarget.style.borderColor = colors.accent.light;
+      e.currentTarget.style.color = colors.accent.DEFAULT;
+    }
+  }, [isSelected, disabled]);
+
+  const handleMouseLeave = useCallback((e) => {
+    if (!isSelected && !disabled) {
+      e.currentTarget.style.borderColor = colors.border.default;
+      e.currentTarget.style.color = colors.text.secondary;
+    }
+  }, [isSelected, disabled]);
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-        isSelected
-          ? 'bg-accent-500 text-white border-accent-500 shadow-sm'
-          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-accent-300 hover:text-accent-600 dark:hover:text-accent-400'
-      }`}
+      className="px-3 py-1.5 text-xs font-semibold transition-all border"
+      style={buttonStyle}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      aria-pressed={isSelected}
+      aria-label={`Category: ${category.label}`}
     >
       {category.label}
     </button>
   );
 });
 
+CategoryChip.displayName = 'CategoryChip';
+
+CategoryChip.propTypes = {
+  category: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    keyword: PropTypes.string.isRequired,
+  }).isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  onClick: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+};
+
+CategoryChip.defaultProps = {
+  disabled: false,
+};
+
 /**
  * Category selection section
+ * @param {Object} props
+ * @param {Array<{ label: string; keyword: string }>} props.categories - Available categories
+ * @param {string | null} props.selectedCategory - Currently selected category label
+ * @param {(cat: { label: string; keyword: string }) => void} props.onCategoryClick - Category click handler
+ * @param {boolean} [props.isRunning] - Whether a search is running
  */
 const CategorySection = memo(function CategorySection({ 
   categories, 
@@ -133,9 +218,16 @@ const CategorySection = memo(function CategorySection({
   onCategoryClick, 
   isRunning 
 }) {
+  const handleCategoryClick = useCallback((cat) => {
+    onCategoryClick(cat);
+  }, [onCategoryClick]);
+
   return (
     <div>
-      <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">
+      <label 
+        className="text-xs font-semibold uppercase tracking-wider mb-2 block"
+        style={{ color: colors.text.muted }}
+      >
         Gatekeeper Categories
       </label>
       <div className="flex flex-wrap gap-2">
@@ -144,7 +236,7 @@ const CategorySection = memo(function CategorySection({
             key={cat.label}
             category={cat}
             isSelected={selectedCategory === cat.label}
-            onClick={() => onCategoryClick(cat)}
+            onClick={() => handleCategoryClick(cat)}
             disabled={isRunning}
           />
         ))}
@@ -153,65 +245,141 @@ const CategorySection = memo(function CategorySection({
   );
 });
 
+CategorySection.displayName = 'CategorySection';
+
+CategorySection.propTypes = {
+  categories: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    keyword: PropTypes.string.isRequired,
+  })).isRequired,
+  selectedCategory: PropTypes.string,
+  onCategoryClick: PropTypes.func.isRequired,
+  isRunning: PropTypes.bool,
+};
+
+CategorySection.defaultProps = {
+  selectedCategory: null,
+  isRunning: false,
+};
+
 /**
  * Keyword input field
+ * @param {Object} props
+ * @param {string} props.value - Input value
+ * @param {(e: React.ChangeEvent<HTMLInputElement>) => void} props.onChange - Change handler
+ * @param {boolean} [props.disabled] - Whether input is disabled
+ * @param {string} [props.placeholder] - Input placeholder
  */
 const KeywordInput = memo(function KeywordInput({ 
   value, 
   onChange, 
-  disabled 
+  disabled,
+  placeholder = 'Business type (e.g., property management)',
 }) {
   return (
     <div className="relative">
-      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <Search 
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" 
+        style={{ color: colors.text.muted }}
+        aria-hidden="true"
+      />
       <input
         type="text"
-        placeholder="Business type (e.g., property management)"
+        placeholder={placeholder}
         value={value}
         onChange={onChange}
         className="input pl-12"
+        style={{ 
+          backgroundColor: colors.surface.card,
+          color: colors.text.primary,
+          borderColor: colors.border.default,
+          borderRadius: radius.input,
+          opacity: disabled ? 0.5 : 1,
+          cursor: disabled ? 'not-allowed' : 'text'
+        }}
         disabled={disabled}
+        aria-label="Search keyword"
       />
     </div>
   );
 });
 
+KeywordInput.displayName = 'KeywordInput';
+
+KeywordInput.propTypes = {
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  placeholder: PropTypes.string,
+};
+
+KeywordInput.defaultProps = {
+  disabled: false,
+  placeholder: 'Business type (e.g., property management)',
+};
+
 /**
  * Toggle button for zones/city mode
+ * @param {Object} props
+ * @param {boolean} props.useZones - Whether zones mode is active
+ * @param {(useZones: boolean) => void} props.onToggle - Toggle handler
  */
 const ModeToggle = memo(function ModeToggle({ useZones, onToggle }) {
+  const getButtonStyle = useCallback((isActive) => ({
+    backgroundColor: isActive ? colors.surface.card : 'transparent',
+    color: isActive ? colors.text.primary : colors.text.muted,
+    borderRadius: radius.sm,
+    boxShadow: isActive ? shadows.card : 'none',
+  }), []);
+
   return (
-    <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+    <div 
+      className="flex p-0.5"
+      style={{ 
+        backgroundColor: colors.surface.elevated,
+        borderRadius: radius.md
+      }}
+    >
       <button
         type="button"
         onClick={() => onToggle(true)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-          useZones
-            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-        }`}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
+        style={getButtonStyle(useZones)}
+        aria-pressed={useZones}
+        aria-label="Use DFW Zones"
       >
-        <Grid3X3 className="w-3.5 h-3.5" />
+        <Grid3X3 className="w-3.5 h-3.5" aria-hidden="true" />
         DFW Zones
       </button>
       <button
         type="button"
         onClick={() => onToggle(false)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-          !useZones
-            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-        }`}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
+        style={getButtonStyle(!useZones)}
+        aria-pressed={!useZones}
+        aria-label="Use custom city"
       >
-        <Type className="w-3.5 h-3.5" />
+        <Type className="w-3.5 h-3.5" aria-hidden="true" />
         Custom City
       </button>
     </div>
   );
 });
 
+ModeToggle.displayName = 'ModeToggle';
+
+ModeToggle.propTypes = {
+  useZones: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+};
+
 /**
  * Individual zone button
+ * @param {Object} props
+ * @param {Zone} props.zone - Zone data
+ * @param {boolean} props.isSelected - Whether zone is selected
+ * @param {() => void} props.onClick - Click handler
+ * @param {boolean} [props.disabled] - Whether button is disabled
  */
 const ZoneButton = memo(function ZoneButton({ 
   zone, 
@@ -219,30 +387,87 @@ const ZoneButton = memo(function ZoneButton({
   onClick, 
   disabled 
 }) {
+  const radiusKm = Math.round(zone.radius / 1000);
+  
+  const buttonStyle = useMemo(() => ({
+    backgroundColor: isSelected ? colors.accent.muted : colors.surface.card,
+    color: isSelected ? colors.accent.DEFAULT : colors.text.secondary,
+    borderColor: isSelected ? colors.accent.border : colors.border.default,
+    borderRadius: radius.card,
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  }), [isSelected, disabled]);
+
+  const handleMouseEnter = useCallback((e) => {
+    if (!isSelected && !disabled) {
+      e.currentTarget.style.borderColor = colors.accent.light;
+      e.currentTarget.style.backgroundColor = colors.accent.muted;
+    }
+  }, [isSelected, disabled]);
+
+  const handleMouseLeave = useCallback((e) => {
+    if (!isSelected && !disabled) {
+      e.currentTarget.style.borderColor = colors.border.default;
+      e.currentTarget.style.backgroundColor = colors.surface.card;
+    }
+  }, [isSelected, disabled]);
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`relative px-3 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-        isSelected
-          ? 'bg-accent-50 dark:bg-accent-950/30 text-accent-700 dark:text-accent-300 border-accent-300 dark:border-accent-700 shadow-sm'
-          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-accent-200 hover:bg-accent-50/50'
-      }`}
+      className="relative px-3 py-2.5 text-sm font-bold transition-all border text-left"
+      style={buttonStyle}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      aria-pressed={isSelected}
+      aria-label={`Zone: ${zone.name}`}
     >
       <div className="flex items-center gap-1.5">
-        <MapPin className={`w-3.5 h-3.5 ${isSelected ? 'text-accent-500' : 'text-gray-400'}`} />
+        <MapPin 
+          className="w-3.5 h-3.5" 
+          style={{ color: isSelected ? colors.accent.DEFAULT : colors.text.muted }}
+          aria-hidden="true"
+        />
         {zone.name}
       </div>
-      <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-0.5">
-        {(zone.radius / 1000).toFixed(0)}km radius
+      <div 
+        className="text-xs font-normal mt-0.5"
+        style={{ color: colors.text.muted }}
+      >
+        {radiusKm}km radius
       </div>
     </button>
   );
 });
 
+ZoneButton.displayName = 'ZoneButton';
+
+ZoneButton.propTypes = {
+  zone: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    lat: PropTypes.number.isRequired,
+    lng: PropTypes.number.isRequired,
+    radius: PropTypes.number.isRequired,
+  }).isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  onClick: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+};
+
+ZoneButton.defaultProps = {
+  disabled: false,
+};
+
 /**
  * Zones grid section
+ * @param {Object} props
+ * @param {Zone[]} props.zones - Available zones
+ * @param {Zone | null} props.selectedZone - Currently selected zone
+ * @param {boolean} props.multiZone - Whether multi-zone mode is active
+ * @param {(zone: Zone) => void} props.onZoneClick - Zone click handler
+ * @param {boolean} [props.isRunning] - Whether search is running
  */
 const ZonesGrid = memo(function ZonesGrid({ 
   zones, 
@@ -251,6 +476,10 @@ const ZonesGrid = memo(function ZonesGrid({
   onZoneClick, 
   isRunning 
 }) {
+  const handleZoneClick = useCallback((zone) => {
+    onZoneClick(zone);
+  }, [onZoneClick]);
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       {zones.map((zone) => {
@@ -260,7 +489,7 @@ const ZonesGrid = memo(function ZonesGrid({
             key={zone.name}
             zone={zone}
             isSelected={isSelected}
-            onClick={() => onZoneClick(zone)}
+            onClick={() => handleZoneClick(zone)}
             disabled={isRunning || multiZone}
           />
         );
@@ -269,85 +498,206 @@ const ZonesGrid = memo(function ZonesGrid({
   );
 });
 
+ZonesGrid.displayName = 'ZonesGrid';
+
+ZonesGrid.propTypes = {
+  zones: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    lat: PropTypes.number.isRequired,
+    lng: PropTypes.number.isRequired,
+    radius: PropTypes.number.isRequired,
+  })).isRequired,
+  selectedZone: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+  }),
+  multiZone: PropTypes.bool.isRequired,
+  onZoneClick: PropTypes.func.isRequired,
+  isRunning: PropTypes.bool,
+};
+
+ZonesGrid.defaultProps = {
+  selectedZone: null,
+  isRunning: false,
+};
+
 /**
  * Multi-zone checkbox
+ * @param {Object} props
+ * @param {boolean} props.checked - Whether checkbox is checked
+ * @param {(checked: boolean) => void} props.onChange - Change handler
+ * @param {boolean} [props.disabled] - Whether checkbox is disabled
+ * @param {number} [props.zoneCount] - Number of zones
  */
 const MultiZoneToggle = memo(function MultiZoneToggle({ 
   checked, 
   onChange, 
-  disabled 
+  disabled,
+  zoneCount = DFW_ZONES.length,
 }) {
+  const id = 'multi-zone-toggle';
+  
   return (
-    <label className="flex items-center gap-2 cursor-pointer">
+    <label 
+      htmlFor={id}
+      className="flex items-center gap-2 cursor-pointer select-none"
+    >
       <input
+        id={id}
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
-        className="w-4 h-4 rounded border-gray-300 text-accent-500 focus:ring-accent-500"
+        className="w-4 h-4 rounded"
+        style={{ 
+          borderColor: colors.border.default,
+          accentColor: colors.accent.DEFAULT
+        }}
+        aria-label="Search all zones"
       />
-      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <span 
+        className="text-sm font-semibold"
+        style={{ color: colors.text.primary }}
+      >
         Search All Zones
       </span>
-      <span className="text-xs text-gray-400">({DFW_ZONES.length} zones)</span>
+      <span style={{ color: colors.text.muted, fontSize: '0.75rem' }}>
+        ({zoneCount} zones)
+      </span>
     </label>
   );
 });
 
+MultiZoneToggle.displayName = 'MultiZoneToggle';
+
+MultiZoneToggle.propTypes = {
+  checked: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  zoneCount: PropTypes.number,
+};
+
+MultiZoneToggle.defaultProps = {
+  disabled: false,
+  zoneCount: DFW_ZONES.length,
+};
+
 /**
  * City input field
+ * @param {Object} props
+ * @param {string} props.value - Input value
+ * @param {(e: React.ChangeEvent<HTMLInputElement>) => void} props.onChange - Change handler
+ * @param {boolean} [props.disabled] - Whether input is disabled
  */
 const CityInput = memo(function CityInput({ value, onChange, disabled }) {
   return (
     <div className="relative">
-      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <MapPin 
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" 
+        style={{ color: colors.text.muted }}
+        aria-hidden="true"
+      />
       <input
         type="text"
         placeholder="City (e.g., Fort Worth TX)"
         value={value}
         onChange={onChange}
         className="input pl-12"
+        style={{ 
+          backgroundColor: colors.surface.card,
+          color: colors.text.primary,
+          borderColor: colors.border.default,
+          borderRadius: radius.input,
+          opacity: disabled ? 0.5 : 1,
+          cursor: disabled ? 'not-allowed' : 'text'
+        }}
         disabled={disabled}
+        aria-label="City name"
       />
     </div>
   );
 });
 
+CityInput.displayName = 'CityInput';
+
+CityInput.propTypes = {
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+};
+
+CityInput.defaultProps = {
+  disabled: false,
+};
+
 /**
  * Submit button
+ * @param {Object} props
+ * @param {boolean} props.canSubmit - Whether form can be submitted
+ * @param {boolean} props.isRunning - Whether search is running
+ * @param {boolean} [props.isMultiZone] - Whether multi-zone mode is active
+ * @param {number} [props.zoneCount] - Number of zones
  */
 const SubmitButton = memo(function SubmitButton({ 
   canSubmit, 
   isRunning, 
-  isMultiZone 
+  isMultiZone,
+  zoneCount = DFW_ZONES.length,
 }) {
   return (
     <button
       type="submit"
       disabled={!canSubmit}
-      className="btn-primary w-full justify-center"
+      className="w-full justify-center flex items-center gap-2 px-4 py-2 font-bold transition-all"
+      style={{ 
+        backgroundColor: canSubmit ? colors.accent.DEFAULT : colors.surface.elevated,
+        color: colors.text.inverse,
+        borderRadius: radius.btn,
+        opacity: canSubmit ? 1 : 0.5,
+        cursor: canSubmit ? 'pointer' : 'not-allowed'
+      }}
+      aria-label={isRunning ? 'Running pipeline' : 'Discover leads'}
     >
       {isRunning ? (
         <>
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
           Running Pipeline...
         </>
       ) : (
         <>
-          <Zap className="w-5 h-5" />
+          <Zap className="w-5 h-5" aria-hidden="true" />
           Discover Leads
-          {isMultiZone && ` (${DFW_ZONES.length} zones)`}
+          {isMultiZone && ` (${zoneCount} zones)`}
         </>
       )}
     </button>
   );
 });
 
+SubmitButton.displayName = 'SubmitButton';
+
+SubmitButton.propTypes = {
+  canSubmit: PropTypes.bool.isRequired,
+  isRunning: PropTypes.bool.isRequired,
+  isMultiZone: PropTypes.bool,
+  zoneCount: PropTypes.number,
+};
+
+SubmitButton.defaultProps = {
+  isMultiZone: false,
+  zoneCount: DFW_ZONES.length,
+};
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
-export default function DiscoverySearchForm({ onSubmit, isRunning }) {
+/**
+ * DiscoverySearchForm - Search form for discovering leads
+ * @param {Object} props
+ * @param {(keyword: string, city: string, options: SearchOptions) => void} props.onSubmit - Form submission handler
+ * @param {boolean} [props.isRunning] - Whether a search is currently running
+ */
+function DiscoverySearchForm({ onSubmit, isRunning }) {
   const {
     keyword,
     setKeyword,
@@ -395,8 +745,15 @@ export default function DiscoverySearchForm({ onSubmit, isRunning }) {
   }, [keyword, isRunning, useZones, multiZone, selectedZone, city, onSubmit]);
 
   return (
-    <form onSubmit={handleSubmit} className="card">
-      <div className="card-body p-4 space-y-4">
+    <form 
+      onSubmit={handleSubmit}
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderRadius: radius.card,
+        boxShadow: shadows.card
+      }}
+    >
+      <div className="p-4 space-y-4">
         <CategorySection
           categories={CATEGORIES}
           selectedCategory={selectedCategory}
@@ -412,7 +769,10 @@ export default function DiscoverySearchForm({ onSubmit, isRunning }) {
 
         <div>
           <div className="flex items-center gap-3 mb-3">
-            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <label 
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: colors.text.muted }}
+            >
               Search Area
             </label>
             <ModeToggle useZones={useZones} onToggle={handleToggleZones} />
@@ -452,3 +812,16 @@ export default function DiscoverySearchForm({ onSubmit, isRunning }) {
     </form>
   );
 }
+
+DiscoverySearchForm.displayName = 'DiscoverySearchForm';
+
+DiscoverySearchForm.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+  isRunning: PropTypes.bool,
+};
+
+DiscoverySearchForm.defaultProps = {
+  isRunning: false,
+};
+
+export default DiscoverySearchForm;

@@ -1,12 +1,29 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+/**
+ * AnnotationOverlay Component
+ * Renders annotation overlays on top of the OpenSeadragon viewer.
+ * 
+ * Supports:
+ * - HTML Overlays (Rects) - for fixtures, labels, pins
+ * - SVG Overlays (Paths) - for pipes, walls, runs
+ * 
+ * @module components/vision/AnnotationOverlay
+ */
+
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
+import { colors } from '../../styles/tokens';
+
+// Default annotation color (functional, not design token)
+const DEFAULT_ANNOTATION_COLOR = '#607D8B';
 
 /**
- * Renders annotation overlays on top of the OpenSeadragon viewer.
- * Supports:
- * 1. HTML Overlays (Rects) - for fixtures, labels, pins
- * 2. SVG Overlays (Paths) - for pipes, walls, runs
+ * AnnotationOverlay - Renders annotations on OpenSeadragon viewer
+ * @param {{
+ *   viewer: any;
+ *   layers: any[];
+ *   zoom: number;
+ * }} props
  */
-export default function AnnotationOverlay({ viewer, layers, zoom }) {
+const AnnotationOverlay = memo(function AnnotationOverlay({ viewer, layers, zoom }) {
   const [overlayElements, setOverlayElements] = useState([]);
   const svgOverlayRef = useRef(null);
 
@@ -56,11 +73,11 @@ export default function AnnotationOverlay({ viewer, layers, zoom }) {
       const inRange = zoom >= (layer.minZoom || 0) && zoom <= (layer.maxZoom || 20);
       if (!inRange) return;
 
-      const color = layer.style?.color || '#607D8B';
+      const color = layer.style?.color || DEFAULT_ANNOTATION_COLOR;
       const opacity = layer.style?.opacity || 0.6;
       const strokeWidth = layer.style?.strokeWidth || 2;
 
-      (layer.data || []).forEach((annotation, i) => {
+      (layer.data || []).forEach((annotation) => {
         // --- TYPE: PATH / POLYLINE (SVG) ---
         if (annotation.type === 'path' || annotation.points) {
           if (!svgOverlayRef.current) return;
@@ -117,7 +134,7 @@ export default function AnnotationOverlay({ viewer, layers, zoom }) {
               left: 0;
               padding: 2px 6px;
               background: ${color};
-              color: white;
+              color: ${colors.text.inverse};
               font-size: 10px;
               font-weight: 600;
               white-space: nowrap;
@@ -131,7 +148,7 @@ export default function AnnotationOverlay({ viewer, layers, zoom }) {
             el.appendChild(label);
           }
 
-          el.title = [annotation.label, annotation.details].filter(Boolean).join(' \u2014 ');
+          el.title = [annotation.label, annotation.details].filter(Boolean).join(' — ');
           el.addEventListener('mouseenter', () => { el.style.opacity = '1'; });
           el.addEventListener('mouseleave', () => { el.style.opacity = String(opacity); });
 
@@ -165,4 +182,8 @@ export default function AnnotationOverlay({ viewer, layers, zoom }) {
   }, [viewer, updateOverlays]);
 
   return null;
-}
+});
+
+AnnotationOverlay.displayName = 'AnnotationOverlay';
+
+export default AnnotationOverlay;

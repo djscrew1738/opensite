@@ -175,49 +175,8 @@ export function useBlueprintAnalysis() {
   };
 }
 
-/**
- * Hook for polling job status (fallback if WebSocket unavailable)
- */
-export function useJobStatus(jobId) {
-  const [status, setStatus] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!jobId) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await apiClient.get(`/blueprint/jobs/${jobId}`);
-        const data = response.data;
-        
-        setStatus(data.status);
-        setProgress(data.progress);
-        
-        if (data.results) {
-          setResults(data.results);
-        }
-        
-        if (data.errors?.length > 0) {
-          setError(data.errors.join(', '));
-        }
-        
-        // Stop polling if completed or failed
-        if (data.status === 'completed' || data.status === 'failed') {
-          clearInterval(pollInterval);
-        }
-      } catch (err) {
-        setError(err.message);
-        clearInterval(pollInterval);
-      }
-    }, 2000);
-
-    return () => clearInterval(pollInterval);
-  }, [jobId]);
-
-  return { status, progress, results, error };
-}
+// Re-export useJobStatus from dedicated hook file for convenience
+export { useJobStatus, useMultipleJobStatus, useJobsList } from './useJobStatus';
 
 /**
  * Hook for comparing analysis methods

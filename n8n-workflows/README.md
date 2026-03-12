@@ -1,58 +1,74 @@
-# n8n Workflows for CTL Plumbing
+# n8n Workflow Automation
 
-## Setup Instructions
-
-### 1. Install n8n
-```bash
-npm install -g n8n
-```
-
-### 2. Start n8n
-```bash
-n8n start
-```
-Access at http://localhost:5678
-
-### 3. Import Workflows
-1. Go to Workflows → Import from File
-2. Import each JSON file from this directory
-
-### 4. Configure Credentials
-Set up these credentials in n8n:
-- **Telegram Bot** (for emergency alerts)
-- **SMTP** (for email notifications)
-- **Environment Variables**:
-  - `TELEGRAM_CHAT_ID` - Chat ID for alerts
-  - `FROM_EMAIL` - Sender email address
-  - `NOTIFICATION_EMAIL` - Recipient email address
-
-### 5. Configure Webhook URL
-Update the webhook URL in your frontend/app to:
-```
-https://app.ctlplumbingllc.com/webhook/lead-submission
-```
+This directory contains n8n workflow configurations for automating business processes.
 
 ## Workflows
 
-### 1. Lead Integration (`lead-integration.json`)
-**Triggers:** Webhook from website lead form
-**Actions:**
-- Creates lead in OpenSite
-- AI scores the lead automatically
-- Sends Telegram alert for emergencies
-- Sends email notification
+### 1. New Lead Notification
+**File:** `new-lead-notification.json`
 
-### 2. Daily Report (`daily-report.json`)
-**Triggers:** Daily at 8:00 AM
-**Actions:**
-- Fetches dashboard stats
-- Fetches all leads
-- Generates daily summary
-- Sends email report
+Triggers when a new lead is created in the system.
+- Sends Slack notification
+- Sends email to sales team
+- Creates follow-up task in schedules
 
-## API Endpoints Used
-- `POST /api/leads` - Create new lead
-- `PUT /api/leads/:id/score` - Update lead score
-- `POST /api/ai/optimize/generate` - AI scoring
-- `GET /api/dashboard/stats` - Dashboard statistics
-- `GET /api/leads` - List all leads
+### 2. Hot Lead Alert
+**File:** `hot-lead-alert.json`
+
+Triggers when a lead scores 80+ (hot tier).
+- Immediate SMS to sales manager
+- High-priority Slack alert
+- Creates urgent follow-up task
+
+### 3. Daily Permit Digest
+**File:** `daily-permit-digest.json`
+
+Runs daily at 6 AM.
+- Fetches new permits from all sources
+- Generates summary report
+- Emails to team
+
+### 4. Follow-up Reminders
+**File:** `follow-up-reminders.json`
+
+Runs hourly.
+- Checks for overdue follow-ups
+- Sends reminders via email/SMS
+- Escalates if no response
+
+### 5. Weekly Analytics Report
+**File:** `weekly-analytics.json`
+
+Runs every Monday at 8 AM.
+- Generates lead conversion report
+- Creates permit source analysis
+- Emails to management
+
+## Setup
+
+1. Install n8n:
+```bash
+npm install n8n -g
+```
+
+2. Import workflows:
+```bash
+n8n import:workflow --input=./n8n-workflows/
+```
+
+3. Configure credentials in n8n UI:
+   - OpenSite API key
+   - Slack webhook
+   - Email SMTP
+   - Twilio (for SMS)
+
+4. Activate workflows in n8n UI
+
+## Environment Variables
+
+```bash
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=secure_password
+N8N_WEBHOOK_URL=https://n8n.yourdomain.com
+OPENSITE_API_KEY=your_api_key
+```

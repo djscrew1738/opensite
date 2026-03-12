@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { prefetchRoute } from '../../routes/prefetch';
 import { createPortal } from 'react-dom';
 import {
@@ -14,34 +15,55 @@ import {
   Command,
   Sparkles,
   History,
+  Plus,
+  Zap,
+  Briefcase,
+  LogOut,
+  BookOpen
 } from 'lucide-react';
-import { colors, shadows } from '../../styles/tokens';
+import { useAuth } from '../../hooks/useAuth';
+import { colors, shadows, radius, animation, zIndex } from '../../styles/tokens';
 import { NotificationBellCompact } from '../notifications';
 
-// Primary nav items (always visible) - simplified to 4 core
+// ═══════════════════════════════════════════════════════════════
+// Navigation Configuration
+// ═══════════════════════════════════════════════════════════════
+
 const primaryNav = [
-  { path: '/',       icon: LayoutDashboard, label: 'Home',      shortcut: '1' },
-  { path: '/jobs',   icon: HardHat,         label: 'Jobs',      shortcut: '2' },
-  { path: '/jobs?tab=leads',  icon: Users,           label: 'Leads',     shortcut: '3' },
+  { path: '/',       icon: LayoutDashboard, label: 'Home' },
+  { path: '/jobs',   icon: HardHat,         label: 'Jobs' },
+  { path: '/leads',  icon: Zap,             label: 'Leads' }, // Changed to leads direct or /jobs?tab=leads
 ];
 
-// Secondary items (in More menu)
 const moreNavItems = [
-  { path: '/documents', icon: Files,      label: 'Documents',    shortcut: '4', section: 'Core' },
-  { path: '/history',   icon: History,    label: 'History',      shortcut: '5', section: 'Core' },
-  { path: '/canvas',    icon: Network,    label: 'Canvas',       shortcut: '6', section: 'Tools' },
-  { path: '/settings',  icon: Settings,   label: 'Settings',     shortcut: '0', section: 'System' },
+  { path: '/documents', icon: Files,      label: 'Documents', section: 'Core' },
+  { path: '/history',   icon: History,    label: 'History',   section: 'Core' },
+  { path: '/canvas',    icon: Network,    label: 'Canvas',    section: 'Tools' },
+  { path: '/knowledge', icon: BookOpen,   label: 'Knowledge', section: 'Tools' },
+  { path: '/settings',  icon: Settings,   label: 'Settings',  section: 'System' },
 ];
+
+const triggerLogout = () => {
+  // Logic to trigger logout - usually via a hook or context
+  // We'll pass it down if needed or use a custom event
+  window.dispatchEvent(new CustomEvent('app-logout'));
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════════════════════
+
+const triggerHaptic = (type = 'light') => {
+  if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+    if (type === 'light') window.navigator.vibrate(10);
+    else if (type === 'medium') window.navigator.vibrate(20);
+    else if (type === 'success') window.navigator.vibrate([10, 30, 10]);
+  }
+};
 
 /**
  * MobileNav - Bottom navigation for mobile devices
- * 
- * Accessibility features:
- * - ARIA expanded states for menu buttons
- * - Focus trap in modal sheets
- * - Escape key handling
- * - Focus return on close
- * - aria-modal and aria-label attributes
+ * Enhanced with Industrial "Command Center" aesthetic
  */
 export default function MobileNav({ 
   alertCount = 0, 
@@ -50,6 +72,7 @@ export default function MobileNav({
   onNotificationsOpen,
   onAIOpen,
   isAIOpen = false,
+  onQuickAddOpen,
 }) {
   const [showMore, setShowMore] = useState(false);
   const location = useLocation();
@@ -57,10 +80,7 @@ export default function MobileNav({
 
   // Close menus on route change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowMore(false);
-    }, 0);
-    return () => clearTimeout(timer);
+    setShowMore(false);
   }, [location.pathname]);
 
   // Handle back button when menus are open
@@ -71,428 +91,289 @@ export default function MobileNav({
         setShowMore(false);
       }
     };
-
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
   }, [showMore]);
 
   // Lock body scroll when menus are open
   useEffect(() => {
-    if (showMore) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    document.body.style.overflow = showMore ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   }, [showMore]);
+
+  const activeIndex = useMemo(() => {
+    const idx = primaryNav.findIndex(item => 
+      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+    );
+    return idx === -1 ? null : idx;
+  }, [location.pathname]);
 
   return (
     <>
-      <nav className="mobile-nav" aria-label="Main navigation">
-        <div className="flex items-center justify-around px-1 py-1.5">
-          {primaryNav.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              onTouchStart={() => prefetchRoute(item.path)}
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-              style={{ minWidth: '56px', minHeight: '48px' }}
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icon
-                    className="w-[22px] h-[22px] transition-colors duration-200"
-                    strokeWidth={isActive ? 2.5 : 1.75}
-                    style={{
-                      color: isActive ? colors.accent.blue : 'rgba(148, 163, 184, 0.5)',
-                    }}
-                    fill={isActive ? 'rgba(59, 130, 246, 0.15)' : 'none'}
-                    aria-hidden="true"
-                  />
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[env(safe-area-inset-bottom,16px)] pointer-events-none">
+        <nav 
+          className="mobile-nav-container pointer-events-auto mx-auto max-w-md relative"
+          style={{
+            background: 'rgba(16, 19, 24, 0.85)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
+            borderRadius: '24px',
+            height: '72px',
+          }}
+        >
+          {/* Blueprint Grid Overlay (Subtle) */}
+          <div 
+            className="absolute inset-0 pointer-events-none opacity-[0.03] overflow-hidden rounded-[24px]"
+            style={{
+              backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)',
+              backgroundSize: '16px 16px'
+            }}
+          />
 
+          <div className="flex items-center justify-between h-full px-2 relative z-10">
+            {/* Nav Items */}
+            {primaryNav.map((item, idx) => {
+              const isActive = activeIndex === idx;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => triggerHaptic('light')}
+                  className="flex flex-col items-center justify-center flex-1 h-full gap-1 rounded-2xl transition-all relative"
+                >
+                  <motion.div
+                    animate={{ 
+                      scale: isActive ? 1.1 : 1,
+                      y: isActive ? -2 : 0
+                    }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <item.icon
+                      className="w-6 h-6"
+                      strokeWidth={isActive ? 2.5 : 1.75}
+                      style={{
+                        color: isActive ? colors.accent.blue : 'rgba(148, 163, 184, 0.5)',
+                        filter: isActive ? `drop-shadow(0 0 8px ${colors.accent.blue}40)` : 'none'
+                      }}
+                    />
+                  </motion.div>
                   <span
-                    className="font-semibold leading-none transition-colors duration-200"
+                    className="text-[10px] font-bold uppercase tracking-widest transition-colors"
                     style={{
-                      fontSize: '10px',
                       color: isActive ? colors.accent.blue : 'rgba(148, 163, 184, 0.4)',
                     }}
                   >
                     {item.label}
                   </span>
+                  
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-accent-500 shadow-[0_0_12px_rgba(59,130,246,0.8)]"
+                    />
+                  )}
+                </NavLink>
+              );
+            })}
 
-                  <div
-                    className="rounded-full transition-all duration-200"
-                    style={{
-                      width: '3px',
-                      height: '3px',
-                      background: isActive ? colors.accent.blue : 'transparent',
-                      transform: isActive ? 'scale(1)' : 'scale(0)',
-                      boxShadow: isActive ? `0 0 6px ${colors.accent.glow}` : 'none',
-                    }}
-                    aria-hidden="true"
-                  />
-                </>
-              )}
-            </NavLink>
-          ))}
+            {/* AI Assistant FAB / Centerpiece */}
+            <div className="flex-1 flex justify-center">
+              <button
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onAIOpen?.();
+                }}
+                className="relative w-14 h-14 -mt-10 rounded-full flex items-center justify-center transition-all active:scale-90"
+                style={{
+                  background: `linear-gradient(135deg, ${colors.accent.DEFAULT}, ${colors.accent.hover})`,
+                  border: '4px solid #0A0B0D',
+                  boxShadow: '0 8px 24px rgba(59, 130, 246, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3)',
+                }}
+              >
+                <motion.div
+                  animate={{ rotate: isAIOpen ? 180 : 0 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                >
+                  <Sparkles className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </motion.div>
+                
+                {/* Outer Glow */}
+                <div className="absolute inset-[-4px] rounded-full border border-accent-500/20 animate-pulse" />
+              </button>
+            </div>
 
-          {/* AI Assistant Button */}
-          <button
-            onClick={() => {
-              onAIOpen?.();
-            }}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-            style={{ minWidth: '56px', minHeight: '48px' }}
-            aria-label="AI Assistant"
-          >
-            <Sparkles
-              className="w-[22px] h-[22px] transition-colors duration-200"
-              strokeWidth={isAIOpen ? 2.5 : 1.75}
-              style={{ color: isAIOpen ? colors.accent.blue : 'rgba(148, 163, 184, 0.5)' }}
-              fill={isAIOpen ? 'rgba(59, 130, 246, 0.15)' : 'none'}
-              aria-hidden="true"
-            />
-            <span
-              className="font-semibold leading-none transition-colors duration-200"
-              style={{
-                fontSize: '10px',
-                color: isAIOpen ? colors.accent.blue : 'rgba(148, 163, 184, 0.4)',
-              }}
-            >
-              AI
-            </span>
-            <div
-              className="rounded-full transition-all duration-200"
-              style={{
-                width: '3px',
-                height: '3px',
-                background: isAIOpen ? colors.accent.blue : 'transparent',
-                transform: isAIOpen ? 'scale(1)' : 'scale(0)',
-                boxShadow: isAIOpen ? `0 0 6px ${colors.accent.glow}` : 'none',
-              }}
-              aria-hidden="true"
-            />
-          </button>
+            {/* Notification & More */}
+            <div className="flex-1 flex items-center justify-center gap-1 h-full">
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  onNotificationsOpen?.();
+                }}
+                className="flex flex-col items-center justify-center flex-1 h-full gap-1 rounded-2xl relative"
+              >
+                <div className="relative">
+                  <NotificationBellCompact count={alertCount} hasUrgent={hasUrgent} />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-surface-400/40">Alerts</span>
+              </button>
 
-          {/* Notifications Bell */}
-          <NotificationBellCompact
-            count={alertCount}
-            hasUrgent={hasUrgent}
-            onClick={onNotificationsOpen}
-          />
-
-          {/* More button */}
-          <button
-            ref={moreButtonRef}
-            onClick={() => setShowMore(true)}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-            style={{ minWidth: '56px', minHeight: '48px' }}
-            aria-expanded={showMore}
-            aria-haspopup="dialog"
-            aria-label="More options"
-          >
-            <MoreHorizontal
-              className="w-[22px] h-[22px] transition-colors duration-200"
-              strokeWidth={1.75}
-              style={{ color: 'rgba(148, 163, 184, 0.5)' }}
-              aria-hidden="true"
-            />
-            <span
-              className="font-semibold leading-none transition-colors duration-200"
-              style={{
-                fontSize: '10px',
-                color: 'rgba(148, 163, 184, 0.4)',
-              }}
-            >
-              More
-            </span>
-            <div
-              className="rounded-full"
-              style={{
-                width: '3px',
-                height: '3px',
-                background: 'transparent',
-              }}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-      </nav>
+              <button
+                ref={moreButtonRef}
+                onClick={() => {
+                  triggerHaptic('light');
+                  setShowMore(true);
+                }}
+                className="flex flex-col items-center justify-center flex-1 h-full gap-1 rounded-2xl"
+              >
+                <MoreHorizontal className="w-6 h-6 text-surface-400/50" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-surface-400/40">Menu</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+      </div>
 
       {/* More Menu Sheet */}
-      {showMore && createPortal(
-        <MoreMenu 
-          onClose={() => setShowMore(false)} 
-          onCommandPaletteOpen={onCommandPaletteOpen}
-          onAIOpen={onAIOpen}
-        />,
-        document.body
-      )}
+      <AnimatePresence>
+        {showMore && (
+          <MoreMenuSheet 
+            onClose={() => setShowMore(false)} 
+            onCommandPaletteOpen={onCommandPaletteOpen}
+            onAIOpen={onAIOpen}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
 
-/**
- * Focus trap hook for modal accessibility
- */
-function useFocusTrap(isActive, containerRef, onEscape) {
-  const previouslyFocusedElement = useRef(null);
-
-  useEffect(() => {
-    if (isActive) {
-      // Store the currently focused element
-      previouslyFocusedElement.current = document.activeElement;
-      
-      // Focus the first focusable element in the modal
-      const focusableElements = containerRef.current?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements?.length > 0) {
-        focusableElements[0].focus();
-      }
-
-      // Handle escape key
-      const handleKeyDown = (e) => {
-        if (e.key === 'Escape') {
-          onEscape?.();
-        }
-        if (e.key === 'Tab') {
-          const focusable = Array.from(containerRef.current?.querySelectorAll(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          ) || []);
-          if (focusable.length === 0) return;
-          
-          const firstFocusable = focusable[0];
-          const lastFocusable = focusable[focusable.length - 1];
-          
-          if (e.shiftKey && document.activeElement === firstFocusable) {
-            e.preventDefault();
-            lastFocusable.focus();
-          } else if (!e.shiftKey && document.activeElement === lastFocusable) {
-            e.preventDefault();
-            firstFocusable.focus();
-          }
-        }
-      };
-
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        // Restore focus when modal closes
-        previouslyFocusedElement.current?.focus();
-      };
-    }
-  }, [isActive, containerRef, onEscape]);
-}
-
-function MoreMenu({ onClose, onCommandPaletteOpen, onAIOpen }) {
+function MoreMenuSheet({ onClose, onCommandPaletteOpen, onAIOpen }) {
   const location = useLocation();
-  const containerRef = useRef(null);
+  const { logout } = useAuth();
   
-  useFocusTrap(true, containerRef, onClose);
-
-  // Group items by section
-  const groupedItems = moreNavItems.reduce((acc, item) => {
-    if (!acc[item.section]) acc[item.section] = [];
-    acc[item.section].push(item);
-    return acc;
-  }, {});
-
-  return (
-    <div 
-      ref={containerRef}
-      className="fixed inset-0 z-50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="More menu"
-    >
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          backgroundColor: colors.surface.overlay,
-          animation: 'fadeIn 0.2s ease-out',
-        }}
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
       />
       
-      {/* Sheet */}
-      <div
-        className="absolute left-0 right-0 bottom-0"
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative w-full max-w-md bg-surface-elevated rounded-t-[32px] overflow-hidden"
         style={{
-          background: colors.surface.elevated,
-          borderTop: `1px solid ${colors.border.default}`,
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
-          boxShadow: shadows.sheet,
-          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
-          animation: 'slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-          maxHeight: '80vh',
-          overflow: 'auto',
+          boxShadow: '0 -12px 40px rgba(0, 0, 0, 0.6)',
+          paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Handle */}
-        <div className="flex items-center justify-center pt-3 pb-2">
-          <div
-            style={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              background: colors.border.strong,
-            }}
-          />
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-12 h-1.5 rounded-full bg-surface-muted/40" />
         </div>
 
-        {/* Header */}
-        <div 
-          className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: `1px solid ${colors.border.default}` }}
-        >
-          <h2 
-            className="text-lg font-bold"
-            style={{ color: colors.text.primary }}
-          >
-            Menu
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-            style={{ color: colors.text.secondary }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="px-5 py-4 space-y-2">
-          <button
-            onClick={() => {
-              onClose();
-              onAIOpen?.();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-            style={{ 
-              background: 'rgba(16, 185, 129, 0.1)',
-              border: `1px solid rgba(16, 185, 129, 0.3)`,
-              color: '#10B981',
-            }}
-          >
-            <Sparkles className="w-5 h-5" aria-hidden="true" />
-            <span className="font-semibold flex-1 text-left">AI Assistant</span>
-            <kbd 
-              className="font-mono text-xs px-2 py-1 rounded"
-              style={{ 
-                background: 'rgba(16, 185, 129, 0.15)',
-                color: '#34D399',
-              }}
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-surface-100 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-accent-500" />
+              Command Center
+            </h2>
+            <button 
+              onClick={onClose}
+              className="w-10 h-10 rounded-full bg-surface-card flex items-center justify-center text-surface-400 active:bg-surface-elevated"
             >
-              ⌘/
-            </kbd>
-          </button>
-          
-          <button
-            onClick={() => {
-              onClose();
-              setTimeout(onCommandPaletteOpen, 100);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-            style={{ 
-              background: colors.accent.muted,
-              border: `1px solid ${colors.accent.glow}`,
-              color: colors.accent.blue,
-            }}
-          >
-            <Command className="w-5 h-5" aria-hidden="true" />
-            <span className="font-semibold flex-1 text-left">Command Palette</span>
-            <kbd 
-              className="font-mono text-xs px-2 py-1 rounded"
-              style={{ 
-                background: 'rgba(59, 130, 246, 0.15)',
-                color: colors.accent.light || '#60A5FA',
-              }}
-            >
-              ⌘K
-            </kbd>
-          </button>
-        </div>
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-        {/* Sections */}
-        <div className="px-5 pb-5 space-y-4">
-          {Object.entries(groupedItems).map(([section, items]) => (
-            <div key={section}>
-              <h3 
-                className="text-xs font-bold uppercase tracking-wider mb-2 px-1"
-                style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-              >
-                {section}
-              </h3>
-              <div className="space-y-1">
-                {items.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      onClick={onClose}
-                      className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-                      style={{
-                        background: isActive ? colors.accent.muted : 'transparent',
-                        color: isActive ? colors.accent.blue : colors.text.secondary,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                          e.currentTarget.style.color = colors.text.primary;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = colors.text.secondary;
-                        }
-                      }}
-                    >
-                      <item.icon 
-                        className="w-5 h-5" 
-                        strokeWidth={isActive ? 2.5 : 2}
-                        aria-hidden="true"
-                      />
-                      <span className="font-medium flex-1">{item.label}</span>
-                      <kbd 
-                        className="font-mono text-xs px-1.5 py-0.5 rounded"
-                        style={{ 
-                          background: 'rgba(255,255,255,0.04)',
-                          color: 'rgba(148, 163, 184, 0.4)',
-                        }}
-                      >
-                        {item.shortcut}
-                      </kbd>
-                    </NavLink>
-                  );
-                })}
-              </div>
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            <QuickActionButton 
+              icon={Command} 
+              label="Commands" 
+              sub="Search & Actions"
+              color="blue"
+              onClick={() => { onClose(); setTimeout(onCommandPaletteOpen, 200); }}
+            />
+            <QuickActionButton 
+              icon={Sparkles} 
+              label="Intelligence" 
+              sub="AI Assistant"
+              color="purple"
+              onClick={() => { onClose(); setTimeout(onAIOpen, 200); }}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-surface-500 px-1">Navigation</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {moreNavItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => { triggerHaptic('light'); onClose(); }}
+                    className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${
+                      isActive ? 'bg-accent-500/10 border border-accent-500/20' : 'bg-surface-card border border-transparent'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      isActive ? 'bg-accent-500 text-white' : 'bg-surface-elevated text-surface-400'
+                    }`}>
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-bold ${isActive ? 'text-accent-500' : 'text-surface-100'}`}>{item.label}</p>
+                      <p className="text-xs text-surface-500">{item.section}</p>
+                    </div>
+                  </NavLink>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-      `}</style>
-    </div>
+          <div className="mt-8 px-1">
+            <button
+              onClick={() => { triggerHaptic('medium'); logout(); onClose(); }}
+              className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-500 font-bold active:bg-danger-500/20"
+            >
+              <LogOut className="w-5 h-5" />
+              Sign Out from Command Center
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>,
+    document.body
+  );
+}
+
+function QuickActionButton({ icon: Icon, label, sub, color, onClick }) {
+  const colors = {
+    blue: 'from-blue-500/20 to-blue-600/5 border-blue-500/30 text-blue-400',
+    purple: 'from-purple-500/20 to-purple-600/5 border-purple-500/30 text-purple-400',
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-start gap-3 p-4 rounded-2xl border bg-gradient-to-br transition-all active:scale-95 text-left ${colors[color]}`}
+    >
+      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p className="font-bold text-surface-100">{label}</p>
+        <p className="text-[10px] uppercase tracking-wider opacity-60">{sub}</p>
+      </div>
+    </button>
   );
 }

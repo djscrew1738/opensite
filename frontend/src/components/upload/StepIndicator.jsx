@@ -85,7 +85,7 @@ export function HorizontalStepIndicator({ steps, currentStep }) {
                 ? 'bg-green-500 text-white' 
                 : isActive 
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  : 'bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400'
               }
             `}>
               {isCompleted ? (
@@ -97,7 +97,7 @@ export function HorizontalStepIndicator({ steps, currentStep }) {
             {!isLast && (
               <div className={`
                 flex-1 h-0.5 mx-2
-                ${isCompleted ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}
+                ${isCompleted ? 'bg-green-500' : 'bg-surface-200 dark:bg-surface-700'}
               `} />
             )}
           </div>

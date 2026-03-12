@@ -1,48 +1,153 @@
-import React, { forwardRef } from 'react';
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * BUTTON COMPONENT v2.0 — UI/UX Overhaul
+ * Enhanced with micro-interactions and refined visual feedback
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+import React, { forwardRef, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { 
+  easings, 
+  durations, 
+  useReducedMotion,
+  colors,
+} from '../../design-system';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VARIANT STYLES
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const variantStyles = {
   primary: {
-    base: 'bg-brand-500 hover:bg-brand-400 text-white shadow-dark-sm',
-    active: 'bg-brand-600',
-    disabled: 'bg-brand-500/50 text-white/50 shadow-none',
+    base: `
+      bg-[#3B82F6] text-white
+      shadow-[0_0_12px_rgba(59,130,246,0.3),0_4px_14px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.15)]
+      hover:bg-[#2563EB]
+      hover:shadow-[0_0_16px_rgba(59,130,246,0.4),0_6px_20px_rgba(59,130,246,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]
+      active:bg-[#1D4ED8]
+    `,
+    disabled: 'bg-[#3B82F6]/50 text-white/50 shadow-none cursor-not-allowed',
   },
   secondary: {
-    base: 'bg-surface-600 hover:bg-surface-500 text-text-primary border border-border-medium',
-    active: 'bg-surface-400',
-    disabled: 'bg-surface-600/50 text-text-disabled border-border-light',
+    base: `
+      bg-[rgba(24,28,36,0.6)] text-[#F8FAFC] border border-[#1F2430]
+      backdrop-blur-sm
+      hover:border-[#2D3548] hover:bg-[rgba(24,28,36,0.8)]
+    `,
+    disabled: 'bg-[rgba(24,28,36,0.3)] text-[#475569] border-[#161A22] cursor-not-allowed',
   },
   ghost: {
-    base: 'hover:bg-surface-600 text-text-secondary hover:text-text-primary',
-    active: 'bg-surface-500',
-    disabled: 'text-text-disabled hover:bg-transparent',
+    base: `
+      bg-transparent text-[#94A3B8] border border-[#2D3548]
+      hover:bg-[rgba(59,130,246,0.08)] hover:text-[#3B82F6] hover:border-[rgba(59,130,246,0.3)]
+    `,
+    disabled: 'text-[#475569] hover:bg-transparent hover:border-[#2D3548] cursor-not-allowed',
   },
   danger: {
-    base: 'bg-danger-dark hover:bg-danger text-white shadow-dark-sm',
-    active: 'bg-danger-muted',
-    disabled: 'bg-danger-dark/50 text-white/50 shadow-none',
+    base: `
+      bg-[#EF4444] text-white
+      shadow-[0_4px_14px_rgba(239,68,68,0.3)]
+      hover:bg-[#DC2626] hover:shadow-[0_6px_20px_rgba(239,68,68,0.4)]
+    `,
+    disabled: 'bg-[#EF4444]/50 text-white/50 shadow-none cursor-not-allowed',
   },
   success: {
-    base: 'bg-success-dark hover:bg-success text-white shadow-dark-sm',
-    active: 'bg-success-muted',
-    disabled: 'bg-success-dark/50 text-white/50 shadow-none',
+    base: `
+      bg-[#10B981] text-white
+      shadow-[0_4px_14px_rgba(16,185,129,0.3)]
+      hover:bg-[#059669] hover:shadow-[0_6px_20px_rgba(16,185,129,0.4)]
+    `,
+    disabled: 'bg-[#10B981]/50 text-white/50 shadow-none cursor-not-allowed',
   },
   outline: {
-    base: 'bg-transparent hover:bg-surface-600 text-text-primary border border-border-medium hover:border-border-heavy',
-    active: 'bg-surface-500',
-    disabled: 'text-text-disabled border-border-light hover:bg-transparent',
+    base: `
+      bg-transparent text-[#F8FAFC] border border-[#1F2430]
+      hover:bg-[rgba(24,28,36,0.6)] hover:border-[#2D3548]
+    `,
+    disabled: 'text-[#475569] border-[#161A22] cursor-not-allowed',
   },
 };
 
 const sizeStyles = {
-  sm: 'h-10 px-4 text-xs gap-1.5',
-  DEFAULT: 'h-12 px-6 text-sm gap-2',
-  lg: 'h-14 px-8 text-base gap-2',
-  icon: 'h-12 w-12 p-0',
-  'icon-sm': 'h-10 w-10 p-0',
-  'icon-lg': 'h-14 w-14 p-0',
+  sm: 'h-9 px-3 text-xs gap-1.5',
+  DEFAULT: 'h-11 px-5 text-sm gap-2',
+  lg: 'h-13 px-7 text-base gap-2',
+  icon: 'h-10 w-10 p-0',
+  'icon-sm': 'h-8 w-8 p-0',
+  'icon-lg': 'h-12 w-12 p-0',
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOTION VARIANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const buttonMotion = {
+  rest: { 
+    scale: 1,
+    transition: { 
+      duration: durations.fast,
+      ease: easings.default,
+    }
+  },
+  hover: { 
+    scale: 1.02,
+    y: -1,
+    transition: { 
+      duration: durations.fast,
+      ease: easings.spring,
+    }
+  },
+  tap: { 
+    scale: 0.97,
+    y: 0,
+    transition: { 
+      duration: durations.fastest,
+      ease: easings.exit,
+    }
+  },
+};
+
+const iconMotion = {
+  rest: { rotate: 0 },
+  hover: { 
+    rotate: [-2, 2, -2, 0],
+    transition: { 
+      duration: 0.4,
+      ease: easings.spring,
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RIPPLE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const Ripple = ({ x, y, size, color }) => {
+  return (
+    <motion.span
+      initial={{ scale: 0, opacity: 0.5 }}
+      animate={{ scale: 2.5, opacity: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.6, ease: easings.exit }}
+      className="absolute rounded-full pointer-events-none"
+      style={{
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        marginLeft: -size / 2,
+        marginTop: -size / 2,
+        backgroundColor: color,
+      }}
+    />
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUTTON COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export const Button = forwardRef(({
   children,
@@ -50,8 +155,8 @@ export const Button = forwardRef(({
   size = 'DEFAULT',
   isLoading = false,
   isDisabled = false,
-  leftIcon,
-  rightIcon,
+  leftIcon: LeftIcon,
+  rightIcon: RightIcon,
   fullWidth = false,
   className = '',
   as: Component = 'button',
@@ -59,19 +164,64 @@ export const Button = forwardRef(({
   href,
   target,
   rel,
+  onClick,
+  showRipple = true,
   ...props
 }, ref) => {
+  const buttonRef = useRef(null);
+  const reducedMotion = useReducedMotion();
+  const [ripples, setRipples] = React.useState([]);
+  
   const isDisabledState = isDisabled || isLoading;
   const isIconOnly = (size === 'icon' || size === 'icon-sm' || size === 'icon-lg') && !children;
 
+  // Combine refs
+  const setRefs = (element) => {
+    buttonRef.current = element;
+    if (typeof ref === 'function') {
+      ref(element);
+    } else if (ref) {
+      ref.current = element;
+    }
+  };
+
+  const handleClick = (event) => {
+    if (isDisabledState) return;
+
+    // Create ripple effect
+    if (showRipple && !reducedMotion && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      const newRipple = {
+        x,
+        y,
+        size,
+        id: Date.now(),
+        color: variant === 'primary' ? 'rgba(255,255,255,0.3)' : 'rgba(59,130,246,0.3)',
+      };
+      
+      setRipples(prev => [...prev, newRipple]);
+      
+      setTimeout(() => {
+        setRipples(prev => prev.filter(r => r.id !== newRipple.id));
+      }, 600);
+    }
+
+    onClick?.(event);
+  };
+
   const baseClasses = `
-    inline-flex items-center justify-center
-    font-medium rounded-xl
-    transition-all duration-fast ease-out
-    focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:ring-offset-2 focus:ring-offset-surface-bg
+    relative inline-flex items-center justify-center
+    font-semibold rounded-lg
+    overflow-hidden
+    transition-colors duration-200
+    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0B0D]
     disabled:cursor-not-allowed
-    active:scale-[0.98]
     touch-manipulation
+    select-none
   `;
 
   const variantClass = isDisabledState
@@ -92,55 +242,98 @@ export const Button = forwardRef(({
   const buttonProps = Component === 'button' ? { type } : {};
 
   const content = (
-    <Component
-      ref={ref}
-      disabled={isDisabledState}
-      className={`${baseClasses} ${variantClass} ${sizeClass} ${widthClass} ${className}`}
-      {...buttonProps}
-      {...linkProps}
-      {...props}
-    >
+    <>
+      {/* Ripple effects */}
+      {ripples.map(ripple => (
+        <Ripple key={ripple.id} {...ripple} />
+      ))}
+      
+      {/* Loading spinner */}
       {isLoading && (
-        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" aria-hidden="true" />
+        <motion.span
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mr-2"
+        >
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" aria-hidden="true" />
+        </motion.span>
       )}
-      {!isLoading && leftIcon && (
-        <span className="flex-shrink-0" aria-hidden="true">{leftIcon}</span>
+      
+      {/* Left icon */}
+      {!isLoading && LeftIcon && (
+        <motion.span 
+          className="flex-shrink-0 mr-2"
+          variants={iconMotion}
+          aria-hidden="true"
+        >
+          <LeftIcon className="w-4 h-4" />
+        </motion.span>
       )}
+      
+      {/* Button text */}
       {children && (
         <span className={isIconOnly ? 'sr-only' : ''}>
           {children}
         </span>
       )}
-      {!isLoading && rightIcon && (
-        <span className="flex-shrink-0" aria-hidden="true">{rightIcon}</span>
+      
+      {/* Right icon */}
+      {!isLoading && RightIcon && (
+        <motion.span 
+          className="flex-shrink-0 ml-2"
+          variants={iconMotion}
+          aria-hidden="true"
+        >
+          <RightIcon className="w-4 h-4" />
+        </motion.span>
       )}
+    </>
+  );
+
+  const buttonElement = (
+    <Component
+      ref={setRefs}
+      disabled={isDisabledState}
+      className={`${baseClasses} ${variantClass} ${sizeClass} ${widthClass} ${className}`}
+      onClick={handleClick}
+      {...buttonProps}
+      {...linkProps}
+      {...props}
+    >
+      {content}
     </Component>
   );
 
-  // Wrap in motion.div for hover effects, but not for disabled state
-  if (isDisabledState) {
-    return content;
+  // Wrap in motion for enhanced interactions
+  if (isDisabledState || reducedMotion) {
+    return buttonElement;
   }
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      initial="rest"
+      whileHover="hover"
+      whileTap="tap"
+      variants={buttonMotion}
       className={fullWidth ? 'w-full inline-flex' : 'inline-flex'}
     >
-      {content}
+      {buttonElement}
     </motion.div>
   );
 });
 
 Button.displayName = 'Button';
 
-// Icon Button - simplified API for icon-only buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+// ICON BUTTON
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export const IconButton = forwardRef(({
-  icon,
+  icon: Icon,
   'aria-label': ariaLabel,
   size = 'DEFAULT',
   variant = 'ghost',
+  className = '',
   ...props
 }, ref) => {
   const sizeMap = {
@@ -155,21 +348,28 @@ export const IconButton = forwardRef(({
       size={sizeMap[size]}
       variant={variant}
       aria-label={ariaLabel}
+      className={`rounded-lg ${className}`}
       {...props}
     >
-      {icon}
+      <Icon className="w-5 h-5" />
     </Button>
   );
 });
 
 IconButton.displayName = 'IconButton';
 
-// Button Group - for grouping related buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUTTON GROUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export const ButtonGroup = ({
   children,
   className = '',
   attached = false,
+  size = 'DEFAULT',
 }) => {
+  const childrenArray = React.Children.toArray(children);
+  
   return (
     <div 
       className={`
@@ -179,9 +379,91 @@ export const ButtonGroup = ({
       `}
       role="group"
     >
-      {children}
+      {childrenArray.map((child, index) => {
+        if (!React.isValidElement(child)) return child;
+        
+        const isFirst = index === 0;
+        const isLast = index === childrenArray.length - 1;
+        
+        let attachedClasses = '';
+        if (attached) {
+          if (isFirst) {
+            attachedClasses = 'rounded-r-none';
+          } else if (isLast) {
+            attachedClasses = 'rounded-l-none -ml-px';
+          } else {
+            attachedClasses = 'rounded-none -ml-px';
+          }
+        }
+        
+        return React.cloneElement(child, {
+          size: child.props.size || size,
+          className: `${child.props.className || ''} ${attachedClasses}`,
+        });
+      })}
     </div>
   );
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAB (FLOATING ACTION BUTTON)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const FAB = forwardRef(({
+  icon: Icon,
+  'aria-label': ariaLabel,
+  variant = 'primary',
+  size = 'default',
+  className = '',
+  ...props
+}, ref) => {
+  const sizeClasses = {
+    sm: 'w-12 h-12',
+    default: 'w-14 h-14',
+    lg: 'w-16 h-16',
+  };
+
+  const iconSizes = {
+    sm: 'w-5 h-5',
+    default: 'w-6 h-6',
+    lg: 'w-7 h-7',
+  };
+
+  const variantClasses = {
+    primary: 'bg-[#3B82F6] text-white shadow-[0_4px_16px_rgba(59,130,246,0.4),0_0_40px_rgba(59,130,246,0.15)]',
+    secondary: 'bg-[#181C24] text-[#F8FAFC] border border-[#2D3548] shadow-lg',
+    success: 'bg-[#10B981] text-white shadow-[0_4px_16px_rgba(16,185,129,0.4)]',
+  };
+
+  return (
+    <motion.button
+      ref={ref}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      whileHover={{ 
+        scale: 1.05,
+        boxShadow: '0 6px 24px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.25)',
+      }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ 
+        type: 'spring',
+        stiffness: 400,
+        damping: 17,
+      }}
+      className={`
+        fixed z-40 rounded-full flex items-center justify-center
+        ${sizeClasses[size]}
+        ${variantClasses[variant]}
+        ${className}
+      `}
+      aria-label={ariaLabel}
+      {...props}
+    >
+      <Icon className={iconSizes[size]} />
+    </motion.button>
+  );
+});
+
+FAB.displayName = 'FAB';
 
 export default Button;

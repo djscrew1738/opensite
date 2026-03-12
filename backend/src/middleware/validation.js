@@ -137,7 +137,10 @@ export const validateId = [
 export const validateLeadQuery = [
   query('status')
     .optional()
-    .isIn(['hot', 'warm', 'cold']).withMessage('Invalid status'),
+    .isIn(['hot', 'warm', 'cold', 'new']).withMessage('Invalid status'),
+  query('tier')
+    .optional()
+    .isIn(['T1', 'T2', 'T3', 'T4', 'unscored']).withMessage('Invalid tier'),
   query('search')
     .optional()
     .trim()

@@ -1,20 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { 
-  Move, MousePointer2, Pencil, Circle, Square, 
-  ArrowRight, Type, Trash2, ZoomIn, ZoomOut, 
-  Maximize2, Grid3X3, Layers, Pin, Link,
-  Eye, EyeOff, Download, Undo, Redo,
-  Plus, X, ChevronDown, MoreHorizontal
-} from 'lucide-react';
-import { visionApi } from '../../api/vision';
-import CanvasNode from './CanvasNode';
-import CanvasConnection from './CanvasConnection';
-import CanvasToolbar from './CanvasToolbar';
-import OcrOverlay from './OcrOverlay';
-import PinSystem from './PinSystem';
-
 /**
- * Vision Canvas - Spatial workspace for blueprint analysis
+ * VisionCanvas Component
+ * Spatial workspace for blueprint analysis
  * 
  * Features:
  * - Infinite canvas with pan/zoom
@@ -23,7 +9,29 @@ import PinSystem from './PinSystem';
  * - Drawing overlays (pipes, walls, fixtures)
  * - OCR text overlay
  * - Spatial relationship visualization
+ * 
+ * @module components/vision/VisionCanvas
  */
+
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
+import { 
+  Move, MousePointer2, Pencil, Circle, Square, 
+  ArrowRight, Type, Trash2, ZoomIn, ZoomOut, 
+  Maximize2, Grid3X3, Layers, Pin, Link,
+  Eye, EyeOff, Download, Undo, Redo,
+  Plus, X, ChevronDown, MoreHorizontal
+} from 'lucide-react';
+import { colors } from '../../styles/tokens';
+import { visionApi } from '../../api/vision';
+import CanvasNode from './CanvasNode';
+import CanvasConnection from './CanvasConnection';
+import CanvasToolbar from './CanvasToolbar';
+import OcrOverlay from './OcrOverlay';
+import PinSystem from './PinSystem';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 const CANVAS_MODES = {
   SELECT: 'select',
@@ -45,7 +53,138 @@ const DEFAULT_CANVAS_STATE = {
   viewBox: { x: 0, y: 0, zoom: 1 },
 };
 
-export default function VisionCanvas({ 
+// Default colors (functional, for user selection)
+const DEFAULT_DRAWING_COLOR = '#FF6B6B';
+const DEFAULT_PIN_COLOR = '#FF6B6B';
+
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Zoom indicator overlay
+ * @param {{ zoom: number }} props
+ */
+const ZoomIndicator = memo(function ZoomIndicator({ zoom }) {
+  return (
+    <div 
+      className="absolute bottom-4 left-4 z-10 px-3 py-1.5 rounded-lg text-xs font-mono"
+      style={{ 
+        backgroundColor: `${colors.surface.card}99`,
+        backdropFilter: 'blur(4px)',
+        color: colors.text.primary,
+      }}
+    >
+      {(zoom * 100).toFixed(0)}%
+    </div>
+  );
+});
+
+ZoomIndicator.displayName = 'ZoomIndicator';
+
+/**
+ * Node count overlay
+ * @param {{ nodeCount: number; pinCount: number }} props
+ */
+const NodeCount = memo(function NodeCount({ nodeCount, pinCount }) {
+  return (
+    <div 
+      className="absolute bottom-4 right-4 z-10 px-3 py-1.5 rounded-lg text-xs"
+      style={{ 
+        backgroundColor: `${colors.surface.card}99`,
+        backdropFilter: 'blur(4px)',
+        color: colors.text.primary,
+      }}
+    >
+      {nodeCount} blueprint{nodeCount !== 1 ? 's' : ''} • {pinCount} pins
+    </div>
+  );
+});
+
+NodeCount.displayName = 'NodeCount';
+
+/**
+ * SVG Grid pattern
+ * @param {{ show: boolean; zoom: number }} props
+ */
+const CanvasGrid = memo(function CanvasGrid({ show, zoom }) {
+  if (!show) return null;
+  
+  const gridSize = 50 * zoom;
+  
+  return (
+    <pattern
+      id="canvas-grid"
+      width={gridSize}
+      height={gridSize}
+      patternUnits="userSpaceOnUse"
+    >
+      <path
+        d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
+        fill="none"
+        stroke={colors.border.default}
+        strokeWidth={0.5 / zoom}
+      />
+    </pattern>
+  );
+});
+
+CanvasGrid.displayName = 'CanvasGrid';
+
+/**
+ * Drawing path renderer
+ * @param {{ drawing: any }} props
+ */
+const DrawingPath = memo(function DrawingPath({ drawing }) {
+  const pointsStr = drawing.points.map(p => `${p.x},${p.y}`).join(' L ');
+  
+  if (drawing.type === CANVAS_MODES.DRAW_FIXTURE) {
+    return (
+      <circle
+        cx={drawing.points[0]?.x}
+        cy={drawing.points[0]?.y}
+        r={drawing.width * 3}
+        fill={drawing.color}
+        fillOpacity={0.3}
+        stroke={drawing.color}
+        strokeWidth={drawing.width}
+      />
+    );
+  }
+  
+  return (
+    <path
+      d={`M ${pointsStr}`}
+      fill="none"
+      stroke={drawing.color}
+      strokeWidth={drawing.width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeDasharray={drawing.type === CANVAS_MODES.DRAW_WALL ? '5,5' : undefined}
+    />
+  );
+});
+
+DrawingPath.displayName = 'DrawingPath';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * VisionCanvas - Spatial workspace for blueprint analysis
+ * @param {{
+ *   projectId?: string;
+ *   onClose?: () => void;
+ *   projects?: any[];
+ *   onAddBlueprint?: (addNode: (project: any, x?: number, y?: number) => void) => void;
+ *   onSaveCanvas?: (state: any) => void;
+ *   onExport?: (state: any) => void;
+ * }} props
+ */
+const VisionCanvas = memo(function VisionCanvas({ 
+  projectId,
+  onClose,
   projects = [],
   onAddBlueprint,
   onSaveCanvas,
@@ -64,31 +203,101 @@ export default function VisionCanvas({
   const [ocrData, setOcrData] = useState({});
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // Drawing state
   const [currentPath, setCurrentPath] = useState(null);
-  const [drawingColor, setDrawingColor] = useState('#FF6B6B');
+  const [drawingColor, setDrawingColor] = useState(DEFAULT_DRAWING_COLOR);
   const [drawingWidth, setDrawingWidth] = useState(3);
   
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Load saved canvas state
+  // Load project if projectId provided (Single-project mode)
   useEffect(() => {
-    const saved = localStorage.getItem('visionCanvasState');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setCanvasState(parsed);
-        setHistory([parsed]);
-        setHistoryIndex(0);
-      } catch (e) {
-        console.error('Failed to load canvas state:', e);
+    if (projectId) {
+      const loadProject = async () => {
+        try {
+          const project = await visionApi.getProject(projectId);
+          if (project) {
+            // Check if project has saved canvas state in metadata
+            let initialState = DEFAULT_CANVAS_STATE;
+            if (project.metadata) {
+              try {
+                const meta = typeof project.metadata === 'string' ? JSON.parse(project.metadata) : project.metadata;
+                if (meta.canvasState) {
+                  initialState = meta.canvasState;
+                }
+              } catch (e) { console.warn('Failed to parse project metadata'); }
+            }
+
+            // If no nodes in metadata, add the current project as a node
+            if (!initialState.nodes || initialState.nodes.length === 0) {
+              const newNode = {
+                id: `node-${Date.now()}`,
+                projectId: project.id,
+                project,
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+                rotation: 0,
+                scale: 1,
+                opacity: 1,
+                visible: true,
+                locked: false,
+              };
+              initialState = { ...initialState, nodes: [newNode] };
+            }
+
+            setCanvasState(initialState);
+            setHistory([initialState]);
+            setHistoryIndex(0);
+          }
+        } catch (err) {
+          console.error('Failed to load project for canvas:', err);
+        }
+      };
+      loadProject();
+    }
+  }, [projectId]);
+
+  // Load global canvas state (multi-project mode)
+  useEffect(() => {
+    if (!projectId) {
+      const saved = localStorage.getItem('visionCanvasState_global');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setCanvasState(parsed);
+          setHistory([parsed]);
+          setHistoryIndex(0);
+        } catch (e) {
+          console.error('Failed to load global canvas state:', e);
+        }
       }
     }
-  }, []);
+  }, [projectId]);
 
-  // Save history
+  /**
+   * Save current state to persistence
+   */
+  const saveState = useCallback(async (stateToSave = canvasState) => {
+    if (projectId) {
+      try {
+        await visionApi.updateProject(projectId, {
+          metadata: { canvasState: stateToSave }
+        });
+        console.log('Project canvas state saved to database');
+      } catch (err) {
+        console.error('Failed to save project canvas state:', err);
+      }
+    } else {
+      localStorage.setItem('visionCanvasState_global', JSON.stringify(stateToSave));
+    }
+  }, [projectId, canvasState]);
+
+  // Save history and trigger persistence
   const pushHistory = useCallback((newState) => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
@@ -98,8 +307,12 @@ export default function VisionCanvas({
     });
     setHistoryIndex(prev => Math.min(prev + 1, 49));
     setCanvasState(newState);
-    localStorage.setItem('visionCanvasState', JSON.stringify(newState));
-  }, [historyIndex]);
+    
+    // Auto-save to local/session
+    if (!projectId) {
+      localStorage.setItem('visionCanvasState_global', JSON.stringify(newState));
+    }
+  }, [historyIndex, projectId]);
 
   // Undo/Redo
   const undo = useCallback(() => {
@@ -115,6 +328,19 @@ export default function VisionCanvas({
       setCanvasState(history[historyIndex + 1]);
     }
   }, [history, historyIndex]);
+
+  const clearCanvas = useCallback(() => {
+    if (window.confirm('Are you sure you want to clear the entire canvas? This cannot be undone.')) {
+      setCanvasState(DEFAULT_CANVAS_STATE);
+      setHistory([DEFAULT_CANVAS_STATE]);
+      setHistoryIndex(0);
+      if (!projectId) {
+        localStorage.removeItem('visionCanvasState_global');
+      } else {
+        saveState(DEFAULT_CANVAS_STATE);
+      }
+    }
+  }, [projectId, saveState]);
 
   // View controls
   const handleZoomIn = useCallback(() => {
@@ -154,15 +380,27 @@ export default function VisionCanvas({
       1
     );
 
-    setCanvasState(prev => ({
-      ...prev,
-      viewBox: {
-        x: bounds.minX - padding,
-        y: bounds.minY - padding,
-        zoom: zoom
-      }
-    }));
+    setCanvasState(newState);
   }, [canvasState.nodes]);
+
+  // AI Analysis Trigger
+  const handleAnalyze = useCallback(async (model, type) => {
+    const targetProjectId = projectId || (selectedNode && canvasState.nodes.find(n => n.id === selectedNode)?.projectId);
+    if (!targetProjectId) {
+      alert('Please select a blueprint to analyze');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const result = await visionApi.analyze(targetProjectId, model, type);
+      alert(`AI Analysis started using ${model}. (Job: ${result.jobId})`);
+    } catch (err) {
+      alert(`Analysis failed: ${err.message}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [projectId, selectedNode, canvasState.nodes]);
 
   // Pan handling
   const handleMouseDown = useCallback((e) => {
@@ -255,7 +493,7 @@ export default function VisionCanvas({
       type: data.type || 'finding',
       label: data.label || '',
       description: data.description || '',
-      color: data.color || '#FF6B6B',
+      color: data.color || DEFAULT_PIN_COLOR,
       createdAt: new Date().toISOString(),
     };
 
@@ -292,68 +530,6 @@ export default function VisionCanvas({
     pushHistory(newState);
   }, [canvasState, pushHistory]);
 
-  // Drawing - TODO: Wire up to canvas mouse events for drawing functionality
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const _startDrawing = useCallback((x, y) => {
-    if (![CANVAS_MODES.DRAW_PIPE, CANVAS_MODES.DRAW_WALL, CANVAS_MODES.DRAW_FIXTURE].includes(mode)) return;
-    
-    const newDrawing = {
-      id: `draw-${Date.now()}`,
-      type: mode,
-      points: [{ x, y }],
-      color: drawingColor,
-      width: drawingWidth,
-      nodeId: selectedNode,
-    };
-    setCurrentPath(newDrawing);
-  }, [mode, drawingColor, drawingWidth, selectedNode]);
-
-  const _continueDrawing = useCallback((x, y) => {
-    if (!currentPath) return;
-    setCurrentPath(prev => ({
-      ...prev,
-      points: [...prev.points, { x, y }]
-    }));
-  }, [currentPath]);
-
-  const _endDrawing = useCallback(() => {
-    if (!currentPath) return;
-    
-    const newState = {
-      ...canvasState,
-      drawings: [...canvasState.drawings, currentPath]
-    };
-    pushHistory(newState);
-    setCurrentPath(null);
-  }, [currentPath, canvasState, pushHistory]);
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-
-  // Grid pattern
-  const renderGrid = () => {
-    if (!showGrid) return null;
-    
-    const { zoom } = canvasState.viewBox;
-    const gridSize = 50 * zoom;
-    const majorGridSize = 200 * zoom;
-    
-    return (
-      <pattern
-        id="canvas-grid"
-        width={gridSize}
-        height={gridSize}
-        patternUnits="userSpaceOnUse"
-      >
-        <path
-          d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={0.5 / zoom}
-          className="text-surface-200 dark:text-surface-700"
-        />
-      </pattern>
-    );
-  };
-
   // Transform for viewBox
   const getTransform = () => {
     const { x, y, zoom } = canvasState.viewBox;
@@ -361,7 +537,11 @@ export default function VisionCanvas({
   };
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-surface-50 dark:bg-surface-900 overflow-hidden">
+    <div 
+      ref={containerRef} 
+      className="flex-1 flex flex-col h-full overflow-hidden"
+      style={{ backgroundColor: colors.surface.primary }}
+    >
       {/* Toolbar */}
       <CanvasToolbar
         mode={mode}
@@ -383,9 +563,13 @@ export default function VisionCanvas({
         onRedo={redo}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
+        onClear={clearCanvas}
         onAddBlueprint={() => onAddBlueprint?.(addNode)}
         onExport={() => onExport?.(canvasState)}
-        onSave={() => onSaveCanvas?.(canvasState)}
+        onSave={() => (projectId ? saveState() : onSaveCanvas?.(canvasState))}
+        onAnalyze={handleAnalyze}
+        isAnalyzing={isAnalyzing}
+        onClose={onClose}
       />
 
       {/* Canvas */}
@@ -401,7 +585,9 @@ export default function VisionCanvas({
           className="absolute inset-0 w-full h-full"
           style={{ touchAction: 'none' }}
         >
-          <defs>{renderGrid()}</defs>
+          <defs>
+            <CanvasGrid show={showGrid} zoom={canvasState.viewBox.zoom} />
+          </defs>
           
           <g transform={getTransform()}>
             {/* Grid background */}
@@ -441,29 +627,7 @@ export default function VisionCanvas({
 
             {/* Drawings */}
             {canvasState.drawings.map(drawing => (
-              <g key={drawing.id}>
-                {drawing.type === CANVAS_MODES.DRAW_FIXTURE ? (
-                  <circle
-                    cx={drawing.points[0]?.x}
-                    cy={drawing.points[0]?.y}
-                    r={drawing.width * 3}
-                    fill={drawing.color}
-                    fillOpacity={0.3}
-                    stroke={drawing.color}
-                    strokeWidth={drawing.width}
-                  />
-                ) : (
-                  <path
-                    d={`M ${drawing.points.map(p => `${p.x},${p.y}`).join(' L ')}`}
-                    fill="none"
-                    stroke={drawing.color}
-                    strokeWidth={drawing.width}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray={drawing.type === CANVAS_MODES.DRAW_WALL ? '5,5' : undefined}
-                  />
-                )}
-              </g>
+              <DrawingPath key={drawing.id} drawing={drawing} />
             ))}
           </g>
         </svg>
@@ -509,17 +673,18 @@ export default function VisionCanvas({
         />
 
         {/* Zoom indicator */}
-        <div className="absolute bottom-4 left-4 z-10 px-3 py-1.5 rounded-lg
-                        bg-black/60 backdrop-blur-sm text-white text-xs font-mono">
-          {(canvasState.viewBox.zoom * 100).toFixed(0)}%
-        </div>
+        <ZoomIndicator zoom={canvasState.viewBox.zoom} />
 
         {/* Node count */}
-        <div className="absolute bottom-4 right-4 z-10 px-3 py-1.5 rounded-lg
-                        bg-black/60 backdrop-blur-sm text-white text-xs">
-          {canvasState.nodes.length} blueprint{canvasState.nodes.length !== 1 ? 's' : ''} • {canvasState.pins.length} pins
-        </div>
+        <NodeCount 
+          nodeCount={canvasState.nodes.length} 
+          pinCount={canvasState.pins.length} 
+        />
       </div>
     </div>
   );
-}
+});
+
+VisionCanvas.displayName = 'VisionCanvas';
+
+export default VisionCanvas;

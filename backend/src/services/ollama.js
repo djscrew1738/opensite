@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import http from 'http';
 import { db } from './database.js';
 import logger from './logger.js';
 
@@ -37,14 +38,29 @@ class OllamaService {
   }
 
   /**
-   * Initialize axios client
+   * Initialize axios client with connection pooling
    */
   _initClient() {
     this.client = axios.create({
       baseURL: this.baseUrl,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Connection': 'keep-alive',
+      },
       timeout: this.timeout,
+      // Enable HTTP keep-alive for connection reuse
+      httpAgent: new http.Agent({ 
+        keepAlive: true, 
+        maxSockets: 10,
+        maxFreeSockets: 5,
+        timeout: 60000,
+      }),
     });
+
+    // Model list cache
+    this._modelCache = null;
+    this._modelCacheTime = 0;
+    this._modelCacheTTL = 60000; // 60s
 
     this.client.interceptors.request.use(config => {
       config._startTime = Date.now();
@@ -98,13 +114,37 @@ class OllamaService {
   }
 
   /**
-   * Health check
+   * Get cached model list
+   */
+  async _getCachedModels() {
+    const now = Date.now();
+    if (!this._modelCache || (now - this._modelCacheTime) > this._modelCacheTTL) {
+      try {
+        const response = await this.client.get('/api/tags', { timeout: 5000 });
+        this._modelCache = response.data?.models || [];
+        this._modelCacheTime = now;
+      } catch (error) {
+        // Return cached models even if expired, or empty array
+        return this._modelCache || [];
+      }
+    }
+    return this._modelCache;
+  }
+
+  /**
+   * Invalidate model cache
+   */
+  _invalidateModelCache() {
+    this._modelCache = null;
+    this._modelCacheTime = 0;
+  }
+
+  /**
+   * Health check - uses cached models
    */
   async healthCheck() {
     try {
-      const response = await this.client.get('/api/tags', { timeout: 5000 });
-      
-      const models = response.data?.models || [];
+      const models = await this._getCachedModels();
       const hasDefault = models.some(m => m.name === this.defaultModel);
       
       return {
@@ -270,13 +310,12 @@ class OllamaService {
   _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   /**
-   * List available models
+   * List available models - uses cache for performance
    * Returns standardized format matching other AI providers
    */
   async listAvailableModels() {
     try {
-      const response = await this.client.get('/api/tags');
-      const models = response.data?.models || [];
+      const models = await this._getCachedModels();
       
       return {
         success: true,
@@ -290,6 +329,7 @@ class OllamaService {
         })),
         defaultModel: this.defaultModel,
         provider: 'ollama',
+        cached: Date.now() - this._modelCacheTime < this._modelCacheTTL,
       };
     } catch (error) {
       logger.warn('[ollama] Failed to list models:', error.message);
@@ -302,6 +342,7 @@ class OllamaService {
         defaultModel: this.defaultModel,
         provider: 'ollama',
         cached: true,
+        fallback: true,
       };
     }
   }
@@ -353,6 +394,9 @@ Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
    */
   async pullModel(name, onProgress) {
     try {
+      // Invalidate cache before pull
+      this._invalidateModelCache();
+      
       const response = await this.client.post('/api/pull', { name }, {
         responseType: 'stream',
       });
@@ -362,6 +406,9 @@ Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
           onProgress(chunk);
         }
       }
+
+      // Invalidate cache after successful pull
+      this._invalidateModelCache();
 
       return { success: true, model: name };
     } catch (error) {
@@ -375,6 +422,8 @@ Return JSON: {"score": number, "status": "hot|warm|cold", "reasoning": "..."}`;
   async deleteModel(name) {
     try {
       await this.client.delete('/api/delete', { data: { name } });
+      // Invalidate cache after deletion
+      this._invalidateModelCache();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

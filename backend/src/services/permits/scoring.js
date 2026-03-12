@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { db } from '../database.js';
+import logger from '../logger.js';
 
 /**
  * AI Lead Scoring Engine using local Ollama
@@ -100,7 +102,7 @@ export async function scorePermit(permit, logger, config = {}) {
     score = Math.max(1, Math.min(100, score));
 
     // Apply modifiers
-    score = applyModifiers(score, permit, { minProjectCost });
+    score = await applyModifiers(score, permit, { minProjectCost });
 
     // Determine tier from final score
     let tier;
@@ -124,7 +126,7 @@ export async function scorePermit(permit, logger, config = {}) {
 /**
  * Apply rule-based modifiers to the AI score
  */
-function applyModifiers(score, permit, config) {
+async function applyModifiers(score, permit, config) {
   // Boost for new construction
   if (permit.permitCategory === 'new_construction') {
     score = Math.min(100, score + 10);
@@ -147,9 +149,22 @@ function applyModifiers(score, permit, config) {
     score = Math.max(1, score - 15);
   }
 
-  // TODO: Geographic scoring once service_areas table is populated
-  // const inServiceArea = await checkServiceArea(permit.latitude, permit.longitude);
-  // if (!inServiceArea) score = Math.max(1, score - 10);
+  // Geographic scoring
+  if (permit.latitude && permit.longitude) {
+    const inServiceArea = await checkServiceArea(permit.latitude, permit.longitude);
+    if (!inServiceArea) {
+      score = Math.max(1, score - 15);
+    } else {
+      // Bonus for being in priority service area
+      score = Math.min(100, score + 5);
+    }
+  } else if (permit.city) {
+    // Fallback to city name matching if no coordinates
+    const cityMatch = await checkServiceAreaByCity(permit.city);
+    if (!cityMatch) {
+      score = Math.max(1, score - 10);
+    }
+  }
 
   return Math.round(score);
 }
@@ -250,4 +265,146 @@ export async function scoreAllUnscored(db, logger, config = {}, batchSize = 50) 
   logger.info(`Scoring complete in ${elapsed}s: ${totalScored} scored, ${totalHot} hot leads`);
 
   return { totalScored, totalHot };
+}
+
+
+/**
+ * Check if coordinates are within service area
+ * Uses service_areas table with polygon or radius-based areas
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @returns {Promise<boolean>}
+ */
+export async function checkServiceArea(lat, lng) {
+  try {
+    // First check if any service areas are defined
+    const areas = await db.getAllServiceAreas();
+    
+    if (!areas || areas.length === 0) {
+      // No service areas defined - consider all locations valid
+      return true;
+    }
+    
+    for (const area of areas) {
+      if (area.type === 'radius' && area.center_lat && area.center_lng && area.radius_miles) {
+        // Check if point is within radius
+        const distance = calculateDistance(lat, lng, area.center_lat, area.center_lng);
+        if (distance <= area.radius_miles) {
+          return true;
+        }
+      } else if (area.type === 'city' && area.city) {
+        // City-based area - will be checked in checkServiceAreaByCity
+        continue;
+      }
+    }
+    
+    // No matching area found
+    return false;
+  } catch (err) {
+    logger.error('[scoring] Service area check failed:', err.message);
+    // Fail open - if we can't check, allow it
+    return true;
+  }
+}
+
+/**
+ * Check if city is in service area
+ * @param {string} city
+ * @returns {Promise<boolean>}
+ */
+export async function checkServiceAreaByCity(city) {
+  try {
+    if (!city) return true;
+    
+    const cityLower = city.toLowerCase().trim();
+    const areas = await db.getAllServiceAreas();
+    
+    if (!areas || areas.length === 0) {
+      return true;
+    }
+    
+    // Check for city match
+    for (const area of areas) {
+      if (area.type === 'city' && area.city) {
+        if (area.city.toLowerCase().trim() === cityLower) {
+          return true;
+        }
+      }
+      
+      // Also check radius areas - get center city from geocoding or stored field
+      if (area.type === 'radius' && area.center_city) {
+        if (area.center_city.toLowerCase().trim() === cityLower) {
+          return true;
+        }
+      }
+    }
+    
+    // List of default DFW cities CTL Plumbing serves (if no custom areas defined)
+    const defaultServiceCities = [
+      'fort worth', 'fortworth',
+      'arlington',
+      'mansfield',
+      'grand prairie',
+      'keller',
+      'hurst',
+      'euless',
+      'bedford',
+      'grapevine',
+      'southlake',
+      'colleyville',
+      'north richland hills',
+      'richland hills',
+      'haltom city',
+      'watauga',
+      'saginaw',
+      'lake worth',
+      'white settlement',
+      'benbrook',
+      'crowley',
+      'burleson',
+      'azle',
+      'sansom park',
+      'forest hill',
+      'everman',
+      'dalworthington gardens',
+      'pantego',
+      'blue mound',
+      'edgecliff village',
+      'westover hills',
+      'westworth village',
+      'river oaks'
+    ];
+    
+    return defaultServiceCities.includes(cityLower);
+  } catch (err) {
+    logger.error('[scoring] City service area check failed:', err.message);
+    return true;
+  }
+}
+
+/**
+ * Calculate distance between two coordinates in miles
+ * Uses Haversine formula
+ * @param {number} lat1
+ * @param {number} lng1
+ * @param {number} lat2
+ * @param {number} lng2
+ * @returns {number} Distance in miles
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return R * c;
+}
+
+function toRadians(degrees) {
+  return degrees * (Math.PI / 180);
 }

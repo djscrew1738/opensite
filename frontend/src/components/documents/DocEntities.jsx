@@ -1,32 +1,383 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
+import PropTypes from 'prop-types';
 import { Scan, RefreshCw, Loader2, User, Building, MapPin, Calendar, DollarSign, Tag } from 'lucide-react';
 
-const CATEGORY_COLORS = {
-  person:       { bg: 'rgba(59, 130, 246, 0.1)',  text: '#3B82F6', border: 'rgba(59, 130, 246, 0.3)' },
-  organization: { bg: 'rgba(139, 92, 246, 0.1)',  text: '#8B5CF6', border: 'rgba(139, 92, 246, 0.3)' },
-  location:     { bg: 'rgba(16, 185, 129, 0.1)',  text: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
-  date:         { bg: 'rgba(245, 158, 11, 0.1)',  text: '#F59E0B', border: 'rgba(245, 158, 11, 0.3)' },
-  amount:       { bg: 'rgba(239, 68, 68, 0.1)',   text: '#EF4444', border: 'rgba(239, 68, 68, 0.3)' },
-  other:        { bg: 'rgba(148, 163, 184, 0.1)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.3)' },
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
+
+const CATEGORY_CONFIG = {
+  person: { 
+    bg: 'bg-accent-500/10',  
+    text: 'text-accent-500', 
+    border: 'border-accent-500/30',
+    icon: User,
+    label: 'People',
+  },
+  organization: { 
+    bg: 'bg-violet-500/10',  
+    text: 'text-violet-500', 
+    border: 'border-violet-500/30',
+    icon: Building,
+    label: 'Organizations',
+  },
+  location: { 
+    bg: 'bg-emerald-500/10',  
+    text: 'text-emerald-500', 
+    border: 'border-emerald-500/30',
+    icon: MapPin,
+    label: 'Locations',
+  },
+  date: { 
+    bg: 'bg-warning-500/10',  
+    text: 'text-warning-500', 
+    border: 'border-warning-500/30',
+    icon: Calendar,
+    label: 'Dates',
+  },
+  amount: { 
+    bg: 'bg-danger-500/10',   
+    text: 'text-danger-500', 
+    border: 'border-danger-500/30',
+    icon: DollarSign,
+    label: 'Amounts',
+  },
+  other: { 
+    bg: 'bg-surface-400/10', 
+    text: 'text-surface-400', 
+    border: 'border-surface-400/30',
+    icon: Tag,
+    label: 'Other',
+  },
 };
 
-const CATEGORY_ICONS = {
-  person:       User,
-  organization: Building,
-  location:     MapPin,
-  date:         Calendar,
-  amount:       DollarSign,
-  other:        Tag,
+const CATEGORY_ORDER = ['person', 'organization', 'location', 'date', 'amount', 'other'];
+
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Skeleton loading state for entity extraction
+ */
+const EntitiesSkeleton = memo(function EntitiesSkeleton() {
+  return (
+    <div className="rounded-xl p-5 bg-surface-900 border border-surface-700">
+      <div className="flex items-center gap-3 mb-4">
+        <Loader2 size={18} className="animate-spin text-accent-500" />
+        <span className="text-sm font-medium text-surface-400">
+          Extracting entities...
+        </span>
+      </div>
+
+      {/* Skeleton pills */}
+      <div className="space-y-4">
+        {[1, 2, 3].map((group) => (
+          <div key={group}>
+            <div className="h-4 w-24 rounded-md animate-pulse bg-surface-800 mb-3" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 3 + group }, (_, i) => (
+                <div
+                  key={i}
+                  className="h-7 rounded-full animate-pulse bg-surface-800"
+                  style={{ width: `${60 + Math.random() * 60}px` }}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Empty state when no entities extracted yet
+ */
+const EmptyEntitiesState = memo(function EmptyEntitiesState({ 
+  onExtract, 
+  isDocumentReady 
+}) {
+  return (
+    <div className="rounded-xl p-5 bg-surface-900 border border-surface-700">
+      <div className="flex flex-col items-center justify-center py-8 gap-4">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-accent-500/10">
+          <Scan size={22} className="text-accent-500" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium mb-1 text-surface-100">
+            No entities extracted
+          </p>
+          <p className="text-xs text-surface-500">
+            Extract people, places, dates, and more from this document
+          </p>
+        </div>
+        <button
+          onClick={onExtract}
+          disabled={!isDocumentReady}
+          className="
+            flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium 
+            transition-colors bg-accent-500 text-surface-100 hover:bg-accent-600
+            disabled:opacity-50 disabled:cursor-not-allowed
+          "
+        >
+          <Scan size={16} />
+          {isDocumentReady ? 'Extract Entities' : 'Processing…'}
+        </button>
+      </div>
+    </div>
+  );
+});
+
+EmptyEntitiesState.propTypes = {
+  onExtract: PropTypes.func.isRequired,
+  isDocumentReady: PropTypes.bool.isRequired,
 };
 
-const CATEGORY_LABELS = {
-  person:       'People',
-  organization: 'Organizations',
-  location:     'Locations',
-  date:         'Dates',
-  amount:       'Amounts',
-  other:        'Other',
+/**
+ * Display raw extraction fallback
+ */
+const RawExtractionView = memo(function RawExtractionView({ rawText, onExtract }) {
+  return (
+    <div className="rounded-xl p-5 bg-surface-900 border border-surface-700">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Scan size={16} className="text-accent-500" />
+          <h3 className="text-sm font-semibold text-surface-100">
+            Extracted Entities
+          </h3>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-warning-500/10 text-warning-500">
+            raw
+          </span>
+        </div>
+        <button
+          onClick={onExtract}
+          className="
+            flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium 
+            transition-colors bg-surface-800/50 text-surface-400 border border-surface-700
+            hover:bg-surface-800 hover:text-surface-300
+          "
+        >
+          <RefreshCw size={14} />
+          Re-extract
+        </button>
+      </div>
+
+      <div className="rounded-lg p-4 overflow-x-auto bg-surface-800 border border-surface-700">
+        <pre className="text-xs leading-relaxed text-surface-100 whitespace-pre-wrap break-words font-mono">
+          {rawText}
+        </pre>
+      </div>
+    </div>
+  );
+});
+
+RawExtractionView.propTypes = {
+  rawText: PropTypes.string.isRequired,
+  onExtract: PropTypes.func.isRequired,
 };
+
+/**
+ * Individual entity pill with expandable context
+ */
+const EntityPill = memo(function EntityPill({ entity, config }) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = config.icon;
+
+  const handleToggle = useCallback(() => {
+    setExpanded(prev => !prev);
+  }, []);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleToggle();
+    }
+  }, [handleToggle]);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleToggle}
+        onKeyDown={handleKeyDown}
+        className={`
+          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium 
+          transition-all cursor-pointer border
+          ${config.bg} ${config.text} ${config.border}
+          hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-surface-900 focus:ring-accent-500
+        `}
+        title={entity.context || entity.name}
+        aria-expanded={expanded}
+        tabIndex={0}
+      >
+        <Icon size={12} />
+        {entity.name}
+      </button>
+
+      {/* Expanded context tooltip */}
+      {expanded && entity.context && (
+        <div
+          className={`
+            absolute z-10 left-0 top-full mt-1.5 rounded-lg p-3 text-xs leading-relaxed 
+            max-w-xs shadow-lg bg-surface-800 border ${config.border} text-surface-100
+          `}
+          role="tooltip"
+        >
+          <p className={`font-medium mb-1 ${config.text}`}>
+            {entity.name}
+          </p>
+          <p className="text-surface-400">
+            {entity.context}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+EntityPill.propTypes = {
+  entity: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    context: PropTypes.string,
+  }).isRequired,
+  config: PropTypes.shape({
+    bg: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired,
+    border: PropTypes.string.isRequired,
+    icon: PropTypes.elementType.isRequired,
+    label: PropTypes.string.isRequired,
+  }).isRequired,
+};
+
+/**
+ * Category section with entity pills
+ */
+const CategorySection = memo(function CategorySection({ 
+  category, 
+  items, 
+  config 
+}) {
+  const Icon = config.icon;
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-2.5">
+        <Icon size={14} className={config.text} />
+        <span className={`text-xs font-semibold uppercase tracking-wider ${config.text}`}>
+          {config.label}
+        </span>
+        <span className="text-xs text-surface-500">
+          ({items.length})
+        </span>
+      </div>
+
+      {/* Entity pills */}
+      <div className="flex flex-wrap gap-2">
+        {items.map((entity, idx) => (
+          <EntityPill 
+            key={`${category}-${idx}`} 
+            entity={entity} 
+            config={config} 
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+CategorySection.propTypes = {
+  category: PropTypes.string.isRequired,
+  items: PropTypes.arrayOf(PropTypes.object).isRequired,
+  config: PropTypes.shape({
+    bg: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired,
+    border: PropTypes.string.isRequired,
+    icon: PropTypes.elementType.isRequired,
+    label: PropTypes.string.isRequired,
+  }).isRequired,
+};
+
+/**
+ * Grouped entities view
+ */
+const GroupedEntitiesView = memo(function GroupedEntitiesView({ 
+  entities, 
+  onExtract 
+}) {
+  const { grouped, sortedCategories, entityCount } = useMemo(() => {
+    const grouped = {};
+    
+    entities.forEach((entity) => {
+      const type = entity.type?.toLowerCase() || 'other';
+      const key = CATEGORY_CONFIG[type] ? type : 'other';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(entity);
+    });
+
+    const sortedCategories = CATEGORY_ORDER.filter((cat) => grouped[cat]?.length > 0);
+    
+    return { grouped, sortedCategories, entityCount: entities.length };
+  }, [entities]);
+
+  return (
+    <div className="rounded-xl p-5 bg-surface-900 border border-surface-700">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Scan size={16} className="text-accent-500" />
+          <h3 className="text-sm font-semibold text-surface-100">
+            Extracted Entities
+          </h3>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-accent-500/10 text-accent-500">
+            {entityCount}
+          </span>
+        </div>
+        <button
+          onClick={onExtract}
+          className="
+            flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium 
+            transition-colors bg-surface-800/50 text-surface-400 border border-surface-700
+            hover:bg-surface-800 hover:text-surface-300
+          "
+        >
+          <RefreshCw size={14} />
+          Re-extract
+        </button>
+      </div>
+
+      {/* Grouped entity sections */}
+      <div className="space-y-5">
+        {sortedCategories.map((category) => (
+          <CategorySection
+            key={category}
+            category={category}
+            items={grouped[category]}
+            config={CATEGORY_CONFIG[category]}
+          />
+        ))}
+      </div>
+
+      {/* Empty case: entities is an empty array */}
+      {sortedCategories.length === 0 && entities.length === 0 && (
+        <div className="flex flex-col items-center py-6 gap-2">
+          <p className="text-sm text-surface-500">
+            No entities were found in this document.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+GroupedEntitiesView.propTypes = {
+  entities: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onExtract: PropTypes.func.isRequired,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * DocEntities -- Displays extracted entities grouped by category.
@@ -37,269 +388,94 @@ const CATEGORY_LABELS = {
  *   - Entities array: Grouped pills with hover context
  *   - Raw extraction fallback: Preformatted text card
  */
-export default function DocEntities({ document, onExtract, isLoading, isDocumentReady = true }) {
+function DocEntities({ document, onExtract, isLoading, isDocumentReady = true }) {
   const entities = document?.entities;
 
-  // -- Loading state --
+  // Loading state
   if (isLoading) {
-    return (
-      <div className="rounded-xl p-5" style={{ backgroundColor: '#111318', border: '1px solid #1F2430' }}>
-        <div className="flex items-center gap-3 mb-4">
-          <Loader2
-            size={18}
-            className="animate-spin"
-            style={{ color: '#3B82F6' }}
-          />
-          <span className="text-sm font-medium" style={{ color: '#94A3B8' }}>
-            Extracting entities...
-          </span>
-        </div>
-
-        {/* Skeleton pills */}
-        <div className="space-y-4">
-          {[1, 2, 3].map((group) => (
-            <div key={group}>
-              <div
-                className="h-4 w-24 rounded-md animate-pulse mb-3"
-                style={{ backgroundColor: '#1F2430' }}
-              />
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: 3 + group }, (_, i) => (
-                  <div
-                    key={i}
-                    className="h-7 rounded-full animate-pulse"
-                    style={{
-                      backgroundColor: '#1F2430',
-                      width: `${60 + Math.random() * 60}px`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <EntitiesSkeleton />;
   }
 
-  // -- No entities yet --
+  // No entities yet
   if (!entities) {
     return (
-      <div className="rounded-xl p-5" style={{ backgroundColor: '#111318', border: '1px solid #1F2430' }}>
-        <div className="flex flex-col items-center justify-center py-8 gap-4">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}
-          >
-            <Scan size={22} style={{ color: '#3B82F6' }} />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium mb-1" style={{ color: '#F1F5F9' }}>
-              No entities extracted
-            </p>
-            <p className="text-xs" style={{ color: '#64748B' }}>
-              Extract people, places, dates, and more from this document
-            </p>
-          </div>
-          <button
-            onClick={onExtract}
-            disabled={isLoading || !isDocumentReady}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-90"
-            style={{
-              backgroundColor: '#3B82F6',
-              color: '#F1F5F9',
-              opacity: !isDocumentReady ? 0.5 : 1,
-              cursor: !isDocumentReady ? 'not-allowed' : 'pointer',
-            }}
-          >
-            <Scan size={16} />
-            {isDocumentReady ? 'Extract Entities' : 'Processing…'}
-          </button>
-        </div>
-      </div>
+      <EmptyEntitiesState 
+        onExtract={onExtract} 
+        isDocumentReady={isDocumentReady} 
+      />
     );
   }
 
-  // -- Raw extraction fallback --
+  // Raw extraction fallback
   if (entities.raw_extraction) {
     return (
-      <div className="rounded-xl p-5" style={{ backgroundColor: '#111318', border: '1px solid #1F2430' }}>
+      <RawExtractionView 
+        rawText={entities.raw_extraction} 
+        onExtract={onExtract} 
+      />
+    );
+  }
+
+  // Entities exist: group by type
+  const entityList = Array.isArray(entities) ? entities : [];
+
+  if (entityList.length === 0) {
+    return (
+      <div className="rounded-xl p-5 bg-surface-900 border border-surface-700">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Scan size={16} style={{ color: '#3B82F6' }} />
-            <h3 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>
+            <Scan size={16} className="text-accent-500" />
+            <h3 className="text-sm font-semibold text-surface-100">
               Extracted Entities
             </h3>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B' }}
-            >
-              raw
-            </span>
           </div>
           <button
             onClick={onExtract}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              backgroundColor: 'rgba(241, 245, 249, 0.05)',
-              color: '#94A3B8',
-              border: '1px solid #1F2430',
-            }}
+            className="
+              flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium 
+              transition-colors bg-surface-800/50 text-surface-400 border border-surface-700
+              hover:bg-surface-800 hover:text-surface-300
+            "
           >
             <RefreshCw size={14} />
             Re-extract
           </button>
         </div>
-
-        <div
-          className="rounded-lg p-4 overflow-x-auto"
-          style={{ backgroundColor: '#181C24', border: '1px solid #1F2430' }}
-        >
-          <pre
-            className="text-xs leading-relaxed"
-            style={{
-              color: '#F1F5F9',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
-          >
-            {entities.raw_extraction}
-          </pre>
+        <div className="flex flex-col items-center py-6 gap-2">
+          <p className="text-sm text-surface-500">
+            No entities were found in this document.
+          </p>
         </div>
       </div>
     );
   }
 
-  // -- Entities exist: group by type --
-  const grouped = {};
-  const entityList = Array.isArray(entities) ? entities : [];
-
-  entityList.forEach((entity) => {
-    const type = entity.type?.toLowerCase() || 'other';
-    const key = CATEGORY_COLORS[type] ? type : 'other';
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(entity);
-  });
-
-  // Sort categories: person, organization, location, date, amount, other
-  const categoryOrder = ['person', 'organization', 'location', 'date', 'amount', 'other'];
-  const sortedCategories = categoryOrder.filter((cat) => grouped[cat]?.length > 0);
-
   return (
-    <div className="rounded-xl p-5" style={{ backgroundColor: '#111318', border: '1px solid #1F2430' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Scan size={16} style={{ color: '#3B82F6' }} />
-          <h3 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>
-            Extracted Entities
-          </h3>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}
-          >
-            {entityList.length}
-          </span>
-        </div>
-        <button
-          onClick={onExtract}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          style={{
-            backgroundColor: 'rgba(241, 245, 249, 0.05)',
-            color: '#94A3B8',
-            border: '1px solid #1F2430',
-          }}
-        >
-          <RefreshCw size={14} />
-          Re-extract
-        </button>
-      </div>
-
-      {/* Grouped entity sections */}
-      <div className="space-y-5">
-        {sortedCategories.map((category) => {
-          const items = grouped[category];
-          const colors = CATEGORY_COLORS[category];
-          const Icon = CATEGORY_ICONS[category] || Tag;
-          const label = CATEGORY_LABELS[category] || category;
-
-          return (
-            <div key={category}>
-              {/* Section header */}
-              <div className="flex items-center gap-2 mb-2.5">
-                <Icon size={14} style={{ color: colors.text }} />
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text }}>
-                  {label}
-                </span>
-                <span className="text-xs" style={{ color: '#64748B' }}>
-                  ({items.length})
-                </span>
-              </div>
-
-              {/* Entity pills */}
-              <div className="flex flex-wrap gap-2">
-                {items.map((entity, idx) => (
-                  <EntityPill key={`${category}-${idx}`} entity={entity} colors={colors} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Empty case: entities is an empty array */}
-      {sortedCategories.length === 0 && entityList.length === 0 && (
-        <div className="flex flex-col items-center py-6 gap-2">
-          <p className="text-sm" style={{ color: '#64748B' }}>
-            No entities were found in this document.
-          </p>
-        </div>
-      )}
-    </div>
+    <GroupedEntitiesView 
+      entities={entityList} 
+      onExtract={onExtract} 
+    />
   );
 }
 
-/**
- * EntityPill -- Individual entity displayed as an interactive pill.
- * Hover/click to reveal context.
- */
-function EntityPill({ entity, colors }) {
-  const [expanded, setExpanded] = useState(false);
+DocEntities.propTypes = {
+  document: PropTypes.shape({
+    entities: PropTypes.oneOfType([
+      PropTypes.arrayOf(PropTypes.object),
+      PropTypes.shape({
+        raw_extraction: PropTypes.string,
+      }),
+    ]),
+  }),
+  onExtract: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool,
+  isDocumentReady: PropTypes.bool,
+};
 
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setExpanded((prev) => !prev)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer"
-        style={{
-          backgroundColor: colors.bg,
-          color: colors.text,
-          border: `1px solid ${colors.border}`,
-        }}
-        title={entity.context || undefined}
-      >
-        {entity.name}
-      </button>
+DocEntities.defaultProps = {
+  document: null,
+  isLoading: false,
+  isDocumentReady: true,
+};
 
-      {/* Expanded context */}
-      {expanded && entity.context && (
-        <div
-          className="absolute z-10 left-0 top-full mt-1.5 rounded-lg p-3 text-xs leading-relaxed max-w-xs shadow-lg"
-          style={{
-            backgroundColor: '#181C24',
-            border: `1px solid ${colors.border}`,
-            color: '#F1F5F9',
-          }}
-        >
-          <p className="font-medium mb-1" style={{ color: colors.text }}>
-            {entity.name}
-          </p>
-          <p style={{ color: '#94A3B8' }}>
-            {entity.context}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
+export default DocEntities;

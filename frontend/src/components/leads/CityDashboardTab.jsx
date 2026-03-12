@@ -40,7 +40,7 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
           <div className="card">
             <div className="card-body p-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
                 <input
                   type="text"
                   value={citySearch}
@@ -74,32 +74,32 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
                       }`}
                     >
                       <MapPin className={`w-4 h-4 shrink-0 ${
-                        selectedCity === city.city ? 'text-blue-500' : 'text-gray-400'
+                        selectedCity === city.city ? 'text-blue-500' : 'text-surface-400'
                       }`} />
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold truncate ${
                           selectedCity === city.city
                             ? 'text-blue-700 dark:text-blue-400'
-                            : 'text-gray-900 dark:text-gray-100'
+                            : 'text-surface-900 dark:text-surface-100'
                         }`}>
                           {city.city}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500 tabular-nums">{city.permitCount} permits</span>
+                          <span className="text-xs text-surface-500 tabular-nums">{city.permitCount} permits</span>
                           {city.hotCount > 0 && (
                             <span className="text-2xs font-bold text-hot-500 tabular-nums">{city.hotCount} hot</span>
                           )}
                         </div>
                       </div>
                       <ChevronRight className={`w-4 h-4 shrink-0 transition-colors ${
-                        selectedCity === city.city ? 'text-blue-400' : 'text-gray-300 dark:text-gray-600'
+                        selectedCity === city.city ? 'text-blue-400' : 'text-surface-300 dark:text-surface-600'
                       }`} />
                     </button>
                   ))}
                 </div>
               ) : (
                 <div className="p-6 text-center">
-                  <p className="text-sm text-gray-500">No cities found</p>
+                  <p className="text-sm text-surface-500">No cities found</p>
                   {citySearch && (
                     <button onClick={() => setCitySearch('')} className="text-xs text-blue-500 mt-1 hover:underline">
                       Clear filter
@@ -112,7 +112,7 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
 
           {/* Total summary */}
           {cities.length > 0 && (
-            <div className="px-3 text-xs text-gray-400 font-medium">
+            <div className="px-3 text-xs text-surface-400 font-medium">
               {cities.length} cities · {cities.reduce((s, c) => s + c.permitCount, 0)} total permits
             </div>
           )}
@@ -123,9 +123,9 @@ export default function CityDashboardTab({ onViewPermit, onSwitchToBuilders }) {
           {!selectedCity ? (
             <div className="card">
               <div className="card-body text-center py-20">
-                <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" strokeWidth={1.5} />
-                <h3 className="text-xl font-display font-bold text-gray-900 dark:text-gray-100 mb-2">Select a City</h3>
-                <p className="text-sm text-gray-500">Choose a city from the list to see permit intelligence</p>
+                <MapPin className="w-12 h-12 text-surface-300 mx-auto mb-4" strokeWidth={1.5} />
+                <h3 className="text-xl font-bold text-surface-900 dark:text-surface-100 mb-2">Select a City</h3>
+                <p className="text-sm text-surface-500">Choose a city from the list to see permit intelligence</p>
               </div>
             </div>
           ) : statsLoading ? (

@@ -150,7 +150,7 @@ export default function Alerts() {
   const dismiss     = (id) => setDismissed(prev => new Set([...prev, id]));
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="max-w-2xl mx-auto px-4 py-6 page-transition-wrapper">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

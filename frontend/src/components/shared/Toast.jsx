@@ -1,362 +1,367 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * TOAST COMPONENT — UI/UX Overhaul
+ * Beautiful notifications with smooth animations
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  CheckCircle, 
-  XCircle, 
+  CheckCircle2, 
+  AlertCircle, 
   AlertTriangle, 
   Info, 
-  Loader2, 
   X,
-  Bell
+  Loader2
 } from 'lucide-react';
-import { ToastType } from '../../hooks/useToast';
+import { cx } from '../../design-system';
 
-// Icon mapping for each toast type
-const toastIcons = {
-  [ToastType.SUCCESS]: CheckCircle,
-  [ToastType.ERROR]: XCircle,
-  [ToastType.WARNING]: AlertTriangle,
-  [ToastType.INFO]: Info,
-  [ToastType.LOADING]: Loader2,
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST ITEM
+// ═══════════════════════════════════════════════════════════════════════════════
 
-// Color schemes for each toast type — Dark Forge
-const toastStyles = {
-  [ToastType.SUCCESS]: {
-    bg: 'bg-emerald-50 dark:bg-emerald-950/90',
-    border: 'border-emerald-200 dark:border-emerald-800',
-    text: 'text-emerald-800 dark:text-emerald-200',
-    icon: 'text-emerald-500 dark:text-emerald-400',
-    progress: 'bg-emerald-500',
-    shadow: 'shadow-emerald-500/20',
-  },
-  [ToastType.ERROR]: {
-    bg: 'bg-red-50 dark:bg-red-950/90',
-    border: 'border-red-200 dark:border-red-800',
-    text: 'text-red-800 dark:text-red-200',
-    icon: 'text-red-500 dark:text-red-400',
-    progress: 'bg-red-500',
-    shadow: 'shadow-red-500/20',
-  },
-  [ToastType.WARNING]: {
-    bg: 'bg-amber-50 dark:bg-amber-950/90',
-    border: 'border-amber-200 dark:border-amber-800',
-    text: 'text-amber-800 dark:text-amber-200',
-    icon: 'text-amber-500 dark:text-amber-400',
-    progress: 'bg-amber-500',
-    shadow: 'shadow-amber-500/20',
-  },
-  [ToastType.INFO]: {
-    bg: 'bg-blue-50 dark:bg-blue-950/90',
-    border: 'border-blue-200 dark:border-blue-800',
-    text: 'text-blue-800 dark:text-blue-200',
-    icon: 'text-blue-500 dark:text-blue-400',
-    progress: 'bg-blue-500',
-    shadow: 'shadow-blue-500/20',
-  },
-  [ToastType.LOADING]: {
-    bg: 'bg-gray-50 dark:bg-gray-900/90',
-    border: 'border-gray-200 dark:border-gray-700',
-    text: 'text-gray-800 dark:text-gray-200',
-    icon: 'text-blue-500 dark:text-blue-400',
-    progress: 'bg-blue-500',
-    shadow: 'shadow-blue-500/20',
-  },
-};
-
-// Individual Toast Component
-export function Toast({
-  toast,
+const ToastItem = ({ 
+  id,
+  type = 'info',
+  title,
+  message,
+  duration = 5000,
   onDismiss,
-  onPause,
-  onResume,
-  index,
-  total,
-  isMobile,
-}) {
-  const { 
-    id, 
-    message, 
-    type, 
-    duration, 
-    dismissible, 
-    pauseOnHover,
-    paused,
-    dismissing,
-  } = toast;
-
+  action,
+}) => {
   const [progress, setProgress] = useState(100);
-  const progressRef = useRef(100);
-  const animationRef = useRef(null);
-  const startTimeRef = useRef(Date.now());
-  const pausedTimeRef = useRef(0);
-  const toastRef = useRef(null);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const styles = toastStyles[type];
-  const Icon = toastIcons[type];
-
-  // Calculate position styles for stacking
-  const getPositionStyles = () => {
-    if (isMobile) {
-      // Mobile: Stack from top with slight overlap
-      const offset = index * 8;
-      const scale = 1 - (total - index - 1) * 0.03;
-      return {
-        transform: `translateY(${offset}px) scale(${Math.max(scale, 0.9)}) translateX(${swipeOffset}px)`,
-        zIndex: total - index,
-        opacity: dismissing ? 0 : 1 - (total - index - 1) * 0.15,
-      };
-    }
-    // Desktop: Stack from bottom-right
-    const offset = index * 12;
-    return {
-      transform: `translateY(-${offset}px) translateX(${swipeOffset}px)`,
-      zIndex: total - index,
-    };
-  };
-
-  // Progress bar animation
+  // Auto-dismiss with progress bar
   useEffect(() => {
-    if (type === ToastType.LOADING || duration <= 0 || paused) {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      return;
-    }
+    if (duration === Infinity || isPaused) return;
 
-    const animate = () => {
-      const elapsed = Date.now() - startTimeRef.current - pausedTimeRef.current;
-      const remaining = Math.max(0, duration - elapsed);
-      const newProgress = (remaining / duration) * 100;
+    const startTime = Date.now();
+    const endTime = startTime + duration;
 
-      if (newProgress !== progressRef.current) {
-        progressRef.current = newProgress;
-        setProgress(newProgress);
-      }
+    const updateProgress = () => {
+      const now = Date.now();
+      const remaining = endTime - now;
+      const newProgress = Math.max(0, (remaining / duration) * 100);
+      
+      setProgress(newProgress);
 
-      if (remaining > 0) {
-        animationRef.current = requestAnimationFrame(animate);
+      if (newProgress > 0) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        onDismiss(id);
       }
     };
 
-    animationRef.current = requestAnimationFrame(animate);
+    const animationFrame = requestAnimationFrame(updateProgress);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [id, duration, isPaused, onDismiss]);
 
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [duration, type, paused]);
-
-  // Handle pause/resume tracking
-  useEffect(() => {
-    if (paused) {
-      pausedTimeRef.current += Date.now() - (toast.pausedAt || Date.now());
-    }
-  }, [paused, toast.pausedAt]);
-
-  // Touch handlers for swipe-to-dismiss (mobile)
-  const handleTouchStart = useCallback((e) => {
-    if (!isMobile) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    setIsSwiping(true);
-  }, [isMobile]);
-
-  const handleTouchMove = useCallback((e) => {
-    if (!isMobile || !isSwiping) return;
-    
-    const touchX = e.touches[0].clientX;
-    const touchY = e.touches[0].clientY;
-    const deltaX = touchX - touchStartX.current;
-    const deltaY = touchY - touchStartY.current;
-
-    // Only handle horizontal swipes
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      e.preventDefault();
-      setSwipeOffset(deltaX);
-    }
-  }, [isMobile, isSwiping]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isMobile) return;
-    setIsSwiping(false);
-
-    // Dismiss if swiped far enough
-    if (Math.abs(swipeOffset) > 100) {
-      onDismiss();
-    } else {
-      // Spring back
-      setSwipeOffset(0);
-    }
-  }, [isMobile, swipeOffset, onDismiss]);
-
-  // Mouse handlers for desktop
-  const handleMouseEnter = () => {
-    if (!isMobile && pauseOnHover) {
-      onPause();
-    }
+  const icons = {
+    success: CheckCircle2,
+    error: AlertCircle,
+    warning: AlertTriangle,
+    info: Info,
+    loading: Loader2,
   };
 
-  const handleMouseLeave = () => {
-    if (!isMobile && pauseOnHover) {
-      onResume();
-    }
+  const Icon = icons[type];
+
+  const styles = {
+    success: {
+      borderLeft: '3px solid #10B981',
+      background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(17, 19, 24, 0.95) 100%)',
+    },
+    error: {
+      borderLeft: '3px solid #EF4444',
+      background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, rgba(17, 19, 24, 0.95) 100%)',
+    },
+    warning: {
+      borderLeft: '3px solid #F59E0B',
+      background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(17, 19, 24, 0.95) 100%)',
+    },
+    info: {
+      borderLeft: '3px solid #3B82F6',
+      background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(17, 19, 24, 0.95) 100%)',
+    },
+    loading: {
+      borderLeft: '3px solid #3B82F6',
+      background: 'rgba(17, 19, 24, 0.95)',
+    },
   };
 
-  // Handle dismiss button click
-  const handleDismissClick = (e) => {
-    e.stopPropagation();
-    onDismiss();
+  const iconColors = {
+    success: '#10B981',
+    error: '#EF4444',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+    loading: '#3B82F6',
   };
-
-  // Vibration for mobile (haptic feedback)
-  useEffect(() => {
-    if (isMobile && navigator.vibrate && type !== ToastType.LOADING) {
-      // Light vibration pattern for notifications
-      navigator.vibrate(type === ToastType.ERROR ? [50, 100, 50] : 50);
-    }
-  }, [isMobile, type]);
 
   return (
-    <div
-      ref={toastRef}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 100, scale: 0.95 }}
+      transition={{ 
+        type: 'spring',
+        stiffness: 400,
+        damping: 25,
+      }}
+      className={cx(
+        'relative w-full max-w-sm rounded-xl overflow-hidden',
+        'border border-[#2D3548]',
+        'shadow-[0_10px_40px_rgba(0,0,0,0.5)]'
+      )}
+      style={styles[type]}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
       role="alert"
-      aria-live={type === ToastType.ERROR ? 'assertive' : 'polite'}
-      aria-atomic="true"
-      className={`
-        relative flex items-start gap-3 
-        px-4 py-3.5 
-        rounded-xl 
-        border 
-        shadow-lg backdrop-blur-md
-        ${styles.bg} ${styles.border} ${styles.shadow}
-        transition-all duration-300 ease-out
-        ${dismissing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
-        ${isMobile ? 'w-full max-w-[calc(100vw-2rem)] mx-4' : 'w-[380px] max-w-[90vw]'}
-        ${isSwiping ? 'transition-none' : ''}
-        cursor-pointer
-        select-none
-        touch-pan-y
-      `}
-      style={getPositionStyles()}
-      onClick={() => dismissible && onDismiss()}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
     >
-      {/* Icon */}
-      <div className={`flex-shrink-0 mt-0.5 ${styles.icon}`}>
-        <Icon 
-          className={`w-5 h-5 ${type === ToastType.LOADING ? 'animate-spin' : ''}`} 
-          aria-hidden="true"
-        />
-      </div>
+      <div className="p-4 flex items-start gap-3">
+        {/* Icon */}
+        <div className="flex-shrink-0 mt-0.5">
+          <Icon 
+            className={cx(
+              'w-5 h-5',
+              type === 'loading' && 'animate-spin'
+            )}
+            style={{ color: iconColors[type] }}
+          />
+        </div>
 
-      {/* Content */}
-      <div className={`flex-1 min-w-0 pr-2 ${styles.text}`}>
-        <p className="text-sm font-medium leading-relaxed break-words">
-          {message}
-        </p>
-      </div>
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {title && (
+            <h4 className="font-semibold text-[#F8FAFC] text-sm">
+              {title}
+            </h4>
+          )}
+          {message && (
+            <p className={cx(
+              'text-sm text-[#CBD5E1] mt-0.5',
+              title && 'mt-1'
+            )}>
+              {message}
+            </p>
+          )}
+          
+          {/* Action button */}
+          {action && (
+            <button
+              onClick={() => {
+                action.onClick();
+                onDismiss(id);
+              }}
+              className="mt-2 text-sm font-medium text-[#3B82F6] hover:text-[#60A5FA] transition-colors"
+            >
+              {action.label}
+            </button>
+          )}
+        </div>
 
-      {/* Close button */}
-      {dismissible && (
+        {/* Close button */}
         <button
-          onClick={handleDismissClick}
-          className={`
-            flex-shrink-0 -mr-1 -mt-1 p-1.5 rounded-lg
-            opacity-60 hover:opacity-100
-            transition-opacity
-            ${styles.text}
-            focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500
-          `}
+          onClick={() => onDismiss(id)}
+          className="flex-shrink-0 p-1 rounded-lg text-[#64748B] hover:text-[#F8FAFC] hover:bg-[rgba(255,255,255,0.1)] transition-colors"
           aria-label="Dismiss notification"
         >
           <X className="w-4 h-4" />
         </button>
-      )}
+      </div>
 
       {/* Progress bar */}
-      {duration > 0 && type !== ToastType.LOADING && (
-        <div 
-          className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-xl"
-          aria-hidden="true"
-        >
-          <div
-            className={`h-full ${styles.progress} transition-all duration-100 ease-linear`}
+      {duration !== Infinity && type !== 'loading' && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[rgba(255,255,255,0.1)]">
+          <motion.div
+            className="h-full"
             style={{ 
+              backgroundColor: iconColors[type],
               width: `${progress}%`,
-              opacity: paused ? 0.5 : 1,
             }}
+            initial={{ width: '100%' }}
           />
         </div>
       )}
 
-      {/* Loading spinner for loading state */}
-      {type === ToastType.LOADING && (
-        <div 
-          className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-xl"
-          aria-hidden="true"
-        >
-          <div 
-            className={`h-full ${styles.progress} animate-loading-bar`}
-            style={{ width: '30%' }}
+      {/* Loading indeterminate progress */}
+      {type === 'loading' && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
+          <motion.div
+            className="h-full bg-[#3B82F6]"
+            animate={{
+              x: ['-100%', '100%'],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
+            style={{ width: '40%' }}
           />
         </div>
       )}
-    </div>
+    </motion.div>
   );
-}
+};
 
-// Toast Container Component
-export function ToastContainer() {
-  const { toasts, dismissToast, pauseToast, resumeToast, isMobile } = useToast();
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST CONTAINER
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  if (toasts.length === 0) return null;
-
-  // Mobile: Center at top with padding
-  // Desktop: Fixed at bottom-right
-  const containerClasses = isMobile
-    ? 'fixed top-0 left-0 right-0 z-[9999] flex flex-col items-center pt-4 px-2 pointer-events-none'
-    : 'fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3 pointer-events-none';
+export const ToastContainer = ({ 
+  toasts = [], 
+  onDismiss,
+  position = 'bottom-right',
+}) => {
+  const positionClasses = {
+    'top-left': 'top-4 left-4',
+    'top-right': 'top-4 right-4',
+    'top-center': 'top-4 left-1/2 -translate-x-1/2',
+    'bottom-left': 'bottom-4 left-4',
+    'bottom-right': 'bottom-4 right-4',
+    'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
+  };
 
   return (
     <div 
-      className={containerClasses}
-      aria-live="polite"
-      aria-atomic="false"
+      className={cx(
+        'fixed z-50 flex flex-col gap-3 pointer-events-none',
+        positionClasses[position]
+      )}
+      style={{ maxWidth: '100%', padding: 'env(safe-area-inset-right) env(safe-area-inset-bottom)' }}
     >
-      {toasts.map((toast, index) => (
-        <div 
-          key={toast.id} 
-          className="pointer-events-auto"
-          style={{ 
-            marginBottom: isMobile ? '8px' : '0',
-          }}
-        >
-          <Toast
-            toast={toast}
-            index={index}
-            total={toasts.length}
-            isMobile={isMobile}
-            onDismiss={() => dismissToast(toast.id)}
-            onPause={() => pauseToast(toast.id)}
-            onResume={() => resumeToast(toast.id)}
-          />
-        </div>
-      ))}
+      <AnimatePresence mode="popLayout">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="pointer-events-auto">
+            <ToastItem
+              {...toast}
+              onDismiss={onDismiss}
+            />
+          </div>
+        ))}
+      </AnimatePresence>
     </div>
   );
-}
+};
 
-// Re-export for convenience
-import { useToast } from '../../hooks/useToast';
-export { useToast };
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST PROVIDER HOOK
+// ═══════════════════════════════════════════════════════════════════════════════
 
-export default Toast;
+let toastListeners = [];
+let toastId = 0;
+
+const notify = (type, options) => {
+  const id = ++toastId;
+  const toast = {
+    id,
+    type,
+    ...options,
+  };
+  
+  toastListeners.forEach(listener => listener(toast));
+  return id;
+};
+
+export const toast = {
+  success: (message, options = {}) => notify('success', { message, ...options }),
+  error: (message, options = {}) => notify('error', { message, ...options }),
+  warning: (message, options = {}) => notify('warning', { message, ...options }),
+  info: (message, options = {}) => notify('info', { message, ...options }),
+  loading: (message, options = {}) => notify('loading', { message, duration: Infinity, ...options }),
+  promise: async (promise, messages, options = {}) => {
+    const id = notify('loading', { message: messages.loading, ...options });
+    
+    try {
+      const result = await promise;
+      toastListeners.forEach(listener => listener({
+        id,
+        type: 'success',
+        message: messages.success,
+        ...options,
+      }));
+      return result;
+    } catch (error) {
+      toastListeners.forEach(listener => listener({
+        id,
+        type: 'error',
+        message: messages.error || error.message,
+        ...options,
+      }));
+      throw error;
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USE TOAST HOOK
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const useToast = () => {
+  const [toasts, setToasts] = React.useState([]);
+
+  React.useEffect(() => {
+    const handleToast = (newToast) => {
+      setToasts(prev => {
+        // Update existing toast or add new
+        const exists = prev.find(t => t.id === newToast.id);
+        if (exists) {
+          return prev.map(t => t.id === newToast.id ? { ...t, ...newToast } : t);
+        }
+        return [...prev, newToast];
+      });
+    };
+
+    toastListeners.push(handleToast);
+    return () => {
+      toastListeners = toastListeners.filter(l => l !== handleToast);
+    };
+  }, []);
+
+  const dismiss = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const dismissAll = () => {
+    setToasts([]);
+  };
+
+  return {
+    toasts,
+    dismiss,
+    dismissAll,
+    toast: {
+      success: toast.success,
+      error: toast.error,
+      warning: toast.warning,
+      info: toast.info,
+      loading: toast.loading,
+      promise: toast.promise,
+    },
+  };
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST PROVIDER COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const ToastProvider = ({ children, position = 'bottom-right' }) => {
+  const { toasts, dismiss } = useToast();
+
+  return (
+    <>
+      {children}
+      <ToastContainer 
+        toasts={toasts} 
+        onDismiss={dismiss}
+        position={position}
+      />
+    </>
+  );
+};
+
+export default ToastProvider;

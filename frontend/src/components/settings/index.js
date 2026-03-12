@@ -16,3 +16,4 @@ export { default as PerformanceSection } from './sections/PerformanceSection';
 export { default as AppearanceSection } from './sections/AppearanceSection';
 export { default as DataSection } from './sections/DataSection';
 export { default as SystemSection } from './sections/SystemSection';
+export { default as QuickBooksSection } from './sections/QuickBooksSection';

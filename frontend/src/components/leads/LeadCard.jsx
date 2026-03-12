@@ -105,7 +105,7 @@ export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect,
               <div className={`text-2xl font-mono font-bold tabular-nums ${tier.text}`}>
                 {lead.score}
               </div>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ring-1 ${tier.badge}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ${tier.badge}`}>
                 {tier.label}
               </span>
             </div>
@@ -162,7 +162,7 @@ export default function LeadCard({ lead, onEdit, onDelete, isSelected, onSelect,
             </span>
           )}
           {lead.value > 0 && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-accent-500 to-accent-600 text-white shadow-sm">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-accent-500 to-accent-600 text-white shadow-sm">
               <DollarSign className="w-3 h-3" />
               {lead.value.toLocaleString()}
             </span>

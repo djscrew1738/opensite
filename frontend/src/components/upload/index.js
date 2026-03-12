@@ -8,6 +8,8 @@ export { default as FileQueueItem } from './FileQueueItem';
 export { default as StepIndicator, HorizontalStepIndicator } from './StepIndicator';
 export { default as ErrorDisplay, CompactErrorDisplay } from './ErrorDisplay';
 export { default as FileIcon, FileIconWithBg } from './FileIcon';
+export { default as UploadFAB } from './UploadFAB';
+export { default as HeroUpload } from './HeroUpload';
 
 // Utilities
 export * from './utils';

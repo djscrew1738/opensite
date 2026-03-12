@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
-
 /**
- * CanvasConnection - Renders connection lines between pins/nodes
+ * CanvasConnection Component
+ * Renders connection lines between pins/nodes
  * 
  * Supports:
  * - Straight lines
@@ -9,16 +8,35 @@ import { useMemo } from 'react';
  * - Different line styles (solid, dashed, dotted)
  * - Arrowheads for directed connections
  * - Labels along the path
+ * 
+ * @module components/vision/CanvasConnection
  */
 
-const STYLES = {
+import { useMemo, memo } from 'react';
+import { colors } from '../../styles/tokens';
+
+// Line style dash patterns (functional, not design tokens)
+const LINE_STYLES = {
   solid: undefined,
   dashed: '8,4',
   dotted: '2,2',
   pipe: '12,6,2,6',
 };
 
-export default function CanvasConnection({ 
+// Default connection color (functional, for user selection)
+const DEFAULT_CONNECTION_COLOR = '#3B82F6';
+
+/**
+ * CanvasConnection - Renders connection lines between pins/nodes
+ * @param {{
+ *   connection: any;
+ *   pins: any[];
+ *   nodes: any[];
+ *   viewBox: { zoom: number };
+ *   animated?: boolean;
+ * }} props
+ */
+const CanvasConnection = memo(function CanvasConnection({ 
   connection, 
   pins, 
   nodes, 
@@ -75,9 +93,9 @@ export default function CanvasConnection({
   if (!path) return null;
 
   const { d, fromX, fromY, toX, toY, midX, midY } = path;
-  const strokeColor = connection.color || '#3B82F6';
+  const strokeColor = connection.color || DEFAULT_CONNECTION_COLOR;
   const strokeWidth = (connection.width || 2) * viewBox.zoom;
-  const dashArray = STYLES[connection.style] || STYLES.solid;
+  const dashArray = LINE_STYLES[connection.style] || LINE_STYLES.solid;
 
   // Calculate arrow angle
   const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
@@ -130,17 +148,18 @@ export default function CanvasConnection({
             width={connection.label.length * 6 + 16}
             height={20}
             rx={4}
-            fill="white"
+            fill={colors.surface.card}
             stroke={strokeColor}
             strokeWidth={1}
-            className="dark:fill-surface-800"
           />
           <text
             x={0}
             y={4}
             textAnchor="middle"
-            className="text-[10px] fill-surface-700 dark:fill-surface-300"
-            style={{ fontSize: '10px' }}
+            style={{ 
+              fontSize: '10px',
+              fill: colors.text.secondary,
+            }}
           >
             {connection.label}
           </text>
@@ -150,13 +169,19 @@ export default function CanvasConnection({
       {/* Distance marker for measurements */}
       {connection.type === 'measurement' && connection.distance && (
         <g transform={`translate(${midX}, ${midY})`}>
-          <circle r={14} fill={strokeColor} />
+          <circle 
+            r={14} 
+            fill={strokeColor} 
+          />
           <text
             x={0}
             y={4}
             textAnchor="middle"
-            className="text-[9px] fill-white font-medium"
-            style={{ fontSize: '9px' }}
+            style={{ 
+              fontSize: '9px', 
+              fill: colors.text.inverse,
+              fontWeight: 500,
+            }}
           >
             {connection.distance}
           </text>
@@ -185,12 +210,20 @@ export default function CanvasConnection({
       )}
     </g>
   );
-}
+});
+
+CanvasConnection.displayName = 'CanvasConnection';
 
 /**
  * Renders a temporary connection line while dragging
+ * @param {{
+ *   from: { x: number; y: number };
+ *   to: { x: number; y: number };
+ *   color?: string;
+ *   style?: 'solid' | 'dashed' | 'dotted' | 'pipe';
+ * }} props
  */
-export function TemporaryConnection({ from, to, color = '#3B82F6', style = 'solid' }) {
+export function TemporaryConnection({ from, to, color = DEFAULT_CONNECTION_COLOR, style = 'solid' }) {
   if (!from || !to) return null;
 
   const dx = to.x - from.x;
@@ -205,9 +238,11 @@ export function TemporaryConnection({ from, to, color = '#3B82F6', style = 'soli
       fill="none"
       stroke={color}
       strokeWidth={2}
-      strokeDasharray={STYLES[style]}
+      strokeDasharray={LINE_STYLES[style]}
       strokeLinecap="round"
       opacity={0.6}
     />
   );
 }
+
+export default CanvasConnection;

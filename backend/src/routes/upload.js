@@ -11,6 +11,7 @@ import { pricingService } from '../services/pricing.js';
 import { jobQueue, JOB_TYPES } from '../services/jobQueuePersistent.js';
 import { enhancedCVBlueprintService } from '../services/aecvision-client.js';
 import { tryCatch } from '../utils/response.js';
+import { db } from '../services/database.js';
 import logger from '../services/logger.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
 import { ocrService } from '../services/ocr.js';
@@ -251,7 +252,7 @@ function defaultAnalysis(complexityLevel, complexityScore) {
 
 // Background job handler for blueprint analysis
 export async function performBlueprintAnalysis(jobData, progressCallback) {
-  const { filePath, fileName, extractedData, blueprintText, tier, model, userId } = jobData;
+  const { filePath, fileName, extractedData, blueprintText, tier, model, userId, estimateId } = jobData;
 
   // Wrapper for progress updates
   const updateProgress = (progress) => {
@@ -323,12 +324,22 @@ export async function performBlueprintAnalysis(jobData, progressCallback) {
 
     updateProgress(90);
 
+    // Save to database before deleting the file
+    const blueprintRecord = await db.createBlueprint({
+      userId,
+      fileName,
+      filePath, 
+      extractedData,
+      aiAnalysis: parsedAnalysis ? structureAnalysis(parsedAnalysis, complexityLevel, complexityScore) : defaultAnalysis(complexityLevel, complexityScore),
+      estimateId
+    });
+
     // Use safe delete to ensure file is within upload directory
     await safeDeleteFile(filePath);
 
     updateProgress(95);
 
-    const structuredAnalysis = parsedAnalysis ? structureAnalysis(parsedAnalysis, complexityLevel, complexityScore) : defaultAnalysis(complexityLevel, complexityScore);
+    const structuredAnalysis = blueprintRecord.aiAnalysis;
 
     if (parsedAnalysis?.totals) {
       estimate = {
@@ -340,6 +351,7 @@ export async function performBlueprintAnalysis(jobData, progressCallback) {
     }
 
     const result = {
+      id: blueprintRecord.id,
       fileName,
       extractedData,
       aiAnalysis: structuredAnalysis,
@@ -435,7 +447,7 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
 
   const filePath = req.file.path;
   const fileName = req.file.originalname;
-  const { tier, model, extractedData: extractedDataJson } = req.body;
+  const { tier, model, extractedData: extractedDataJson, estimateId } = req.body;
   
   // Parse pre-extracted data if provided
   let clientExtractedData = {};
@@ -485,7 +497,8 @@ router.post('/blueprint', upload.single('file'), tryCatch(async (req, res) => {
     blueprintText,
     tier,
     model,
-    userId: req.user.id
+    userId: req.user.id,
+    estimateId
   };
 
   const jobId = await jobQueue.addJob(

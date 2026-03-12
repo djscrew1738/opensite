@@ -107,6 +107,43 @@ export const useCanvasStore = create(
       // Actions
       setWorkspace: (workspace) => set({ workspace }),
       
+      // Update specific node data
+      updateNodeData: (nodeId, newData) => {
+        set((state) => {
+          const nodes = state.workspace.nodes.map((node) => 
+            node.id === nodeId ? { ...node, data: { ...node.data, ...newData } } : node
+          );
+          return {
+            workspace: { ...state.workspace, nodes, updatedAt: new Date().toISOString() }
+          };
+        });
+      },
+
+      // Update specific node position
+      updateNodePosition: (nodeId, position) => {
+        set((state) => {
+          const nodes = state.workspace.nodes.map((node) => 
+            node.id === nodeId ? { ...node, position } : node
+          );
+          return {
+            workspace: { ...state.workspace, nodes, updatedAt: new Date().toISOString() }
+          };
+        });
+      },
+
+      // Remove specific node
+      removeNode: (nodeId) => {
+        set((state) => {
+          const nodes = state.workspace.nodes.filter((node) => node.id !== nodeId);
+          const edges = state.workspace.edges.filter((edge) => 
+            edge.source !== nodeId && edge.target !== nodeId
+          );
+          return {
+            workspace: { ...state.workspace, nodes, edges, updatedAt: new Date().toISOString() }
+          };
+        });
+      },
+
       // Save workspace to server
       saveWorkspace: async (data) => {
         try {

@@ -1,5 +1,5 @@
 // services/startup.js
-// Encapsulates server startup logic
+// Encapsulates server startup logic with parallel initialization
 
 import logger from './logger.js';
 import { db } from './database.js';
@@ -15,34 +15,67 @@ import os from 'os';
 
 export async function startServer(app, port) {
   const server = app.listen(port, '0.0.0.0', async () => {
+    // Start WebSocket immediately (non-blocking)
     webSocketService.initialize(server);
+    
+    // Initialize job handlers (non-blocking)
     initializeJobHandlers();
+    
     logger.info(`Server started on port ${port}`);
     
-    await provisionGuestAccount();
-    await loadAISettings();
+    // Parallelize independent initialization tasks
+    const initStartTime = Date.now();
     
-    if (process.env.PERMIT_JOBS_ENABLED !== 'false') {
-      startPermitJobs();
-    }
+    await Promise.allSettled([
+      // Guest account provisioning (can run in parallel)
+      provisionGuestAccount(),
+      
+      // AI settings loading (can run in parallel with guest account)
+      loadAISettings(),
+      
+      // Print config status (independent)
+      printConfigStatus(),
+    ]);
     
-    if (process.env.EMAIL_WATCHER_ENABLED !== 'false') {
-      emailWatcherService.start().catch(err => {
-        logger.warn('Email watcher service failed to start', { error: err.message });
-      });
-    }
+    // Start background services (non-blocking)
+    startBackgroundServices();
     
-    await printConfigStatus();
+    // Schedule backups (non-blocking)
     scheduleBackups();
+    
+    const initDuration = Date.now() - initStartTime;
+    logger.info(`Server initialization completed in ${initDuration}ms`);
+    
     printServerInfo(port);
   });
 
   return server;
 }
 
+/**
+ * Start background services that don't block server startup
+ */
+function startBackgroundServices() {
+  // Start permit jobs in background
+  if (process.env.PERMIT_JOBS_ENABLED !== 'false') {
+    startPermitJobs();
+  } else {
+    logger.info('Permit jobs disabled');
+  }
+  
+  // Start email watcher in background
+  if (process.env.EMAIL_WATCHER_ENABLED !== 'false') {
+    emailWatcherService.start().catch(err => {
+      logger.warn('Email watcher service failed to start', { error: err.message });
+    });
+  } else {
+    logger.info('Email watcher disabled');
+  }
+}
+
 async function provisionGuestAccount() {
   if (process.env.GUEST_ACCOUNT_ENABLED !== 'true') {
-    logger.info('Guest account disabled (set GUEST_ACCOUNT_ENABLED=true to enable)');
+    logger.debug('Guest account disabled');
     return;
   }
 

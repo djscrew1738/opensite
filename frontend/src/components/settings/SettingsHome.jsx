@@ -1,145 +1,25 @@
-import { useMemo } from 'react';
+/**
+ * SettingsHome Component
+ * Configuration command center using Dark Forge design system
+ */
+
+import { useMemo, memo } from 'react';
 import {
   Settings, Cpu, Building2, Calculator, Search, Bell, Key,
-  Gauge, Palette, Database, Activity, CheckCircle2, AlertCircle,
-  Clock, Zap, ChevronRight, BarChart3, Shield, Server, Sparkles,
-  TrendingUp, AlertTriangle, Info, RefreshCw, ExternalLink
+  Activity, Clock, Zap, Shield, Server, Sparkles,
+  TrendingUp, Info, RefreshCw, ExternalLink, Palette
 } from 'lucide-react';
+import { colors } from '../../styles/tokens';
+import { 
+  QuickAction, StatusCard, StatCard, ConfigCategory, HealthItem, ProgressBar
+} from './primitives';
 
-/* ================================================================
-   SETTINGS HOME v2 — Dark Forge Edition
-   Configuration command center using #0A0B0D / #111318 / #181C24
-   ================================================================ */
-
-/* -- COMPONENTS -- */
-
-const QuickAction = ({ icon: Icon, label, onClick, color = 'text-[#3B82F6]', description, badge = null }) => {
-  if (!Icon) return null;
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[#1F2430] bg-[#111318] transition-all duration-200 min-w-[90px] hover:border-[#3B82F6]/40 hover:bg-[#181C24] active:scale-95"
-    >
-      <div className="relative">
-        <Icon className={`w-6 h-6 ${color}`} />
-        {badge && (
-          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1">
-            {badge}
-          </span>
-        )}
-      </div>
-      <span className="text-xs font-medium text-[#94A3B8]">{label}</span>
-      {description && <span className="text-[10px] text-[#475569]">{description}</span>}
-    </button>
-  );
-};
-
-const StatusCard = ({ title, status, message, icon: Icon, color, onAction, actionLabel }) => {
-  if (!Icon) return null;
-  const colors = {
-    success: { border: 'border-emerald-500/20', bg: 'bg-emerald-500/5',  iconColor: 'text-emerald-400', text: 'text-emerald-300' },
-    warning: { border: 'border-amber-500/20',   bg: 'bg-amber-500/5',    iconColor: 'text-amber-400',   text: 'text-amber-300' },
-    error:   { border: 'border-red-500/20',      bg: 'bg-red-500/5',      iconColor: 'text-red-400',     text: 'text-red-300' },
-    info:    { border: 'border-blue-500/20',      bg: 'bg-blue-500/5',     iconColor: 'text-blue-400',    text: 'text-blue-300' },
-  }[status || 'info'];
-
-  return (
-    <div className={`p-4 rounded-xl border ${colors.border} ${colors.bg}`}>
-      <div className="flex items-start gap-3">
-        <Icon className={`w-5 h-5 ${colors.iconColor} shrink-0 mt-0.5`} />
-        <div className="flex-1 min-w-0">
-          <h4 className={`font-semibold ${colors.text} text-sm`}>{title}</h4>
-          <p className="text-xs text-[#94A3B8] mt-1">{message}</p>
-          {onAction && actionLabel && (
-            <button onClick={onAction} className="mt-2 text-xs font-semibold text-[#3B82F6] hover:text-[#60A5FA] flex items-center gap-1">
-              {actionLabel} <ChevronRight className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-[#3B82F6]', onClick }) => {
-  if (!Icon) return null;
-  return (
-    <div
-      onClick={onClick}
-      className="p-4 rounded-xl border border-[#1F2430] bg-[#111318] hover:border-[#3B82F6]/40 transition-all cursor-pointer group"
-    >
-      <div className="flex items-start justify-between mb-2">
-        <div className="p-2 rounded-lg bg-[#181C24]">
-          <Icon className={`w-4 h-4 ${color}`} />
-        </div>
-      </div>
-      <div className="text-2xl font-bold text-[#F1F5F9]">{value}</div>
-      <div className="text-xs text-[#94A3B8] font-medium">{label}</div>
-      {subtext && <div className="text-xs text-[#475569] mt-1">{subtext}</div>}
-    </div>
-  );
-};
-
-const ConfigCategory = ({ icon: Icon, title, description, status, onClick }) => {
-  if (!Icon) return null;
-  const statusColors = {
-    configured: { dot: 'bg-emerald-500', text: 'text-emerald-400', label: 'Configured' },
-    partial:    { dot: 'bg-amber-500',   text: 'text-amber-400',   label: 'Partial' },
-    empty:      { dot: 'bg-[#475569]',   text: 'text-[#475569]',   label: 'Not Configured' },
-  }[status || 'empty'];
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-4 p-4 rounded-xl border border-[#1F2430] bg-[#111318] hover:border-[#3B82F6]/40 hover:bg-[#181C24] transition-all text-left group"
-    >
-      <div className="w-12 h-12 rounded-xl bg-[#181C24] flex items-center justify-center shrink-0">
-        <Icon className="w-6 h-6 text-[#64748B] group-hover:text-[#3B82F6] transition-colors" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-[#F1F5F9]">{title}</h4>
-          <span className={`flex items-center gap-1.5 text-xs ${statusColors.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${statusColors.dot}`} />
-            {statusColors.label}
-          </span>
-        </div>
-        <p className="text-sm text-[#64748B] truncate">{description}</p>
-      </div>
-      <ChevronRight className="w-5 h-5 text-[#2D3548] group-hover:text-[#3B82F6] transition-colors" />
-    </button>
-  );
-};
-
-const HealthItem = ({ label, value, status, icon: Icon }) => {
-  if (!Icon) return null;
-  const colors = {
-    good:    'text-emerald-400 bg-emerald-500/10',
-    warning: 'text-amber-400 bg-amber-500/10',
-    error:   'text-red-400 bg-red-500/10',
-  }[status || 'good'];
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-[#1F2430] last:border-0">
-      <div className="flex items-center gap-3">
-        <div className={`p-1.5 rounded-lg ${colors}`}>
-          <Icon className="w-4 h-4" />
-        </div>
-        <span className="text-sm text-[#94A3B8]">{label}</span>
-      </div>
-      <span className="text-sm font-semibold text-[#F1F5F9]">{value}</span>
-    </div>
-  );
-};
-
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
-
-export default function SettingsHome({
+/**
+ * SettingsHome - Settings dashboard and overview
+ */
+const SettingsHome = memo(function SettingsHome({
   settings = {},
   metrics = {},
-  config = {},
   activeProvider = 'openclaw',
   connected = false,
   availableModels = [],
@@ -151,14 +31,16 @@ export default function SettingsHome({
     const hasAI = activeProvider === 'ollama' ? connected :
       activeProvider === 'groq' ? settings.groq_api_key_configured :
       activeProvider === 'anthropic' ? settings.anthropic_api_key_configured :
+      activeProvider === 'openai' ? settings.openai_api_key_configured :
       settings.openclaw_token_configured;
 
-    const hasBusiness = settings.company_name;
-    const hasAPIKeys = settings.serper_api_key_configured || settings.google_places_api_key_configured;
+    const hasBusiness = !!settings.company_name;
+    const hasAPIKeys = !!(settings.serper_api_key_configured || settings.google_places_api_key_configured);
     const hasNotifications = settings.notify_enabled === 'true';
 
-    const total = 4;
-    const configured = [hasAI, hasBusiness, hasAPIKeys, hasNotifications].filter(Boolean).length;
+    const categories = [hasAI, hasBusiness, hasAPIKeys, hasNotifications];
+    const configured = categories.filter(Boolean).length;
+    const total = categories.length;
 
     return { configured, total, percentage: Math.round((configured / total) * 100) };
   }, [settings, activeProvider, connected]);
@@ -174,7 +56,7 @@ export default function SettingsHome({
 
     if (!connected && activeProvider === 'ollama') {
       list.push({
-        type: 'warning',
+        status: 'warning',
         title: 'Ollama Not Connected',
         message: 'Local AI is unavailable. Check your Ollama server or switch to a cloud provider.',
         actionLabel: 'Go to AI Settings',
@@ -184,7 +66,7 @@ export default function SettingsHome({
 
     if (!settings.company_name) {
       list.push({
-        type: 'info',
+        status: 'info',
         title: 'Business Profile Incomplete',
         message: 'Add your company details for personalized AI responses and estimates.',
         actionLabel: 'Configure Business',
@@ -194,7 +76,7 @@ export default function SettingsHome({
 
     if (!settings.serper_api_key_configured && !settings.google_places_api_key_configured) {
       list.push({
-        type: 'info',
+        status: 'info',
         title: 'Discovery API Keys Missing',
         message: 'Add Serper.dev or Google Places API key to enable lead discovery.',
         actionLabel: 'Add API Keys',
@@ -204,7 +86,7 @@ export default function SettingsHome({
 
     if (configStatus.percentage === 100) {
       list.push({
-        type: 'success',
+        status: 'success',
         title: 'All Systems Configured',
         message: 'Your OpenSite instance is fully configured and ready to use.',
       });
@@ -215,18 +97,40 @@ export default function SettingsHome({
 
   if (isLoading) {
     return (
-      <div className="space-y-4 animate-pulse">
+      <div className="space-y-6 animate-pulse">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-[#181C24] rounded-xl" />)}
+          {[1,2,3,4].map(i => (
+            <div key={i} className="h-28 rounded-xl bg-surface-elevated border border-border-default" />
+          ))}
         </div>
-        <div className="h-40 bg-[#181C24] rounded-xl" />
-        <div className="h-60 bg-[#181C24] rounded-xl" />
+        <div className="h-40 rounded-xl bg-surface-elevated border border-border-default" />
+        <div className="h-60 rounded-xl bg-surface-elevated border border-border-default" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-8 pb-20 page-transition-wrapper">
+      {/* Setup Progress */}
+      <div className="card p-6 border-border-default bg-surface-card shadow-sm overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none">
+          <TrendingUp className="w-24 h-24" />
+        </div>
+        <div className="relative z-10">
+          <ProgressBar 
+            percentage={configStatus.percentage} 
+            label="OpenSite Optimization Progress" 
+            color={configStatus.percentage === 100 ? colors.success.DEFAULT : colors.accent.blue} 
+          />
+          <p className="text-xs text-text-muted mt-3 font-medium flex items-center gap-1.5">
+            <Info className="w-3 h-3" />
+            {configStatus.percentage === 100 
+              ? 'Your system is fully optimized for maximum performance' 
+              : `Complete the remaining ${configStatus.total - configStatus.configured} categories to unlock full AI capabilities`}
+          </p>
+        </div>
+      </div>
+
       {/* Smart Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-3">
@@ -237,55 +141,57 @@ export default function SettingsHome({
       )}
 
       {/* Quick Actions */}
-      <div>
-        <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-3">Quick Actions</h3>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+      <section>
+        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted mb-4 px-1">
+          Quick Access
+        </h3>
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
           <QuickAction
             icon={Cpu}
             label="AI Provider"
             onClick={() => onTabChange('ai')}
-            color="text-blue-400"
+            color={colors.accent.blue}
             description={activeProvider}
           />
           <QuickAction
             icon={Building2}
             label="Business"
             onClick={() => onTabChange('business')}
-            color="text-emerald-400"
+            color={colors.success.DEFAULT}
             description={settings.company_name || 'Not set'}
           />
           <QuickAction
             icon={Key}
             label="API Keys"
             onClick={() => onTabChange('apikeys')}
-            color="text-violet-400"
+            color={colors.accent.purple}
             description={`${configStatus.configured}/${configStatus.total} configured`}
           />
           <QuickAction
             icon={Palette}
             label="Appearance"
             onClick={() => onTabChange('appearance')}
-            color="text-pink-400"
+            color={colors.accent.pink}
             description="Theme & layout"
           />
           <QuickAction
             icon={RefreshCw}
             label="Refresh"
             onClick={onRefreshMetrics}
-            color="text-amber-400"
+            color={colors.warning.DEFAULT}
             description="Update metrics"
           />
         </div>
-      </div>
+      </section>
 
       {/* Stats Dashboard */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Setup Progress"
           value={`${configStatus.percentage}%`}
           subtext={`${configStatus.configured} of ${configStatus.total} categories`}
           icon={Settings}
-          color="text-[#3B82F6]"
+          color={colors.accent.blue}
           onClick={() => onTabChange('ai')}
         />
         <StatCard
@@ -293,7 +199,7 @@ export default function SettingsHome({
           value={metrics.totalRequests?.toLocaleString() || '0'}
           subtext={`${successRate}% success rate`}
           icon={Zap}
-          color="text-blue-400"
+          color={colors.accent.amber}
           onClick={() => onTabChange('system')}
         />
         <StatCard
@@ -301,7 +207,7 @@ export default function SettingsHome({
           value={uptimeFormatted}
           subtext="Since last restart"
           icon={Clock}
-          color="text-emerald-400"
+          color={colors.success.DEFAULT}
           onClick={() => onTabChange('system')}
         />
         <StatCard
@@ -309,29 +215,33 @@ export default function SettingsHome({
           value={metrics.circuitBreaker || 'Closed'}
           subtext={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? 'Healthy' : 'Tripped'}
           icon={Shield}
-          color={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? 'text-emerald-400' : 'text-red-400'}
+          color={!metrics.circuitBreaker || metrics.circuitBreaker === 'closed' ? colors.success.DEFAULT : colors.danger.DEFAULT}
           onClick={() => onTabChange('performance')}
         />
       </div>
 
       {/* Configuration Categories */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-[#F1F5F9] flex items-center gap-2">
-            <Settings className="w-4 h-4 text-[#64748B]" />
+      <section>
+        <div className="flex items-center justify-between mb-5 px-1">
+          <h3 className="text-sm font-bold flex items-center gap-2 text-text-primary tracking-tight">
+            <Settings className="w-4 h-4 text-accent-blue" />
             Configuration Categories
           </h3>
-          <div className="text-xs text-[#64748B]">
+          <div className="text-xs font-bold uppercase tracking-widest text-text-muted">
             {configStatus.configured}/{configStatus.total} complete
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-3">
           <ConfigCategory
             icon={Cpu}
             title="AI & Models"
             description={`Active: ${activeProvider} — ${availableModels.length} models available`}
-            status={activeProvider === 'ollama' ? (connected ? 'configured' : 'empty') : settings[`${activeProvider}_api_key_configured`] ? 'configured' : 'empty'}
+            status={
+              activeProvider === 'ollama' 
+                ? (connected ? 'configured' : 'empty') 
+                : (settings[`${activeProvider}_api_key_configured`] ? 'configured' : 'empty')
+            }
             onClick={() => onTabChange('ai')}
           />
           <ConfigCategory
@@ -365,25 +275,25 @@ export default function SettingsHome({
           <ConfigCategory
             icon={Key}
             title="API Keys"
-            description={`Serper: ${settings.serper_api_key_configured ? 'Active' : 'Missing'} — Twilio: ${settings.twilio_account_sid_configured ? 'Active' : 'Missing'} — SendGrid: ${settings.sendgrid_api_key_configured ? 'Active' : 'Missing'}`}
+            description={`Serper: ${settings.serper_api_key_configured ? 'Active' : 'Missing'} — Twilio: ${settings.twilio_account_sid_configured ? 'Active' : 'Missing'}`}
             status={settings.serper_api_key_configured && settings.twilio_account_sid_configured ? 'configured' : settings.serper_api_key_configured ? 'partial' : 'empty'}
             onClick={() => onTabChange('apikeys')}
           />
         </div>
-      </div>
+      </section>
 
       {/* Two Column Layout */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* System Health */}
-        <div className="p-5 rounded-xl border border-[#1F2430] bg-[#111318]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-[#F1F5F9] flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[#64748B]" />
+        <div className="card p-6 border-border-default bg-surface-card shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-text-primary tracking-tight">
+              <Activity className="w-4 h-4 text-success-DEFAULT" />
               System Health
             </h3>
             <button
               onClick={onRefreshMetrics}
-              className="text-xs text-[#3B82F6] hover:text-[#60A5FA] font-medium flex items-center gap-1"
+              className="text-xs font-bold uppercase tracking-widest text-accent-blue hover:text-accent-light transition-colors flex items-center gap-1.5"
             >
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
@@ -404,22 +314,22 @@ export default function SettingsHome({
             <HealthItem
               label="Avg Response"
               value={metrics.avgResponseMs ? `${metrics.avgResponseMs}ms` : '--'}
-              status={metrics.avgResponseMs < 500 ? 'good' : metrics.avgResponseMs < 2000 ? 'warning' : 'error'}
+              status={metrics.avgResponseMs < 1000 ? 'good' : metrics.avgResponseMs < 3000 ? 'warning' : 'error'}
               icon={Clock}
             />
             <HealthItem
               label="Cache Hit Rate"
               value={`${metrics.cacheHitRate?.toFixed(1) || '0'}%`}
-              status={(metrics.cacheHitRate || 0) > 50 ? 'good' : 'warning'}
+              status={(metrics.cacheHitRate || 0) > 40 ? 'good' : 'warning'}
               icon={Server}
             />
           </div>
         </div>
 
         {/* Quick Settings */}
-        <div className="p-5 rounded-xl border border-[#1F2430] bg-[#111318]">
-          <h3 className="text-sm font-bold text-[#F1F5F9] mb-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#64748B]" />
+        <div className="card p-6 border-border-default bg-surface-card shadow-sm">
+          <h3 className="text-sm font-bold mb-6 flex items-center gap-2 text-text-primary tracking-tight">
+            <Sparkles className="w-4 h-4 text-accent-amber" />
             Quick Settings
           </h3>
           <div className="space-y-3">
@@ -432,15 +342,23 @@ export default function SettingsHome({
               <button
                 key={setting.label}
                 onClick={() => onTabChange(setting.tab)}
-                className="w-full flex items-center justify-between p-3 rounded-lg bg-[#181C24] hover:bg-[#1F2430] transition-colors text-left"
+                className="w-full flex items-center justify-between p-4 rounded-xl transition-all text-left bg-surface-elevated border border-transparent hover:border-border-strong group active:scale-[0.98]"
               >
                 <div className="flex items-center gap-3">
-                  <setting.icon className="w-4 h-4 text-[#64748B]" />
-                  <span className="text-sm text-[#94A3B8]">{setting.label}</span>
+                  <div className="p-2 rounded-lg bg-surface-card group-hover:bg-surface-elevated transition-colors">
+                    <setting.icon className="w-4 h-4 text-text-muted group-hover:text-accent-blue transition-colors" />
+                  </div>
+                  <span className="text-sm font-medium text-text-secondary group-hover:text-text-primary transition-colors">
+                    {setting.label}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium ${setting.value ? 'text-emerald-400' : 'text-[#475569]'}`}>
-                  {setting.value ? 'On' : 'Off'}
-                </span>
+                <div className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ${
+                  setting.value 
+                    ? 'bg-success-muted text-success-light border border-success-border' 
+                    : 'bg-surface-card text-text-muted border border-border-muted'
+                }`}>
+                  {setting.value ? 'Active' : 'Inactive'}
+                </div>
               </button>
             ))}
           </div>
@@ -448,12 +366,17 @@ export default function SettingsHome({
       </div>
 
       {/* Resources */}
-      <div className="p-5 rounded-xl border border-[#1F2430] bg-gradient-to-br from-blue-500/5 to-indigo-500/5">
-        <h3 className="text-sm font-bold text-[#F1F5F9] mb-4 flex items-center gap-2">
-          <Info className="w-4 h-4 text-blue-400" />
+      <section className="p-8 rounded-2xl bg-gradient-to-br from-surface-card to-surface-elevated border border-border-default shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+          <Info className="w-32 h-32" />
+        </div>
+        
+        <h3 className="text-sm font-bold mb-6 flex items-center gap-2 text-text-primary tracking-tight relative z-10">
+          <Info className="w-4 h-4 text-accent-blue" />
           Resources & Support
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
           {[
             { label: 'Documentation', href: '#', icon: ExternalLink },
             { label: 'API Reference', href: '#', icon: ExternalLink },
@@ -463,14 +386,20 @@ export default function SettingsHome({
             <a
               key={resource.label}
               href={resource.href}
-              className="p-3 rounded-lg bg-[#111318] text-center hover:bg-[#181C24] transition-colors border border-[#1F2430]"
+              className="p-4 rounded-xl text-center transition-all bg-surface-elevated border border-border-muted hover:border-accent-blue/40 hover:shadow-md group active:scale-95"
             >
-              <resource.icon className="w-4 h-4 text-blue-400 mx-auto mb-2" />
-              <p className="text-xs font-medium text-[#94A3B8]">{resource.label}</p>
+              <resource.icon className="w-5 h-5 mx-auto mb-3 text-text-muted group-hover:text-accent-blue transition-colors" />
+              <p className="text-xs font-semibold text-text-secondary group-hover:text-text-primary transition-colors tracking-tight">
+                {resource.label}
+              </p>
             </a>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
-}
+});
+
+SettingsHome.displayName = 'SettingsHome';
+
+export default SettingsHome;

@@ -1,0 +1,123 @@
+{
+  "name": "OpenSite - New Lead Notification",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "={{ $env.OPENSITE_URL || 'http://localhost:5001' }}/api/v1/notifications/send",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"type\": \"info\",\n  \"title\": \"New Lead: " + $json.lead.company + "\",\n  \"message\": \"A new lead has been added from " + $json.lead.city + \".\",\n  \"channels\": [\"slack\", \"email\"],\n  \"recipients\": {\n    \"slack\": \"={{ $env.SLACK_WEBHOOK }}\",\n    \"email\": \"={{ $env.LEAD_NOTIFICATION_EMAIL }}\"\n  }\n}"
+      },
+      "name": "Send Notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "={{ $env.OPENSITE_URL || 'http://localhost:5001' }}/api/v1/schedules",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"type\": \"follow_up\",\n  \"title\": \"Follow up with \" + $json.lead.company,\n  \"description\": \"New lead - initial contact\",\n  \"scheduled_date\": \"={{ $tomorrow }}\",\n  \"priority\": \"medium\"\n}"
+      },
+      "name": "Create Follow-up Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "webhookUri": "={{ $env.SLACK_WEBHOOK }}",
+        "text": "=:building_construction: *New Lead Alert*",
+        "blocks": [
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "New Lead: {{ $json.lead.company }}",
+              "emoji": true
+            }
+          },
+          {
+            "type": "section",
+            "fields": [
+              {
+                "type": "mrkdwn",
+                "text": "*Location:*\n{{ $json.lead.city }}, {{ $json.lead.state }}"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*Score:*\n{{ $json.lead.score || 'N/A' }}/100"
+              }
+            ]
+          },
+          {
+            "type": "actions",
+            "elements": [
+              {
+                "type": "button",
+                "text": {
+                  "type": "plain_text",
+                  "text": "View Lead",
+                  "emoji": true
+                },
+                "url": "{{ $env.OPENSITE_URL }}/leads/{{ $json.lead.id }}"
+              }
+            ]
+          }
+        ]
+      },
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Send Notifications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Follow-up Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Notifications": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["opensite", "leads", "notifications"]
+}

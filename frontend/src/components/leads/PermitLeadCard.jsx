@@ -88,7 +88,7 @@ export default function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, 
         {/* Contractor */}
         {permit.contractorName && (
           <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-surface-900 dark:text-surface-100 text-base truncate">
+            <span className="font-bold text-surface-900 dark:text-surface-100 text-base truncate">
               {permit.contractorName}
             </span>
             {onViewBuilder && (
@@ -132,7 +132,7 @@ export default function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, 
           {permit.estimatedCost > 0 && (
             <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-2 text-center">
               <DollarSign className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-              <p className="text-xs font-bold text-surface-700 dark:text-surface-300">
+              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
                 {formatCurrency(permit.estimatedCost)}
               </p>
               <p className="text-2xs text-surface-400">Est. Value</p>
@@ -142,7 +142,7 @@ export default function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, 
           {permit.units > 0 && (
             <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-2 text-center">
               <Home className="w-4 h-4 text-violet-500 mx-auto mb-1" />
-              <p className="text-xs font-bold text-surface-700 dark:text-surface-300">
+              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
                 {permit.units}
               </p>
               <p className="text-2xs text-surface-400">Units</p>
@@ -154,7 +154,7 @@ export default function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, 
               <div className="w-4 h-4 rounded bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-1 text-2xs font-bold">
                 ft²
               </div>
-              <p className="text-xs font-bold text-surface-700 dark:text-surface-300">
+              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
                 {permit.squareFootage.toLocaleString()}
               </p>
               <p className="text-2xs text-surface-400">Sq Ft</p>

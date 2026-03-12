@@ -31,7 +31,7 @@ const variantStyles = {
 };
 
 const sizeStyles = {
-  sm: 'text-[10px] px-1.5 py-0.5 gap-1',
+  sm: 'text-xs px-1.5 py-0.5 gap-1',
   DEFAULT: 'text-xs px-2 py-0.5 gap-1.5',
   lg: 'text-sm px-2.5 py-1 gap-1.5',
 };
@@ -212,7 +212,7 @@ export const CountBadge = ({
         ${variant === 'primary' ? 'bg-brand-500 text-white' : ''}
         ${variant === 'secondary' ? 'bg-surface-500 text-text-secondary' : ''}
         ${variant === 'danger' ? 'bg-danger text-white' : ''}
-        ${size === 'sm' ? 'min-w-[1.25rem] h-5 px-1 text-[10px]' : ''}
+        ${size === 'sm' ? 'min-w-[1.25rem] h-5 px-1 text-xs' : ''}
         ${size === 'DEFAULT' ? 'min-w-[1.5rem] h-6 px-1.5 text-xs' : ''}
         ${className}
       `}

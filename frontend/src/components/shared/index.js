@@ -1,11 +1,27 @@
-// Page layout
-export { PageHeader, TabNavigation } from './PageHeader';
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * SHARED COMPONENTS INDEX — UI/UX Overhaul
+ * Unified exports for all shared components
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
-// Tab System (unified - recommended for new code)
-export { TabSystem, Tab } from '../tabs';
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE LAYOUT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export { PageHeader, TabNavigation } from './PageHeader';
 export { SmoothPage, PageSection, StaggerItem, usePageTransition } from './SmoothPage';
 
-// Loading states
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export { TabSystem, Tab } from '../tabs';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOADING STATES (Legacy)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { 
   PageLoader, 
   CardSkeleton, 
@@ -22,7 +38,10 @@ export {
   AIThinking 
 } from './LoadingStates';
 
-// Empty states
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPTY STATES (Legacy)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { 
   EmptyState, 
   NoResultsState, 
@@ -40,7 +59,10 @@ export {
   LoadingState,
 } from './EmptyStates';
 
-// Error states
+// ═══════════════════════════════════════════════════════════════════════════════
+// ERROR STATES
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { 
   ErrorState, 
   NetworkErrorState, 
@@ -50,7 +72,10 @@ export {
   NotFoundState
 } from './ErrorStates';
 
-// Cards
+// ═══════════════════════════════════════════════════════════════════════════════
+// CARDS (Legacy)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { 
   PolishedCard, 
   StatCard, 
@@ -58,20 +83,48 @@ export {
   ListItemCard 
 } from './PolishedCard';
 
-// Toast notifications
-export { Toast, ToastContainer } from './Toast';
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW: ANIMATED CARDS (UI/UX Overhaul)
+// ═══════════════════════════════════════════════════════════════════════════════
 
-// Data Table
+export {
+  AnimatedCard,
+  AnimatedStatCard,
+  JobCardEnhanced,
+} from './AnimatedCard';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export { 
+  Toast, 
+  ToastContainer,
+  ToastProvider,
+  useToast,
+  toast,
+} from './Toast';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DATA TABLE
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { DataTable } from './DataTable';
 
-// Success Animations & Micro-interactions
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUCCESS ANIMATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { 
   SuccessAnimation, 
   SuccessToast, 
   UploadSuccess 
 } from './SuccessAnimation';
 
-// Loading Skeletons (Enhanced versions)
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOADING SKELETONS (Enhanced)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export {
   TextSkeleton,
   FormSkeleton,
@@ -79,7 +132,10 @@ export {
   ImageSkeleton
 } from './LoadingSkeleton';
 
-// Optimized Images
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIMIZED IMAGES
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export {
   OptimizedImage,
   LazyImage,
@@ -87,10 +143,16 @@ export {
   BackgroundImage
 } from './OptimizedImage';
 
-// Quick Add FAB
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUICK ADD FAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { QuickAddFAB } from './QuickAddFAB';
 
-// Field Mode components
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIELD MODE COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { FieldModeToggle } from './FieldModeToggle';
 export { 
   FieldModeCard, 
@@ -98,7 +160,43 @@ export {
   FieldModeSection 
 } from './FieldModeCard';
 
-// Legacy exports
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY EXPORTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as LegacyStatCard } from './StatCard';
 export { default as ThemeToggle } from './ThemeToggle';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DESIGN SYSTEM RE-EXPORTS (for convenience)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  // Hooks
+  useReducedMotion,
+  useHover,
+  usePress,
+  useInteraction,
+  useCountUp,
+  useInView,
+  useDebouncedValue,
+  useThrottledCallback,
+  useRipple,
+  useScrollPosition,
+  useOnlineStatus,
+  
+  // Animations
+  easings,
+  durations,
+  pageTransitions,
+  staggerContainer,
+  staggerItem,
+  cardAnimations,
+  buttonAnimations,
+  
+  // Utilities
+  cx,
+  getColor,
+  getShadow,
+} from '../../design-system';

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Send, CheckCircle, Bot, Sparkles, Cpu, Menu, Plus, Trash2, 
   Download, MessageSquare, X, ChevronLeft, FileText, 
-  MoreVertical, Edit2, Save, Clock
+  MoreVertical, Edit2, Save, Clock, BookOpen
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -227,8 +227,17 @@ export default function AIAssistant() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isSmartMode, setIsSmartMode] = useState(true);
   
-  const { isStreaming, streamingMessage, sendMessage } = useStreamingResponse();
+  const { isStreaming, streamingMessage, error: streamError, sendMessage, stopStreaming } = useStreamingResponse();
+  
+  // Show toast on stream error
+  useEffect(() => {
+    if (streamError) {
+      showError(streamError);
+    }
+  }, [streamError, showError]);
+
   const { defaultModel } = useModelPreference();
   const [selectedModel, setSelectedModel] = useState('');
   const effectiveModel = selectedModel || defaultModel;
@@ -341,26 +350,29 @@ export default function AIAssistant() {
     const newMessages = [...messages, { role: 'user', content: userMessage, timestamp: new Date().toISOString() }];
     setMessages(newMessages);
     
-    await sendMessage(userMessage, conversationId, effectiveModel, (response, newConversationId) => {
-      if (response) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: response,
-          timestamp: new Date().toISOString()
-        }]);
-      }
-      if (newConversationId) {
-        setConversationId(newConversationId);
-        // Update URL without reloading
-        setSearchParams({ id: newConversationId });
-        // Generate title from first message if new
-        if (!conversationTitle && newMessages.length === 2) {
-          setConversationTitle(generateTitle(newMessages));
+    await sendMessage(
+      userMessage, 
+      conversationId, 
+      effectiveModel, 
+      (response, newConversationId) => {
+        if (response) {
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: response,
+            timestamp: new Date().toISOString()
+          }]);
         }
-        // Refresh conversations list
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      }
-    });
+        if (newConversationId) {
+          setConversationId(newConversationId);
+          setSearchParams({ id: newConversationId });
+          if (!conversationTitle && newMessages.length === 2) {
+            setConversationTitle(generateTitle(newMessages));
+          }
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      },
+      { isSmart: isSmartMode }
+    );
   };
   
   // Character and token counts
@@ -458,6 +470,29 @@ export default function AIAssistant() {
                   <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">CTL Context Active</span>
                 </div>
+
+                {/* Smart Mode Toggle */}
+                <button
+                  onClick={() => setIsSmartMode(!isSmartMode)}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-full transition-all
+                    ${isSmartMode 
+                      ? 'bg-accent-500 text-white shadow-lg shadow-accent-500/20' 
+                      : 'bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300 dark:border-surface-700'}
+                  `}
+                >
+                  <Sparkles className={`w-4 h-4 ${isSmartMode ? 'animate-pulse' : ''}`} />
+                  <span className="text-sm font-bold">Smart Mode</span>
+                </button>
+
+                {/* Knowledge Base Link */}
+                <button
+                  onClick={() => navigate('/knowledge')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300 dark:border-surface-700 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span className="text-sm font-bold">Knowledge</span>
+                </button>
               </div>
             </PageHeader>
           </div>
@@ -517,14 +552,26 @@ export default function AIAssistant() {
                   </div>
                 )}
               </div>
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || isStreaming}
-                className="btn-primary flex items-center gap-2 px-6 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Send</span>
-              </button>
+              
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stopStreaming}
+                  className="bg-danger-500 hover:bg-danger-600 text-white flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-danger-500/20 active:scale-95"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Stop</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!inputMessage.trim() || isStreaming}
+                  className="btn-primary flex items-center gap-2 px-6 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">Send</span>
+                </button>
+              )}
             </div>
             
             {/* Character/Token Counter */}

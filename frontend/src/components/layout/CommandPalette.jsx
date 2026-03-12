@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+/**
+ * CommandPalette Component
+ * Global command search with keyboard navigation
+ * 
+ * @module components/layout/CommandPalette
+ */
+
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,18 +18,21 @@ import {
   Sparkles,
   Network,
   Settings,
-  Bell,
   Plus,
   FileText,
   Calculator,
   Box,
   Command,
   CornerDownLeft,
-  ChevronRight,
 } from 'lucide-react';
 import { prefetchRoute } from '../../routes/prefetch';
+import { colors, shadows } from '../../styles/tokens';
 
-// Updated navigation commands - simplified structure
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
+
+/** Navigation commands */
 const navigationCommands = [
   { id: 'nav-dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, shortcut: 'G D', category: 'Navigate' },
   { id: 'nav-jobs', label: 'Jobs', path: '/jobs', icon: HardHat, shortcut: 'G J', category: 'Navigate' },
@@ -35,7 +45,7 @@ const navigationCommands = [
   { id: 'nav-settings', label: 'Settings', path: '/settings', icon: Settings, shortcut: 'G S', category: 'Navigate' },
 ];
 
-// Action commands
+/** Action commands */
 const actionCommands = [
   { id: 'action-add-job', label: 'Add New Job', icon: Plus, shortcut: 'N J', category: 'Actions', action: 'add-job' },
   { id: 'action-add-plan', label: 'Upload Document', icon: FileText, shortcut: 'N D', category: 'Actions', action: 'upload-document' },
@@ -43,7 +53,14 @@ const actionCommands = [
   { id: 'action-ai-chat', label: 'Open AI Chat', icon: Sparkles, shortcut: 'A C', category: 'Actions', action: 'ai-chat' },
 ];
 
-// Recent items (persisted in localStorage)
+// ═══════════════════════════════════════════════════════════════
+// Helper Functions
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Get recent items from localStorage
+ * @returns {Array}
+ */
 const getRecentItems = () => {
   try {
     const stored = localStorage.getItem('jobpulse_recent_commands_v2');
@@ -53,6 +70,10 @@ const getRecentItems = () => {
   }
 };
 
+/**
+ * Save recent item to localStorage
+ * @param {Object} item
+ */
 const saveRecentItem = (item) => {
   try {
     const recent = getRecentItems();
@@ -69,12 +90,222 @@ if (localStorage.getItem('jobpulse_recent_commands')) {
   localStorage.removeItem('jobpulse_recent_commands');
 }
 
-export default function CommandPalette({ isOpen, onClose }) {
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Search input with clear button
+ */
+const SearchInput = memo(function SearchInput({
+  value,
+  onChange,
+  onKeyDown,
+  inputRef,
+}) {
+  return (
+    <div 
+      className="flex items-center gap-3 px-4 py-4"
+      style={{ borderBottom: `1px solid ${colors.border.default}` }}
+    >
+      <Search className="w-5 h-5 flex-shrink-0" style={{ color: colors.text.muted }} />
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        placeholder="Search commands, pages, or actions..."
+        className="flex-1 bg-transparent outline-none text-base"
+        style={{ color: colors.text.primary }}
+        aria-label="Search commands"
+      />
+      {value && (
+        <button
+          onClick={() => {
+            onChange({ target: { value: '' } });
+            inputRef.current?.focus();
+          }}
+          className="p-1 rounded transition-colors"
+          style={{ color: colors.text.muted }}
+          onMouseEnter={(e) => e.currentTarget.style.color = colors.text.secondary}
+          onMouseLeave={(e) => e.currentTarget.style.color = colors.text.muted}
+          aria-label="Clear search"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+      <kbd 
+        className="hidden sm:flex items-center gap-0.5 px-2 py-1 rounded text-xs font-mono"
+        style={{ 
+          background: colors.surface.primary,
+          border: `1px solid ${colors.border.default}`,
+          color: colors.text.muted,
+        }}
+      >
+        ESC
+      </kbd>
+    </div>
+  );
+});
+
+SearchInput.displayName = 'SearchInput';
+
+/**
+ * Section header for command groups
+ */
+const SectionHeader = memo(function SectionHeader({ label }) {
+  return (
+    <div
+      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+      style={{ color: colors.text.muted }}
+    >
+      {label}
+    </div>
+  );
+});
+
+SectionHeader.displayName = 'SectionHeader';
+
+/**
+ * Individual command item
+ */
+const CommandItem = memo(function CommandItem({
+  command,
+  isSelected,
+  onClick,
+  onMouseEnter,
+}) {
+  const Icon = command.icon;
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      className="w-full flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-all duration-100"
+      style={{
+        width: 'calc(100% - 16px)',
+        background: isSelected ? colors.accent.muted : 'transparent',
+        color: isSelected ? colors.accent.DEFAULT : colors.text.secondary,
+      }}
+      aria-selected={isSelected}
+    >
+      <Icon 
+        className="w-4 h-4 flex-shrink-0" 
+        strokeWidth={isSelected ? 2.5 : 2}
+      />
+      <span className="flex-1 text-left text-sm font-medium">
+        {command.label}
+      </span>
+      {command.shortcut && (
+        <div className="hidden sm:flex items-center gap-1">
+          {command.shortcut.split(' ').map((key, i) => (
+            <kbd
+              key={i}
+              className="px-1.5 py-0.5 rounded text-xs font-mono"
+              style={{
+                background: isSelected ? `${colors.accent.DEFAULT}33` : colors.surface.primary,
+                color: isSelected ? colors.accent.light : colors.text.muted,
+              }}
+            >
+              {key}
+            </kbd>
+          ))}
+        </div>
+      )}
+      {isSelected && (
+        <CornerDownLeft className="w-4 h-4 opacity-50" />
+      )}
+    </button>
+  );
+});
+
+CommandItem.displayName = 'CommandItem';
+
+/**
+ * Empty state when no commands found
+ */
+const EmptyState = memo(function EmptyState() {
+  return (
+    <div 
+      className="text-center py-12"
+      style={{ color: colors.text.muted }}
+    >
+      <Command className="w-12 h-12 mx-auto mb-3 opacity-30" />
+      <p className="text-sm">No commands found</p>
+      <p className="text-xs mt-1 opacity-60">Try a different search term</p>
+    </div>
+  );
+});
+
+EmptyState.displayName = 'EmptyState';
+
+/**
+ * Keyboard shortcuts footer
+ */
+const Footer = memo(function Footer() {
+  return (
+    <div 
+      className="flex items-center justify-between px-4 py-2 text-xs"
+      style={{ 
+        borderTop: `1px solid ${colors.border.default}`,
+        color: colors.text.muted,
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="hidden sm:inline">Navigate</span>
+        <span className="flex items-center gap-1">
+          <kbd 
+            className="px-1.5 py-0.5 rounded font-mono"
+            style={{ 
+              background: colors.surface.primary,
+              border: `1px solid ${colors.border.default}`,
+            }}
+          >
+            ↑↓
+          </kbd>
+        </span>
+        <span className="hidden sm:inline">Select</span>
+        <span className="flex items-center gap-1">
+          <kbd 
+            className="px-1.5 py-0.5 rounded font-mono"
+            style={{ 
+              background: colors.surface.primary,
+              border: `1px solid ${colors.border.default}`,
+            }}
+          >
+            ↵
+          </kbd>
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span>Job Pulse</span>
+      </div>
+    </div>
+  );
+});
+
+Footer.displayName = 'Footer';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * CommandPalette - Global command search with keyboard navigation
+ * 
+ * @param {{
+ *   isOpen: boolean,
+ *   onClose: () => void
+ * }} props
+ */
+const CommandPalette = memo(function CommandPalette({ isOpen, onClose }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentItems, setRecentItems] = useState([]);
   const inputRef = useRef(null);
   const navigate = useNavigate();
+
   const executeCommand = useCallback((command) => {
     saveRecentItem(command);
     
@@ -209,12 +440,15 @@ export default function CommandPalette({ isOpen, onClose }) {
     <div 
       className="fixed inset-0 z-[100]"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
     >
       {/* Backdrop */}
       <div 
         className="absolute inset-0"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backgroundColor: colors.surface.overlay,
           backdropFilter: 'blur(4px)',
           animation: 'fadeIn 0.15s ease-out',
         }}
@@ -228,82 +462,35 @@ export default function CommandPalette({ isOpen, onClose }) {
         <div
           className="w-full max-w-xl overflow-hidden"
           style={{
-            background: '#181C24',
-            border: '1px solid #1F2430',
+            background: colors.surface.elevated,
+            border: `1px solid ${colors.border.default}`,
             borderRadius: '16px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            boxShadow: shadows.cardHover,
             animation: 'scaleIn 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
-          {/* Search Input */}
-          <div 
-            className="flex items-center gap-3 px-4 py-4"
-            style={{ borderBottom: '1px solid #1F2430' }}
-          >
-            <Search className="w-5 h-5 flex-shrink-0" style={{ color: '#64748B' }} />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSelectedIndex(0);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Search commands, pages, or actions..."
-              className="flex-1 bg-transparent outline-none text-base"
-              style={{ color: '#F1F5F9' }}
-            />
-            {query && (
-              <button
-                onClick={() => {
-                  setQuery('');
-                  inputRef.current?.focus();
-                }}
-                className="p-1 rounded transition-colors"
-                style={{ color: '#64748B' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#94A3B8'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#64748B'}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-            <kbd 
-              className="hidden sm:flex items-center gap-0.5 px-2 py-1 rounded text-xs font-mono"
-              style={{ 
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                color: '#64748B',
-              }}
-            >
-              ESC
-            </kbd>
-          </div>
+          <SearchInput
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
+            onKeyDown={handleKeyDown}
+            inputRef={inputRef}
+          />
 
           {/* Commands List */}
-          <div 
-            className="max-h-[50vh] overflow-y-auto py-2"
-          >
+          <div className="max-h-[50vh] overflow-y-auto py-2">
             {filteredCommands.length === 0 ? (
-              <div 
-                className="text-center py-12"
-                style={{ color: '#64748B' }}
-              >
-                <Command className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No commands found</p>
-                <p className="text-xs mt-1 opacity-60">Try a different search term</p>
-              </div>
+              <EmptyState />
             ) : (
               filteredCommands.map((command, index) => {
                 if (command.type === 'header') {
                   return (
-                    <div
+                    <SectionHeader
                       key={`header-${command.label}-${index}`}
-                      className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
-                      style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-                    >
-                      {command.label}
-                    </div>
+                      label={command.label}
+                    />
                   );
                 }
 
@@ -311,90 +498,21 @@ export default function CommandPalette({ isOpen, onClose }) {
                   .slice(0, index)
                   .filter(c => c.type !== 'header').length;
                 const isSelected = selectableIndex === selectedIndex;
-                const Icon = command.icon;
 
                 return (
-                  <button
+                  <CommandItem
                     key={command.id}
+                    command={command}
+                    isSelected={isSelected}
                     onClick={() => executeCommand(command)}
                     onMouseEnter={() => setSelectedIndex(selectableIndex)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-all duration-100"
-                    style={{
-                      width: 'calc(100% - 16px)',
-                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                      color: isSelected ? '#3B82F6' : '#94A3B8',
-                    }}
-                  >
-                    <Icon 
-                      className="w-4 h-4 flex-shrink-0" 
-                      strokeWidth={isSelected ? 2.5 : 2}
-                    />
-                    <span className="flex-1 text-left text-sm font-medium">
-                      {command.label}
-                    </span>
-                    {command.shortcut && (
-                      <div className="hidden sm:flex items-center gap-1">
-                        {command.shortcut.split(' ').map((key, i) => (
-                          <kbd
-                            key={i}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-mono"
-                            style={{
-                              background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
-                              color: isSelected ? '#60A5FA' : '#64748B',
-                            }}
-                          >
-                            {key}
-                          </kbd>
-                        ))}
-                      </div>
-                    )}
-                    {isSelected && (
-                      <CornerDownLeft className="w-4 h-4 opacity-50" />
-                    )}
-                  </button>
+                  />
                 );
               })
             )}
           </div>
 
-          {/* Footer */}
-          <div 
-            className="flex items-center justify-between px-4 py-2 text-xs"
-            style={{ 
-              borderTop: '1px solid #1F2430',
-              color: '#64748B',
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline">Navigate</span>
-              <span className="flex items-center gap-1">
-                <kbd 
-                  className="px-1.5 py-0.5 rounded font-mono"
-                  style={{ 
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}
-                >
-                  ↑↓
-                </kbd>
-              </span>
-              <span className="hidden sm:inline">Select</span>
-              <span className="flex items-center gap-1">
-                <kbd 
-                  className="px-1.5 py-0.5 rounded font-mono"
-                  style={{ 
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}
-                >
-                  ↵
-                </kbd>
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span>Job Pulse</span>
-            </div>
-          </div>
+          <Footer />
         </div>
       </div>
 
@@ -417,4 +535,8 @@ export default function CommandPalette({ isOpen, onClose }) {
     </div>,
     document.body
   );
-}
+});
+
+CommandPalette.displayName = 'CommandPalette';
+
+export default CommandPalette;

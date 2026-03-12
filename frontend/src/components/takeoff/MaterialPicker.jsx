@@ -75,12 +75,12 @@ export default function MaterialPicker({ onSelect, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-surface-200 flex items-center justify-between">
+          <h3 className="font-semibold text-surface-900 flex items-center gap-2">
             <Package className="w-5 h-5 text-primary-600" />
             Select Material
           </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="p-1 text-surface-400 hover:text-surface-600">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -100,7 +100,7 @@ export default function MaterialPicker({ onSelect, onClose }) {
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 activeSection === id
                   ? 'bg-primary-100 text-primary-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
               }`}
             >
               <IconComponent className="w-3 h-3" />
@@ -110,9 +110,9 @@ export default function MaterialPicker({ onSelect, onClose }) {
         </div>
 
         {/* Search and Filter */}
-        <div className="px-4 py-3 border-b border-gray-100 flex gap-2">
+        <div className="px-4 py-3 border-b border-surface-100 flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
             <input
               type="text"
               placeholder="Search materials..."
@@ -124,7 +124,7 @@ export default function MaterialPicker({ onSelect, onClose }) {
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -147,16 +147,16 @@ export default function MaterialPicker({ onSelect, onClose }) {
         {/* Materials List */}
         <div className="flex-1 overflow-y-auto">
           {isLoading && activeSection === 'all' ? (
-            <div className="p-8 text-center text-gray-400">
+            <div className="p-8 text-center text-surface-400">
               <div className="animate-pulse space-y-2">
                 {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                  <div key={i} className="h-12 bg-surface-100 rounded"></div>
                 ))}
               </div>
             </div>
           ) : displayMaterials.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              <Package className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+            <div className="p-8 text-center text-surface-400">
+              <Package className="w-10 h-10 mx-auto mb-2 text-surface-300" />
               <p className="font-medium">No materials found</p>
               {activeSection === 'favorites' && (
                 <p className="text-xs mt-1">Star materials in the catalog to see them here</p>
@@ -178,11 +178,11 @@ export default function MaterialPicker({ onSelect, onClose }) {
                       {material.isFavorite && (
                         <Star className="w-3 h-3 text-yellow-500 flex-shrink-0" fill="currentColor" />
                       )}
-                      <p className="font-medium text-gray-900 text-sm truncate">{material.name}</p>
+                      <p className="font-medium text-surface-900 text-sm truncate">{material.name}</p>
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span
-                        className="inline-flex items-center gap-0.5 text-[10px] px-1 py-0 rounded"
+                        className="inline-flex items-center gap-0.5 text-xs px-1 py-0 rounded"
                         style={{
                           backgroundColor: (CATEGORY_COLORS[material.category] || '#6b7280') + '15',
                           color: CATEGORY_COLORS[material.category] || '#6b7280'
@@ -191,15 +191,15 @@ export default function MaterialPicker({ onSelect, onClose }) {
                         {CATEGORY_LABELS[material.category] || material.category}
                       </span>
                       {material.supplier && (
-                        <span className="text-xs text-gray-400">{material.supplier}</span>
+                        <span className="text-xs text-surface-400">{material.supplier}</span>
                       )}
                       {material.usageCount > 0 && (
-                        <span className="text-[10px] text-gray-400">&middot; {material.usageCount}x</span>
+                        <span className="text-xs text-surface-400">&middot; {material.usageCount}x</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                    <span className="text-sm font-semibold text-gray-700">
+                    <span className="text-sm font-semibold text-surface-700">
                       ${Number(material.unitCost).toFixed(2)}/{material.unit}
                     </span>
                     <Check className="w-4 h-4 text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -211,8 +211,8 @@ export default function MaterialPicker({ onSelect, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-          <span className="text-xs text-gray-400">
+        <div className="px-4 py-3 border-t border-surface-200 flex items-center justify-between">
+          <span className="text-xs text-surface-400">
             {displayMaterials.length} material{displayMaterials.length !== 1 ? 's' : ''}
           </span>
           <button onClick={onClose} className="btn-secondary text-sm">

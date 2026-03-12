@@ -23,11 +23,11 @@ export function ErrorState({
           <AlertTriangle className="w-10 h-10 text-red-500" />
         </div>
         <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-          <span className="text-white text-xs font-bold">!</span>
+          <span className="text-white text-xs font-semibold">!</span>
         </div>
       </div>
       
-      <h3 className="text-xl font-display font-bold text-surface-800 dark:text-surface-200">
+      <h3 className="text-xl font-bold text-surface-800 dark:text-surface-200">
         {title}
       </h3>
       
@@ -94,7 +94,7 @@ export function ServerErrorState({
         <ServerCrash className="w-10 h-10 text-orange-500" />
       </div>
       
-      <h3 className="text-xl font-display font-bold text-surface-800 dark:text-surface-200">
+      <h3 className="text-xl font-bold text-surface-800 dark:text-surface-200">
         Server error
       </h3>
       
@@ -189,7 +189,7 @@ export function NotFoundState({
         <HelpCircle className="w-12 h-12 text-surface-400" />
       </div>
       
-      <h3 className="text-2xl font-display font-bold text-surface-800 dark:text-surface-200">
+      <h3 className="text-2xl font-bold text-surface-800 dark:text-surface-200">
         {item} not found
       </h3>
       

@@ -1,3 +1,11 @@
+/**
+ * ModelSelector Component
+ * Enhanced model selector with provider status, performance indicators,
+ * and intelligent recommendations
+ * 
+ * @module components/ai/ModelSelector
+ */
+
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -6,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useAIStatus } from '../../hooks';
+import { colors } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
@@ -31,6 +40,9 @@ const PROVIDER_ICONS = {
 
 /**
  * Hook to close dropdown on outside click
+ * @param {React.RefObject} ref
+ * @param {boolean} isOpen
+ * @param {Function} onClose
  */
 function useClickOutside(ref, isOpen, onClose) {
   useEffect(() => {
@@ -126,13 +138,15 @@ const ModelSelectorLoading = memo(function ModelSelectorLoading({ size }) {
   return (
     <div 
       className={`flex items-center gap-2 px-3 py-2 rounded-lg animate-pulse ${SIZE_CLASSES[size]}`}
-      style={{ background: '#111318' }}
+      style={{ backgroundColor: colors.surface.card }}
     >
-      <Cpu className="w-4 h-4 text-[#64748B]" />
-      <span className="text-[#64748B]">Loading models...</span>
+      <Cpu style={{ color: colors.text.muted }} />
+      <span style={{ color: colors.text.muted }}>Loading models...</span>
     </div>
   );
 });
+
+ModelSelectorLoading.displayName = 'ModelSelectorLoading';
 
 /**
  * Selected model display in button
@@ -142,31 +156,44 @@ const SelectedModelDisplay = memo(function SelectedModelDisplay({
   isProviderReady, 
   isFallback, 
   allowFallback,
-  showPerformance: _showPerformance 
 }) {
   if (!model) {
     return (
       <>
-        <Cpu className="w-4 h-4 text-[#64748B] shrink-0" />
-        <span className="text-[#94A3B8]">Select model...</span>
+        <Cpu className="w-4 h-4 shrink-0" style={{ color: colors.text.muted }} />
+        <span style={{ color: colors.text.secondary }}>Select model...</span>
       </>
     );
   }
 
   return (
     <>
-      <div className={`w-2 h-2 rounded-full shrink-0 ${isProviderReady ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      <span className="font-medium text-[#F1F5F9] truncate">
+      <div 
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{ backgroundColor: isProviderReady ? colors.success.DEFAULT : colors.danger.DEFAULT }}
+      />
+      <span 
+        className="font-medium truncate"
+        style={{ color: colors.text.primary }}
+      >
         {model.label || model.name}
       </span>
       {isFallback && allowFallback && (
-        <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full shrink-0">
+        <span 
+          className="px-1.5 py-0.5 text-xs rounded-full shrink-0"
+          style={{ 
+            backgroundColor: colors.warning.muted, 
+            color: colors.warning.DEFAULT 
+          }}
+        >
           Fallback
         </span>
       )}
     </>
   );
 });
+
+SelectedModelDisplay.displayName = 'SelectedModelDisplay';
 
 /**
  * Performance info display for selected model
@@ -178,11 +205,16 @@ const ModelPerformanceInfo = memo(function ModelPerformanceInfo({
   if (!showPerformance || !model?.context) return null;
 
   return (
-    <span className="hidden sm:block text-xs text-[#64748B]">
+    <span 
+      className="hidden sm:block text-xs"
+      style={{ color: colors.text.muted }}
+    >
       {Math.round(model.context / 1000)}k ctx
     </span>
   );
 });
+
+ModelPerformanceInfo.displayName = 'ModelPerformanceInfo';
 
 /**
  * Provider tab button
@@ -202,14 +234,20 @@ const ProviderTab = memo(function ProviderTab({
       className={`
         flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
         whitespace-nowrap transition-colors
-        ${isActive 
-          ? 'bg-[#3B82F6]/10 text-[#3B82F6]' 
-          : 'hover:bg-[#181C24]'
-        }
         ${!isReady ? 'opacity-50' : ''}
       `}
+      style={{
+        backgroundColor: isActive ? colors.accent.muted : 'transparent',
+        color: isActive ? colors.accent.DEFAULT : colors.text.secondary,
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) e.currentTarget.style.backgroundColor = colors.surface.elevated;
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+      }}
     >
-      <span className={isReady ? 'text-emerald-500' : 'text-red-500'}>
+      <span style={{ color: isReady ? colors.success.DEFAULT : colors.danger.DEFAULT }}>
         {isReady ? '●' : '○'}
       </span>
       <span className={info.color}><ProviderIcon className="w-4 h-4" /></span>
@@ -217,6 +255,8 @@ const ProviderTab = memo(function ProviderTab({
     </button>
   );
 });
+
+ProviderTab.displayName = 'ProviderTab';
 
 /**
  * Provider tabs section
@@ -231,7 +271,10 @@ const ProviderTabs = memo(function ProviderTabs({
   if (providers.length <= 1) return null;
 
   return (
-    <div className="flex gap-1 p-2 border-b border-[#1F2430] overflow-x-auto">
+    <div 
+      className="flex gap-1 p-2 overflow-x-auto"
+      style={{ borderBottom: `1px solid ${colors.border.default}` }}
+    >
       {providers.map(provider => (
         <ProviderTab
           key={provider.name}
@@ -246,17 +289,27 @@ const ProviderTabs = memo(function ProviderTabs({
   );
 });
 
+ProviderTabs.displayName = 'ProviderTabs';
+
 /**
  * Speed indicator icon
  */
 const SpeedIcon = memo(function SpeedIcon({ speed }) {
+  const iconColor = {
+    fast: colors.success.DEFAULT,
+    medium: colors.warning.DEFAULT,
+    slow: colors.danger.DEFAULT,
+  }[speed];
+
   switch (speed) {
-    case 'fast': return <Zap className="w-3 h-3 text-emerald-500" />;
-    case 'medium': return <Gauge className="w-3 h-3 text-amber-500" />;
-    case 'slow': return <Gauge className="w-3 h-3 text-red-500" />;
+    case 'fast': return <Zap className="w-3 h-3" style={{ color: iconColor }} />;
+    case 'medium': return <Gauge className="w-3 h-3" style={{ color: iconColor }} />;
+    case 'slow': return <Gauge className="w-3 h-3" style={{ color: iconColor }} />;
     default: return null;
   }
 });
+
+SpeedIcon.displayName = 'SpeedIcon';
 
 /**
  * Individual model option in dropdown
@@ -271,38 +324,61 @@ const ModelOption = memo(function ModelOption({
   return (
     <button
       onClick={onClick}
-      className={`
-        w-full flex items-center justify-between px-3 py-2 rounded-lg text-left
-        transition-colors
-        ${isSelected 
-          ? 'bg-[#3B82F6]/5 border border-[#3B82F6]/30' 
-          : 'hover:bg-[#181C24]'
-        }
-      `}
+      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors"
+      style={{
+        backgroundColor: isSelected ? `${colors.accent.DEFAULT}0D` : 'transparent',
+        border: isSelected ? `1px solid ${colors.accent.DEFAULT}4D` : '1px solid transparent',
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) e.currentTarget.style.backgroundColor = colors.surface.elevated;
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+      }}
     >
       <div className="flex items-center gap-2 min-w-0">
         {isSelected ? (
-          <CheckCircle2 className="w-4 h-4 text-[#3B82F6] shrink-0" />
+          <CheckCircle2 style={{ color: colors.accent.DEFAULT }} />
         ) : (
-          <div className="w-4 h-4 rounded-full border-2 border-[#2A3040] shrink-0" />
+          <div 
+            className="w-4 h-4 rounded-full border-2 shrink-0"
+            style={{ borderColor: colors.border.strong }}
+          />
         )}
         <div className="min-w-0">
-          <p className={`text-sm font-medium truncate ${isSelected ? 'text-[#3B82F6]' : 'text-[#F1F5F9]'}`}>
+          <p 
+            className="text-sm font-medium truncate"
+            style={{ color: isSelected ? colors.accent.DEFAULT : colors.text.primary }}
+          >
             {model.label || model.name}
           </p>
           {model.description && (
-            <p className="text-xs text-[#94A3B8] truncate">{model.description}</p>
+            <p 
+              className="text-xs truncate"
+              style={{ color: colors.text.secondary }}
+            >
+              {model.description}
+            </p>
           )}
         </div>
         {badge && (
-          <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded-full shrink-0">
+          <span 
+            className="px-1.5 py-0.5 text-xs rounded-full shrink-0"
+            style={{ 
+              backgroundColor: `${colors.accent.purple}1A`, 
+              color: colors.accent.purple 
+            }}
+          >
             {badge}
           </span>
         )}
       </div>
 
       {showPerformance && (
-        <div className="flex items-center gap-2 shrink-0 text-xs text-[#64748B]">
+        <div 
+          className="flex items-center gap-2 shrink-0 text-xs"
+          style={{ color: colors.text.muted }}
+        >
           {model.context && (
             <span className="hidden sm:block">
               {Math.round(model.context / 1000)}k
@@ -320,6 +396,8 @@ const ModelOption = memo(function ModelOption({
     </button>
   );
 });
+
+ModelOption.displayName = 'ModelOption';
 
 /**
  * Recommended models section
@@ -342,7 +420,10 @@ const RecommendedModels = memo(function RecommendedModels({
 
   return (
     <div className="mb-3">
-      <p className="px-3 py-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+      <p 
+        className="px-3 py-1 text-xs font-bold uppercase tracking-wider"
+        style={{ color: colors.text.muted }}
+      >
         Recommended
       </p>
       {recommendedModels.map(model => (
@@ -358,6 +439,8 @@ const RecommendedModels = memo(function RecommendedModels({
     </div>
   );
 });
+
+RecommendedModels.displayName = 'RecommendedModels';
 
 /**
  * Grouped models list
@@ -375,7 +458,10 @@ const GroupedModelsList = memo(function GroupedModelsList({
     <>
       {Object.entries(groupedModels).map(([provider, providerModels]) => (
         <div key={provider} className="mb-2">
-          <p className="px-3 py-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+          <p 
+            className="px-3 py-1 text-xs font-bold uppercase tracking-wider"
+            style={{ color: colors.text.muted }}
+          >
             {getProviderInfo(provider).label}
           </p>
           {providerModels.map(model => (
@@ -393,30 +479,51 @@ const GroupedModelsList = memo(function GroupedModelsList({
   );
 });
 
+GroupedModelsList.displayName = 'GroupedModelsList';
+
 /**
  * Empty state when no models available
  */
 const EmptyModelsState = memo(function EmptyModelsState() {
   return (
     <div className="p-4 text-center">
-      <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-      <p className="text-sm text-[#94A3B8]">No models available</p>
-      <p className="text-xs text-[#64748B] mt-1">
+      <AlertCircle 
+        className="w-8 h-8 mx-auto mb-2" 
+        style={{ color: colors.warning.DEFAULT }}
+      />
+      <p className="text-sm" style={{ color: colors.text.secondary }}>
+        No models available
+      </p>
+      <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
         Check your AI provider configuration
       </p>
     </div>
   );
 });
 
+EmptyModelsState.displayName = 'EmptyModelsState';
+
 /**
  * Dropdown footer with refresh button
  */
 const DropdownFooter = memo(function DropdownFooter({ onRefresh }) {
   return (
-    <div className="p-2 border-t border-[#1F2430]">
+    <div 
+      className="p-2"
+      style={{ borderTop: `1px solid ${colors.border.default}` }}
+    >
       <button
         onClick={onRefresh}
-        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#181C24] rounded-lg transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors"
+        style={{ color: colors.text.secondary }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = colors.surface.elevated;
+          e.currentTarget.style.color = colors.text.primary;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = colors.text.secondary;
+        }}
       >
         <RefreshCw className="w-3.5 h-3.5" />
         Refresh Models
@@ -425,15 +532,26 @@ const DropdownFooter = memo(function DropdownFooter({ onRefresh }) {
   );
 });
 
+DropdownFooter.displayName = 'DropdownFooter';
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Enhanced Model Selector with provider status, performance indicators,
- * and intelligent recommendations
+ * ModelSelector - Enhanced model selector with provider status
+ * 
+ * @param {{
+ *   value?: string,
+ *   onChange: (value: string) => void,
+ *   showProvider?: boolean,
+ *   showPerformance?: boolean,
+ *   allowFallback?: boolean,
+ *   className?: string,
+ *   size?: 'sm' | 'md' | 'lg'
+ * }} props
  */
-export function ModelSelector({
+const ModelSelector = memo(function ModelSelector({
   value,
   onChange,
   showProvider = true,
@@ -496,13 +614,20 @@ export function ModelSelector({
         }
         className={`
           w-full flex items-center justify-between gap-3 px-3 rounded-lg
-          border border-[#1F2430]
-          bg-[#111318]
-          hover:border-[#3B82F6]/40
           transition-all duration-200
           ${SIZE_CLASSES[size]}
-          ${isOpen ? 'ring-2 ring-[#3B82F6]/20 border-[#3B82F6]' : ''}
         `}
+        style={{
+          backgroundColor: colors.surface.card,
+          border: `1px solid ${isOpen ? colors.accent.DEFAULT : colors.border.default}`,
+          boxShadow: isOpen ? `0 0 0 2px ${colors.accent.muted}` : 'none',
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) e.currentTarget.style.borderColor = `${colors.accent.DEFAULT}66`;
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) e.currentTarget.style.borderColor = colors.border.default;
+        }}
       >
         <div className="flex items-center gap-2 min-w-0">
           <SelectedModelDisplay 
@@ -510,25 +635,27 @@ export function ModelSelector({
             isProviderReady={isProviderReady(activeProvider)}
             isFallback={isFallback}
             allowFallback={allowFallback}
-            showPerformance={showPerformance}
           />
         </div>
         
         <div className="flex items-center gap-2 shrink-0">
           <ModelPerformanceInfo model={selectedModel} showPerformance={showPerformance} />
-          <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown 
+            className="w-4 h-4 transition-transform"
+            style={{ color: colors.text.muted, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
         </div>
       </button>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="
-          absolute top-full left-0 right-0 mt-2 z-[60]
-          bg-[#111318]
-          border border-[#1F2430]
-          rounded-xl shadow-xl
-          max-h-[400px] overflow-y-auto
-        ">
+        <div 
+          className="absolute top-full left-0 right-0 mt-2 z-[60] rounded-xl shadow-xl max-h-[400px] overflow-y-auto"
+          style={{
+            backgroundColor: colors.surface.card,
+            border: `1px solid ${colors.border.default}`,
+          }}
+        >
           {/* Provider Tabs */}
           {showProvider && (
             <ProviderTabs
@@ -566,6 +693,9 @@ export function ModelSelector({
       )}
     </div>
   );
-}
+});
 
+ModelSelector.displayName = 'ModelSelector';
+
+export { ModelSelector };
 export default ModelSelector;

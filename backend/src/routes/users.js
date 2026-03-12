@@ -3,7 +3,10 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
+import { hashPassword } from '../utils/auth.js';
 import { authenticateToken, requireRole } from '../middleware/auth-jwt.js';
+import { validateId } from '../middleware/validation.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 
@@ -16,15 +19,6 @@ router.use(authenticateToken, requireRole(['admin']));
  *   get:
  *     summary: Get all users
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: A list of users
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
  */
 router.get('/', tryCatch(async (req, res) => {
   const users = await db.getAllUsers();
@@ -33,42 +27,50 @@ router.get('/', tryCatch(async (req, res) => {
 
 /**
  * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ */
+router.get('/:id', validateId, tryCatch(async (req, res) => {
+  const user = await db.getUser(req.params.id);
+  if (!user) return res.error('User not found', 'NOT_FOUND', null, 404);
+  
+  // Remove sensitive data
+  delete user.passwordHash;
+  res.success(user);
+}));
+
+/**
+ * @swagger
  * /users:
  *   post:
  *     summary: Create a new user
  *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - email
- *               - password
- *               - role
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
- *               role:
- *                 type: string
- *                 enum: [admin, editor, viewer]
- *     responses:
- *       201:
- *         description: User created successfully
  */
 router.post('/', tryCatch(async (req, res) => {
   const { username, email, password, role } = req.body;
+  
+  if (!username || !email || !password) {
+    return res.error('Username, email and password are required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  // Check if user already exists
+  const existing = await db.getUserByEmail(email);
+  if (existing) {
+    return res.error('User with this email already exists', 'CONFLICT', null, 409);
+  }
+
   const hashedPassword = await hashPassword(password);
-  const user = await db.createUser({ username, email, passwordHash: hashedPassword, role });
-  res.status(201).success(user);
+  const user = await db.createUser({ 
+    username, 
+    email, 
+    passwordHash: hashedPassword, 
+    role: role || 'viewer' 
+  });
+
+  logger.info('User created by admin', { id: user.id, email: user.email, adminId: req.user.id });
+  res.status(201).success(user, 'User created successfully');
 }));
 
 /**
@@ -77,37 +79,24 @@ router.post('/', tryCatch(async (req, res) => {
  *   put:
  *     summary: Update a user
  *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
- *               role:
- *                 type: string
- *                 enum: [admin, editor, viewer]
- *               isActive:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: User updated successfully
  */
-router.put('/:id', tryCatch(async (req, res) => {
+router.put('/:id', validateId, tryCatch(async (req, res) => {
   const { id } = req.params;
-  const user = await db.updateUser(id, req.body);
-  res.success(user);
+  const { password, ...updateData } = req.body;
+
+  // Verify user exists
+  const existing = await db.getUser(id);
+  if (!existing) return res.error('User not found', 'NOT_FOUND', null, 404);
+
+  // Handle password update separately if provided
+  if (password) {
+    updateData.passwordHash = await hashPassword(password);
+  }
+
+  const user = await db.updateUser(id, updateData);
+  
+  logger.info('User updated by admin', { id, adminId: req.user.id });
+  res.success(user, 'User updated successfully');
 }));
 
 /**
@@ -116,20 +105,20 @@ router.put('/:id', tryCatch(async (req, res) => {
  *   delete:
  *     summary: Delete a user
  *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: User deleted successfully
  */
-router.delete('/:id', tryCatch(async (req, res) => {
+router.delete('/:id', validateId, tryCatch(async (req, res) => {
   const { id } = req.params;
-  await db.deleteUser(id);
-  res.success({ id });
+  
+  // Prevent self-deletion
+  if (id === req.user.id) {
+    return res.error('Cannot delete your own account', 'FORBIDDEN', null, 403);
+  }
+
+  const deleted = await db.deleteUser(id);
+  if (!deleted) return res.error('User not found', 'NOT_FOUND', null, 404);
+  
+  logger.info('User deleted by admin', { id, adminId: req.user.id });
+  res.success({ id }, 'User deleted successfully');
 }));
 
 export default router;

@@ -29,6 +29,26 @@
             "date": 1772178674443,
             "name": "/home/djscrew/opensite/tool/logs/error-2026-02-27.log",
             "hash": "1ac1b7c90933032ec589463c1caaf7b466fad33b81094197cd1c226b5973acd7"
+        },
+        {
+            "date": 1772260403673,
+            "name": "/home/djscrew/opensite/tool/logs/error-2026-02-28.log",
+            "hash": "8a7025e26bbeb90712693d082903e3c67bd3a64e403450a1a7fac677b04cc5fd"
+        },
+        {
+            "date": 1772323201011,
+            "name": "/home/djscrew/opensite/tool/logs/error-2026-03-01.log",
+            "hash": "dc13681f9049657a7589afcc1f8faf8b953c0c84d4765162a74d02a2c9123792"
+        },
+        {
+            "date": 1772429344402,
+            "name": "/home/djscrew/opensite/tool/logs/error-2026-03-02.log",
+            "hash": "1aa88971e5318d0bdb1739b54ea3c5141f6fa55775b82fceb646185904908bd5"
+        },
+        {
+            "date": 1772549765993,
+            "name": "/home/djscrew/opensite/tool/logs/error-2026-03-03.log",
+            "hash": "0eb55b5214a03e98ace4a9c83d7d91b2b6025c187f3a1c4dfd703834aa3821ed"
         }
     ],
     "hashType": "sha256"

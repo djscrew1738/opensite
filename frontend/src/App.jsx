@@ -25,6 +25,7 @@ const JobDetail = lazy(pageImports.jobDetail);
 const Canvas = lazy(pageImports.canvas);
 const Alerts = lazy(pageImports.alerts);
 const AIAssistant = lazy(pageImports.ai);
+const KnowledgeBase = lazy(pageImports.knowledge);
 
 // Skeleton card widths for PageLoader
 const SKELETON_CARD_WIDTHS = ['140px', '160px', '150px', '145px'];
@@ -187,6 +188,7 @@ function RoutePrefetcher() {
 
 /**
  * Query client configuration
+ * Optimized with granular caching strategies
  */
 function useQueryClientConfig() {
   return useMemo(() => new QueryClient({
@@ -196,7 +198,10 @@ function useQueryClientConfig() {
         retry: 1,
         staleTime: 60000,       // 60s — stale-while-revalidate for field use
         gcTime: 600000,          // 10min cache — keeps data through offline gaps
-        refetchInterval: 60000,  // Silent 60s background refresh
+        refetchInterval: false,  // Disable automatic background refresh
+      },
+      mutations: {
+        retry: 0,
       }
     }
   }), []);
@@ -266,6 +271,7 @@ export default function App() {
                         
                         {/* AI Assistant */}
                         <Route path="ai" element={<PageWrapper><AIAssistant /></PageWrapper>} />
+                        <Route path="knowledge" element={<PageWrapper><KnowledgeBase /></PageWrapper>} />
                         
                         {/* System */}
                         <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />

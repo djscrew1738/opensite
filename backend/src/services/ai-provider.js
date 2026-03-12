@@ -29,8 +29,33 @@ class AIProviderManager {
     this._healthCheckInterval = 60000; // 60s
     this._healthMonitorId = null;
     
+    // Settings cache with TTL
+    this._settingsCache = null;
+    this._settingsCacheTTL = 30000; // 30s
+    this._settingsCacheTime = 0;
+    
     // Start periodic health monitoring
     this._startHealthMonitor();
+  }
+
+  /**
+   * Get cached settings with TTL
+   */
+  async _getCachedSettings() {
+    const now = Date.now();
+    if (!this._settingsCache || (now - this._settingsCacheTime) > this._settingsCacheTTL) {
+      this._settingsCache = await db.getAllSettings();
+      this._settingsCacheTime = now;
+    }
+    return this._settingsCache;
+  }
+
+  /**
+   * Invalidate settings cache
+   */
+  _invalidateSettingsCache() {
+    this._settingsCache = null;
+    this._settingsCacheTime = 0;
   }
 
   get activeProviderName() { return this._activeProvider; }
@@ -77,39 +102,48 @@ class AIProviderManager {
 
   /**
    * Get detailed provider status with health info
+   * Optimized: Single DB call with caching, parallel processing
    */
   async getAvailableProviders() {
-    const groqKey = await db.getSetting('groq_api_key');
-    const anthropicKey = await db.getSetting('anthropic_api_key');
-    const openaiKey = await db.getSetting('openai_api_key');
-    const openclawUrl = (await db.getSetting('openclaw_url')) || process.env.OPENCLAW_URL;
+    // Use cached settings to reduce DB calls
+    const settings = await this._getCachedSettings();
+    
+    const groqKey = settings.groq_api_key;
+    const anthropicKey = settings.anthropic_api_key;
+    const openaiKey = settings.openai_api_key;
+    const openclawUrl = settings.openclaw_url || process.env.OPENCLAW_URL;
 
-    const providerList = [];
-    for (const [name, service] of Object.entries(this.providers)) {
-      const health = this._healthCache.get(name);
-      const isCloud = ['groq', 'anthropic', 'openai'].includes(name);
-      const isLocal = ['ollama', 'openclaw'].includes(name);
-      
-      let hasApiKey = false;
-      if (name === 'groq') hasApiKey = !!(service.apiKey || groqKey);
-      else if (name === 'anthropic') hasApiKey = !!(service.apiKey || anthropicKey);
-      else if (name === 'openai') hasApiKey = !!(service.apiKey || openaiKey);
-      else if (name === 'openclaw') hasApiKey = !!openclawUrl;
-      else if (name === 'ollama') hasApiKey = true; // Ollama is local, no key needed by default
+    // Build provider list in parallel
+    const providerEntries = Object.entries(this.providers);
+    const providerList = await Promise.all(
+      providerEntries.map(async ([name, service]) => {
+        const health = this._healthCache.get(name);
+        const isCloud = ['groq', 'anthropic', 'openai'].includes(name);
+        
+        let hasApiKey = false;
+        if (name === 'groq') hasApiKey = !!(service.apiKey || groqKey);
+        else if (name === 'anthropic') hasApiKey = !!(service.apiKey || anthropicKey);
+        else if (name === 'openai') hasApiKey = !!(service.apiKey || openaiKey);
+        else if (name === 'openclaw') hasApiKey = !!openclawUrl;
+        else if (name === 'ollama') hasApiKey = true;
 
-      providerList.push({
-        name,
-        label: this._getProviderLabel(name),
-        active: this._activeProvider === name,
-        defaultModel: service.defaultModel,
-        hasApiKey,
-        health: health || { status: 'unknown', lastCheck: null },
-        description: this._getProviderDescription(name),
-        metrics: service.getMetrics ? service.getMetrics() : null,
-        category: isCloud ? 'cloud' : 'local',
-        priority: this._getProviderPriority(name),
-      });
-    }
+        // Get metrics asynchronously but don't block
+        const metrics = service.getMetrics ? service.getMetrics() : null;
+
+        return {
+          name,
+          label: this._getProviderLabel(name),
+          active: this._activeProvider === name,
+          defaultModel: service.defaultModel,
+          hasApiKey,
+          health: health || { status: 'unknown', lastCheck: null },
+          description: this._getProviderDescription(name),
+          metrics,
+          category: isCloud ? 'cloud' : 'local',
+          priority: this._getProviderPriority(name),
+        };
+      })
+    );
     
     return providerList.sort((a, b) => a.priority - b.priority);
   }
@@ -152,9 +186,12 @@ class AIProviderManager {
    */
   async loadFromSettings() {
     try {
-      const savedProvider = await db.getSetting('ai_provider');
-      const openclawUrl = (await db.getSetting('openclaw_url')) || process.env.OPENCLAW_URL;
-      const groqKey = await db.getSetting('groq_api_key');
+      // Use single batched query instead of multiple individual queries
+      const settings = await db.getAllSettings();
+      
+      const savedProvider = settings.ai_provider;
+      const openclawUrl = settings.openclaw_url || process.env.OPENCLAW_URL;
+      const groqKey = settings.groq_api_key;
       
       // If we have a saved provider, respect it. 
       // Otherwise, pick the best available one.
@@ -168,7 +205,7 @@ class AIProviderManager {
         this._activeProvider = 'ollama';
       }
 
-      await this._configureProviders();
+      await this._configureProvidersFromSettings(settings);
       
       if (aiOptimizer) {
         aiOptimizer.fallbackOrder = this._fallbackOrder;
@@ -181,8 +218,15 @@ class AIProviderManager {
   }
 
   async _configureProviders() {
-    const settings = await db.getAllSettings();
-    
+    const settings = await this._getCachedSettings();
+    await this._configureProvidersFromSettings(settings);
+  }
+
+  /**
+   * Configure providers from already-fetched settings
+   * Avoids redundant DB calls when settings are already available
+   */
+  async _configureProvidersFromSettings(settings) {
     const configs = {
       groq: {
         apiKey: settings.groq_api_key || process.env.GROQ_API_KEY,
@@ -212,14 +256,24 @@ class AIProviderManager {
       }
     };
 
-    for (const [name, config] of Object.entries(configs)) {
-      if (this.providers[name]) {
-        // Only configure if we have some data or it's a local default
-        if (config.apiKey || config.baseUrl || name === 'ollama') {
-          this.providers[name].configure(config);
+    // Configure providers in parallel
+    await Promise.all(
+      Object.entries(configs).map(async ([name, config]) => {
+        if (this.providers[name]) {
+          // Only configure if we have some data or it's a local default
+          if (config.apiKey || config.baseUrl || name === 'ollama') {
+            this.providers[name].configure(config);
+          }
         }
-      }
-    }
+      })
+    );
+  }
+
+  /**
+   * Clear settings cache when settings are updated externally
+   */
+  notifySettingsChanged() {
+    this._invalidateSettingsCache();
   }
 
   async listAvailableModels(fromAll = false) {
@@ -255,16 +309,35 @@ class AIProviderManager {
     return result;
   }
 
+  /**
+   * Health check all providers in parallel
+   */
   async healthCheckAll() {
+    const providerNames = Object.keys(this.providers);
+    
+    // Run all health checks in parallel with timeout
+    const healthResults = await Promise.allSettled(
+      providerNames.map(async (name) => {
+        try {
+          const result = await this.providers[name].healthCheck();
+          this._updateHealthCache(name, result);
+          return { name, result };
+        } catch (err) {
+          const errorResult = { connected: false, error: err.message };
+          this._updateHealthCache(name, errorResult);
+          return { name, result: errorResult };
+        }
+      })
+    );
+    
+    // Build results object
     const results = {};
-    for (const name of Object.keys(this.providers)) {
-      try {
-        results[name] = await this.providers[name].healthCheck();
-      } catch (err) {
-        results[name] = { connected: false, error: err.message };
+    healthResults.forEach((outcome) => {
+      if (outcome.status === 'fulfilled') {
+        results[outcome.value.name] = outcome.value.result;
       }
-      this._updateHealthCache(name, results[name]);
-    }
+    });
+    
     return results;
   }
 

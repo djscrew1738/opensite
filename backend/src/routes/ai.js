@@ -3,15 +3,16 @@
 import express from 'express';
 import { aiProvider } from '../services/ai-provider.js';
 import { aiOptimizer } from '../services/ai-optimizer.js';
+import { aiIntelligence } from '../services/ai/index.js';
 import { db } from '../services/database.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 import crypto from 'crypto';
 import { authenticateToken } from '../middleware/auth-jwt.js';
+import { z } from 'zod';
 
 /**
  * Generate a unique conversation ID
- * Uses timestamp + random bytes to prevent collisions under concurrent requests
  */
 function generateConversationId() {
   return `conv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
@@ -21,6 +22,147 @@ const router = express.Router();
 
 // Apply authentication to all AI routes
 router.use(authenticateToken);
+
+/* ── POST /api/ai/smart-chat ────────────────────────────────────────── */
+router.post('/smart-chat', tryCatch(async (req, res) => {
+  const { message, conversationId, options = {} } = req.body;
+  if (!message?.trim()) {
+    return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  // 1. Get Conversation History
+  const conversation = conversationId ? await db.getConversation(conversationId) : null;
+  const history = conversation?.messages || [];
+
+  // 2. Intelligence Call (Auto-RAG)
+  const result = await aiIntelligence.smartChat(message.trim(), history, options);
+
+  if (!result.success) {
+    return res.error(result.error || 'Smart AI failed', 'AI_ERROR', null, 503);
+  }
+
+  // 3. Persist Conversation
+  const newConvId = conversationId || generateConversationId();
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
+  await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: result.response });
+
+  res.success({
+    response: result.response,
+    conversationId: newConvId,
+    hasContext: result.hasContext,
+    sources: result.contextSources,
+    modelUsed: result.model,
+    provider: result.provider,
+  });
+}));
+
+/* ── POST /api/ai/smart-chat/stream ─────────────────────────────────── */
+router.post('/smart-chat/stream', async (req, res) => {
+  const { message, conversationId, options = {} } = req.body;
+
+  if (!message?.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const heartbeat = setInterval(() => res.write(': ping\n\n'), 25000);
+  
+  try {
+    const conversation = conversationId ? await db.getConversation(conversationId) : null;
+    const history = conversation?.messages || [];
+    const newConvId = conversationId || generateConversationId();
+
+    // User message
+    await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'user', content: message.trim() });
+
+    let fullResponse = '';
+    for await (const result of aiIntelligence.smartChatStream(message.trim(), history, options)) {
+      const chunkText = typeof result === 'string' ? result : result?.chunk;
+      if (chunkText) {
+        fullResponse += chunkText;
+        res.write(`data: ${JSON.stringify({ chunk: chunkText, done: false })}\n\n`);
+      }
+    }
+
+    if (fullResponse) {
+      await db.createConversation({ conversationId: newConvId, userId: req.user.id, role: 'assistant', content: fullResponse });
+    }
+
+    res.write(`data: ${JSON.stringify({ 
+      chunk: '', 
+      done: true, 
+      conversationId: newConvId,
+      provider: aiProvider.activeProviderName,
+      model: options.model || aiProvider.getRecommendedModel('chat')
+    })}\n\n`);
+  } catch (error) {
+    logger.error('Smart chat stream error:', error.message);
+    res.write(`data: ${JSON.stringify({ error: error.message, done: true })}\n\n`);
+  } finally {
+    clearInterval(heartbeat);
+    res.end();
+  }
+});
+
+/* ── POST /api/ai/extract ──────────────────────────────────────────── */
+router.post('/extract', tryCatch(async (req, res) => {
+  const { prompt, schemaType, data } = req.body;
+  
+  if (!prompt && !data) {
+    return res.error('Prompt or data is required', 'VALIDATION_ERROR', null, 400);
+  }
+
+  // Pre-defined schemas for common tasks
+  const schemas = {
+    lead: z.object({
+      name: z.string(),
+      company: z.string().optional(),
+      projectType: z.string(),
+      value: z.number().optional(),
+      location: z.string().optional(),
+      notes: z.string().optional()
+    }),
+    material: z.object({
+      name: z.string(),
+      category: z.string(),
+      unit: z.string(),
+      unitCost: z.number()
+    }),
+    takeoff: z.object({
+      items: z.array(z.object({
+        item: z.string(),
+        quantity: z.number(),
+        unit: z.string(),
+        cost: z.number().optional()
+      })),
+      total: z.number().optional()
+    }),
+    blueprint_summary: z.object({
+      sqft: z.number().optional(),
+      bathrooms: z.number().optional(),
+      stories: z.number().optional(),
+      units: z.number().optional(),
+      detectedFixtures: z.array(z.object({
+        type: z.string(),
+        count: z.number()
+      }))
+    })
+  };
+
+  const schema = schemas[schemaType] || z.any();
+  const inputPrompt = data ? `Data to extract from: ${JSON.stringify(data)}\n\n${prompt || ''}` : prompt;
+
+  const result = await aiIntelligence.extract(inputPrompt, schema);
+
+  if (!result.success) {
+    return res.error(result.error, 'EXTRACTION_FAILED', null, 400);
+  }
+
+  res.success(result.data);
+}));
 
 /* ── GET /api/ai/models ─────────────────────────────────────────────── */
 router.get('/models', tryCatch(async (req, res) => {
@@ -70,14 +212,14 @@ router.post('/providers/switch', tryCatch(async (req, res) => {
 
 /* ── POST /api/ai/chat ──────────────────────────────────────────────── */
 router.post('/chat', tryCatch(async (req, res) => {
-  const { message, conversationId, model } = req.body;
+  const { message, conversationId, model, history: clientHistory } = req.body;
   if (!message?.trim()) {
     return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
   }
 
-  // Load conversation history from DB
-  const conversation = conversationId ? await db.getConversation(conversationId) : null;
-  const history = conversation?.messages || [];
+  // Client-provided history takes precedence (enables localStorage-backed context)
+  const conversation = (!clientHistory?.length && conversationId) ? await db.getConversation(conversationId) : null;
+  const history = clientHistory?.length ? clientHistory : (conversation?.messages || []);
 
   const newConvId = conversationId || generateConversationId();
   const modelToUse = model || aiProvider.getRecommendedModel('chat');
@@ -111,7 +253,7 @@ router.post('/chat', tryCatch(async (req, res) => {
 
 /* ── POST /api/ai/chat/stream ───────────────────────────────────────── */
 router.post('/chat/stream', async (req, res) => {
-  const { message, conversationId, model } = req.body;
+  const { message, conversationId, model, history: clientHistory } = req.body;
 
   if (!message?.trim()) {
     return res.error('Message is required', 'VALIDATION_ERROR', null, 400);
@@ -130,8 +272,9 @@ router.post('/chat/stream', async (req, res) => {
   req.on('close', cleanup);
 
   try {
-    const conversation = conversationId ? await db.getConversation(conversationId) : null;
-    const history = conversation?.messages || [];
+    // Client-provided history takes precedence (enables localStorage-backed context)
+    const conversation = (!clientHistory?.length && conversationId) ? await db.getConversation(conversationId) : null;
+    const history = clientHistory?.length ? clientHistory : (conversation?.messages || []);
     const newConvId = conversationId || generateConversationId();
     const modelToUse = model || aiProvider.getRecommendedModel('chat');
 

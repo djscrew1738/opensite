@@ -150,15 +150,28 @@ export const api = {
     switchProvider: (provider) => apiClient.post('/ai/providers/switch', { provider }),
     chat: (message, conversationId, model) =>
       apiClient.post('/ai/chat', { message, conversationId, model }),
+    smartChat: (message, conversationId, options) =>
+      apiClient.post('/ai/smart-chat', { message, conversationId, options }),
+    extract: (prompt, schemaType, data) =>
+      apiClient.post('/ai/extract', { prompt, schemaType, data }),
     analyze: (text, context, model) =>
       apiClient.post('/ai/analyze', { text, context, model }),
     deleteModel: (name) => apiClient.delete(`/ai/models/${encodeURIComponent(name)}`),
+  },
+
+  // Knowledge Base
+  knowledge: {
+    list: () => apiClient.get('/knowledge'),
+    delete: (id) => apiClient.delete(`/knowledge/${id}`),
+    reindex: () => apiClient.post('/knowledge/reindex'),
   },
 
   // Settings
   settings: {
     get: () => apiClient.get('/settings'),
     update: (data) => apiClient.put('/settings', data),
+    // Batch update for multiple settings at once (more efficient)
+    batchUpdate: (updates) => apiClient.put('/settings/batch', { updates }),
     testOllama: (url) => apiClient.post('/settings/test-ollama', { url }),
     testGroq: (key) => apiClient.post('/settings/test-groq', { key }),
     testOpenai: (key) => apiClient.post('/settings/test-openai', { key }),
@@ -380,7 +393,27 @@ export const api = {
     create: (data) => apiClient.post('/users', data),
     update: (id, data) => apiClient.put(`/users/${id}`, data),
     delete: (id) => apiClient.delete(`/users/${id}`),
+  },
+
+  // Documents (DocVault)
+  documents: {
+    list: () => apiClient.get('/documents'),
+    get: (id) => apiClient.get(`/documents/${id}`),
+    upload: (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiClient.post('/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
+      });
+    },
+    delete: (id) => apiClient.delete(`/documents/${id}`),
+    summarize: (id) => apiClient.post(`/documents/${id}/summarize`),
+    extractEntities: (id) => apiClient.post(`/documents/${id}/entities`),
+    chat: (id, message) => apiClient.post(`/documents/${id}/chat`, { message }),
+    clearChat: (id) => apiClient.delete(`/documents/${id}/chat`),
   }
 };
 
+export { apiClient };
 export default apiClient;

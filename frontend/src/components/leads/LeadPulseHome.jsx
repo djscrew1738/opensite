@@ -1,4 +1,11 @@
-import { useState, useMemo } from 'react';
+/**
+ * LeadPulseHome Component
+ * Lead command center dashboard with smart alerts and stats
+ * 
+ * @module components/leads/LeadPulseHome
+ */
+
+import { useState, useMemo, memo, useCallback } from 'react';
 import { 
   Flame, Snowflake, Sun, Target, TrendingUp, Users, 
   Building2, MapPin, Calendar, Filter, Plus, Download,
@@ -6,147 +13,242 @@ import {
   Search, ChevronRight, BarChart3, Sparkles, Flag
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
+import { colors, shadows } from '../../styles/tokens';
 
-/* ================================================================
-   LEAD PULSE HOME v2 - Enhanced Lead Command Center
-   - Smart alerts & priority indicators
-   - Quick action dock
-   - Visual stats dashboard
-   - Priority lead cards
-   - Activity timeline
-   ================================================================ */
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
+/** @type {Record<string, { color: string; icon: any; label: string }>} */
 const TIER_STYLES = {
   hot: { 
-    color: '#EF4444', 
-    bg: 'bg-red-50', 
-    border: 'border-red-200',
-    text: 'text-red-700',
+    color: colors.danger.DEFAULT, 
     icon: Flame,
     label: 'Hot'
   },
   warm: { 
-    color: '#F97316', 
-    bg: 'bg-orange-50', 
-    border: 'border-orange-200',
-    text: 'text-orange-700',
+    color: colors.warning.DEFAULT, 
     icon: Sun,
     label: 'Warm'
   },
   cold: { 
-    color: '#64748B', 
-    bg: 'bg-slate-50', 
-    border: 'border-slate-200',
-    text: 'text-slate-600',
+    color: colors.text.muted, 
     icon: Snowflake,
     label: 'Cold'
   },
 };
 
+/** @type {Record<string, { color: string; label: string; icon: string }>} */
 const STATUS_STYLES = {
-  new: { color: '#3B82F6', bg: 'bg-blue-50', label: 'New', icon: '●' },
-  contacted: { color: '#F59E0B', bg: 'bg-amber-50', label: 'Contacted', icon: '✉' },
-  responded: { color: '#10B981', bg: 'bg-emerald-50', label: 'Responded', icon: '↩' },
-  quoted: { color: '#8B5CF6', bg: 'bg-violet-50', label: 'Quoted', icon: '📝' },
-  won: { color: '#059669', bg: 'bg-green-50', label: 'Won', icon: '✓' },
-  lost: { color: '#6B7280', bg: 'bg-gray-50', label: 'Lost', icon: '✕' },
+  new: { color: colors.info.DEFAULT, label: 'New', icon: '●' },
+  contacted: { color: colors.warning.DEFAULT, label: 'Contacted', icon: '✉' },
+  responded: { color: colors.success.DEFAULT, label: 'Responded', icon: '↩' },
+  quoted: { color: colors.accent.purple, label: 'Quoted', icon: '📝' },
+  won: { color: colors.success.dark, label: 'Won', icon: '✓' },
+  lost: { color: colors.text.muted, label: 'Lost', icon: '✕' },
 };
 
-/* -- COMPONENTS -- */
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
 
-const QuickAction = ({ icon: Icon, label, onClick, color = 'text-accent-600', badge = null, disabled = false }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`flex flex-col items-center gap-2 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 transition-all duration-200 min-w-[80px] ${
-      disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent-300 hover:shadow-md active:scale-95'
-    }`}
-  >
-    <div className="relative">
-      <Icon className={`w-6 h-6 ${color}`} />
-      {badge && (
-        <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1">
-          {badge}
-        </span>
-      )}
-    </div>
-    <span className="text-xs font-medium text-surface-600 dark:text-surface-400">{label}</span>
-  </button>
-);
+/**
+ * Quick action button
+ * @param {{ icon: any; label: string; onClick: () => void; color?: string; badge?: number | null; disabled?: boolean }} props
+ */
+const QuickAction = memo(function QuickAction({ icon: Icon, label, onClick, color, badge = null, disabled = false }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200 min-w-[80px]"
+      style={{
+        backgroundColor: colors.surface.card,
+        borderColor: colors.border.default,
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.borderColor = colors.accent.DEFAULT;
+          e.currentTarget.style.boxShadow = shadows.card;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.borderColor = colors.border.default;
+          e.currentTarget.style.boxShadow = 'none';
+        }
+      }}
+    >
+      <div className="relative">
+        <Icon style={{ color, width: '24px', height: '24px' }} />
+        {badge && (
+          <span 
+            className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full text-xs font-semibold flex items-center justify-center px-1"
+            style={{ backgroundColor: colors.danger.DEFAULT, color: colors.text.inverse }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+      <span style={{ color: colors.text.secondary, fontSize: '12px', fontWeight: 500 }}>{label}</span>
+    </button>
+  );
+});
 
-const AlertCard = ({ type, title, message, action, onAction, count }) => {
+QuickAction.displayName = 'QuickAction';
+
+/**
+ * Alert card for notifications
+ * @param {{ type: 'urgent' | 'warning' | 'success' | 'info'; title: string; message: string; action?: string; onAction?: () => void; count?: number }} props
+ */
+const AlertCard = memo(function AlertCard({ type, title, message, action, onAction, count }) {
   const styles = {
-    urgent: { border: 'border-red-300', bg: 'bg-red-50/80', icon: AlertCircle, iconColor: 'text-red-500' },
-    warning: { border: 'border-amber-300', bg: 'bg-amber-50/80', icon: Clock, iconColor: 'text-amber-500' },
-    success: { border: 'border-emerald-300', bg: 'bg-emerald-50/80', icon: CheckCircle2, iconColor: 'text-emerald-500' },
-    info: { border: 'border-blue-300', bg: 'bg-blue-50/80', icon: Sparkles, iconColor: 'text-blue-500' },
+    urgent: { border: colors.danger.border, bg: colors.danger.muted, icon: AlertCircle, iconColor: colors.danger.DEFAULT },
+    warning: { border: colors.warning.border, bg: colors.warning.muted, icon: Clock, iconColor: colors.warning.DEFAULT },
+    success: { border: colors.success.border, bg: colors.success.muted, icon: CheckCircle2, iconColor: colors.success.DEFAULT },
+    info: { border: colors.info.border, bg: colors.info.muted, icon: Sparkles, iconColor: colors.info.DEFAULT },
   }[type];
   const Icon = styles.icon;
 
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-xl border ${styles.border} ${styles.bg} dark:bg-opacity-10`}>
-      <Icon className={`w-5 h-5 ${styles.iconColor} shrink-0 mt-0.5`} />
+    <div 
+      className="flex items-start gap-3 p-4 rounded-xl border"
+      style={{ 
+        borderColor: styles.border, 
+        backgroundColor: styles.bg,
+      }}
+    >
+      <Icon style={{ color: styles.iconColor, width: '20px', height: '20px', flexShrink: 0, marginTop: '2px' }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-semibold text-surface-900 dark:text-surface-100 text-sm">{title}</h4>
+          <h4 style={{ color: colors.text.primary, fontSize: '14px', fontWeight: 600 }}>{title}</h4>
           {count > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-white dark:bg-surface-800 text-xs font-bold text-surface-600">
+            <span 
+              className="px-2 py-0.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: colors.surface.card, color: colors.text.secondary }}
+            >
               {count}
             </span>
           )}
         </div>
-        <p className="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">{message}</p>
+        <p style={{ color: colors.text.secondary, fontSize: '12px', lineHeight: 1.5 }}>{message}</p>
         {action && (
           <button
             onClick={onAction}
-            className="mt-2 text-xs font-semibold text-accent-600 hover:text-accent-700 flex items-center gap-1"
+            className="mt-2 text-xs font-semibold flex items-center gap-1"
+            style={{ color: colors.accent.DEFAULT }}
+            onMouseEnter={(e) => e.currentTarget.style.color = colors.accent.hover}
+            onMouseLeave={(e) => e.currentTarget.style.color = colors.accent.DEFAULT}
           >
-            {action} <ChevronRight className="w-3 h-3" />
+            {action} <ChevronRight style={{ width: '12px', height: '12px' }} />
           </button>
         )}
       </div>
     </div>
   );
-};
+});
 
-const StatCard = ({ label, value, subtext, icon: Icon, color = 'text-accent-600', trend = null, onClick }) => (
-  <div 
-    onClick={onClick}
-    className="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 transition-all cursor-pointer group"
-  >
-    <div className="flex items-start justify-between mb-2">
-      <div className={`p-2 rounded-lg ${color.replace('text-', 'bg-').replace('600', '100')}`}>
-        <Icon className={`w-4 h-4 ${color}`} />
+AlertCard.displayName = 'AlertCard';
+
+/**
+ * Stat card for dashboard metrics
+ * @param {{ label: string; value: string | number; subtext?: string; icon: any; color?: string; trend?: number | null; onClick?: () => void }} props
+ */
+const StatCard = memo(function StatCard({ label, value, subtext, icon: Icon, color, trend = null, onClick }) {
+  const getColorValue = (colorStr) => {
+    const map = {
+      'text-red-600': colors.danger.DEFAULT,
+      'text-orange-600': colors.warning.DEFAULT,
+      'text-emerald-600': colors.success.DEFAULT,
+      'text-blue-600': colors.info.DEFAULT,
+    };
+    return map[color] || colors.accent.DEFAULT;
+  };
+
+  const colorValue = getColorValue(color);
+  const bgColor = colorValue + '1A'; // 10% opacity
+
+  return (
+    <div 
+      onClick={onClick}
+      className="p-4 rounded-xl border transition-all cursor-pointer"
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderColor: colors.border.default,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = colors.accent.DEFAULT;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = colors.border.default;
+      }}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div 
+          className="p-2 rounded-lg"
+          style={{ backgroundColor: bgColor }}
+        >
+          <Icon style={{ color: colorValue, width: '16px', height: '16px' }} />
+        </div>
+        {trend && (
+          <span 
+            className="text-xs font-semibold"
+            style={{ color: trend > 0 ? colors.success.DEFAULT : colors.danger.DEFAULT }}
+          >
+            {trend > 0 ? '+' : ''}{trend}%
+          </span>
+        )}
       </div>
-      {trend && (
-        <span className={`text-xs font-bold ${trend > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-          {trend > 0 ? '+' : ''}{trend}%
-        </span>
-      )}
+      <div style={{ color: colors.text.primary, fontSize: '24px', fontWeight: 700 }}>{value}</div>
+      <div style={{ color: colors.text.secondary, fontSize: '12px', fontWeight: 500 }}>{label}</div>
+      {subtext && <div style={{ color: colors.text.muted, fontSize: '12px', marginTop: '4px' }}>{subtext}</div>}
     </div>
-    <div className="text-2xl font-bold text-surface-900 dark:text-surface-100">{value}</div>
-    <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">{label}</div>
-    {subtext && <div className="text-xs text-surface-400 mt-1">{subtext}</div>}
-  </div>
-);
+  );
+});
 
-const PriorityLeadRow = ({ lead, type, onClick }) => {
+StatCard.displayName = 'StatCard';
+
+/**
+ * Priority lead row
+ * @param {{ lead: any; type: 'manual' | 'permit'; onClick: () => void }} props
+ */
+const PriorityLeadRow = memo(function PriorityLeadRow({ lead, type, onClick }) {
   const isManual = type === 'manual';
   const tier = TIER_STYLES[lead.status || lead.icpTier] || TIER_STYLES.cold;
-  const TierIcon = tier.icon || snowflake;
+  const TierIcon = tier.icon;
   const status = STATUS_STYLES[lead.contactStatus || 'new'] || STATUS_STYLES.new;
 
   return (
     <div 
       onClick={onClick}
-      className="flex items-center gap-4 p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-accent-300 hover:shadow-md transition-all cursor-pointer group"
+      className="flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer"
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderColor: colors.border.default,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = colors.accent.DEFAULT;
+        e.currentTarget.style.boxShadow = shadows.card;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = colors.border.default;
+        e.currentTarget.style.boxShadow = 'none';
+      }}
     >
       {/* Score/Tier */}
       <div className="shrink-0 text-center">
-        <div className={`w-12 h-12 rounded-xl ${tier.bg} flex items-center justify-center border-2 ${tier.border}`}>
-          <TierIcon className={`w-5 h-5 ${tier.text}`} />
+        <div 
+          className="w-12 h-12 rounded-xl flex items-center justify-center border-2"
+          style={{ 
+            backgroundColor: tier.color + '10',
+            borderColor: tier.color + '40',
+          }}
+        >
+          <TierIcon style={{ color: tier.color, width: '20px', height: '20px' }} />
         </div>
-        <span className="text-xs font-bold text-surface-500 mt-1 block">
+        <span style={{ color: colors.text.muted, fontSize: '12px', fontWeight: 700, marginTop: '4px', display: 'block' }}>
           {lead.score || lead.icpScore || '--'}
         </span>
       </div>
@@ -154,66 +256,88 @@ const PriorityLeadRow = ({ lead, type, onClick }) => {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-semibold text-surface-900 dark:text-surface-100 truncate">
+          <h4 style={{ color: colors.text.primary, fontWeight: 600 }} className="truncate">
             {isManual ? lead.name : lead.contractorName || lead.businessName}
           </h4>
-          <span className={`px-2 py-0.5 rounded-full text-2xs font-medium ${status.bg} text-surface-600`}>
+          <span 
+            className="px-2 py-0.5 rounded-full text-2xs font-medium"
+            style={{ backgroundColor: status.color + '15', color: colors.text.secondary }}
+          >
             {status.icon} {status.label}
           </span>
         </div>
-        <p className="text-sm text-surface-500 dark:text-surface-400 truncate">
+        <p style={{ color: colors.text.secondary, fontSize: '14px' }} className="truncate">
           {isManual ? lead.company : lead.address}
         </p>
-        <div className="flex items-center gap-3 mt-2 text-xs text-surface-400">
+        <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: colors.text.muted }}>
           {lead.value > 0 && (
-            <span className="flex items-center gap-1 text-emerald-600 font-medium">
-              <Target className="w-3 h-3" /> {formatCurrency(lead.value)}
+            <span className="flex items-center gap-1" style={{ color: colors.success.DEFAULT, fontWeight: 500 }}>
+              <Target style={{ width: '12px', height: '12px' }} /> {formatCurrency(lead.value)}
             </span>
           )}
           {lead.email && (
             <span className="flex items-center gap-1">
-              <Mail className="w-3 h-3" /> Email
+              <Mail style={{ width: '12px', height: '12px' }} /> Email
             </span>
           )}
           {lead.phone && (
             <span className="flex items-center gap-1">
-              <Phone className="w-3 h-3" /> Phone
+              <Phone style={{ width: '12px', height: '12px' }} /> Phone
             </span>
           )}
         </div>
       </div>
 
       {/* Arrow */}
-      <ChevronRight className="w-5 h-5 text-surface-300 group-hover:text-accent-500 transition-colors" />
+      <ChevronRight style={{ color: colors.border.strong, width: '20px', height: '20px' }} />
     </div>
   );
-};
+});
 
-const ActivityItem = ({ icon: Icon, text, time, type = 'neutral' }) => {
-  const colors = {
-    neutral: 'text-surface-400',
-    success: 'text-emerald-500',
-    warning: 'text-amber-500',
-    info: 'text-blue-500',
+PriorityLeadRow.displayName = 'PriorityLeadRow';
+
+/**
+ * Activity item for timeline
+ * @param {{ icon: any; text: string; time: string; type?: 'neutral' | 'success' | 'warning' | 'info' }} props
+ */
+const ActivityItem = memo(function ActivityItem({ icon: Icon, text, time, type = 'neutral' }) {
+  const typeColors = {
+    neutral: colors.text.muted,
+    success: colors.success.DEFAULT,
+    warning: colors.warning.DEFAULT,
+    info: colors.info.DEFAULT,
   };
+  
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-surface-100 dark:border-surface-700 last:border-0">
-      <div className={`p-2 rounded-lg bg-surface-50 dark:bg-surface-800 ${colors[type]}`}>
-        <Icon className="w-4 h-4" />
+    <div 
+      className="flex items-center gap-3 py-3 last:border-0"
+      style={{ borderBottom: `1px solid ${colors.border.default}` }}
+    >
+      <div 
+        className="p-2 rounded-lg"
+        style={{ backgroundColor: colors.surface.elevated, color: typeColors[type] }}
+      >
+        <Icon style={{ width: '16px', height: '16px' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-surface-700 dark:text-surface-300 truncate">{text}</p>
+        <p style={{ color: colors.text.secondary, fontSize: '14px' }} className="truncate">{text}</p>
       </div>
-      <span className="text-xs text-surface-400 whitespace-nowrap">{time}</span>
+      <span style={{ color: colors.text.muted, fontSize: '12px', whiteSpace: 'nowrap' }}>{time}</span>
     </div>
   );
-};
+});
 
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
+ActivityItem.displayName = 'ActivityItem';
 
-export default function LeadPulseHome({ 
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * LeadPulseHome - Lead dashboard and command center
+ * @param {{ manualLeads?: any[]; permits?: any[]; onAddLead?: () => void; onViewLead?: (lead: any) => void; onViewPermit?: (permit: any) => void; onTabChange?: (tab: string) => void; onOpenSearch?: () => void; isLoading?: boolean }} props
+ */
+const LeadPulseHome = memo(function LeadPulseHome({ 
   manualLeads = [], 
   permits = [],
   onAddLead, 
@@ -223,8 +347,6 @@ export default function LeadPulseHome({
   onOpenSearch,
   isLoading = false
 }) {
-  const [filter, setFilter] = useState('all');
-
   // Compute statistics
   const stats = useMemo(() => {
     const manual = Array.isArray(manualLeads) ? manualLeads : [];
@@ -308,14 +430,30 @@ export default function LeadPulseHome({
     { icon: Building2, text: 'New permits imported from Dallas', time: '2h ago', type: 'info' },
   ];
 
+  const handleTabChange = useCallback((tab) => onTabChange?.(tab), [onTabChange]);
+  const handleAddLead = useCallback(() => onAddLead?.(), [onAddLead]);
+  const handleOpenSearch = useCallback(() => onOpenSearch?.(), [onOpenSearch]);
+
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-surface-200 rounded-xl" />)}
+          {[1,2,3,4].map(i => (
+            <div 
+              key={i} 
+              className="h-24 rounded-xl" 
+              style={{ backgroundColor: colors.surface.elevated }}
+            />
+          ))}
         </div>
-        <div className="h-40 bg-surface-200 rounded-xl" />
-        <div className="h-60 bg-surface-200 rounded-xl" />
+        <div 
+          className="h-40 rounded-xl" 
+          style={{ backgroundColor: colors.surface.elevated }}
+        />
+        <div 
+          className="h-60 rounded-xl" 
+          style={{ backgroundColor: colors.surface.elevated }}
+        />
       </div>
     );
   }
@@ -333,38 +471,43 @@ export default function LeadPulseHome({
 
       {/* Quick Actions */}
       <div>
-        <h3 className="text-xs font-bold text-surface-500 uppercase tracking-wider mb-3">Quick Actions</h3>
+        <h3 
+          className="text-xs font-semibold uppercase tracking-wider mb-3"
+          style={{ color: colors.text.muted }}
+        >
+          Quick Actions
+        </h3>
         <div className="flex gap-3 overflow-x-auto pb-2">
           <QuickAction 
             icon={Plus} 
             label="Add Lead" 
-            onClick={onAddLead}
-            color="text-emerald-600"
+            onClick={handleAddLead}
+            color={colors.success.DEFAULT}
           />
           <QuickAction 
             icon={Search} 
             label="Search" 
-            onClick={onOpenSearch}
-            color="text-blue-600"
+            onClick={handleOpenSearch}
+            color={colors.info.DEFAULT}
           />
           <QuickAction 
             icon={Building2} 
             label="Permits" 
-            onClick={() => onTabChange('permits')}
-            color="text-violet-600"
+            onClick={() => handleTabChange('permits')}
+            color={colors.accent.purple}
             badge={(Array.isArray(permits) ? permits : []).filter(p => p.leadStatus === 'new').length || null}
           />
           <QuickAction 
             icon={MapPin} 
             label="Cities" 
-            onClick={() => onTabChange('cities')}
-            color="text-amber-600"
+            onClick={() => handleTabChange('cities')}
+            color={colors.warning.DEFAULT}
           />
           <QuickAction 
             icon={Download} 
             label="Export" 
             onClick={() => {}}
-            color="text-surface-600"
+            color={colors.text.secondary}
             disabled
           />
         </div>
@@ -378,7 +521,7 @@ export default function LeadPulseHome({
           subtext="Need attention"
           icon={Flame}
           color="text-red-600"
-          onClick={() => onTabChange('manual')}
+          onClick={() => handleTabChange('manual')}
         />
         <StatCard
           label="Warm Leads"
@@ -386,7 +529,7 @@ export default function LeadPulseHome({
           subtext="Nurture ready"
           icon={Sun}
           color="text-orange-600"
-          onClick={() => onTabChange('manual')}
+          onClick={() => handleTabChange('manual')}
         />
         <StatCard
           label="Pipeline Value"
@@ -407,13 +550,19 @@ export default function LeadPulseHome({
       {/* Priority Leads */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-500" />
+          <h3 
+            className="text-sm font-bold flex items-center gap-2"
+            style={{ color: colors.text.primary }}
+          >
+            <Zap style={{ color: colors.warning.DEFAULT, width: '16px', height: '16px' }} />
             Priority Leads
           </h3>
           <button 
-            onClick={() => onTabChange('manual')}
-            className="text-xs text-accent-600 hover:text-accent-700 font-medium"
+            onClick={() => handleTabChange('manual')}
+            className="text-xs font-medium"
+            style={{ color: colors.accent.DEFAULT }}
+            onMouseEnter={(e) => e.currentTarget.style.color = colors.accent.hover}
+            onMouseLeave={(e) => e.currentTarget.style.color = colors.accent.DEFAULT}
           >
             View All →
           </button>
@@ -421,19 +570,22 @@ export default function LeadPulseHome({
 
         <div className="space-y-3">
           {priorityLeads.length > 0 ? (
-            priorityLeads.map((lead, i) => (
+            priorityLeads.map((lead) => (
               <PriorityLeadRow
                 key={lead.id}
                 lead={lead}
                 type={lead.type}
-                onClick={() => lead.type === 'manual' ? onViewLead(lead) : onViewPermit(lead)}
+                onClick={() => lead.type === 'manual' ? onViewLead?.(lead) : onViewPermit?.(lead)}
               />
             ))
           ) : (
-            <div className="text-center py-12 bg-surface-50 dark:bg-surface-800 rounded-xl border border-dashed border-surface-300">
-              <Target className="w-12 h-12 text-surface-300 mx-auto mb-3" />
-              <p className="text-surface-500 dark:text-surface-400 text-sm">No priority leads yet</p>
-              <p className="text-surface-400 text-xs mt-1">Add leads or run discovery to find hot prospects</p>
+            <div 
+              className="text-center py-12 rounded-xl border border-dashed"
+              style={{ backgroundColor: colors.surface.card, borderColor: colors.border.strong }}
+            >
+              <Target style={{ color: colors.border.strong, width: '48px', height: '48px' }} className="mx-auto mb-3" />
+              <p style={{ color: colors.text.secondary, fontSize: '14px' }}>No priority leads yet</p>
+              <p style={{ color: colors.text.muted, fontSize: '12px', marginTop: '4px' }}>Add leads or run discovery to find hot prospects</p>
             </div>
           )}
         </div>
@@ -442,9 +594,15 @@ export default function LeadPulseHome({
       {/* Two Column Layout */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Lead Sources */}
-        <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
-          <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-surface-400" />
+        <div 
+          className="p-5 rounded-xl border"
+          style={{ backgroundColor: colors.surface.card, borderColor: colors.border.default }}
+        >
+          <h3 
+            className="text-sm font-bold mb-4 flex items-center gap-2"
+            style={{ color: colors.text.primary }}
+          >
+            <BarChart3 style={{ color: colors.text.muted, width: '16px', height: '16px' }} />
             Lead Distribution
           </h3>
           <div className="space-y-4">
@@ -456,13 +614,19 @@ export default function LeadPulseHome({
               return (
                 <div key={tier}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-                      <style.icon className="w-4 h-4" style={{ color: style.color }} />
+                    <span 
+                      className="text-sm flex items-center gap-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      <style.icon style={{ color: style.color, width: '16px', height: '16px' }} />
                       {style.label}
                     </span>
-                    <span className="text-sm font-bold text-surface-900">{count}</span>
+                    <span style={{ color: colors.text.primary, fontSize: '14px', fontWeight: 700 }}>{count}</span>
                   </div>
-                  <div className="h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: colors.surface.elevated }}
+                  >
                     <div 
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${pct}%`, backgroundColor: style.color }}
@@ -475,9 +639,15 @@ export default function LeadPulseHome({
         </div>
 
         {/* Recent Activity */}
-        <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
-          <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-surface-400" />
+        <div 
+          className="p-5 rounded-xl border"
+          style={{ backgroundColor: colors.surface.card, borderColor: colors.border.default }}
+        >
+          <h3 
+            className="text-sm font-bold mb-4 flex items-center gap-2"
+            style={{ color: colors.text.primary }}
+          >
+            <Clock style={{ color: colors.text.muted, width: '16px', height: '16px' }} />
             Recent Activity
           </h3>
           <div className="space-y-1">
@@ -490,29 +660,45 @@ export default function LeadPulseHome({
 
       {/* Permit Pipeline Preview */}
       {permits.length > 0 && (
-        <div className="p-5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">
+        <div 
+          className="p-5 rounded-xl border"
+          style={{ backgroundColor: colors.surface.card, borderColor: colors.border.default }}
+        >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-surface-400" />
+            <h3 
+              className="text-sm font-bold flex items-center gap-2"
+              style={{ color: colors.text.primary }}
+            >
+              <Building2 style={{ color: colors.text.muted, width: '16px', height: '16px' }} />
               Permit Pipeline
             </h3>
             <button 
-              onClick={() => onTabChange('permits')}
-              className="text-xs text-accent-600 hover:text-accent-700 font-medium"
+              onClick={() => handleTabChange('permits')}
+              className="text-xs font-medium"
+              style={{ color: colors.accent.DEFAULT }}
+              onMouseEnter={(e) => e.currentTarget.style.color = colors.accent.hover}
+              onMouseLeave={(e) => e.currentTarget.style.color = colors.accent.DEFAULT}
             >
               View All →
             </button>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Hot', count: permits.filter(p => p.leadTier === 'hot').length, color: 'bg-red-500' },
-              { label: 'Warm', count: permits.filter(p => p.leadTier === 'warm').length, color: 'bg-orange-500' },
-              { label: 'Cold', count: permits.filter(p => p.leadTier === 'cold').length, color: 'bg-slate-400' },
+              { label: 'Hot', count: permits.filter(p => p.leadTier === 'hot').length, color: colors.danger.DEFAULT },
+              { label: 'Warm', count: permits.filter(p => p.leadTier === 'warm').length, color: colors.warning.DEFAULT },
+              { label: 'Cold', count: permits.filter(p => p.leadTier === 'cold').length, color: colors.text.muted },
             ].map((stat) => (
-              <div key={stat.label} className="text-center p-4 rounded-lg bg-surface-50 dark:bg-surface-900">
-                <div className={`w-3 h-3 rounded-full ${stat.color} mx-auto mb-2`} />
-                <div className="text-2xl font-bold text-surface-900">{stat.count}</div>
-                <div className="text-xs text-surface-500">{stat.label}</div>
+              <div 
+                key={stat.label} 
+                className="text-center p-4 rounded-lg"
+                style={{ backgroundColor: colors.surface.elevated }}
+              >
+                <div 
+                  className="w-3 h-3 rounded-full mx-auto mb-2"
+                  style={{ backgroundColor: stat.color }}
+                />
+                <div style={{ color: colors.text.primary, fontSize: '24px', fontWeight: 700 }}>{stat.count}</div>
+                <div style={{ color: colors.text.muted, fontSize: '12px' }}>{stat.label}</div>
               </div>
             ))}
           </div>
@@ -520,4 +706,8 @@ export default function LeadPulseHome({
       )}
     </div>
   );
-}
+});
+
+LeadPulseHome.displayName = 'LeadPulseHome';
+
+export default LeadPulseHome;

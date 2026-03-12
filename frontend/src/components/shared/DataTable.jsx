@@ -153,7 +153,7 @@ export function DataTable({
               key={keyExtractor ? keyExtractor(row) : index}
               onClick={() => onRowClick?.(row)}
               className={`
-                card p-4 space-y-3
+                card p-5 space-y-3
                 transition-all duration-150 ease-out
                 ${onRowClick ? 'cursor-pointer hover:shadow-lg hover:border-surface-300 dark:hover:border-surface-600 active:scale-[0.98] active:bg-surface-100 dark:active:bg-surface-800' : ''}
                 ${rowClassName?.(row) || ''}

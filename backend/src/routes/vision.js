@@ -362,9 +362,22 @@ router.post('/projects/:id/analyze', tryCatch(async (req, res) => {
 
     // Save analysis result
     await db.run(
-      'UPDATE vision_analyses SET result = ?, model = ?, status = ? WHERE id = ?',
-      [JSON.stringify(result.data || {}), result.model, result.success ? 'completed' : 'failed', analysisId]
+      'UPDATE vision_analyses SET result = ?, model = ?, status = ?, lastError = ? WHERE id = ?',
+      [
+        JSON.stringify(result.data || {}), 
+        result.model, 
+        result.success ? 'completed' : 'failed', 
+        result.success ? null : result.error,
+        analysisId
+      ]
     );
+
+    if (result.success) {
+      await db.run(
+        'UPDATE vision_projects SET lastAnalyzedAt = ?, updatedAt = ? WHERE id = ?',
+        [new Date().toISOString(), new Date().toISOString(), req.params.id]
+      );
+    }
 
     // Auto-create layers from analysis
     if (result.success && result.data) {

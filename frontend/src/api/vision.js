@@ -64,6 +64,7 @@ export const visionApi = {
   getSummary: () => apiClient.get('/vision/summary'),
   searchProjects: (query) => apiClient.get('/vision/projects', { params: { q: query } }),
   getProject: (id) => apiClient.get(`/vision/projects/${id}`),
+  updateProject: (id, data) => apiClient.patch(`/vision/projects/${id}`, data),
   updateProjectName: (id, name) => apiClient.patch(`/vision/projects/${id}`, { name }),
   deleteProject: (id) => apiClient.delete(`/vision/projects/${id}`),
 

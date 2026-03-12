@@ -1,14 +1,22 @@
-import { memo } from 'react';
+/**
+ * BlueprintToolbar Component
+ * Toolbar for blueprint measurement tools
+ * 
+ * @module components/takeoff/BlueprintToolbar
+ */
+
+import React, { memo, useCallback, useState } from 'react';
 import {
   ZoomIn, ZoomOut, Maximize, Move, Ruler, Square, Hash, MousePointer,
   Undo2, Redo2, Trash2, RotateCcw, Grid3X3, Circle, RectangleHorizontal,
   Type, Download, Copy, Crosshair, Magnet
 } from 'lucide-react';
 import { TOOL_TYPES, COLORS } from './canvasUtils';
+import { colors } from '../../styles/tokens';
 
-// ---------------------------------------------------------------------------
-// Toolbar button configuration
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 const TOOL_BUTTONS = [
   { id: TOOL_TYPES.SELECT, icon: MousePointer, label: 'Select (V)', section: 'tools' },
@@ -23,228 +31,408 @@ const TOOL_BUTTONS = [
   { id: TOOL_TYPES.ANNOTATION, icon: Type, label: 'Annotation (T)', section: 'annotate' },
 ];
 
-// ---------------------------------------------------------------------------
-// BlueprintToolbar
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
 
-function BlueprintToolbar({
-  // Tool state
+/**
+ * Tool button component
+ */
+const ToolButton = memo(function ToolButton({ btn, isActive, onClick }) {
+  const Icon = btn.icon;
+  const typeColor = COLORS[btn.id];
+
+  const handleClick = useCallback(() => {
+    onClick(btn.id);
+  }, [btn.id, onClick]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className="p-1.5 rounded transition-all"
+      style={{
+        backgroundColor: isActive ? `${colors.accent.DEFAULT}20` : 'transparent',
+        color: isActive ? colors.accent.DEFAULT : colors.text.muted,
+        boxShadow: isActive ? `0 0 0 1px ${colors.accent.DEFAULT}66` : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.backgroundColor = colors.surface.elevated;
+          e.currentTarget.style.color = colors.text.secondary;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = colors.text.muted;
+        }
+      }}
+      title={btn.label}
+      aria-label={btn.label}
+      aria-pressed={isActive}
+    >
+      <Icon 
+        className="w-4 h-4" 
+        style={isActive && typeColor ? { color: typeColor } : undefined} 
+      />
+    </button>
+  );
+});
+
+ToolButton.displayName = 'ToolButton';
+
+/**
+ * Separator between button groups
+ */
+const Separator = memo(function Separator() {
+  return (
+    <div 
+      className="w-px h-6 mx-1"
+      style={{ backgroundColor: colors.border.default }}
+    />
+  );
+});
+
+Separator.displayName = 'Separator';
+
+/**
+ * Icon button with tooltip
+ */
+const IconButton = memo(function IconButton({ 
+  icon: Icon, 
+  onClick, 
+  disabled, 
+  title, 
+  isActive,
+  activeColor,
+  danger,
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const getBackgroundColor = () => {
+    if (disabled) return 'transparent';
+    if (isActive) return isHovered ? colors.surface.elevated : `${activeColor}20`;
+    return isHovered ? colors.surface.elevated : 'transparent';
+  };
+
+  const getTextColor = () => {
+    if (disabled) return colors.text.muted;
+    if (isActive) return activeColor;
+    if (isHovered && danger) return colors.danger.DEFAULT;
+    return colors.text.muted;
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="p-1.5 rounded transition-all disabled:cursor-not-allowed"
+      style={{
+        backgroundColor: getBackgroundColor(),
+        color: getTextColor(),
+        opacity: disabled ? 0.25 : 1,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      title={title}
+      aria-label={title}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+});
+
+IconButton.displayName = 'IconButton';
+
+/**
+ * Zoom display showing current zoom percentage
+ */
+const ZoomDisplay = memo(function ZoomDisplay({ zoom }) {
+  return (
+    <span 
+      className="text-[11px] w-10 text-center font-mono tabular-nums select-none"
+      style={{ color: colors.text.muted }}
+    >
+      {Math.round(zoom * 100)}%
+    </span>
+  );
+});
+
+ZoomDisplay.displayName = 'ZoomDisplay';
+
+/**
+ * Calibration button
+ */
+const CalibrationButton = memo(function CalibrationButton({ calibrating, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-2 py-1 text-[11px] font-medium rounded transition-colors"
+      style={{
+        backgroundColor: calibrating ? `${colors.accent.purple}20` : 'transparent',
+        color: calibrating ? colors.accent.purple : colors.text.secondary,
+        boxShadow: calibrating ? `0 0 0 1px ${colors.accent.purple}66` : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!calibrating) {
+          e.currentTarget.style.backgroundColor = colors.surface.elevated;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!calibrating) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }
+      }}
+    >
+      {calibrating ? 'Click 2 pts...' : 'Set Scale'}
+    </button>
+  );
+});
+
+CalibrationButton.displayName = 'CalibrationButton';
+
+/**
+ * Measurement counter showing count by type
+ */
+const MeasurementCounter = memo(function MeasurementCounter({ measurements }) {
+  if (measurements.length === 0) return null;
+
+  const counts = measurements.reduce((acc, m) => {
+    acc[m.type] = (acc[m.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div 
+      className="ml-auto flex items-center gap-2 text-[11px]"
+      style={{ color: colors.text.muted }}
+    >
+      <div className="flex items-center gap-1.5">
+        {Object.entries(counts).map(([type, count]) => (
+          <span key={type} className="flex items-center gap-0.5">
+            <span 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: COLORS[type] || '#666' }} 
+            />
+            <span>{count}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+MeasurementCounter.displayName = 'MeasurementCounter';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * BlueprintToolbar - Toolbar for blueprint measurement canvas
+ * 
+ * @param {{
+ *   tool: string,
+ *   onToolChange: (tool: string) => void,
+ *   zoom: number,
+ *   onZoomIn: () => void,
+ *   onZoomOut: () => void,
+ *   onFitToScreen: () => void,
+ *   showGrid: boolean,
+ *   onToggleGrid: () => void,
+ *   snapEnabled: boolean,
+ *   onToggleSnap: () => void,
+ *   crosshairEnabled: boolean,
+ *   onToggleCrosshair: () => void,
+ *   onUndo: () => void,
+ *   onRedo: () => void,
+ *   canUndo: boolean,
+ *   canRedo: boolean,
+ *   selectedId: string | null,
+ *   onDuplicate: () => void,
+ *   onDelete: () => void,
+ *   onClearAll: () => void,
+ *   calibrating: boolean,
+ *   onStartCalibration: () => void,
+ *   scale?: { pixelsPerUnit: number, unit: string },
+ *   onExport: () => void,
+ *   hasImage: boolean,
+ *   measurements: Array<any>,
+ * }} props
+ */
+const BlueprintToolbar = memo(function BlueprintToolbar({
   tool,
   onToolChange,
-  // Zoom
   zoom,
   onZoomIn,
   onZoomOut,
   onFitToScreen,
-  // Toggles
   showGrid,
   onToggleGrid,
   snapEnabled,
   onToggleSnap,
   crosshairEnabled,
   onToggleCrosshair,
-  // History
   onUndo,
   onRedo,
   canUndo,
   canRedo,
-  // Selection actions
   selectedId,
   onDuplicate,
   onDelete,
   onClearAll,
-  // Calibration
   calibrating,
   onStartCalibration,
   scale,
-  // Export
   onExport,
   hasImage,
-  // Measurements (for counter)
   measurements,
 }) {
+  const handleToolChange = useCallback((newTool) => {
+    onToolChange(newTool);
+  }, [onToolChange]);
+
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1.5 bg-white border-b border-gray-200 flex-wrap">
+    <div 
+      className="flex items-center gap-0.5 px-2 py-1.5 flex-wrap"
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderBottom: `1px solid ${colors.border.default}`,
+      }}
+    >
       {/* Tool buttons */}
       <div className="flex items-center gap-0.5">
-        {TOOL_BUTTONS.map(btn => {
+        {TOOL_BUTTONS.map((btn) => {
           if (btn.separator) {
-            return <div key={btn.id} className="w-px h-6 bg-gray-200 mx-1" />;
+            return <Separator key={btn.id} />;
           }
-          const Icon = btn.icon;
-          const isActive = tool === btn.id;
-          const typeColor = COLORS[btn.id];
           return (
-            <button
+            <ToolButton
               key={btn.id}
-              onClick={() => onToolChange(btn.id)}
-              className={`p-1.5 rounded transition-all ${
-                isActive
-                  ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-300'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-              }`}
-              title={btn.label}
-            >
-              <Icon className="w-4 h-4" style={isActive && typeColor ? { color: typeColor } : undefined} />
-            </button>
+              btn={btn}
+              isActive={tool === btn.id}
+              onClick={handleToolChange}
+            />
           );
         })}
       </div>
 
-      <div className="w-px h-6 bg-gray-200 mx-1.5" />
+      <Separator />
 
       {/* Zoom controls */}
       <div className="flex items-center gap-0.5">
-        <button
+        <IconButton
+          icon={ZoomIn}
           onClick={onZoomIn}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
           title="Zoom In (+)"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={ZoomOut}
           onClick={onZoomOut}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
           title="Zoom Out (-)"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <span className="text-[11px] text-gray-500 w-10 text-center font-mono tabular-nums select-none">
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
+        />
+        <ZoomDisplay zoom={zoom} />
+        <IconButton
+          icon={Maximize}
           onClick={onFitToScreen}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
           title="Fit to Screen"
-        >
-          <Maximize className="w-4 h-4" />
-        </button>
+        />
       </div>
 
-      <div className="w-px h-6 bg-gray-200 mx-1.5" />
+      <Separator />
 
       {/* Undo/Redo/Delete */}
       <div className="flex items-center gap-0.5">
-        <button
+        <IconButton
+          icon={Undo2}
           onClick={onUndo}
           disabled={!canUndo}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
           title="Undo (Ctrl+Z)"
-        >
-          <Undo2 className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Redo2}
           onClick={onRedo}
           disabled={!canRedo}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
           title="Redo (Ctrl+Y)"
-        >
-          <Redo2 className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Copy}
           onClick={onDuplicate}
           disabled={!selectedId}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
           title="Duplicate (Ctrl+D)"
-        >
-          <Copy className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Trash2}
           onClick={onDelete}
           disabled={!selectedId}
-          className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded disabled:opacity-25 disabled:cursor-not-allowed"
           title="Delete (Del)"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-        <button
+          danger
+        />
+        <IconButton
+          icon={RotateCcw}
           onClick={onClearAll}
-          className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded"
           title="Clear All"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
+          danger
+        />
       </div>
 
-      <div className="w-px h-6 bg-gray-200 mx-1.5" />
+      <Separator />
 
       {/* Toggles */}
       <div className="flex items-center gap-0.5">
-        <button
+        <IconButton
+          icon={Grid3X3}
           onClick={onToggleGrid}
-          className={`p-1.5 rounded transition-colors ${
-            showGrid ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:bg-gray-100'
-          }`}
+          isActive={showGrid}
+          activeColor={colors.text.secondary}
           title="Toggle Grid (G)"
-        >
-          <Grid3X3 className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Magnet}
           onClick={onToggleSnap}
-          className={`p-1.5 rounded transition-colors ${
-            snapEnabled ? 'bg-pink-100 text-pink-700' : 'text-gray-500 hover:bg-gray-100'
-          }`}
+          isActive={snapEnabled}
+          activeColor={colors.accent.pink}
           title="Snap to Points (S)"
-        >
-          <Magnet className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Crosshair}
           onClick={onToggleCrosshair}
-          className={`p-1.5 rounded transition-colors ${
-            crosshairEnabled ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:bg-gray-100'
-          }`}
+          isActive={crosshairEnabled}
+          activeColor={colors.text.secondary}
           title="Crosshair Guide (X)"
-        >
-          <Crosshair className="w-4 h-4" />
-        </button>
+        />
       </div>
 
-      <div className="w-px h-6 bg-gray-200 mx-1.5" />
+      <Separator />
 
       {/* Scale and Export */}
       <div className="flex items-center gap-1">
-        <button
+        <CalibrationButton
+          calibrating={calibrating}
           onClick={onStartCalibration}
-          className={`px-2 py-1 text-[11px] font-medium rounded transition-colors ${
-            calibrating
-              ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          {calibrating ? 'Click 2 pts...' : 'Set Scale'}
-        </button>
+        />
         {scale && scale.pixelsPerUnit && (
-          <span className="text-[11px] text-gray-500 tabular-nums">
+          <span 
+            className="text-[11px] tabular-nums"
+            style={{ color: colors.text.muted }}
+          >
             1{scale.unit}={Math.round(scale.pixelsPerUnit)}px
           </span>
         )}
-        <button
+        <IconButton
+          icon={Download}
           onClick={onExport}
           disabled={!hasImage}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-25 disabled:cursor-not-allowed"
           title="Export as PNG"
-        >
-          <Download className="w-4 h-4" />
-        </button>
+        />
       </div>
 
       {/* Measurement counter */}
-      <div className="ml-auto flex items-center gap-2 text-[11px] text-gray-500">
-        {measurements.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {Object.entries(
-              measurements.reduce((acc, m) => { acc[m.type] = (acc[m.type] || 0) + 1; return acc; }, {})
-            ).map(([type, count]) => (
-              <span key={type} className="flex items-center gap-0.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[type] || '#666' }} />
-                <span>{count}</span>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      <MeasurementCounter measurements={measurements} />
     </div>
   );
-}
+});
 
-export default memo(BlueprintToolbar);
+BlueprintToolbar.displayName = 'BlueprintToolbar';
+
+export default BlueprintToolbar;

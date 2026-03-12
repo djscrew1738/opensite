@@ -21,60 +21,68 @@ export function useUniversalUpload({ jobId = null, onComplete } = {}) {
   const queryClient = useQueryClient();
 
   const processQueue = useCallback(() => {
+    // Check if we can start more uploads
+    if (activeCount.current >= MAX_CONCURRENT) return;
+
     setQueue(prev => {
       const queued = prev.filter(f => f.status === 'queued');
-      const slotsAvailable = MAX_CONCURRENT - activeCount.current;
-      if (slotsAvailable <= 0 || queued.length === 0) return prev;
+      if (queued.length === 0) return prev;
 
+      const slotsAvailable = MAX_CONCURRENT - activeCount.current;
       const toStart = queued.slice(0, slotsAvailable);
-      const updated = prev.map(f => {
-        if (toStart.find(s => s.id === f.id)) {
-          return { ...f, status: 'uploading', progress: 0 };
-        }
-        return f;
-      });
 
       // Fire uploads for each file
       toStart.forEach(item => {
         activeCount.current++;
-        uploadApi.upload([item.file], {
-          jobId,
-          onProgress: (percent) => {
-            setQueue(q => q.map(f => f.id === item.id ? { ...f, progress: percent } : f));
-          },
-        })
-        .then((result) => {
-          const uploadResult = result?.uploads?.[0];
-          setQueue(q => q.map(f => f.id === item.id ? {
-            ...f,
-            status: 'complete',
-            progress: 100,
-            serverId: uploadResult?.id,
-          } : f));
-          // Invalidate relevant queries
-          queryClient.invalidateQueries({ queryKey: ['universal-files'] });
-          queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
-          queryClient.invalidateQueries({ queryKey: ['docvault-documents'] });
-          if (jobId) queryClient.invalidateQueries({ queryKey: ['job-files', jobId] });
-          onComplete?.();
-        })
-        .catch((err) => {
-          setQueue(q => q.map(f => f.id === item.id ? {
-            ...f,
-            status: 'error',
-            error: err?.response?.data?.error || err.message || 'Upload failed',
-          } : f));
-        })
-        .finally(() => {
-          activeCount.current--;
-          // Trigger next batch
-          setTimeout(() => processQueue(), 50);
-        });
+        
+        // Start upload but don't wait for it here
+        uploadFile(item);
       });
 
-      return updated;
+      return prev.map(f => {
+        if (toStart.some(s => s.id === f.id)) {
+          return { ...f, status: 'uploading', progress: 0 };
+        }
+        return f;
+      });
     });
-  }, [jobId, queryClient, onComplete]);
+  }, [jobId]);
+
+  const uploadFile = useCallback(async (item) => {
+    try {
+      await uploadApi.upload([item.file], {
+        jobId,
+        onProgress: (percent) => {
+          setQueue(q => q.map(f => f.id === item.id ? { ...f, progress: percent } : f));
+        },
+      }).then((result) => {
+        const uploadResult = result?.uploads?.[0];
+        setQueue(q => q.map(f => f.id === item.id ? {
+          ...f,
+          status: 'complete',
+          progress: 100,
+          serverId: uploadResult?.id,
+        } : f));
+
+        // Invalidate relevant queries
+        queryClient.invalidateQueries({ queryKey: ['universal-files'] });
+        queryClient.invalidateQueries({ queryKey: ['vision-projects'] });
+        queryClient.invalidateQueries({ queryKey: ['docvault-documents'] });
+        if (jobId) queryClient.invalidateQueries({ queryKey: ['job-files', jobId] });
+        onComplete?.();
+      });
+    } catch (err) {
+      setQueue(q => q.map(f => f.id === item.id ? {
+        ...f,
+        status: 'error',
+        error: err?.response?.data?.error || err.message || 'Upload failed',
+      } : f));
+    } finally {
+      activeCount.current--;
+      // Trigger next batch
+      setTimeout(() => processQueue(), 50);
+    }
+  }, [jobId, queryClient, onComplete, processQueue]);
 
   const addFiles = useCallback((files) => {
     const newItems = Array.from(files).map(file => {

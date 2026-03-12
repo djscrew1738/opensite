@@ -22,20 +22,25 @@ class VisionAIService {
   async analyzeBlueprint(imagePath, options = {}, progressCallback) {
     const anthropicKey = await db.getSetting('anthropic_api_key');
     const groqKey = await db.getSetting('groq_api_key');
+    const selectedModel = options.model;
 
-    if (!anthropicKey && !groqKey) {
-      // If no cloud keys, try local deep scan if model is provided
-      if (options.model && (options.model.includes('llava') || options.model.includes('vision'))) {
-        return this.deepScan(imagePath, options, progressCallback);
+    // Determine provider based on model name or active provider
+    let provider = 'anthropic';
+    if (selectedModel) {
+      if (selectedModel.includes('llava') || selectedModel.includes('vision') || selectedModel.includes('moondream')) {
+        provider = 'ollama';
+      } else if (selectedModel.includes('llama') || selectedModel.includes('meta-')) {
+        provider = 'groq';
+      } else if (selectedModel.startsWith('claude')) {
+        provider = 'anthropic';
       }
-      throw new Error('No AI API key configured. Add an Anthropic or Groq API key in Settings, or use a local vision model.');
     }
 
     if (progressCallback) progressCallback(10);
 
-    // Read and resize image for API — Groq has 4MB base64 limit, Anthropic 20MB
-    // Resize to max 2048px on longest side for analysis (keeps detail, reduces size)
-    const maxDim = anthropicKey ? 4096 : 2048;
+    // Read and resize image for API
+    // Ollama/Local models prefer slightly smaller images for speed, Cloud can handle more
+    const maxDim = (provider === 'ollama' || provider === 'groq') ? 2048 : 4096;
     const resizedBuffer = await sharp(imagePath)
       .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 85 })
@@ -46,25 +51,56 @@ class VisionAIService {
 
     if (progressCallback) progressCallback(20);
 
-    // Route to correct provider based on selected model
-    const selectedModel = options.model;
-    const isAnthropicModel = selectedModel && (selectedModel.startsWith('claude-') || selectedModel.startsWith('claude_'));
-    const isGroqModel = selectedModel && (selectedModel.includes('llama') || selectedModel.includes('meta-'));
-
     let result;
-    if (isAnthropicModel && anthropicKey) {
-      result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
-    } else if (isGroqModel && groqKey) {
-      result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);
-    } else if (anthropicKey) {
-      result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
-    } else {
-      result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);
+    try {
+      if (provider === 'ollama') {
+        result = await this.analyzeWithOllama(base64Image, mediaType, selectedModel, options);
+      } else if (provider === 'anthropic' && anthropicKey) {
+        result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
+      } else if (provider === 'groq' && groqKey) {
+        result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);
+      } else {
+        // Fallback to whatever key we have
+        if (anthropicKey) {
+          result = await this.analyzeWithAnthropic(base64Image, mediaType, anthropicKey, options);
+        } else if (groqKey) {
+          result = await this.analyzeWithGroq(base64Image, mediaType, groqKey, options);
+        } else {
+          // If no cloud keys, last resort is local Ollama if connected
+          const health = await ollamaService.healthCheck();
+          if (health.connected) {
+            result = await this.analyzeWithOllama(base64Image, mediaType, selectedModel || 'llava', options);
+          } else {
+            throw new Error('No AI providers available. Please configure API keys or start Ollama.');
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`Vision analysis failed with ${provider}:`, err.message);
+      throw err;
     }
 
     if (progressCallback) progressCallback(80);
-
     return result;
+  }
+
+  /**
+   * Perform global scan using local Ollama vision model
+   */
+  async analyzeWithOllama(base64Image, mediaType, model = 'llava', options = {}) {
+    const prompt = this.getAnalysisPrompt();
+    
+    const result = await ollamaService.generate(prompt, {
+      model: model || 'llava',
+      images: [base64Image],
+      temperature: 0.1
+    });
+
+    if (!result.success) {
+      throw new Error(`Ollama analysis failed: ${result.error}`);
+    }
+
+    return this.parseAnalysisResult(result.response, result.model);
   }
 
   /**

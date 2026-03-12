@@ -15,12 +15,12 @@ import { lazy, Suspense } from 'react';
 // Loading fallback for charts
 const ChartFallback = ({ height = 300 }) => (
   <div 
-    className="flex items-center justify-center bg-gray-50 dark:bg-surface-800 rounded-lg"
+    className="flex items-center justify-center bg-surface-50 dark:bg-surface-800 rounded-lg"
     style={{ height }}
   >
     <div className="animate-pulse flex flex-col items-center gap-2">
-      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-surface-700" />
-      <div className="w-24 h-4 rounded bg-gray-200 dark:bg-surface-700" />
+      <div className="w-8 h-8 rounded-full bg-surface-200 dark:bg-surface-700" />
+      <div className="w-24 h-4 rounded bg-surface-200 dark:bg-surface-700" />
     </div>
   </div>
 );

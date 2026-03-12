@@ -76,7 +76,7 @@ export default function SearchResultRow({ result, type, isHighlighted, onClick }
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-100 ${
         isHighlighted
           ? 'bg-blue-50 dark:bg-copper-950/20'
-          : 'hover:bg-concrete-50 dark:hover:bg-gray-800/50'
+          : 'hover:bg-concrete-50 dark:hover:bg-surface-800/50'
       }`}
     >
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${config.bg}`}>
@@ -84,17 +84,17 @@ export default function SearchResultRow({ result, type, isHighlighted, onClick }
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+        <p className="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate">
           {getName()}
         </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+        <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
           {getSubtext()}
         </p>
       </div>
 
       {score != null && (
         <div className="shrink-0 text-right">
-          <span className="text-sm font-bold font-mono text-gray-700 dark:text-gray-300">{score}</span>
+          <span className="text-sm font-bold font-mono text-surface-700 dark:text-surface-300">{score}</span>
         </div>
       )}
 

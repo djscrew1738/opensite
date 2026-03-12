@@ -161,12 +161,12 @@ export default function MeasurementsSidebar({
 
   if (measurements.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        <Ruler className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+      <div className="p-4 text-center text-surface-500">
+        <Ruler className="w-8 h-8 mx-auto mb-2 text-surface-300" />
         <p className="text-sm font-medium">No measurements yet</p>
-        <p className="text-xs mt-1 text-gray-400">Use the toolbar to start measuring</p>
+        <p className="text-xs mt-1 text-surface-400">Use the toolbar to start measuring</p>
         <div className="mt-4 text-left space-y-1.5">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Shortcuts</p>
+          <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Shortcuts</p>
           {[
             ['L', 'Length'],
             ['A', 'Area polygon'],
@@ -175,8 +175,8 @@ export default function MeasurementsSidebar({
             ['C', 'Count marker'],
             ['T', 'Text annotation'],
           ].map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2 text-xs text-gray-400">
-              <kbd className="w-5 h-5 flex items-center justify-center bg-gray-100 rounded text-[10px] font-mono font-semibold text-gray-500">{key}</kbd>
+            <div key={key} className="flex items-center gap-2 text-xs text-surface-400">
+              <kbd className="w-5 h-5 flex items-center justify-center bg-surface-100 rounded text-xs font-mono font-semibold text-surface-500">{key}</kbd>
               <span>{label}</span>
             </div>
           ))}
@@ -197,18 +197,18 @@ export default function MeasurementsSidebar({
             {/* Group header */}
             <button
               onClick={() => toggleGroup(type)}
-              className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+              className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-surface-50 transition-colors"
             >
               <span className={`p-0.5 rounded ${colors.bg}`}>
                 <Icon className="w-3 h-3" />
               </span>
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex-1 text-left">
+              <span className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider flex-1 text-left">
                 {TYPE_LABELS[type]} ({items.length})
               </span>
               {isCollapsed ? (
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <ChevronDown className="w-3 h-3 text-surface-400" />
               ) : (
-                <ChevronUp className="w-3 h-3 text-gray-400" />
+                <ChevronUp className="w-3 h-3 text-surface-400" />
               )}
             </button>
 
@@ -225,7 +225,7 @@ export default function MeasurementsSidebar({
                   className={`px-3 py-1.5 cursor-pointer transition-colors ${
                     isSelected
                       ? 'bg-amber-50 border-l-2 border-amber-400'
-                      : 'hover:bg-gray-50 border-l-2 border-transparent'
+                      : 'hover:bg-surface-50 border-l-2 border-transparent'
                   }`}
                   onClick={() => onSelect(m.id)}
                 >
@@ -251,18 +251,18 @@ export default function MeasurementsSidebar({
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="text-xs font-medium text-gray-800 truncate">
+                        <span className="text-xs font-medium text-surface-800 truncate">
                           {m.label || `${type} ${idx + 1}`}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1 ml-1 flex-shrink-0">
-                      <span className="text-[11px] font-semibold text-gray-600 whitespace-nowrap tabular-nums">
+                      <span className="text-[11px] font-semibold text-surface-600 whitespace-nowrap tabular-nums">
                         {formatValue(m)}
                       </span>
                       <button
                         onClick={(e) => { e.stopPropagation(); setExpandedId(isExpanded ? null : m.id); }}
-                        className="p-0.5 text-gray-400 hover:text-gray-600"
+                        className="p-0.5 text-surface-400 hover:text-surface-600"
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
@@ -271,7 +271,7 @@ export default function MeasurementsSidebar({
 
                   {/* Secondary info line */}
                   {secondary && !isExpanded && (
-                    <p className="text-[10px] text-gray-400 mt-0.5 ml-3.5 truncate">{secondary}</p>
+                    <p className="text-xs text-surface-400 mt-0.5 ml-3.5 truncate">{secondary}</p>
                   )}
 
                   {/* Expanded details */}
@@ -279,12 +279,12 @@ export default function MeasurementsSidebar({
                     <div className="mt-2 ml-3.5 space-y-2" onClick={(e) => e.stopPropagation()}>
                       {/* Detailed dimensions */}
                       {secondary && (
-                        <p className="text-[11px] text-gray-500">{secondary}</p>
+                        <p className="text-[11px] text-surface-500">{secondary}</p>
                       )}
 
                       {/* Perimeter for rectangle */}
                       {m.type === 'rectangle' && m.points?.length === 2 && (
-                        <p className="text-[11px] text-gray-500">
+                        <p className="text-[11px] text-surface-500">
                           Perimeter: {formatLength(
                             2 * Math.abs(m.points[1].x - m.points[0].x) +
                             2 * Math.abs(m.points[1].y - m.points[0].y)
@@ -294,14 +294,14 @@ export default function MeasurementsSidebar({
 
                       {/* Circumference for circle */}
                       {m.type === 'circle' && m.points?.length === 2 && (
-                        <p className="text-[11px] text-gray-500">
+                        <p className="text-[11px] text-surface-500">
                           Circumference: {formatLength(2 * Math.PI * distance(m.points[0], m.points[1]))}
                         </p>
                       )}
 
                       {/* Perimeter for polygon area */}
                       {m.type === 'area' && m.points?.length >= 3 && (
-                        <p className="text-[11px] text-gray-500">
+                        <p className="text-[11px] text-surface-500">
                           Perimeter: {formatLength(
                             m.points.reduce((sum, p, i) => {
                               const next = m.points[(i + 1) % m.points.length];
@@ -314,7 +314,7 @@ export default function MeasurementsSidebar({
                       {/* Count input */}
                       {m.type === 'count' && (
                         <div className="flex items-center gap-2">
-                          <label className="text-[11px] text-gray-500">Qty:</label>
+                          <label className="text-[11px] text-surface-500">Qty:</label>
                           <input
                             type="number"
                             min="1"
@@ -328,11 +328,11 @@ export default function MeasurementsSidebar({
                       {/* Material assignment */}
                       {m.type !== 'annotation' && (
                         m.materialId ? (
-                          <div className="flex items-center gap-1 text-[11px] text-gray-600">
+                          <div className="flex items-center gap-1 text-[11px] text-surface-600">
                             <Package className="w-3 h-3 text-primary-500" />
                             <span className="truncate">{m.materialName || 'Assigned'}</span>
                             {m.materialUnitCost && (
-                              <span className="text-gray-400 ml-1">
+                              <span className="text-surface-400 ml-1">
                                 ${Number(m.materialUnitCost).toFixed(2)}/{m.materialUnit}
                               </span>
                             )}
@@ -355,24 +355,24 @@ export default function MeasurementsSidebar({
                       )}
 
                       {/* Action buttons */}
-                      <div className="flex gap-0.5 pt-1 border-t border-gray-100">
+                      <div className="flex gap-0.5 pt-1 border-t border-surface-100">
                         <button
                           onClick={() => { setEditingId(m.id); setEditLabel(m.label || (m.type === 'annotation' ? m.text || '' : '')); }}
-                          className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                          className="p-1 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                           title="Rename"
                         >
                           <Edit3 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => handleDuplicate(m)}
-                          className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                          className="p-1 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                           title="Duplicate"
                         >
                           <Copy className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => handleDelete(m.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          className="p-1 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded"
                           title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />

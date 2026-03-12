@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
 import * as Sentry from '@sentry/react';
+import { registerServiceWorker } from './utils/serviceWorker.js';
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -14,6 +15,11 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
 });
+
+// Register service worker for offline support and caching
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

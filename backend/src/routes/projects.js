@@ -3,46 +3,80 @@
 import express from 'express';
 import { db } from '../services/database.js';
 import { authenticateToken } from '../middleware/auth-jwt.js';
+import { validateProject, validateId } from '../middleware/validation.js';
 import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 
 // Apply authentication to all projects routes
 router.use(authenticateToken);
 
-// Get all projects with pagination
+/**
+ * GET /projects - List projects with filtering and pagination
+ */
 router.get('/', tryCatch(async (req, res) => {
+  const { status, phase, search, leadId } = req.query;
   const { page, limit, offset } = parsePagination(req.query);
-  const result = await db.getAllProjects({ userId: req.user.id, limit, offset });
-  res.success({ projects: result.projects, total: result.total }, null, paginationMeta(page, limit, result.total));
+  
+  const result = await db.getAllProjects({ 
+    status, 
+    phase, 
+    search, 
+    leadId,
+    userId: req.user.id, 
+    limit, 
+    offset 
+  });
+  
+  res.success({
+    projects: result.projects,
+    total: result.total
+  }, null, paginationMeta(page, limit, result.total));
 }));
 
-// Get single project
-router.get('/:id', tryCatch(async (req, res) => {
-  const project = await db.getProject(req.params.id);
+/**
+ * GET /projects/stats - Get project statistics
+ */
+router.get('/stats', tryCatch(async (req, res) => {
+  const stats = await db.getProjectStats();
+  res.success(stats);
+}));
+
+/**
+ * GET /projects/:id - Get detailed project information
+ */
+router.get('/:id', validateId, tryCatch(async (req, res) => {
+  const { id } = req.params;
+  const project = await db.getProject(id);
 
   if (!project) {
-    return res.error('Project not found', 'NOT_FOUND', null, 404);
+    return res.error('Project not found', 'NOT_FOUND', { id }, 404);
   }
-
-  // Security: Check if project belongs to user
-  /* Ownership check disabled for company-wide access */
 
   res.success({ project });
 }));
 
-// Create new project
-router.post('/', tryCatch(async (req, res) => {
+/**
+ * POST /projects - Create a new project
+ */
+router.post('/', validateProject, tryCatch(async (req, res) => {
   const projectData = {
     ...req.body,
     userId: req.user.id
   };
+  
   const project = await db.createProject(projectData);
-  res.success({ project }, 'Project created successfully', 201);
+  
+  logger.info('Project created', { id: project.id, name: project.name, userId: req.user.id });
+  res.status(201).success({ project }, 'Project created successfully');
 }));
 
-// Update project phase
-router.put('/:id/phase', tryCatch(async (req, res) => {
+/**
+ * PUT /projects/:id/phase - Quick update for project phase/progress
+ */
+router.put('/:id/phase', validateId, tryCatch(async (req, res) => {
+  const { id } = req.params;
   const { phase, progress } = req.body;
 
   if (!phase) {
@@ -59,47 +93,51 @@ router.put('/:id/phase', tryCatch(async (req, res) => {
     );
   }
 
-  const project = await db.updateProject(req.params.id, {
+  const project = await db.updateProject(id, {
     phase,
-    progress: progress !== undefined ? progress : null
+    progress: progress !== undefined ? parseInt(progress) : undefined
   });
 
   if (!project) {
-    return res.error('Project not found', 'NOT_FOUND', null, 404);
+    return res.error('Project not found', 'NOT_FOUND', { id }, 404);
   }
 
-  res.success({ project }, 'Project phase updated successfully');
+  res.success({ project }, 'Project phase updated');
 }));
 
-// Update project
-router.put('/:id', tryCatch(async (req, res) => {
-  const project = await db.updateProject(req.params.id, req.body);
+/**
+ * PUT /projects/:id - Update detailed project information
+ */
+router.put('/:id', validateId, validateProject, tryCatch(async (req, res) => {
+  const { id } = req.params;
+  const project = await db.updateProject(id, req.body);
 
   if (!project) {
-    return res.error('Project not found', 'NOT_FOUND', null, 404);
+    return res.error('Project not found', 'NOT_FOUND', { id }, 404);
   }
 
   res.success({ project }, 'Project updated successfully');
 }));
 
-// Delete project
-router.delete('/:id', tryCatch(async (req, res) => {
-  const project = await db.getProject(req.params.id);
+/**
+ * DELETE /projects/:id - Delete a project
+ */
+router.delete('/:id', validateId, tryCatch(async (req, res) => {
+  const { id } = req.params;
+  const project = await db.getProject(id);
 
   if (!project) {
-    return res.error('Project not found', 'NOT_FOUND', null, 404);
+    return res.error('Project not found', 'NOT_FOUND', { id }, 404);
   }
 
-  // Security: Check if project belongs to user
-  /* Ownership check disabled for company-wide access */
-
-  const deleted = await db.deleteProject(req.params.id);
+  const deleted = await db.deleteProject(id);
   
   if (!deleted) {
-    return res.error('Failed to delete project', 'INTERNAL_ERROR', null, 500);
+    return res.error('Failed to delete project', 'INTERNAL_ERROR', { id }, 500);
   }
 
-  res.success(null, 'Project deleted successfully');
+  logger.info('Project deleted', { id });
+  res.success({ id }, 'Project deleted successfully');
 }));
 
 export default router;

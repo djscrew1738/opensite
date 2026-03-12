@@ -25,9 +25,12 @@
 | **Canvas Workspace** | Visual workspace for project planning and blueprint annotation |
 | **AI Assistant** | Multi-provider AI chat with streaming responses |
 | **Email Watcher** | Outlook-based email monitoring with keyword alerts |
-| **AECVision CV** | Computer vision for blueprint analysis (YOLOv5) |
+| **AECVision CV** | Computer vision for blueprint analysis |
 | **Floorplan Extractor** | Dimension and code extraction from floorplan PDFs |
 | **Material Takeoff** | Automated material quantity extraction from blueprints |
+| **Knowledge Vault** | RAG-based knowledge management with vector search |
+| **QuickBooks Integration** | Two-way sync with QuickBooks accounting |
+| **Document Vault** | Universal document management with AI tagging |
 
 ---
 
@@ -46,6 +49,7 @@
 | Recharts | 2.12.7 | Data visualization charts |
 | Three.js / React Three Fiber | 0.183.1 | 3D visualization |
 | React Flow (xyflow) | 12.10.1 | Canvas node editor |
+| Sentry | 8.46.0 | Error tracking and performance monitoring |
 
 ### Backend
 | Technology | Version | Purpose |
@@ -60,15 +64,22 @@
 | express-rate-limit | 8.2.1 | Rate limiting |
 | BullMQ | 5.28.0 | Redis-based job queue |
 | Zod | 3.23.8 | Schema validation |
+| jsonwebtoken | 9.0.2 | JWT authentication |
+| bcryptjs | 2.4.3 | Password hashing |
+| Sentry | 8.46.0 | Error tracking |
 
 ### AI Providers (Multi-Provider Support)
 The backend supports multiple AI providers with automatic fallback:
 
 | Provider | Type | Priority | Default Model |
 |----------|------|----------|---------------|
-| Anthropic | Cloud API | 1 | claude-haiku-20240307 |
-| Kimi | Cloud API | 2 | moonshot-v1-8k |
-| Ollama | Local | 3 | llama3.1 |
+| OpenClaw | Local/Custom | 1 | qwen2.5-coder:14b |
+| Groq | Cloud API | 2 | llama-3.3-70b-versatile |
+| OpenAI | Cloud API | 3 | gpt-4o-mini |
+| Anthropic | Cloud API | 4 | claude-haiku-20240307 |
+| Ollama | Local | 5 | llama3.1 |
+
+**Default Fallback Chain:** `openclaw → groq → openai → anthropic → ollama`
 
 ### Python Services
 | Service | Port | Purpose |
@@ -79,8 +90,8 @@ The backend supports multiple AI providers with automatic fallback:
 
 ### Infrastructure & Services
 - **Docker & Docker Compose** - Containerization with PostgreSQL, Redis, ChromaDB
-- **Redis** - Job queue caching (ARQ worker)
-- **ChromaDB** - Vector storage for embeddings
+- **Redis** - Job queue caching (BullMQ)
+- **ChromaDB** - Vector storage for embeddings (Knowledge Vault)
 - **nginx** - Reverse proxy & static serving
 - **PM2** - Process management in production
 - **Let's Encrypt** - SSL certificates
@@ -94,6 +105,7 @@ The backend supports multiple AI providers with automatic fallback:
 ├── backend/                    # Express.js API server
 │   ├── src/
 │   │   ├── server.js          # Main entry point - Express app setup
+│   │   ├── app.js             # Express application configuration
 │   │   ├── routes/            # API route handlers (Express routers)
 │   │   │   ├── ai.js          # AI chat and generation endpoints
 │   │   │   ├── auth.js        # JWT authentication
@@ -109,10 +121,21 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── floorplan.js   # Floorplan dimension extraction
 │   │   │   ├── blueprint-orchestrator.js # Unified analysis API
 │   │   │   ├── blueprint-export.js # Export to PDF/Excel/CSV
+│   │   │   ├── knowledge-v2.js # Knowledge Vault RAG API
 │   │   │   ├── docvault.js    # Document management
-│   │   │   └── ...            # Other routes
+│   │   │   ├── proposals.js   # Proposal generation
+│   │   │   ├── quickbooks.js  # QuickBooks integration
+│   │   │   ├── jobs.js        # Background job status API
+│   │   │   ├── admin.js       # Admin endpoints
+│   │   │   └── index.js       # Route registration
 │   │   ├── services/          # Business logic and data access
 │   │   │   ├── ai-provider.js # Multi-provider AI manager with fallback
+│   │   │   ├── ai/            # AI service implementations
+│   │   │   │   ├── ollama.js
+│   │   │   │   ├── groq.js
+│   │   │   │   ├── anthropic.js
+│   │   │   │   ├── openai.js
+│   │   │   │   └── openclaw.js
 │   │   │   ├── database/      # Modular database layer
 │   │   │   │   ├── core.js    # SQLite connection and schema
 │   │   │   │   ├── index.js   # Database service singleton
@@ -131,8 +154,13 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   └── logging.js     # Request logging
 │   │   ├── jobs/              # Background job handlers
 │   │   ├── utils/             # Utility functions
+│   │   │   ├── response.js    # Standardized API response wrapper
+│   │   │   └── env-validator.js # Environment validation
 │   │   └── config/            # Configuration
-│   └── package.json
+│   ├── package.json
+│   ├── eslint.config.js
+│   ├── Dockerfile
+│   └── .env.example
 │
 ├── frontend/                   # React SPA
 │   ├── src/
@@ -145,6 +173,8 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── AIAssistant.jsx
 │   │   │   ├── Settings.jsx
 │   │   │   ├── Documents.jsx
+│   │   │   ├── KnowledgeBase.jsx
+│   │   │   ├── Takeoff.jsx
 │   │   │   └── Canvas.jsx     # Full-screen canvas workspace
 │   │   ├── components/        # Reusable UI components
 │   │   │   ├── layout/        # Layout components (Sidebar, Layout, etc.)
@@ -153,19 +183,28 @@ The backend supports multiple AI providers with automatic fallback:
 │   │   │   ├── jobs/          # Job-related components
 │   │   │   ├── leads/         # Lead-related components
 │   │   │   ├── plans/         # Plans/estimating components
+│   │   │   ├── blueprint/     # Blueprint analysis components
+│   │   │   ├── vision/        # Vision/deep-zoom components
+│   │   │   ├── documents/     # Document management components
 │   │   │   └── settings/      # Settings components
 │   │   ├── hooks/             # Custom React hooks
 │   │   │   ├── useTheme.js    # Dark/light mode context
 │   │   │   ├── useToast.js    # Toast notifications
 │   │   │   ├── useAuth.jsx    # Authentication context
 │   │   │   └── useBlueprintAnalysis.js # Blueprint analysis hook
-│   │   ├── routes/            # Route definitions & prefetching
-│   │   │   └── prefetch.js    # Lazy loading and prefetch config
-│   │   └── styles/            # CSS and style utilities
+│   │   ├── api/               # API client modules
+│   │   ├── utils/             # Utility functions
+│   │   ├── styles/            # CSS and style utilities
+│   │   │   └── tokens.js      # Design system tokens
+│   │   └── routes/            # Route definitions & prefetching
+│   │       └── prefetch.js    # Lazy loading and prefetch config
 │   ├── tailwind.config.js     # Extensive custom theme (Dark Forge)
 │   ├── vite.config.js         # Vite configuration with proxy
 │   ├── eslint.config.js       # ESLint flat config
-│   └── package.json
+│   ├── playwright.config.js   # E2E test configuration
+│   ├── package.json
+│   ├── Dockerfile
+│   └── .env.example
 │
 ├── workers/                    # Python ARQ worker (background jobs)
 │   ├── tasks.py               # Job definitions (PDF processing)
@@ -184,23 +223,38 @@ The backend supports multiple AI providers with automatic fallback:
 │       │   └── pdf_processor.py
 │       └── vision/            # PDF tiling and image processing
 │
-├── database/
+├── database/                   # Database schemas and migrations
 │   └── schema.sql             # PostgreSQL schema reference
 │
 ├── docs/                       # Documentation
+│   ├── DATABASE_SCALING.md
+│   ├── EMAIL_SMS_SETUP.md
+│   ├── KNOWLEDGE_VAULT_IMPLEMENTATION.md
+│   └── KNOWLEDGE_VAULT_EXAMPLES.md
 │
 ├── n8n-workflows/             # n8n automation workflows
+│
+├── scripts/                    # Utility scripts
+│   ├── migrate-to-postgres.js
+│   ├── seed-materials.js
+│   └── optimize_server.sh
 │
 ├── tool/                       # Runtime data (created at runtime)
 │   ├── data/                  # SQLite database, uploads, backups
 │   └── logs/                  # Application logs
 │
 ├── e2e/                        # Playwright end-to-end tests
+│   └── smoke.spec.js
 │
 ├── docker-compose.yml          # Container orchestration
+├── docker-compose.prod.yml     # Production Docker config
+├── docker-compose.staging.yml  # Staging Docker config
 ├── nginx.conf / nginx-ssl.conf # Web server configurations
+├── start.sh                    # Quick start script
 ├── blueprint-cli.js            # CLI tool for blueprint analysis
-└── start.sh                    # Quick start script
+├── DEPLOY.md                   # Deployment instructions
+├── CHANGELOG.md                # Version history
+└── AGENTS.md                   # This file
 ```
 
 ---
@@ -248,6 +302,8 @@ npm run build        # Output to frontend/dist/
 **Backend (`backend/package.json`):**
 - `npm run dev` - Development with file watch
 - `npm start` - Production mode
+- `npm run lint` - ESLint check
+- `npm run test` - Run Node.js tests
 - `npm run permits:ingest` - Manual permit data ingestion
 - `npm run permits:score` - Manual AI scoring of permits
 - `npm run permits:digest` - Send daily digest
@@ -279,6 +335,9 @@ PORT=5001
 
 # AI Providers (at least one required)
 ANTHROPIC_API_KEY=<anthropic-key>
+GROQ_API_KEY=<groq-key>
+OPENAI_API_KEY=<openai-key>
+OPENCLAW_URL=<openclaw-endpoint>
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
 
@@ -292,6 +351,9 @@ CORS_ORIGIN=http://localhost:3000
 
 # Permit Jobs
 PERMIT_JOBS_ENABLED=true
+
+# Sentry (optional)
+SENTRY_DSN=
 ```
 
 **Generate encryption key:**
@@ -347,26 +409,39 @@ logger.error('Error occurred', { error: err.message });
 
 ### Design System ("Dark Forge")
 
-The project uses a custom dark-themed design system defined in `tailwind.config.js`:
+The project uses a custom dark-themed design system with centralized tokens in `frontend/src/styles/tokens.js`:
 
 **Key Color Tokens:**
 | Token | Value | Usage |
 |-------|-------|-------|
-| `surface.primary` | `#0A0B0D` | App background |
-| `surface.card` | `#111318` | Card backgrounds |
-| `surface.elevated` | `#181C24` | Modals, panels |
-| `accent.DEFAULT` | `#3B82F6` | Primary actions (electric blue) |
-| `success.DEFAULT` | `#10B981` | Success states |
-| `warning.DEFAULT` | `#F59E0B` | Warnings |
-| `danger.DEFAULT` | `#EF4444` | Errors |
-| `text.primary` | `#F8FAFC` | Primary text |
-| `text.secondary` | `#CBD5E1` | Secondary text |
+| `colors.surface.primary` | `#0A0B0D` | App background |
+| `colors.surface.card` | `#111318` | Card backgrounds |
+| `colors.surface.elevated` | `#181C24` | Modals, panels |
+| `colors.accent.DEFAULT` | `#3B82F6` | Primary actions (electric blue) |
+| `colors.success.DEFAULT` | `#10B981` | Success states |
+| `colors.warning.DEFAULT` | `#F59E0B` | Warnings |
+| `colors.danger.DEFAULT` | `#EF4444` | Errors |
+| `colors.text.primary` | `#F8FAFC` | Primary text |
+| `colors.text.secondary` | `#CBD5E1` | Secondary text |
 
 **Typography:**
 - Font: Inter (system-ui fallback)
 - Scale: display (40px), heading (24px), subheading (18px), label/body (15px)
 
-**Always use Tailwind classes, avoid inline styles.**
+**Component Styling Pattern:**
+```javascript
+import { colors, shadows } from '../../styles/tokens';
+
+// Use tokens for colors
+<div 
+  className="p-4 rounded-xl"  // Tailwind for layout
+  style={{ 
+    backgroundColor: colors.surface.card,  // Tokens for colors
+    border: `1px solid ${colors.border.default}`,
+    boxShadow: shadows.card,
+  }}
+>
+```
 
 ---
 
@@ -461,6 +536,8 @@ Different endpoints have different rate limits (defined in `middleware/security.
 - `email_alerts` / `email_accounts` - Email monitoring
 - `files` / `job_files` - Universal upload system
 - `canvas_nodes`, `canvas_edges` - Canvas workspace data
+- `knowledge_chunks` - Knowledge Vault vector data
+- `docvault_documents` - Document Vault entries
 
 **Access Pattern:**
 ```javascript
@@ -492,9 +569,11 @@ const user = usersDb.findByEmail(email);
 The backend uses a multi-provider AI system with automatic fallback:
 
 **Priority Order:**
-1. **Anthropic** (cloud, best quality)
-2. **Kimi** (cloud, long context)
-3. **Ollama** (local)
+1. **OpenClaw** (local/custom, default)
+2. **Groq** (cloud, fast)
+3. **OpenAI** (cloud, general purpose)
+4. **Anthropic** (cloud, high quality)
+5. **Ollama** (local, cost-free)
 
 **Usage:**
 ```javascript
@@ -508,11 +587,14 @@ const providers = await aiProvider.getAvailableProviders();
 
 // Get current config
 const config = aiProvider.getConfig();
+
+// Switch provider
+await aiProvider.setProvider('groq');
 ```
 
 **Configuration stored in SQLite `settings` table:**
 - `ai_provider` - Active provider name
-- `anthropic_api_key`, `kimi_api_key` - Provider credentials
+- `*_api_key` - Provider credentials (groq_api_key, anthropic_api_key, etc.)
 - `ollama_url` - Ollama server URL
 
 ---
@@ -534,6 +616,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+  ],
 });
 ```
 
@@ -570,7 +655,7 @@ npx vitest
 ### Data Protection
 - Email passwords encrypted with **AES-256-GCM** using `ENCRYPTION_KEY`
 - Input sanitization middleware removes HTML/JS from inputs
-- Helmet security headers enabled
+- Helmet security headers enabled (CSP, HSTS, X-Frame-Options)
 - CORS restricted to configured origin in production
 
 ### Rate Limiting
@@ -600,13 +685,41 @@ This script:
 6. Sets up SSL auto-renewal
 7. Configures health check cron
 
+### Manual Deployment Steps
+
+**1. Build Application:**
+```bash
+cd frontend
+npm ci
+npm run build
+
+cd ../backend
+npm ci
+```
+
+**2. Configure Nginx:**
+```bash
+sudo cp nginx-ssl.conf /etc/nginx/sites-available/ctlplumbingllc.com
+sudo ln -sf /etc/nginx/sites-available/ctlplumbingllc.com /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**3. Start Backend:**
+```bash
+cd backend
+pm2 start server.js --name opensite-backend -- --port 5001
+pm2 save
+pm2 startup systemd
+```
+
 ### Docker Deployment
 ```bash
 # Development
 docker-compose up -d
 
-# With AI worker stack (uncomment in docker-compose.yml)
-docker-compose up -d redis-plumber chromadb-plumber
+# With AI worker stack
+docker-compose up -d redis-plumber chromadb-plumber worker-plumber
 ```
 
 ### Key Production URLs
@@ -710,6 +823,24 @@ The Blueprint Orchestrator provides a unified interface for running multiple ana
 
 ---
 
+## Knowledge Vault (RAG System)
+
+The Knowledge Vault provides RAG (Retrieval-Augmented Generation) capabilities for CTL Plumbing knowledge management.
+
+**Features:**
+- Document chunking and embedding
+- Vector search with ChromaDB
+- Source attribution
+- Multi-format support (PDF, DOCX, TXT)
+
+**API Endpoints:**
+- `POST /api/knowledge/upload` - Upload documents
+- `POST /api/knowledge/query` - Query the knowledge base
+- `GET /api/knowledge/documents` - List documents
+- `DELETE /api/knowledge/documents/:id` - Remove document
+
+---
+
 ## Common Tasks
 
 ### Adding a New API Route
@@ -723,14 +854,11 @@ The Blueprint Orchestrator provides a unified interface for running multiple ana
 
 ### Adding a New Page
 1. Create component in `frontend/src/pages/MyPage.jsx`
-2. Add import to `frontend/src/routes/prefetch.js`:
+2. Add route in `frontend/src/App.jsx`:
    ```javascript
-   const pageImports = {
-     // ... existing imports
-     myPage: () => import('../pages/MyPage'),
-   };
+   <Route path="/my-page" element={<MyPage />} />
    ```
-3. Add route in `frontend/src/App.jsx`
+3. Add navigation link in `frontend/src/components/layout/Sidebar.jsx`
 
 ### Modifying the Database Schema
 1. Edit `backend/src/services/database/core.js` `initializeTables()` method
@@ -738,7 +866,7 @@ The Blueprint Orchestrator provides a unified interface for running multiple ana
 3. Add indexes in `createIndexes()` method
 
 ### Adding an AI Provider
-1. Create service in `backend/src/services/my-provider.js`
+1. Create service in `backend/src/services/ai/my-provider.js`
 2. Implement required methods: `chat()`, `getMetrics()`, `healthCheck()`
 3. Register in `backend/src/services/ai-provider.js`
 
@@ -794,6 +922,9 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:5001/api/admin/bac
 - `QUICKSTART.md` - Quick reference card
 - `DESIGN_SYSTEM_CHEATSHEET.md` - Design system documentation
 - `CHANGELOG.md` - Version history
+- `docs/DATABASE_SCALING.md` - Database scaling guide
+- `docs/EMAIL_SMS_SETUP.md` - Notification setup guide
+- `docs/KNOWLEDGE_VAULT_IMPLEMENTATION.md` - RAG system documentation
 - `AGENTS.md` - This file (AI agent guide)
 
 ---
@@ -807,6 +938,6 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:5001/api/admin/bac
 
 ---
 
-*Last updated: 2026-02-27*
+*Last updated: 2026-03-09*
 
-*Changes: Comprehensive review and update of project architecture, technology stack, and development workflows.*
+*Changes: Comprehensive exploration and update based on actual project structure, including Knowledge Vault, Document Vault, QuickBooks integration, and refined AI provider system.*

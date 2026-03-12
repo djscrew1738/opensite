@@ -444,7 +444,7 @@ export default function Plans() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {estimateDisplayItems.map((item) => (
                       <div key={item.label} className="bg-surface-50 dark:bg-surface-850/50 rounded-xl p-4 text-center border border-surface-200 dark:border-surface-700">
-                        <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">{item.label}</p>
+                        <p className="text-xs uppercase tracking-wider text-surface-500 dark:text-surface-400 font-semibold">{item.label}</p>
                         <p className="text-xl font-bold text-surface-900 dark:text-surface-100 font-mono">
                           ${(item.value || 0).toLocaleString()}
                         </p>

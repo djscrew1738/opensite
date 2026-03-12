@@ -12,6 +12,7 @@ const pageImports = {
   canvas: () => import('../pages/Canvas'),
   alerts: () => import('../pages/Alerts'),
   ai: () => import('../pages/AIAssistant'),
+  knowledge: () => import('../pages/KnowledgeBase'),
 };
 
 const routePrefetchMap = {
@@ -27,6 +28,7 @@ const routePrefetchMap = {
   '/canvas': 'canvas',
   '/alerts': 'alerts',
   '/ai': 'ai',
+  '/knowledge': 'knowledge',
 };
 
 const prefetched = new Set();

@@ -3,12 +3,13 @@
  * Centralized state management for all settings sections
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, useReducer } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useOllama } from '../../hooks/useOllama';
 import { useModelPreference } from '../../hooks/useModelPreference';
 import { useToast } from '../../hooks/useToast';
+import { NAV_ITEMS, getTabOrder } from './navigation';
 
 const SettingsContext = createContext(null);
 
@@ -20,7 +21,7 @@ export function useSettings() {
 
 export function SettingsProvider({ children }) {
   const queryClient = useQueryClient();
-  const { connected, model, refetch: refetchOllama } = useOllama();
+  const { connected, model, available, refetch: refetchOllama } = useOllama();
   const { defaultModel, setDefaultModel } = useModelPreference();
   const { success: showToastSuccess, error: showToastError, warning: showToastWarning } = useToast();
   
@@ -34,23 +35,7 @@ export function SettingsProvider({ children }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [tabDirection, setTabDirection] = useState(null);
   const prevTab = useRef('overview');
-  
-  const NAV_ITEMS = [
-    { id: 'overview',      icon: 'LayoutDashboard',  label: 'Overview' },
-    { id: 'ai',            icon: 'Cpu',              label: 'AI' },
-    { id: 'business',      icon: 'Building2',        label: 'Business' },
-    { id: 'estimating',    icon: 'Calculator',       label: 'Estimating' },
-    { id: 'discovery',     icon: 'Search',           label: 'Discovery' },
-    { id: 'jobpulse',      icon: 'Activity',         label: 'Job Pulse' },
-    { id: 'notifications', icon: 'Bell',             label: 'Notifications' },
-    { id: 'apikeys',       icon: 'Key',              label: 'API Keys' },
-    { id: 'performance',   icon: 'Gauge',            label: 'Performance' },
-    { id: 'appearance',    icon: 'Palette',          label: 'Appearance' },
-    { id: 'data',          icon: 'Database',         label: 'Data' },
-    { id: 'system',        icon: 'Activity',         label: 'System' },
-  ];
-  
-  const TAB_ORDER = NAV_ITEMS.reduce((acc, item, idx) => ({ ...acc, [item.id]: idx }), {});
+  const TAB_ORDER = useMemo(() => getTabOrder(), []);
   
   const handleTabChange = useCallback((newTab) => {
     if (newTab === activeTab) return;
@@ -61,7 +46,7 @@ export function SettingsProvider({ children }) {
     
     // Update URL hash for direct linking
     window.location.hash = newTab;
-  }, [activeTab]);
+  }, [activeTab, TAB_ORDER]);
   
   // Handle URL hash on load
   useEffect(() => {
@@ -70,7 +55,7 @@ export function SettingsProvider({ children }) {
       setActiveTab(hash);
       prevTab.current = hash;
     }
-  }, []);
+  }, [activeTab, TAB_ORDER]);
   
   useEffect(() => {
     const timer = setTimeout(() => setTabDirection(null), 350);
@@ -84,6 +69,12 @@ export function SettingsProvider({ children }) {
   const [groqKey, setGroqKey] = useState('');
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [groqTemperature, setGroqTemperature] = useState(0.7);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [openaiTemperature, setOpenaiTemperature] = useState(0.7);
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [anthropicTemperature, setAnthropicTemperature] = useState(0.7);
   const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
   const [openclawToken, setOpenclawToken] = useState('');
   const [showOpenclawToken, setShowOpenclawToken] = useState(false);
@@ -159,10 +150,6 @@ export function SettingsProvider({ children }) {
   const [showSerperKey, setShowSerperKey] = useState(false);
   const [placesKey, setPlacesKey] = useState('');
   const [showPlacesKey, setShowPlacesKey] = useState(false);
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [twilioSid, setTwilioSid] = useState('');
   const [twilioToken, setTwilioToken] = useState('');
   const [showTwilioToken, setShowTwilioToken] = useState(false);
@@ -178,11 +165,15 @@ export function SettingsProvider({ children }) {
   const [msClientId, setMsClientId] = useState('');
   const [msClientSecret, setMsClientSecret] = useState('');
   const [showMsClientSecret, setShowMsClientSecret] = useState(false);
+  const [testingMicrosoft, setTestingMicrosoft] = useState(false);
+  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false);
   
   /* ── Email Watcher (Google Gmail) ── */
   const [googleClientId, setGoogleClientId] = useState('');
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [showGoogleClientSecret, setShowGoogleClientSecret] = useState(false);
+  const [testingGoogle, setTestingGoogle] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
   
   /* ── Telegram ── */
   const [telegramToken, setTelegramToken] = useState('');
@@ -235,8 +226,6 @@ export function SettingsProvider({ children }) {
   const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [testingStripe, setTestingStripe] = useState(false);
   const [testingGoogleMaps, setTestingGoogleMaps] = useState(false);
-  const [testingMicrosoft, setTestingMicrosoft] = useState(false);
-  const [testingGoogle, setTestingGoogle] = useState(false);
   const [testingTelegram, setTestingTelegram] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
@@ -253,46 +242,86 @@ export function SettingsProvider({ children }) {
   const [resetConfirm, setResetConfirm] = useState(false);
 
   /* ── Queries ── */
-  const { data: settingsData, refetch: refetchSettings } = useQuery({
+  // Settings query with aggressive caching - settings rarely change
+  const { data: settingsData, refetch: refetchSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['app-settings'],
     queryFn: () => api.settings.get(),
+    staleTime: 120000,     // 2 minutes - settings are relatively static
+    gcTime: 1800000,       // 30 minutes - keep in cache longer
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
+  // Models query with provider-specific caching
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected || activeProvider === 'groq' || activeProvider === 'openclaw' || activeProvider === 'anthropic' || activeProvider === 'openai',
-    retry: false
+    enabled: connected || ['groq', 'openclaw', 'anthropic', 'openai'].includes(activeProvider),
+    staleTime: 60000,      // 1 minute - models change infrequently
+    gcTime: 300000,        // 5 minutes
+    retry: 1,
+    retryDelay: 2000,
+    // Prefetch next provider's models when hovering over provider selector
+    placeholderData: (previousData) => previousData,
   });
 
+  // Metrics query with reduced polling frequency
   const { data: metricsData, refetch: refetchMetrics } = useQuery({
     queryKey: ['ollama-metrics'],
     queryFn: () => api.settings.getMetrics(),
-    refetchInterval: 15000,
+    staleTime: 10000,      // 10 seconds
+    refetchInterval: 30000, // Poll every 30s instead of 15s (reduces server load)
+    refetchIntervalInBackground: false, // Don't poll when tab is inactive
   });
 
-  const availableModels = modelsData?.models || [];
-  const settings = settingsData || {};
-  const metrics = metricsData?.metrics || {};
-  const config = metricsData?.config || {};
+  const availableModels = useMemo(() => modelsData?.models || [], [modelsData]);
+  const settings = useMemo(() => settingsData || {}, [settingsData]);
+  const metrics = useMemo(() => metricsData?.metrics || {}, [metricsData]);
+  const config = useMemo(() => metricsData?.config || {}, [metricsData]);
 
   /* ── Sync settings → state ── */
+  // Helper functions for type conversion (memoized)
+  const bool = useCallback((v, fallback = false) => v === undefined ? fallback : String(v) === 'true', []);
+  const num = useCallback((v, fallback) => v !== undefined ? parseFloat(v) || fallback : fallback, []);
+
+  // Split sync into logical groups to reduce re-render cascade
+  // Group 1: AI Provider settings (highest priority)
   useEffect(() => {
     if (!settingsData) return;
     const s = settingsData;
-    const bool = (v, fallback = false) => v === undefined ? fallback : String(v) === 'true';
-    const num = (v, fallback) => v !== undefined ? parseFloat(v) || fallback : fallback;
-
+    
     setActiveProvider(prev => s.ai_provider || prev);
     setOllamaUrl(s.ollama_url || 'http://localhost:11434');
     setTemperature(num(s.ollama_temperature, 0.7));
     setGroqTemperature(num(s.groq_temperature, 0.7));
+    setOpenaiTemperature(num(s.openai_temperature, 0.7));
+    setAnthropicTemperature(num(s.anthropic_temperature, 0.7));
     setOpenclawUrl(s.openclaw_url || 'http://localhost:18789');
     setOpenclawTemperature(num(s.openclaw_temperature, 0.7));
     setMaxTokens(num(s.ai_max_tokens, 2048));
     setTopP(num(s.ai_top_p, 0.9));
     setStreamingEnabled(bool(s.ai_streaming, true));
     setSystemPrompt(s.ai_system_prompt || '');
+  }, [
+    settingsData?.ai_provider,
+    settingsData?.ollama_url,
+    settingsData?.ollama_temperature,
+    settingsData?.groq_temperature,
+    settingsData?.openai_temperature,
+    settingsData?.anthropic_temperature,
+    settingsData?.openclaw_url,
+    settingsData?.openclaw_temperature,
+    settingsData?.ai_max_tokens,
+    settingsData?.ai_top_p,
+    settingsData?.ai_streaming,
+    settingsData?.ai_system_prompt,
+  ]);
+
+  // Group 2: Business settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setCompanyName(s.company_name || '');
     setServiceArea(s.service_area || '');
     setSpecialization(s.specialization || '');
@@ -303,6 +332,24 @@ export function SettingsProvider({ children }) {
     setBusinessInsurance(s.business_insurance || '');
     setBusinessState(s.business_state || '');
     setBusinessZip(s.business_zip || '');
+  }, [
+    settingsData?.company_name,
+    settingsData?.service_area,
+    settingsData?.specialization,
+    settingsData?.business_phone,
+    settingsData?.business_email,
+    settingsData?.business_website,
+    settingsData?.business_license,
+    settingsData?.business_insurance,
+    settingsData?.business_state,
+    settingsData?.business_zip,
+  ]);
+
+  // Group 3: Estimating settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setLaborRate(num(s.estimate_labor_rate, 85));
     setMaterialMarkup(num(s.estimate_markup, 30));
     setOverheadFactor(num(s.estimate_overhead, 15));
@@ -312,6 +359,23 @@ export function SettingsProvider({ children }) {
     setExpiryDays(num(s.estimate_expiry_days, 30));
     setIncludeTax(bool(s.estimate_include_tax, true));
     setAutoMarkup(bool(s.estimate_auto_markup, true));
+  }, [
+    settingsData?.estimate_labor_rate,
+    settingsData?.estimate_markup,
+    settingsData?.estimate_overhead,
+    settingsData?.estimate_tax_rate,
+    settingsData?.estimate_terms,
+    settingsData?.estimate_deposit_pct,
+    settingsData?.estimate_expiry_days,
+    settingsData?.estimate_include_tax,
+    settingsData?.estimate_auto_markup,
+  ]);
+
+  // Group 4: Discovery settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setMaxResults(num(s.discovery_max_results, 50));
     setMinScore(num(s.discovery_min_score, 5));
     setAutoScore(bool(s.discovery_auto_score, true));
@@ -320,6 +384,22 @@ export function SettingsProvider({ children }) {
     setAutoArchive(bool(s.discovery_auto_archive, false));
     setArchiveThreshold(num(s.discovery_archive_threshold, 3));
     setFollowupDays(num(s.discovery_followup_days, 7));
+  }, [
+    settingsData?.discovery_max_results,
+    settingsData?.discovery_min_score,
+    settingsData?.discovery_auto_score,
+    settingsData?.discovery_excluded_keywords,
+    settingsData?.discovery_radius,
+    settingsData?.discovery_auto_archive,
+    settingsData?.discovery_archive_threshold,
+    settingsData?.discovery_followup_days,
+  ]);
+
+  // Group 5: Notification settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setNotifyEnabled(bool(s.notify_enabled, false));
     setNotifyEmailEnabled(bool(s.notify_email_enabled, false));
     setNotifyEmailAddr(s.notify_email_address || '');
@@ -331,11 +411,43 @@ export function SettingsProvider({ children }) {
     setNotifyDigestEnabled(bool(s.notify_digest_enabled, false));
     setNotifyDigestDay(s.notify_digest_day || 'Monday');
     setNotifyDigestTime(s.notify_digest_time || '08:00');
+  }, [
+    settingsData?.notify_enabled,
+    settingsData?.notify_email_enabled,
+    settingsData?.notify_email_address,
+    settingsData?.notify_sms_enabled,
+    settingsData?.notify_admin_phone,
+    settingsData?.notify_on_new_lead,
+    settingsData?.notify_on_high_score,
+    settingsData?.notify_on_permit,
+    settingsData?.notify_digest_enabled,
+    settingsData?.notify_digest_day,
+    settingsData?.notify_digest_time,
+  ]);
+
+  // Group 6: Email Monitor settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setEmEnabled(bool(s.email_monitor_enabled, false));
     setEmHost(s.email_monitor_host || 'outlook.office365.com');
     setEmPort(String(s.email_monitor_port || '993'));
     setEmUser(s.email_monitor_user || '');
     setEmKeywords(s.email_monitor_keywords || '');
+  }, [
+    settingsData?.email_monitor_enabled,
+    settingsData?.email_monitor_host,
+    settingsData?.email_monitor_port,
+    settingsData?.email_monitor_user,
+    settingsData?.email_monitor_keywords,
+  ]);
+
+  // Group 7: Performance settings
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    
     setPerfCacheTtl(num(s.perf_cache_ttl, 5));
     setPerfRateLimit(num(s.perf_rate_limit, 100));
     setPerfTimeout(num(s.perf_timeout, 30));
@@ -343,7 +455,15 @@ export function SettingsProvider({ children }) {
     setPerfCbThreshold(num(s.perf_cb_threshold, 5));
     setPerfLowMemory(bool(s.perf_low_memory, false));
     setPerfBgJobs(bool(s.perf_bg_jobs, true));
-  }, [settingsData]);
+  }, [
+    settingsData?.perf_cache_ttl,
+    settingsData?.perf_rate_limit,
+    settingsData?.perf_timeout,
+    settingsData?.perf_cb_enabled,
+    settingsData?.perf_cb_threshold,
+    settingsData?.perf_low_memory,
+    settingsData?.perf_bg_jobs,
+  ]);
 
   // Context value
   const value = {
@@ -352,7 +472,8 @@ export function SettingsProvider({ children }) {
     
     // Data
     settings, availableModels, metrics, config,
-    connected, model, defaultModel, setDefaultModel,
+    connected, model, available, defaultModel, setDefaultModel,
+    isLoadingSettings,
     
     // AI Provider
     activeProvider, setActiveProvider,
@@ -360,6 +481,10 @@ export function SettingsProvider({ children }) {
     temperature, setTemperature,
     groqKey, setGroqKey, showGroqKey, setShowGroqKey,
     groqTemperature, setGroqTemperature,
+    openaiKey, setOpenaiKey, showOpenaiKey, setShowOpenaiKey,
+    openaiTemperature, setOpenaiTemperature,
+    anthropicKey, setAnthropicKey, showAnthropicKey, setShowAnthropicKey,
+    anthropicTemperature, setAnthropicTemperature,
     openclawUrl, setOpenclawUrl,
     openclawToken, setOpenclawToken, showOpenclawToken, setShowOpenclawToken,
     openclawTemperature, setOpenclawTemperature,
@@ -432,8 +557,6 @@ export function SettingsProvider({ children }) {
     // API Keys
     serperKey, setSerperKey, showSerperKey, setShowSerperKey,
     placesKey, setPlacesKey, showPlacesKey, setShowPlacesKey,
-    anthropicKey, setAnthropicKey, showAnthropicKey, setShowAnthropicKey,
-    openaiKey, setOpenaiKey, showOpenaiKey, setShowOpenaiKey,
     twilioSid, setTwilioSid,
     twilioToken, setTwilioToken, showTwilioToken, setShowTwilioToken,
     twilioPhone, setTwilioPhone,
@@ -444,8 +567,12 @@ export function SettingsProvider({ children }) {
     // Email Watchers
     msClientId, setMsClientId,
     msClientSecret, setMsClientSecret, showMsClientSecret, setShowMsClientSecret,
+    testingMicrosoft, setTestingMicrosoft,
+    connectingMicrosoft, setConnectingMicrosoft,
     googleClientId, setGoogleClientId,
     googleClientSecret, setGoogleClientSecret, showGoogleClientSecret, setShowGoogleClientSecret,
+    testingGoogle, setTestingGoogle,
+    connectingGoogle, setConnectingGoogle,
     telegramToken, setTelegramToken, showTelegramToken, setShowTelegramToken,
     telegramChatId, setTelegramChatId,
     ewPollInterval, setEwPollInterval,
@@ -483,8 +610,6 @@ export function SettingsProvider({ children }) {
     testingSendgrid, setTestingSendgrid,
     testingStripe, setTestingStripe,
     testingGoogleMaps, setTestingGoogleMaps,
-    testingMicrosoft, setTestingMicrosoft,
-    testingGoogle, setTestingGoogle,
     testingTelegram, setTestingTelegram,
     savingBusiness, setSavingBusiness,
     savingAI, setSavingAI,

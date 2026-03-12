@@ -34,6 +34,11 @@ export class DatabaseService {
       this.db.pragma('mmap_size = 67108864');   // 64MB mmap
       this.db.pragma('temp_store = MEMORY');
       this.db.pragma('wal_autocheckpoint = 1000');
+      
+      // Prepared statement cache for frequently used queries
+      this._statementCache = new Map();
+      this._statementCacheMaxSize = 100;
+      
       this.initializeTables();
       logger.info('Database initialized successfully', { path: DB_PATH });
     } catch (error) {
@@ -48,6 +53,45 @@ export class DatabaseService {
       }
       throw new Error(`Database initialization failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Get cached prepared statement or create new one
+   * Improves performance for repeated queries
+   */
+  _getCachedStatement(sql) {
+    // Simple LRU cache for prepared statements
+    if (this._statementCache.has(sql)) {
+      const stmt = this._statementCache.get(sql);
+      // Move to end (most recently used)
+      this._statementCache.delete(sql);
+      this._statementCache.set(sql, stmt);
+      return stmt;
+    }
+    
+    // Create new statement
+    const stmt = this.db.prepare(sql);
+    
+    // Evict oldest if at capacity
+    if (this._statementCache.size >= this._statementCacheMaxSize) {
+      const firstKey = this._statementCache.keys().next().value;
+      const oldStmt = this._statementCache.get(firstKey);
+      try { oldStmt.finalize(); } catch (e) { /* ignore */ }
+      this._statementCache.delete(firstKey);
+    }
+    
+    this._statementCache.set(sql, stmt);
+    return stmt;
+  }
+
+  /**
+   * Clear statement cache (useful after schema changes)
+   */
+  _clearStatementCache() {
+    for (const [sql, stmt] of this._statementCache) {
+      try { stmt.finalize(); } catch (e) { /* ignore */ }
+    }
+    this._statementCache.clear();
   }
 
   /**
@@ -106,7 +150,7 @@ export class DatabaseService {
         phone TEXT,
         location TEXT,
         projectType TEXT,
-        value REAL DEFAULT 0,
+        value REAL DEFAULT 0 CHECK (value >= 0),
         score INTEGER,
         status TEXT,
         notes TEXT,
@@ -124,8 +168,8 @@ export class DatabaseService {
         name TEXT NOT NULL,
         leadId TEXT,
         phase TEXT DEFAULT 'rough-in',
-        progress INTEGER DEFAULT 0,
-        value REAL DEFAULT 0,
+        progress INTEGER DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+        value REAL DEFAULT 0 CHECK (value >= 0),
         startDate TEXT,
         estimatedCompletion TEXT,
         status TEXT DEFAULT 'active',
@@ -142,21 +186,21 @@ export class DatabaseService {
         id TEXT PRIMARY KEY,
         userId TEXT,
         leadId TEXT,
-        sqft REAL,
-        bathrooms REAL,
-        units INTEGER,
-        stories INTEGER,
-        lavatories INTEGER DEFAULT 0,
-        barSinks INTEGER DEFAULT 0,
-        tubs INTEGER DEFAULT 0,
-        showerBases INTEGER DEFAULT 0,
-        mudPans INTEGER DEFAULT 0,
-        washingMachines INTEGER DEFAULT 0,
-        toilets INTEGER DEFAULT 0,
-        waterSoftenerPreplumb INTEGER DEFAULT 0,
-        kitchenFaucets INTEGER DEFAULT 0,
-        total REAL,
-        perUnit REAL,
+        sqft REAL CHECK (sqft >= 0),
+        bathrooms REAL CHECK (bathrooms >= 0),
+        units INTEGER CHECK (units >= 0),
+        stories INTEGER CHECK (stories >= 0),
+        lavatories INTEGER DEFAULT 0 CHECK (lavatories >= 0),
+        barSinks INTEGER DEFAULT 0 CHECK (barSinks >= 0),
+        tubs INTEGER DEFAULT 0 CHECK (tubs >= 0),
+        showerBases INTEGER DEFAULT 0 CHECK (showerBases >= 0),
+        mudPans INTEGER DEFAULT 0 CHECK (mudPans >= 0),
+        washingMachines INTEGER DEFAULT 0 CHECK (washingMachines >= 0),
+        toilets INTEGER DEFAULT 0 CHECK (toilets >= 0),
+        waterSoftenerPreplumb INTEGER DEFAULT 0 CHECK (waterSoftenerPreplumb >= 0),
+        kitchenFaucets INTEGER DEFAULT 0 CHECK (kitchenFaucets >= 0),
+        total REAL CHECK (total >= 0),
+        perUnit REAL CHECK (perUnit >= 0),
         breakdown TEXT,
         margin TEXT,
         analysis TEXT,
@@ -201,7 +245,7 @@ export class DatabaseService {
         name TEXT NOT NULL,
         category TEXT NOT NULL,
         unit TEXT NOT NULL,
-        unitCost REAL DEFAULT 0,
+        unitCost REAL DEFAULT 0 CHECK (unitCost >= 0),
         supplier TEXT,
         partNumber TEXT,
         description TEXT,
@@ -224,7 +268,7 @@ export class DatabaseService {
         scale TEXT,
         canvasData TEXT,
         notes TEXT,
-        totalCost REAL DEFAULT 0,
+        totalCost REAL DEFAULT 0 CHECK (totalCost >= 0),
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
@@ -241,10 +285,10 @@ export class DatabaseService {
         materialId TEXT,
         measurementType TEXT NOT NULL,
         label TEXT,
-        quantity REAL DEFAULT 0,
+        quantity REAL DEFAULT 0 CHECK (quantity >= 0),
         unit TEXT,
-        unitCost REAL DEFAULT 0,
-        totalCost REAL DEFAULT 0,
+        unitCost REAL DEFAULT 0 CHECK (unitCost >= 0),
+        totalCost REAL DEFAULT 0 CHECK (totalCost >= 0),
         measurementData TEXT,
         notes TEXT,
         createdAt TEXT NOT NULL,
@@ -258,8 +302,8 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS price_history (
         id TEXT PRIMARY KEY,
         materialId TEXT NOT NULL,
-        oldPrice REAL NOT NULL,
-        newPrice REAL NOT NULL,
+        oldPrice REAL NOT NULL CHECK (oldPrice >= 0),
+        newPrice REAL NOT NULL CHECK (newPrice >= 0),
         changedAt TEXT NOT NULL,
         FOREIGN KEY (materialId) REFERENCES materials(id) ON DELETE CASCADE
       )
@@ -276,7 +320,7 @@ export class DatabaseService {
         zip TEXT,
         contractor TEXT,
         contractorPhone TEXT,
-        estimatedCost REAL DEFAULT 0,
+        estimatedCost REAL DEFAULT 0 CHECK (estimatedCost >= 0),
         issuedDate TEXT,
         status TEXT DEFAULT 'new',
         description TEXT,
@@ -495,10 +539,10 @@ export class DatabaseService {
         id TEXT PRIMARY KEY,
         estimate_id TEXT,
         material_id TEXT,
-        quantity REAL NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity >= 0),
         unit TEXT,
-        unit_cost REAL,
-        total_cost REAL,
+        unit_cost REAL CHECK (unit_cost >= 0),
+        total_cost REAL CHECK (total_cost >= 0),
         tier TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE,
@@ -594,6 +638,26 @@ export class DatabaseService {
       )
     `);
 
+    // Knowledge Base: Vector-enabled documentation storage
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS knowledge_base (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        source_type TEXT NOT NULL, -- 'markdown', 'system', 'project'
+        source_path TEXT,
+        embedding TEXT, -- JSON array of floats
+        metadata TEXT,  -- JSON object
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_kb_source_type ON knowledge_base(source_type);
+      CREATE INDEX IF NOT EXISTS idx_kb_title ON knowledge_base(title);
+    `);
+
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_doc_chat_document ON document_chat_messages(documentId, createdAt);
     `);
@@ -631,7 +695,85 @@ export class DatabaseService {
       )
     `);
 
+    // Schedules table (for follow-ups and tasks)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS schedules (
+        id TEXT PRIMARY KEY,
+        lead_id TEXT,
+        user_id TEXT,
+        type TEXT NOT NULL CHECK(type IN ('follow_up', 'meeting', 'inspection', 'call', 'email')),
+        title TEXT NOT NULL,
+        description TEXT,
+        scheduled_date TEXT NOT NULL,
+        scheduled_time TEXT,
+        duration_minutes INTEGER DEFAULT 30,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'cancelled', 'overdue')),
+        priority TEXT DEFAULT 'medium' CHECK(priority IN ('low', 'medium', 'high', 'urgent')),
+        notes TEXT,
+        completed_at TEXT,
+        completed_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Schedule reminders table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS schedule_reminders (
+        id TEXT PRIMARY KEY,
+        schedule_id TEXT NOT NULL,
+        reminder_type TEXT NOT NULL CHECK(reminder_type IN ('email', 'sms', 'push', 'in_app')),
+        minutes_before INTEGER NOT NULL,
+        sent_at TEXT,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'sent', 'failed')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Service areas table (for geographic scoring)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS service_areas (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('radius', 'city', 'zipcode', 'county')),
+        city TEXT,
+        zipcode TEXT,
+        county TEXT DEFAULT 'Tarrant',
+        state TEXT DEFAULT 'TX',
+        center_lat REAL,
+        center_lng REAL,
+        radius_miles REAL,
+        priority INTEGER DEFAULT 1,
+        is_active INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // In-app notifications table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('info', 'warning', 'success', 'error', 'alert')),
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        data TEXT,
+        entity_type TEXT,
+        entity_id TEXT,
+        read INTEGER DEFAULT 0,
+        read_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
     // Add new columns to materials if they don't exist
+    this.safeAddColumn('vision_analyses', 'lastError', 'TEXT');
+    this.safeAddColumn('vision_projects', 'lastAnalyzedAt', 'TEXT');
     this.safeAddColumn('materials', 'isFavorite', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'usageCount', 'INTEGER DEFAULT 0');
     this.safeAddColumn('materials', 'lastUsedAt', 'TEXT');
@@ -727,6 +869,29 @@ export class DatabaseService {
       -- Job files indexes
       CREATE INDEX IF NOT EXISTS idx_job_files_job_id ON job_files(job_id);
       CREATE INDEX IF NOT EXISTS idx_job_files_file_id ON job_files(file_id);
+
+      -- Schedules indexes
+      CREATE INDEX IF NOT EXISTS idx_schedules_lead_id ON schedules(lead_id);
+      CREATE INDEX IF NOT EXISTS idx_schedules_user_id ON schedules(user_id);
+      CREATE INDEX IF NOT EXISTS idx_schedules_date ON schedules(scheduled_date);
+      CREATE INDEX IF NOT EXISTS idx_schedules_status ON schedules(status);
+      CREATE INDEX IF NOT EXISTS idx_schedules_type ON schedules(type);
+      CREATE INDEX IF NOT EXISTS idx_schedules_date_status ON schedules(scheduled_date, status);
+
+      -- Schedule reminders indexes
+      CREATE INDEX IF NOT EXISTS idx_schedule_reminders_schedule_id ON schedule_reminders(schedule_id);
+      CREATE INDEX IF NOT EXISTS idx_schedule_reminders_status ON schedule_reminders(status);
+
+      -- Service areas indexes
+      CREATE INDEX IF NOT EXISTS idx_service_areas_type ON service_areas(type);
+      CREATE INDEX IF NOT EXISTS idx_service_areas_city ON service_areas(city);
+      CREATE INDEX IF NOT EXISTS idx_service_areas_active ON service_areas(is_active);
+
+      -- Notifications indexes
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read);
+      CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
     `);
     
     // Create conditional indexes separately to handle missing columns gracefully
@@ -906,11 +1071,13 @@ export class DatabaseService {
 
   /**
    * Execute a query that returns multiple rows
+   * Uses prepared statement cache for better performance
    */
   async all(sql, params = []) {
     this._checkConnection();
     try {
-      return this.db.prepare(sql).all(...params);
+      const stmt = this._getCachedStatement(sql);
+      return stmt.all(...params);
     } catch (error) {
       logger.error('Query failed (all)', { sql: sql.substring(0, 200), error: error.message });
       throw this._classifyError(error, sql);
@@ -919,11 +1086,13 @@ export class DatabaseService {
 
   /**
    * Execute a query that returns a single row
+   * Uses prepared statement cache for better performance
    */
   async get(sql, params = []) {
     this._checkConnection();
     try {
-      return this.db.prepare(sql).get(...params);
+      const stmt = this._getCachedStatement(sql);
+      return stmt.get(...params);
     } catch (error) {
       logger.error('Query failed (get)', { sql: sql.substring(0, 200), error: error.message });
       throw this._classifyError(error, sql);
@@ -932,11 +1101,13 @@ export class DatabaseService {
 
   /**
    * Execute a query that doesn't return rows (INSERT, UPDATE, DELETE)
+   * Uses prepared statement cache for better performance
    */
   async run(sql, params = []) {
     this._checkConnection();
     try {
-      return this.db.prepare(sql).run(...params);
+      const stmt = this._getCachedStatement(sql);
+      return stmt.run(...params);
     } catch (error) {
       logger.error('Query failed (run)', { sql: sql.substring(0, 200), error: error.message });
       throw this._classifyError(error, sql);

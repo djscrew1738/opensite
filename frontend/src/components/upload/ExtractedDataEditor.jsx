@@ -168,7 +168,7 @@ export default function ExtractedDataEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Edit3 className="w-4 h-4 text-blue-600" />
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+          <h4 className="font-semibold text-surface-900 dark:text-surface-100">
             Review Extracted Data
           </h4>
         </div>
@@ -245,11 +245,11 @@ export default function ExtractedDataEditor({
 
           return (
             <div key={key} className="relative">
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
                 {config.label}
               </label>
               <div className="relative">
-                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
                 <input
                   type="number"
                   value={data[key]}
@@ -260,14 +260,14 @@ export default function ExtractedDataEditor({
                   step={config.step}
                   className={`
                     w-full pl-9 pr-10 py-2 text-sm rounded-lg border
-                    bg-white dark:bg-gray-800
+                    bg-white dark:bg-surface-800
                     focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                     transition-colors
                     ${isEdited 
                       ? 'border-blue-400 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-900/20' 
-                      : 'border-gray-200 dark:border-gray-700'
+                      : 'border-surface-200 dark:border-surface-700'
                     }
-                    ${hasValue && !isEdited ? 'text-gray-900 dark:text-gray-100' : ''}
+                    ${hasValue && !isEdited ? 'text-surface-900 dark:text-surface-100' : ''}
                   `}
                 />
                 {confidence !== undefined && (
@@ -288,14 +288,14 @@ export default function ExtractedDataEditor({
       {/* Fixtures Toggle */}
       <button
         onClick={() => setShowFixtures(!showFixtures)}
-        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+        className="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200 transition-colors"
       >
         {showFixtures ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         Fixture Counts
         {Object.values(data).filter((v, i) => 
           Object.keys(FIXTURE_FIELDS).includes(Object.keys(data)[i]) && v !== ''
         ).length > 0 && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-surface-400">
             ({Object.entries(data).filter(([k, v]) => 
               FIXTURE_FIELDS[k] && v !== ''
             ).length} detected)
@@ -305,14 +305,14 @@ export default function ExtractedDataEditor({
 
       {/* Fixture Fields */}
       {showFixtures && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
           {Object.entries(FIXTURE_FIELDS).map(([key, config]) => {
             const confidence = confidenceScores[key];
             const isEdited = editedFields.has(key);
 
             return (
               <div key={key} className="relative">
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <label className="block text-xs text-surface-500 dark:text-surface-400 mb-1">
                   {config.label}
                 </label>
                 <div className="relative">
@@ -324,11 +324,11 @@ export default function ExtractedDataEditor({
                     min={0}
                     className={`
                       w-full px-2 py-1.5 text-sm rounded border
-                      bg-white dark:bg-gray-800
+                      bg-white dark:bg-surface-800
                       focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                       ${isEdited 
                         ? 'border-blue-400 dark:border-blue-600 bg-blue-50/50' 
-                        : 'border-gray-200 dark:border-gray-700'
+                        : 'border-surface-200 dark:border-surface-700'
                       }
                     `}
                   />
@@ -349,7 +349,7 @@ export default function ExtractedDataEditor({
       )}
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
         <button
           onClick={handleSubmit}
           disabled={isAnalyzing || !hasData}
@@ -381,7 +381,7 @@ export default function ExtractedDataEditor({
           <button
             onClick={onCancel}
             disabled={isAnalyzing}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm"
+            className="text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 text-sm"
           >
             Cancel
           </button>
@@ -389,7 +389,7 @@ export default function ExtractedDataEditor({
       </div>
 
       {/* Confidence Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-surface-500 dark:text-surface-400">
         <span>Confidence:</span>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-green-500" />

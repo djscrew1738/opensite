@@ -4,6 +4,8 @@
  */
 
 import axios from 'axios';
+import http from 'http';
+import https from 'https';
 import { db } from './database.js';
 import logger from './logger.js';
 
@@ -40,19 +42,38 @@ class GroqService {
   }
 
   /**
-   * Initialize axios client
+   * Initialize axios client with connection pooling
    */
   _initClient() {
     const headers = {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
+      'Connection': 'keep-alive',
     };
 
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers,
       timeout: this.timeout,
+      // Enable HTTP keep-alive for connection reuse
+      httpAgent: new http.Agent({ 
+        keepAlive: true, 
+        maxSockets: 10,
+        maxFreeSockets: 5,
+        timeout: 60000,
+      }),
+      httpsAgent: new https.Agent({ 
+        keepAlive: true, 
+        maxSockets: 10,
+        maxFreeSockets: 5,
+        timeout: 60000,
+      }),
     });
+
+    // Model list cache
+    this._modelCache = null;
+    this._modelCacheTime = 0;
+    this._modelCacheTTL = 300000; // 5min - models don't change often
 
     // Request interceptor for metrics
     this.client.interceptors.request.use(config => {
@@ -115,7 +136,33 @@ class GroqService {
   }
 
   /**
-   * Health check
+   * Get cached model list
+   */
+  async _getCachedModels() {
+    const now = Date.now();
+    if (!this._modelCache || (now - this._modelCacheTime) > this._modelCacheTTL) {
+      try {
+        const response = await this.client.get('/models', { timeout: 5000 });
+        this._modelCache = response.data?.data || [];
+        this._modelCacheTime = now;
+      } catch (error) {
+        // Return cached models even if expired, or fallback
+        return this._modelCache || this._getFallbackModels();
+      }
+    }
+    return this._modelCache;
+  }
+
+  _getFallbackModels() {
+    return [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', context_window: 128000 },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', context_window: 128000 },
+      { id: 'gemma2-9b-it', name: 'Gemma 2 9B', context_window: 8192 },
+    ];
+  }
+
+  /**
+   * Health check - uses cached models
    */
   async healthCheck() {
     try {
@@ -123,13 +170,13 @@ class GroqService {
         return { connected: false, model: null, error: 'API key not configured' };
       }
 
-      // Quick models endpoint check
-      const response = await this.client.get('/models', { timeout: 5000 });
+      // Use cached models for faster health check
+      const models = await this._getCachedModels();
       
       return {
-        connected: response.status === 200,
+        connected: models.length > 0,
         model: this.defaultModel,
-        available: response.data?.data?.length || 0,
+        available: models.length,
       };
     } catch (error) {
       return {
@@ -312,31 +359,34 @@ class GroqService {
   _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   /**
-   * List available models
+   * List available models - uses cache for performance
    */
   async listAvailableModels() {
     try {
-      const response = await this.client.get('/models');
+      const models = await this._getCachedModels();
       return {
         success: true,
-        models: response.data.data.map(m => ({
+        models: models.map(m => ({
           id: m.id,
           name: m.id,
           contextWindow: m.context_window || 8192,
           ownedBy: m.owned_by,
         })),
         provider: 'groq',
+        cached: Date.now() - this._modelCacheTime < this._modelCacheTTL,
       };
     } catch (error) {
-      // Return default model list on error
+      // Return fallback model list on error
       return {
         success: true,
-        models: [
-          { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', contextWindow: 128000 },
-          { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', contextWindow: 128000 },
-          { id: 'gemma2-9b-it', name: 'Gemma 2 9B', contextWindow: 8192 },
-        ],
+        models: this._getFallbackModels().map(m => ({
+          id: m.id,
+          name: m.name,
+          contextWindow: m.context_window,
+        })),
         provider: 'groq',
+        cached: true,
+        fallback: true,
       };
     }
   }

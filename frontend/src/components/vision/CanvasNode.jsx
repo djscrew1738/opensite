@@ -359,7 +359,7 @@ export default function CanvasNode({
               />
               {pin.label && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 
-                                bg-black/80 text-white text-[10px] rounded whitespace-nowrap 
+                                bg-black/80 text-white text-xs rounded whitespace-nowrap 
                                 opacity-0 group-hover/pin:opacity-100 transition-opacity pointer-events-none z-10">
                   {pin.label}
                 </div>
@@ -376,7 +376,7 @@ export default function CanvasNode({
           >
             <ZoomOut className="w-3 h-3" />
           </button>
-          <span className="text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded min-w-[40px] text-center">
+          <span className="text-xs text-white bg-black/60 px-1.5 py-0.5 rounded min-w-[40px] text-center">
             {(internalZoom * 100).toFixed(0)}%
           </span>
           <button

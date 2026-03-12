@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import * as THREE from 'three';
-import { Scene3D } from './components/Scene3D';
+import type * as THREE from 'three';
+import { Scene3DLazy } from './components/Scene3DLazy';
 import { Toolbar } from './components/Toolbar';
 import { FloorPanel } from './components/FloorPanel';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -144,9 +144,9 @@ export function PlumbingVisualizer() {
         {/* Left Sidebar - Floors */}
         <FloorPanel />
 
-        {/* Center - 3D Scene */}
+        {/* Center - 3D Scene (Lazy Loaded) */}
         <div className="flex-1 relative">
-          <Scene3D onFloorClick={handleFloorClick} />
+          <Scene3DLazy onFloorClick={handleFloorClick} />
           
           {/* Overlay Instructions */}
           <div className="absolute top-4 left-4 pointer-events-none">

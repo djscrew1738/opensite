@@ -1,12 +1,22 @@
+/**
+ * StickyNoteNode Component
+ * Canvas node for draggable sticky notes with editing capabilities
+ * 
+ * @module components/canvas/nodes/StickyNoteNode
+ */
+
 import { memo, useState, useRef, useMemo, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { motion as Motion } from 'framer-motion';
 import { Pin, Trash2, Palette } from 'lucide-react';
+import { useCanvasStore } from '../canvasStore';
+import { colors, shadows } from '../../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
 // ═══════════════════════════════════════════════════════════════
 
+// User-selectable sticky note colors (functional, not design tokens)
 const STICKY_COLORS = [
   { bg: '#fef3c7', text: '#92400e', border: '#f59e0b' }, // Amber
   { bg: '#dbeafe', text: '#1e40af', border: '#3b82f6' }, // Blue
@@ -32,12 +42,14 @@ const PushPin = memo(function PushPin() {
         width: 20,
         height: 20,
         borderRadius: '50%',
-        background: 'radial-gradient(circle at 30% 30%, #ef4444, #b91c1c)',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+        background: `radial-gradient(circle at 30% 30%, ${colors.danger.light}, ${colors.danger.dark})`,
+        boxShadow: shadows.card,
       }}
     />
   );
 });
+
+PushPin.displayName = 'PushPin';
 
 /**
  * Top shadow gradient for depth effect
@@ -47,14 +59,17 @@ const TopShadow = memo(function TopShadow() {
     <div
       className="absolute top-0 left-0 right-0 h-10 pointer-events-none rounded-t"
       style={{
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, transparent 100%)',
+        background: `linear-gradient(180deg, ${colors.surface.overlay} 0%, transparent 100%)`,
       }}
     />
   );
 });
 
+TopShadow.displayName = 'TopShadow';
+
 /**
  * Toolbar button
+ * @param {{onClick: () => void, title: string, children: React.ReactNode, isActive?: boolean, color?: string | null}} props
  */
 const ToolbarButton = memo(function ToolbarButton({ 
   onClick, 
@@ -63,22 +78,27 @@ const ToolbarButton = memo(function ToolbarButton({
   isActive = false,
   color = null,
 }) {
+  const buttonColor = color || colors.accent.DEFAULT;
+
   return (
     <Motion.button
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center p-1.5 border-none rounded cursor-pointer"
+      className="flex items-center justify-center p-1.5 border-none rounded cursor-pointer transition-colors"
       style={{
-        background: isActive ? (color || 'rgba(245, 176, 65, 0.2)') : 'transparent',
-        color: isActive ? (color || '#3B82F6') : '#f5f3f0',
+        backgroundColor: isActive ? `${buttonColor}20` : 'transparent',
+        color: isActive ? buttonColor : colors.text.primary,
       }}
+      type="button"
     >
       {children}
     </Motion.button>
   );
 });
+
+ToolbarButton.displayName = 'ToolbarButton';
 
 /**
  * Toolbar divider
@@ -87,18 +107,22 @@ const ToolbarDivider = memo(function ToolbarDivider() {
   return (
     <div 
       className="w-px my-1 mx-0.5"
-      style={{ background: 'rgba(255,255,255,0.1)' }}
+      style={{ backgroundColor: colors.border.default }}
     />
   );
 });
 
+ToolbarDivider.displayName = 'ToolbarDivider';
+
 /**
  * Node toolbar (visible when selected)
+ * @param {{isPinned: boolean, onColorChange: () => void, onPinToggle: () => void, onDelete?: () => void}} props
  */
 const NodeToolbar = memo(function NodeToolbar({ 
   isPinned, 
   onColorChange, 
-  onPinToggle 
+  onPinToggle,
+  onDelete,
 }) {
   return (
     <Motion.div
@@ -106,9 +130,9 @@ const NodeToolbar = memo(function NodeToolbar({
       animate={{ opacity: 1, y: 0 }}
       className="absolute -top-9 left-1/2 -translate-x-1/2 flex gap-1 p-1 rounded-lg z-20"
       style={{
-        background: '#1a1d24',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        backgroundColor: colors.surface.elevated,
+        boxShadow: shadows.cardHover,
+        border: `1px solid ${colors.border.default}`,
       }}
     >
       <ToolbarButton onClick={onColorChange} title="Change color">
@@ -119,22 +143,29 @@ const NodeToolbar = memo(function NodeToolbar({
         onClick={onPinToggle} 
         title={isPinned ? 'Unpin' : 'Pin'}
         isActive={isPinned}
-        color="#3B82F6"
+        color={colors.accent.DEFAULT}
       >
         <Pin size={14} />
       </ToolbarButton>
       
       <ToolbarDivider />
       
-      <ToolbarButton title="Delete note" color="#ef4444">
+      <ToolbarButton 
+        onClick={onDelete} 
+        title="Delete note"
+        color={colors.danger.DEFAULT}
+      >
         <Trash2 size={14} />
       </ToolbarButton>
     </Motion.div>
   );
 });
 
+NodeToolbar.displayName = 'NodeToolbar';
+
 /**
  * Editable textarea
+ * @param {{value: string, onChange: (value: string) => void, onBlur: () => void, textColor: string, textareaRef: React.RefObject<HTMLTextAreaElement>}} props
  */
 const NoteEditor = memo(function NoteEditor({ 
   value, 
@@ -144,7 +175,9 @@ const NoteEditor = memo(function NoteEditor({
   textareaRef 
 }) {
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && e.metaKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      onBlur();
+    } else if (e.key === 'Escape') {
       onBlur();
     }
   }, [onBlur]);
@@ -163,34 +196,44 @@ const NoteEditor = memo(function NoteEditor({
         lineHeight: 1.5,
         color: textColor,
       }}
+      placeholder="Type your note here..."
     />
   );
 });
 
+NoteEditor.displayName = 'NoteEditor';
+
 /**
  * Display mode for note content
+ * @param {{content: string, textColor: string, onClick: () => void}} props
  */
 const NoteDisplay = memo(function NoteDisplay({ 
   content, 
   textColor, 
   onClick 
 }) {
+  const displayContent = content?.trim() || 'Click to edit...';
+  const isPlaceholder = !content?.trim();
+
   return (
     <div
       onClick={onClick}
       className="flex-1 text-sm leading-relaxed cursor-text break-words overflow-hidden"
       style={{
-        color: textColor,
+        color: isPlaceholder ? `${textColor}80` : textColor,
         whiteSpace: 'pre-wrap',
       }}
     >
-      {content}
+      {displayContent}
     </div>
   );
 });
 
+NoteDisplay.displayName = 'NoteDisplay';
+
 /**
  * Note footer with date and save hint
+ * @param {{date: string, textColor: string, isEditing: boolean}} props
  */
 const NoteFooter = memo(function NoteFooter({ 
   date, 
@@ -199,7 +242,7 @@ const NoteFooter = memo(function NoteFooter({
 }) {
   return (
     <div
-      className="flex justify-between items-center mt-auto pt-2 text-[10px]"
+      className="flex justify-between items-center mt-auto pt-2 text-xs"
       style={{ color: textColor, opacity: 0.6 }}
     >
       <span>{date}</span>
@@ -210,18 +253,21 @@ const NoteFooter = memo(function NoteFooter({
   );
 });
 
+NoteFooter.displayName = 'NoteFooter';
+
 /**
  * Connection handles for the sticky note
+ * @param {{colors: {bg: string, border: string}, isSelected: boolean}} props
  */
 const ConnectionHandles = memo(function ConnectionHandles({ 
-  colors, 
+  colors: colorSet, 
   isSelected 
 }) {
   const handleStyle = {
     width: 8,
     height: 8,
-    background: colors.border,
-    border: `2px solid ${colors.bg}`,
+    background: colorSet.border,
+    border: `2px solid ${colorSet.bg}`,
     opacity: isSelected ? 1 : 0,
   };
 
@@ -241,18 +287,26 @@ const ConnectionHandles = memo(function ConnectionHandles({
   );
 });
 
+ConnectionHandles.displayName = 'ConnectionHandles';
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
-const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
+/**
+ * StickyNoteNode - Canvas node for draggable sticky notes
+ * @param {{id: string, data: {content?: string, colorIndex?: number, isPinned?: boolean, createdAt?: string, rotation?: number}, selected: boolean}} props
+ */
+const StickyNoteNode = memo(function StickyNoteNode({ id, data, selected }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState(data.content || 'Click to edit...');
+  const [content, setContent] = useState(data.content || '');
   const [colorIndex, setColorIndex] = useState(data.colorIndex || 0);
   const [isPinned, setIsPinned] = useState(data.isPinned || false);
   const textareaRef = useRef(null);
+  const updateNodeData = useCanvasStore((state) => state.updateNodeData);
+  const removeNode = useCanvasStore((state) => state.removeNode);
   
-  const colors = STICKY_COLORS[colorIndex] || STICKY_COLORS[0];
+  const colorSet = STICKY_COLORS[colorIndex] || STICKY_COLORS[0];
   
   // Memoize the formatted date
   const formattedDate = useMemo(() => {
@@ -261,12 +315,22 @@ const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
   }, [data.createdAt]);
 
   const handleColorChange = useCallback(() => {
-    setColorIndex((prev) => (prev + 1) % STICKY_COLORS.length);
-  }, []);
+    const nextIndex = (colorIndex + 1) % STICKY_COLORS.length;
+    setColorIndex(nextIndex);
+    updateNodeData(id, { colorIndex: nextIndex });
+  }, [id, colorIndex, updateNodeData]);
 
   const handlePinToggle = useCallback(() => {
-    setIsPinned(prev => !prev);
-  }, []);
+    const nextPinned = !isPinned;
+    setIsPinned(nextPinned);
+    updateNodeData(id, { isPinned: nextPinned });
+  }, [id, isPinned, updateNodeData]);
+
+  const handleDelete = useCallback(() => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      removeNode(id);
+    }
+  }, [id, removeNode]);
 
   const handleStartEditing = useCallback(() => {
     setIsEditing(true);
@@ -274,7 +338,8 @@ const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
 
   const handleStopEditing = useCallback(() => {
     setIsEditing(false);
-  }, []);
+    updateNodeData(id, { content });
+  }, [id, content, updateNodeData]);
   
   return (
     <Motion.div
@@ -288,10 +353,10 @@ const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className="w-full h-full rounded relative"
       style={{
-        background: colors.bg,
+        backgroundColor: colorSet.bg,
         boxShadow: selected
-          ? `0 8px 30px rgba(0,0,0,0.3), 0 0 0 2px ${colors.border}`
-          : '0 4px 15px rgba(0,0,0,0.2)',
+          ? `0 8px 30px ${colors.surface.overlay}, 0 0 0 2px ${colorSet.border}`
+          : shadows.cardHover,
         transform: 'translateZ(0)', // GPU acceleration
       }}
     >
@@ -303,6 +368,7 @@ const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
           isPinned={isPinned}
           onColorChange={handleColorChange}
           onPinToggle={handlePinToggle}
+          onDelete={handleDelete}
         />
       )}
       
@@ -313,25 +379,25 @@ const StickyNoteNode = memo(function StickyNoteNode({ data, selected }) {
             value={content}
             onChange={setContent}
             onBlur={handleStopEditing}
-            textColor={colors.text}
+            textColor={colorSet.text}
             textareaRef={textareaRef}
           />
         ) : (
           <NoteDisplay
             content={content}
-            textColor={colors.text}
+            textColor={colorSet.text}
             onClick={handleStartEditing}
           />
         )}
         
         <NoteFooter
           date={formattedDate}
-          textColor={colors.text}
+          textColor={colorSet.text}
           isEditing={isEditing}
         />
       </div>
       
-      <ConnectionHandles colors={colors} isSelected={selected} />
+      <ConnectionHandles colors={colorSet} isSelected={selected} />
     </Motion.div>
   );
 });

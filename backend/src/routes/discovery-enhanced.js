@@ -130,21 +130,37 @@ router.post('/leads/:id/schedule', tryCatch(async (req, res) => {
 /**
  * Get daily follow-up tasks
  * GET /api/discovery/tasks/today
- * 
- * NOTE: This endpoint is not yet implemented. Schedules table required.
  */
 router.get('/tasks/today', tryCatch(async (req, res) => {
-  return res.error('Daily tasks endpoint requires schedules table implementation. Use /api/discovery/leads/:id/schedule to create individual schedules.', 'NOT_IMPLEMENTED', null, 501);
+  const userId = req.user?.id;
+  const tasks = await db.getTodaysTasks(userId);
+  
+  res.success({
+    tasks,
+    count: tasks.length,
+    date: new Date().toISOString().split('T')[0]
+  }, 'Today\'s tasks retrieved successfully');
 }));
 
 /**
  * Get upcoming follow-ups
  * GET /api/discovery/follow-ups/upcoming
- * 
- * NOTE: This endpoint is not yet implemented. Schedules table required.
  */
 router.get('/follow-ups/upcoming', tryCatch(async (req, res) => {
-  return res.error('Upcoming follow-ups endpoint requires schedules table implementation.', 'NOT_IMPLEMENTED', null, 501);
+  const userId = req.user?.id;
+  const days = Math.min(Math.max(parseInt(req.query.days) || 7, 1), 90);
+  
+  const followUps = await db.getUpcomingFollowUps({ user_id: userId, days });
+  
+  res.success({
+    followUps,
+    count: followUps.length,
+    days,
+    period: {
+      start: new Date().toISOString().split('T')[0],
+      end: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    }
+  }, 'Upcoming follow-ups retrieved successfully');
 }));
 
 

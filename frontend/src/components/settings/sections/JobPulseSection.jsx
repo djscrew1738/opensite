@@ -1,297 +1,175 @@
 /**
- * JobPulse Section
- * Job monitoring and email alert configuration
+ * Job Pulse Section
+ * Real-time email monitoring and job alert configuration
  */
 
-import { Activity, Mail, Bell, RefreshCw, Clock, Filter, Loader2, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { memo } from 'react';
+import { 
+  Activity, Mail, Bell, Shield, Smartphone, 
+  RefreshCw, Loader2, Save, Zap, AlertCircle,
+  ExternalLink, CheckCircle2, History, Clock
+} from 'lucide-react';
 import { useSettings } from '../SettingsContext';
 import { useSettingsActions } from '../hooks/useSettingsActions';
-import { Section, SettingsRow, Toggle } from '../primitives';
+import { Section, SettingsRow, Toggle, StatusPill } from '../primitives';
+import { colors } from '../../../styles/tokens';
 
-export default function JobPulseSection() {
+export default memo(function JobPulseSection() {
   const ctx = useSettings();
   const { 
-    handleSaveEmailMonitor, handleTestEmailMonitor, handleCheckNow,
-    handleSaveMicrosoft, handleTestMicrosoft, handleSaveGoogle, handleTestGoogle,
-    handleSaveTelegram, handleTestTelegram, handleSaveEmailWatcher
+    handleTestEmailMonitor, handleCheckNow, handleSaveEmailMonitor 
   } = useSettingsActions();
-  
+
   const {
-    emEnabled, setEmEnabled, emHost, setEmHost, emPort, setEmPort,
-    emUser, setEmUser, emPass, setEmPass, emKeywords, setEmKeywords,
-    emTesting, emChecking, emSaving, msClientId, setMsClientId,
-    msClientSecret, setMsClientSecret, showMsClientSecret, setShowMsClientSecret,
-    testingMicrosoft, googleClientId, setGoogleClientId, googleClientSecret,
-    setGoogleClientSecret, showGoogleClientSecret, setShowGoogleClientSecret,
-    testingGoogle, telegramToken, setTelegramToken, showTelegramToken,
-    setShowTelegramToken, telegramChatId, setTelegramChatId, testingTelegram,
-    ewPollInterval, setEwPollInterval, ewMarkAsRead, setEwMarkAsRead,
-    settings, testingOllama, connected
+    emEnabled, emHost, emPort, emUser, emPass, emKeywords,
+    emTesting, emChecking, emSaving, emStatus, emAlerts
   } = ctx;
 
+  const statusColor = emStatus?.status === 'running' ? colors.success.DEFAULT 
+    : emStatus?.status === 'error' ? colors.danger.DEFAULT 
+    : colors.text.muted;
+
   return (
-    <div className="space-y-6">
-      <Section icon={Activity} title="JobPulse Monitor">
-        <div className="space-y-5">
-          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-800/40">
-            <div className="flex items-start gap-3">
-              <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100">What is JobPulse?</h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                  JobPulse monitors your email for job-related messages and automatically extracts 
-                  potential leads. It supports Microsoft 365, Gmail, and Telegram notifications.
-                </p>
-              </div>
-            </div>
+    <div className="space-y-6 page-transition-wrapper">
+      {/* Engine Status */}
+      <Section 
+        icon={Activity} 
+        title="Job Pulse Engine"
+        badge={
+          <div className="flex items-center gap-3">
+            <StatusPill connected={emEnabled} label={emEnabled ? 'Active' : 'Standby'} />
+            {emEnabled && (
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-tighter bg-surface-elevated border border-border-muted" style={{ color: statusColor }}>
+                <span className={`w-1 h-1 rounded-full ${emStatus?.status === 'running' ? 'animate-ping' : ''}`} style={{ backgroundColor: statusColor }} />
+                {emStatus?.status || 'idle'}
+              </span>
+            )}
           </div>
-
-          <SettingsRow 
-            label="Enable Email Monitoring" 
-            description="Monitor inbox for new job opportunities"
-          >
-            <Toggle enabled={emEnabled} onChange={setEmEnabled} />
-          </SettingsRow>
-        </div>
-      </Section>
-
-      {emEnabled && (
-        <>
-          <Section icon={Mail} title="Legacy IMAP Monitor">
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">IMAP Host</label>
-                  <input 
-                    type="text" 
-                    value={emHost} 
-                    onChange={e => setEmHost(e.target.value)} 
-                    className="input font-mono text-sm" 
-                    placeholder="outlook.office365.com"
-                  />
-                </div>
-                <div>
-                  <label className="label">Port</label>
-                  <input 
-                    type="text" 
-                    value={emPort} 
-                    onChange={e => setEmPort(e.target.value)} 
-                    className="input w-24 font-mono text-sm" 
-                    placeholder="993"
-                  />
-                </div>
+        }
+        description="Monitor inbound project opportunities via real-time email analysis"
+      >
+        <div className="space-y-6 mt-4">
+          <div className="p-5 rounded-2xl bg-surface-elevated border border-border-default">
+            <SettingsRow 
+              label="Real-time Monitoring" 
+              description="Enable automated background scanning of the configured inbox"
+              icon={Mail}
+            >
+              <Toggle enabled={emEnabled} onChange={ctx.setEmEnabled} />
+            </SettingsRow>
+            
+            <div className="grid md:grid-cols-2 gap-6 mt-6 border-t border-border-muted pt-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">IMAP Host</label>
+                <input 
+                  type="text" 
+                  value={emHost} 
+                  onChange={e => ctx.setEmHost(e.target.value)} 
+                  className="input font-mono text-sm tracking-tight h-11" 
+                  placeholder="outlook.office365.com" 
+                />
               </div>
-
-              <div>
-                <label className="label">Email Address</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">IMAP Port</label>
+                <input 
+                  type="text" 
+                  value={emPort} 
+                  onChange={e => ctx.setEmPort(e.target.value)} 
+                  className="input font-mono text-sm tracking-tight h-11 w-24" 
+                  placeholder="993" 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Auth Identity (User)</label>
                 <input 
                   type="email" 
                   value={emUser} 
-                  onChange={e => setEmUser(e.target.value)} 
-                  className="input" 
-                  placeholder="leads@company.com"
+                  onChange={e => ctx.setEmUser(e.target.value)} 
+                  className="input text-sm h-11" 
+                  placeholder="notifications@company.com" 
                 />
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Auth Secret (App Password)</label>
+                <input 
+                  type="password" 
+                  value={emPass} 
+                  onChange={e => ctx.setEmPass(e.target.value)} 
+                  className="input text-sm h-11" 
+                  placeholder="••••••••••••••••" 
+                />
+              </div>
+            </div>
 
-              <div>
-                <label className="label">Password / App Token</label>
-                <div className="relative">
-                  <input 
-                    type="password" 
-                    value={emPass} 
-                    onChange={e => setEmPass(e.target.value)} 
-                    className="input pr-10 font-mono text-sm" 
-                    placeholder="••••••••"
-                  />
+            <div className="flex flex-col gap-1.5 mt-6 border-t border-border-muted pt-6">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted flex items-center gap-2">
+                <Shield className="w-3 h-3" /> Intelligence Filter Keywords
+              </label>
+              <textarea 
+                value={emKeywords} 
+                onChange={e => ctx.setEmKeywords(e.target.value)} 
+                className="input py-3 min-h-[80px] resize-none text-sm font-medium" 
+                placeholder="e.g. plumbing, bid, estimate, permit, contract (comma separated)" 
+              />
+              <p className="text-xs text-text-muted italic px-1">Emails matching these terms will trigger analysis and SMS alerts.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 justify-end mt-6 pt-6 border-t border-border-muted">
+              <button onClick={handleTestEmailMonitor} disabled={emTesting} className="btn-secondary h-11 px-6 text-xs font-semibold uppercase tracking-widest">
+                {emTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Zap className="w-3.5 h-3.5 mr-2" />} Test Auth
+              </button>
+              <button onClick={handleCheckNow} disabled={emChecking || !emEnabled} className="btn-secondary h-11 px-6 text-xs font-semibold uppercase tracking-widest">
+                {emChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />} Force Check
+              </button>
+              <button onClick={handleSaveEmailMonitor} disabled={emSaving} className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em]">
+                {emSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Save Pulse Config
+              </button>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Activity Log */}
+      <Section 
+        icon={History} 
+        title="Intelligence Activity"
+        description="Last 10 detected opportunities and processing status"
+      >
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border-default bg-surface-card">
+          {emAlerts.length === 0 ? (
+            <div className="p-12 text-center">
+              <Clock className="w-10 h-10 mx-auto mb-3 text-text-muted opacity-20" />
+              <p className="text-sm font-bold text-text-muted uppercase tracking-widest">No alerts detected yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border-muted">
+              {emAlerts.map((alert, idx) => (
+                <div key={idx} className="p-4 hover:bg-surface-elevated transition-colors group">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${alert.sms_sent ? 'bg-success-DEFAULT' : 'bg-warning-DEFAULT'}`} />
+                        <h4 className="text-xs font-semibold text-text-primary truncate">{alert.subject}</h4>
+                      </div>
+                      <p className="text-xs text-text-muted truncate ml-3.5">
+                        Matched: <span className="text-accent-blue font-bold">{alert.matched_keyword}</span>
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-mono text-text-muted">
+                        {new Date(alert.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="text-[9px] font-bold uppercase tracking-tighter text-text-muted mt-0.5">
+                        {new Date(alert.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Use an app-specific password for better security
-                </p>
-              </div>
-
-              <div>
-                <label className="label flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-gray-400" /> Keywords
-                </label>
-                <input 
-                  type="text" 
-                  value={emKeywords} 
-                  onChange={e => setEmKeywords(e.target.value)} 
-                  className="input" 
-                  placeholder="permit, plumbing, contractor, bid"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Comma-separated keywords to filter relevant emails
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <button onClick={handleTestEmailMonitor} disabled={emTesting} className="btn-secondary text-sm">
-                  {emTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Test Connection
-                </button>
-                <button onClick={handleSaveEmailMonitor} disabled={emSaving} className="btn-primary text-sm">
-                  {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
-                </button>
-                <button onClick={handleCheckNow} disabled={emChecking} className="btn-ghost text-sm">
-                  {emChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Check Now
-                </button>
-              </div>
+              ))}
             </div>
-          </Section>
-
-          <Section icon={Mail} title="Microsoft 365 (Graph API)">
-            <div className="space-y-5">
-              <div>
-                <label className="label">Client ID</label>
-                <input 
-                  type="text" 
-                  value={msClientId} 
-                  onChange={e => setMsClientId(e.target.value)} 
-                  className="input font-mono text-sm" 
-                  placeholder={settings.microsoft_client_id ? '••••••••' : 'Enter Microsoft Client ID'}
-                />
-              </div>
-              <div>
-                <label className="label">Client Secret</label>
-                <div className="relative">
-                  <input 
-                    type={showMsClientSecret ? 'text' : 'password'} 
-                    value={msClientSecret} 
-                    onChange={e => setMsClientSecret(e.target.value)} 
-                    className="input pr-10 font-mono text-sm" 
-                    placeholder="Enter Client Secret"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowMsClientSecret(!showMsClientSecret)} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showMsClientSecret ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={handleTestMicrosoft} disabled={testingMicrosoft} className="btn-secondary text-sm">
-                  {testingMicrosoft ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Test
-                </button>
-                <button onClick={handleSaveMicrosoft} className="btn-primary text-sm">
-                  <Save className="w-4 h-4" /> Save
-                </button>
-              </div>
-            </div>
-          </Section>
-
-          <Section icon={Mail} title="Gmail (Google OAuth)">
-            <div className="space-y-5">
-              <div>
-                <label className="label">Client ID</label>
-                <input 
-                  type="text" 
-                  value={googleClientId} 
-                  onChange={e => setGoogleClientId(e.target.value)} 
-                  className="input font-mono text-sm" 
-                  placeholder={settings.google_client_id ? '••••••••' : 'Enter Google Client ID'}
-                />
-              </div>
-              <div>
-                <label className="label">Client Secret</label>
-                <div className="relative">
-                  <input 
-                    type={showGoogleClientSecret ? 'text' : 'password'} 
-                    value={googleClientSecret} 
-                    onChange={e => setGoogleClientSecret(e.target.value)} 
-                    className="input pr-10 font-mono text-sm" 
-                    placeholder="Enter Client Secret"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowGoogleClientSecret(!showGoogleClientSecret)} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showGoogleClientSecret ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={handleTestGoogle} disabled={testingGoogle} className="btn-secondary text-sm">
-                  {testingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Test
-                </button>
-                <button onClick={handleSaveGoogle} className="btn-primary text-sm">
-                  <Save className="w-4 h-4" /> Save
-                </button>
-              </div>
-            </div>
-          </Section>
-
-          <Section icon={Activity} title="Telegram Notifications">
-            <div className="space-y-5">
-              <div>
-                <label className="label">Bot Token</label>
-                <div className="relative">
-                  <input 
-                    type={showTelegramToken ? 'text' : 'password'} 
-                    value={telegramToken} 
-                    onChange={e => setTelegramToken(e.target.value)} 
-                    className="input pr-10 font-mono text-sm" 
-                    placeholder={settings.telegram_bot_token ? '••••••••' : 'Enter Bot Token'}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowTelegramToken(!showTelegramToken)} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showTelegramToken ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="label">Chat ID</label>
-                <input 
-                  type="text" 
-                  value={telegramChatId} 
-                  onChange={e => setTelegramChatId(e.target.value)} 
-                  className="input font-mono text-sm" 
-                  placeholder={settings.telegram_chat_id || 'e.g. 123456789'}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={handleTestTelegram} disabled={testingTelegram} className="btn-secondary text-sm">
-                  {testingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Test
-                </button>
-                <button onClick={handleSaveTelegram} className="btn-primary text-sm">
-                  <Save className="w-4 h-4" /> Save
-                </button>
-              </div>
-            </div>
-          </Section>
-
-          <Section icon={Clock} title="Watcher Settings">
-            <div className="space-y-5">
-              <div>
-                <label className="label">Poll Interval (seconds)</label>
-                <input 
-                  type="number" 
-                  value={ewPollInterval} 
-                  onChange={e => setEwPollInterval(Number(e.target.value))} 
-                  className="input w-32" 
-                  min="30" max="600"
-                />
-              </div>
-              <SettingsRow 
-                label="Mark as Read" 
-                description="Mark processed emails as read"
-              >
-                <Toggle enabled={ewMarkAsRead} onChange={setEwMarkAsRead} />
-              </SettingsRow>
-              <div className="flex justify-end">
-                <button onClick={handleSaveEmailWatcher} className="btn-primary text-sm">
-                  <Save className="w-4 h-4" /> Save Watcher Settings
-                </button>
-              </div>
-            </div>
-          </Section>
-        </>
-      )}
+          )}
+        </div>
+      </Section>
     </div>
   );
-}
+});

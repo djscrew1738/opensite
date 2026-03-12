@@ -1,36 +1,38 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, useMemo } from 'react';
+import PropTypes from 'prop-types';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
+
+const COLOR_CLASSES = {
+  copper: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  green: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+  amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+  blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+  red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+};
+
+const TREND_COLORS = {
+  up: 'text-emerald-600 dark:text-emerald-400',
+  down: 'text-red-600 dark:text-red-400',
+  neutral: 'text-surface-500 dark:text-surface-400',
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
 
 /**
- * StatCard - Reusable metric card component with optional animation
- * Follows industrial control room aesthetic with monospace numerals
+ * Animated counter for numeric values
  */
-const StatCard = memo(function StatCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  animated = true,
-  className = '',
-  color = 'copper',
-  delay = 0
-}) {
-  const [displayValue, setDisplayValue] = useState(animated ? 0 : value);
-  const [isVisible, setIsVisible] = useState(false);
+const AnimatedCounter = memo(function AnimatedCounter({ value, duration = 1000 }) {
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    // Stagger animation
-    const visibilityTimer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(visibilityTimer);
-  }, [delay]);
+    if (typeof value !== 'number') return;
 
-  useEffect(() => {
-    if (!animated || typeof value !== 'number') {
-      setDisplayValue(value);
-      return;
-    }
-
-    const duration = 1000;
     const steps = 60;
     const increment = value / steps;
     let current = 0;
@@ -49,31 +51,94 @@ const StatCard = memo(function StatCard({
     }, duration / steps);
 
     return () => clearInterval(timer);
+  }, [value, duration]);
+
+  return <>{displayValue.toLocaleString()}</>;
+});
+
+AnimatedCounter.propTypes = {
+  value: PropTypes.number.isRequired,
+  duration: PropTypes.number,
+};
+
+AnimatedCounter.defaultProps = {
+  duration: 1000,
+};
+
+/**
+ * Icon container with color scheme
+ */
+const IconContainer = memo(function IconContainer({ icon: Icon, color }) {
+  const colorClasses = COLOR_CLASSES[color] || COLOR_CLASSES.copper;
+  
+  return (
+    <div className={`flex-shrink-0 p-2.5 rounded-xl ${colorClasses}`}>
+      <Icon className="w-5 h-5" />
+    </div>
+  );
+});
+
+IconContainer.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  color: PropTypes.oneOf(Object.keys(COLOR_CLASSES)).isRequired,
+};
+
+/**
+ * Trend indicator
+ */
+const TrendIndicator = memo(function TrendIndicator({ trend }) {
+  const colorClass = TREND_COLORS[trend] || TREND_COLORS.neutral;
+  const arrow = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
+
+  return (
+    <p className={`text-xs mt-2 uppercase tracking-wide font-medium ${colorClass}`}>
+      {arrow} {trend}
+    </p>
+  );
+});
+
+TrendIndicator.propTypes = {
+  trend: PropTypes.oneOf(['up', 'down', 'neutral']).isRequired,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * StatCard - Reusable metric card component with optional animation
+ * Follows industrial control room aesthetic with monospace numerals
+ */
+const StatCard = memo(function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  animated = true,
+  className = '',
+  color = 'copper',
+  delay = 0
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const visibilityTimer = setTimeout(() => setIsVisible(true), delay);
+    return () => clearTimeout(visibilityTimer);
+  }, [delay]);
+
+  const formattedValue = useMemo(() => {
+    if (typeof value === 'number') {
+      return animated ? (
+        <AnimatedCounter value={value} />
+      ) : (
+        value.toLocaleString()
+      );
+    }
+    return value;
   }, [value, animated]);
 
-  const getTrendColor = () => {
-    if (trend === 'up') return 'text-emerald-600 dark:text-emerald-400';
-    if (trend === 'down') return 'text-red-600 dark:text-red-400';
-    return 'text-surface-500 dark:text-surface-400';
-  };
-
-  const getColorClasses = () => {
-    const colors = {
-      copper: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-      green: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
-      amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
-      blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-      purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-    };
-    return colors[color] || colors.copper;
-  };
-
-  const formatValue = (val) => {
-    if (typeof val === 'number') {
-      return val.toLocaleString();
-    }
-    return val;
-  };
+  const colorClasses = COLOR_CLASSES[color] || COLOR_CLASSES.copper;
 
   return (
     <div 
@@ -94,7 +159,7 @@ const StatCard = memo(function StatCard({
           {/* Value */}
           <div className="flex items-baseline gap-2 flex-wrap">
             <p className="text-2xl font-mono font-bold tabular-nums text-surface-900 dark:text-surface-100">
-              {formatValue(displayValue)}
+              {formattedValue}
             </p>
             {subtitle && (
               <p className="text-sm text-surface-500 dark:text-surface-400">
@@ -104,24 +169,36 @@ const StatCard = memo(function StatCard({
           </div>
           
           {/* Trend */}
-          {trend && (
-            <p className={`text-xs mt-2 uppercase tracking-wide font-medium ${getTrendColor()}`}>
-              {trend === 'up' && '↑ '}
-              {trend === 'down' && '↓ '}
-              {trend}
-            </p>
-          )}
+          {trend && <TrendIndicator trend={trend} />}
         </div>
         
         {/* Icon */}
-        {Icon && (
-          <div className={`flex-shrink-0 p-2.5 rounded-xl ${getColorClasses()}`}>
-            <Icon className="w-5 h-5" />
-          </div>
-        )}
+        {Icon && <IconContainer icon={Icon} color={color} />}
       </div>
     </div>
   );
 });
+
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  subtitle: PropTypes.string,
+  icon: PropTypes.elementType,
+  trend: PropTypes.oneOf(['up', 'down', 'neutral']),
+  animated: PropTypes.bool,
+  className: PropTypes.string,
+  color: PropTypes.oneOf(Object.keys(COLOR_CLASSES)),
+  delay: PropTypes.number,
+};
+
+StatCard.defaultProps = {
+  subtitle: null,
+  icon: null,
+  trend: null,
+  animated: true,
+  className: '',
+  color: 'copper',
+  delay: 0,
+};
 
 export default StatCard;

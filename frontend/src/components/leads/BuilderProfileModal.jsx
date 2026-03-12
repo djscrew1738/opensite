@@ -44,7 +44,7 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
                     <Building2 className="w-7 h-7 text-white" strokeWidth={2} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-display font-bold text-white">
+                    <h2 className="text-2xl font-bold text-white">
                       {builder.name || builder.company || 'Unknown Builder'}
                     </h2>
                     {builder.company && builder.name && (
@@ -62,22 +62,22 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
               {/* Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 text-center">
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{builder.totalPermits || 0}</p>
-                  <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Total Permits</p>
+                  <p className="text-2xl font-bold text-surface-900 dark:text-surface-100 tabular-nums">{builder.totalPermits || 0}</p>
+                  <p className="text-2xs font-bold uppercase tracking-wider text-surface-500">Total Permits</p>
                 </div>
                 <div className="p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 text-center">
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tabular-nums">{builder.permitsLast30d || 0}</p>
-                  <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Last 30 Days</p>
+                  <p className="text-2xl font-bold text-surface-900 dark:text-surface-100 tabular-nums">{builder.permitsLast30d || 0}</p>
+                  <p className="text-2xs font-bold uppercase tracking-wider text-surface-500">Last 30 Days</p>
                 </div>
                 <div className="p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 text-center">
-                  <p className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
                     {builder.avgProjectCost ? formatCurrency(builder.avgProjectCost) : 'N/A'}
                   </p>
-                  <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Avg Cost</p>
+                  <p className="text-2xs font-bold uppercase tracking-wider text-surface-500">Avg Cost</p>
                 </div>
                 <div className="p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 text-center">
-                  <p className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 capitalize">{builder.activityTrend || 'Unknown'}</p>
-                  <p className="text-2xs font-bold uppercase tracking-wider text-gray-500">Trend</p>
+                  <p className="text-2xl font-bold text-surface-900 dark:text-surface-100 capitalize">{builder.activityTrend || 'Unknown'}</p>
+                  <p className="text-2xs font-bold uppercase tracking-wider text-surface-500">Trend</p>
                 </div>
               </div>
 
@@ -85,26 +85,26 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {builder.phone && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-concrete-50 dark:bg-surface-800">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{builder.phone}</span>
+                    <Phone className="w-4 h-4 text-surface-400" />
+                    <span className="text-sm font-medium text-surface-700 dark:text-surface-300">{builder.phone}</span>
                   </div>
                 )}
                 {builder.email && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-concrete-50 dark:bg-surface-800">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{builder.email}</span>
+                    <Mail className="w-4 h-4 text-surface-400" />
+                    <span className="text-sm font-medium text-surface-700 dark:text-surface-300">{builder.email}</span>
                   </div>
                 )}
                 {builder.website && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-concrete-50 dark:bg-surface-800">
-                    <Globe className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{builder.website}</span>
+                    <Globe className="w-4 h-4 text-surface-400" />
+                    <span className="text-sm font-medium text-surface-700 dark:text-surface-300 truncate">{builder.website}</span>
                   </div>
                 )}
                 {builder.licenseNumber && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-concrete-50 dark:bg-surface-800">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">License: {builder.licenseNumber}</span>
+                    <FileText className="w-4 h-4 text-surface-400" />
+                    <span className="text-sm font-medium text-surface-700 dark:text-surface-300">License: {builder.licenseNumber}</span>
                   </div>
                 )}
               </div>
@@ -131,10 +131,10 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
               {/* Primary Zip Codes */}
               {builder.primaryZipCodes?.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Active Zip Codes</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-2">Active Zip Codes</h3>
                   <div className="flex flex-wrap gap-2">
                     {builder.primaryZipCodes.map(zip => (
-                      <span key={zip} className="px-3 py-1 rounded-lg bg-concrete-100 dark:bg-surface-800 text-xs font-mono font-bold text-gray-700 dark:text-gray-300">
+                      <span key={zip} className="px-3 py-1 rounded-lg bg-concrete-100 dark:bg-surface-800 text-xs font-mono font-bold text-surface-700 dark:text-surface-300">
                         {zip}
                       </span>
                     ))}
@@ -145,7 +145,7 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
               {/* Permit History */}
               {builder.permits?.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-3">
                     Permit History ({builder.permits.length})
                   </h3>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -155,15 +155,15 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
                         onClick={() => onViewPermit?.(p)}
                         className="w-full flex items-center gap-3 p-3 rounded-xl bg-concrete-50 dark:bg-surface-800 hover:bg-concrete-100 dark:hover:bg-surface-700 transition-colors text-left"
                       >
-                        <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                        <FileText className="w-4 h-4 text-surface-400 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{p.address || p.permitType}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate">{p.address || p.permitType}</p>
+                          <p className="text-xs text-surface-500 dark:text-surface-400">
                             {p.city && `${p.city} · `}{formatDate(p.issuedDate)}{p.estimatedCost ? ` · ${formatCurrency(p.estimatedCost)}` : ''}
                           </p>
                         </div>
                         {p.leadScore > 0 && (
-                          <span className="text-sm font-bold font-mono text-gray-600 dark:text-gray-300">{p.leadScore}</span>
+                          <span className="text-sm font-bold font-mono text-surface-600 dark:text-surface-300">{p.leadScore}</span>
                         )}
                       </button>
                     ))}
@@ -179,7 +179,7 @@ export default function BuilderProfileModal({ builderId, onClose, onViewPermit }
           </>
         ) : (
           <div className="p-8 text-center">
-            <p className="text-gray-500">Builder not found</p>
+            <p className="text-surface-500">Builder not found</p>
           </div>
         )}
       </div>

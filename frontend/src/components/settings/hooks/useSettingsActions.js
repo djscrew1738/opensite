@@ -7,37 +7,70 @@ import { useCallback } from 'react';
 import { useSettings } from '../SettingsContext';
 import { api } from '../../../api/client';
 
+// Simple logger for client-side
+const logger = {
+  warn: (...args) => console.warn('[SettingsActions]', ...args),
+  error: (...args) => console.error('[SettingsActions]', ...args),
+};
+
 export function useSettingsActions() {
   const ctx = useSettings();
   const { showToast, refetchSettings, refetchModels, refetchOllama, queryClient } = ctx;
 
   /* ── AI Provider ── */
   const handleSwitchProvider = useCallback(async (provider) => {
+    const previousProvider = ctx.activeProvider;
+    const providerLabels = { 
+      openclaw: 'OpenClaw Gateway', 
+      groq: 'Groq Cloud', 
+      anthropic: 'Anthropic Claude', 
+      openai: 'OpenAI',
+      ollama: 'Ollama Local' 
+    };
+    
+    // Optimistic UI update - immediately show new provider
+    ctx.setActiveProvider(provider);
     ctx.setSwitchingProvider(true);
+    
     try {
-      await api.settings.update({ ai_provider: provider });
-      ctx.setActiveProvider(provider);
-      refetchSettings();
+      // Fire and forget - backend handles the switch asynchronously
+      api.settings.update({ ai_provider: provider }).catch(err => {
+        logger.warn('[settings] Provider switch API call failed:', err.message);
+      });
+      
+      // Immediately refetch models for the new provider
       refetchModels();
       queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
       refetchOllama();
-      const providerLabels = { openclaw: 'OpenClaw Gateway', groq: 'Groq Cloud', anthropic: 'Anthropic Claude', ollama: 'Ollama Local' };
+      
       showToast(`Switched to ${providerLabels[provider] || provider}`);
     } catch (err) {
+      // Rollback on error
+      ctx.setActiveProvider(previousProvider);
       showToast(`Failed to switch: ${err.message}`, 'error');
     } finally {
       ctx.setSwitchingProvider(false);
+      // Background refresh to sync actual state
+      setTimeout(() => refetchSettings(), 100);
     }
   }, [ctx, refetchSettings, refetchModels, refetchOllama, queryClient, showToast]);
 
   const handleSaveAIConfig = useCallback(async () => {
     ctx.setSavingAI(true);
     try {
-      const base = ctx.activeProvider === 'openclaw'
-        ? { openclaw_url: ctx.openclawUrl, openclaw_temperature: String(ctx.openclawTemperature) }
-        : ctx.activeProvider === 'groq'
-        ? { groq_temperature: String(ctx.groqTemperature) }
-        : { ollama_url: ctx.ollamaUrl, ollama_temperature: String(ctx.temperature) };
+      let base = {};
+      if (ctx.activeProvider === 'openclaw') {
+        base = { openclaw_url: ctx.openclawUrl, openclaw_temperature: String(ctx.openclawTemperature) };
+      } else if (ctx.activeProvider === 'groq') {
+        base = { groq_temperature: String(ctx.groqTemperature) };
+      } else if (ctx.activeProvider === 'openai') {
+        base = { openai_temperature: String(ctx.openaiTemperature) };
+      } else if (ctx.activeProvider === 'anthropic') {
+        base = { anthropic_temperature: String(ctx.anthropicTemperature) };
+      } else {
+        base = { ollama_url: ctx.ollamaUrl, ollama_temperature: String(ctx.temperature) };
+      }
+
       await api.settings.update({
         ...base,
         ai_max_tokens: String(ctx.maxTokens),
@@ -92,6 +125,54 @@ export function useSettingsActions() {
     }
   }, [ctx, refetchSettings, showToast]);
 
+  const handleTestOpenai = useCallback(async () => {
+    ctx.setTestingOpenai(true);
+    try {
+      const result = await api.settings.testOpenai(ctx.openaiKey || undefined);
+      if (result.valid) showToast(`OpenAI API valid (${result.modelCount} models available)`);
+      else showToast(result.error || 'Invalid API key', 'error');
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      ctx.setTestingOpenai(false);
+    }
+  }, [ctx, showToast]);
+
+  const handleSaveOpenaiKey = useCallback(async () => {
+    try {
+      await api.settings.update({ openai_api_key: ctx.openaiKey });
+      ctx.setOpenaiKey('');
+      refetchSettings();
+      showToast('OpenAI API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  }, [ctx, refetchSettings, showToast]);
+
+  const handleTestAnthropic = useCallback(async () => {
+    ctx.setTestingAnthropic(true);
+    try {
+      const result = await api.settings.testAnthropic(ctx.anthropicKey || undefined);
+      if (result.valid) showToast('Anthropic API key is valid');
+      else showToast(result.error || 'Invalid API key', 'error');
+    } catch (err) {
+      showToast(`Test failed: ${err.message}`, 'error');
+    } finally {
+      ctx.setTestingAnthropic(false);
+    }
+  }, [ctx, showToast]);
+
+  const handleSaveAnthropicKey = useCallback(async () => {
+    try {
+      await api.settings.update({ anthropic_api_key: ctx.anthropicKey });
+      ctx.setAnthropicKey('');
+      refetchSettings();
+      showToast('Anthropic API key saved');
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    }
+  }, [ctx, refetchSettings, showToast]);
+
   const handleTestOpenClaw = useCallback(async () => {
     ctx.setTestingOpenClaw(true);
     try {
@@ -121,6 +202,7 @@ export function useSettingsActions() {
       ctx.setDefaultModel(modelName);
       const modelKey = ctx.activeProvider === 'groq' ? 'groq_model'
         : ctx.activeProvider === 'anthropic' ? 'anthropic_model'
+        : ctx.activeProvider === 'openai' ? 'openai_model'
         : ctx.activeProvider === 'openclaw' ? 'openclaw_model'
         : 'ollama_model';
       await api.settings.update({ [modelKey]: modelName });
@@ -352,16 +434,6 @@ export function useSettingsActions() {
     catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
   }, [ctx, refetchSettings, showToast]);
 
-  const handleSaveAnthropicKey = useCallback(async () => {
-    try { await api.settings.update({ anthropic_api_key: ctx.anthropicKey }); ctx.setAnthropicKey(''); refetchSettings(); showToast('Anthropic API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  }, [ctx, refetchSettings, showToast]);
-
-  const handleSaveOpenaiKey = useCallback(async () => {
-    try { await api.settings.update({ openai_api_key: ctx.openaiKey }); ctx.setOpenaiKey(''); refetchSettings(); showToast('OpenAI API key saved'); }
-    catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  }, [ctx, refetchSettings, showToast]);
-
   const handleSaveTwilio = useCallback(async () => {
     try {
       const u = {};
@@ -396,20 +468,6 @@ export function useSettingsActions() {
     finally { ctx.setTestingSerper(false); }
   }, [ctx, showToast]);
 
-  const handleTestAnthropic = useCallback(async () => {
-    ctx.setTestingAnthropic(true);
-    try { const r = await api.settings.testAnthropic(ctx.anthropicKey || undefined); if (r.valid) showToast('Anthropic key is valid'); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { ctx.setTestingAnthropic(false); }
-  }, [ctx, showToast]);
-
-  const handleTestOpenai = useCallback(async () => {
-    ctx.setTestingOpenai(true);
-    try { const r = await api.settings.testOpenai(ctx.openaiKey || undefined); if (r.valid) showToast(`OpenAI valid (${r.modelCount} models)`); else showToast(r.error || 'Invalid key', 'error'); }
-    catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
-    finally { ctx.setTestingOpenai(false); }
-  }, [ctx, showToast]);
-
   const handleTestTwilio = useCallback(async () => {
     ctx.setTestingTwilio(true);
     try { const r = await api.settings.testTwilio(ctx.twilioSid || undefined, ctx.twilioToken || undefined); if (r.valid) showToast(`Twilio connected (${r.friendlyName})`); else showToast(r.error || 'Invalid credentials', 'error'); }
@@ -438,6 +496,7 @@ export function useSettingsActions() {
     finally { ctx.setTestingGoogleMaps(false); }
   }, [ctx, showToast]);
 
+  /* ── OAuth ── */
   const handleSaveMicrosoft = useCallback(async () => {
     try {
       const u = {};
@@ -474,6 +533,37 @@ export function useSettingsActions() {
     finally { ctx.setTestingGoogle(false); }
   }, [ctx, showToast]);
 
+  const handleConnectMicrosoft = useCallback(async () => {
+    ctx.setConnectingMicrosoft(true);
+    try {
+      const r = await api.emailAlerts.addAccount('outlook', 'Outlook Account');
+      if (r?.authUrl) window.location.href = r.authUrl;
+      else showToast('Failed to get Microsoft auth URL', 'error');
+    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
+    finally { ctx.setConnectingMicrosoft(false); }
+  }, [ctx, showToast]);
+
+  const handleConnectGoogle = useCallback(async () => {
+    ctx.setConnectingGoogle(true);
+    try {
+      const r = await api.emailAlerts.addAccount('gmail', 'Gmail Account');
+      if (r?.authUrl) window.location.href = r.authUrl;
+      else showToast('Failed to get Google auth URL', 'error');
+    } catch (err) { showToast(`Failed to start OAuth: ${err.message}`, 'error'); }
+    finally { ctx.setConnectingGoogle(false); }
+  }, [ctx, showToast]);
+
+  const handleSaveEmailWatcher = useCallback(async () => {
+    try {
+      await api.settings.update({
+        email_watcher_poll_interval: String(ctx.ewPollInterval),
+        email_watcher_mark_read: String(ctx.ewMarkAsRead),
+      });
+      refetchSettings(); showToast('Email watcher settings saved');
+    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
+  }, [ctx, refetchSettings, showToast]);
+
+  /* ── Telegram ── */
   const handleSaveTelegram = useCallback(async () => {
     try {
       const u = {};
@@ -491,16 +581,6 @@ export function useSettingsActions() {
     catch (err) { showToast(`Test failed: ${err.message}`, 'error'); }
     finally { ctx.setTestingTelegram(false); }
   }, [ctx, showToast]);
-
-  const handleSaveEmailWatcher = useCallback(async () => {
-    try {
-      await api.settings.update({
-        email_watcher_poll_interval: String(ctx.ewPollInterval),
-        email_watcher_mark_read: String(ctx.ewMarkAsRead),
-      });
-      refetchSettings(); showToast('Email watcher settings saved');
-    } catch (err) { showToast(`Failed: ${err.message}`, 'error'); }
-  }, [ctx, refetchSettings, showToast]);
 
   /* ── Performance ── */
   const handleSavePerformance = useCallback(async () => {
@@ -599,6 +679,10 @@ export function useSettingsActions() {
     handleTestOllama,
     handleTestGroq,
     handleSaveGroqKey,
+    handleTestOpenai,
+    handleSaveOpenaiKey,
+    handleTestAnthropic,
+    handleSaveAnthropicKey,
     handleTestOpenClaw,
     handleSaveOpenclawToken,
     handleSetDefaultModel,
@@ -613,15 +697,11 @@ export function useSettingsActions() {
     handleCheckNow,
     handleSaveSerperKey,
     handleSavePlacesKey,
-    handleSaveAnthropicKey,
-    handleSaveOpenaiKey,
     handleSaveTwilio,
     handleSaveSendgridKey,
     handleSaveStripeKey,
     handleSaveGoogleMapsKey,
     handleTestSerper,
-    handleTestAnthropic,
-    handleTestOpenai,
     handleTestTwilio,
     handleTestSendgrid,
     handleTestStripe,
@@ -630,9 +710,11 @@ export function useSettingsActions() {
     handleTestMicrosoft,
     handleSaveGoogle,
     handleTestGoogle,
+    handleConnectMicrosoft,
+    handleConnectGoogle,
+    handleSaveEmailWatcher,
     handleSaveTelegram,
     handleTestTelegram,
-    handleSaveEmailWatcher,
     handleSavePerformance,
     handleApplyTheme,
     handleSaveAppearance,

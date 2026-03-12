@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { colors } from '../../styles/tokens';
 
 /* ═══════════════════════════════════════════════════════════════
    BottomSheet — Job Pulse Design System
@@ -344,12 +345,12 @@ export const BottomSheet = ({
                   background: 'transparent',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                  e.currentTarget.style.color = 'var(--text-primary, #F1F5F9)';
+                  e.currentTarget.style.background = colors.surface.elevated;
+                  e.currentTarget.style.color = colors.text.primary;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--text-muted, #475569)';
+                  e.currentTarget.style.color = colors.text.muted;
                 }}
                 aria-label="Close"
               >

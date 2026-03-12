@@ -15,6 +15,12 @@ import addQuickBooksOperations from './quickbooks.js';
 import addJobOperations from './jobs.js';
 import addDocumentOperations from './documents.js';
 import addFileOperations from './files.js';
+import addScheduleOperations from './schedules.js';
+import addServiceAreaOperations from './service-areas.js';
+import addCanvasOperations from './canvas.js';
+import addBlueprintOperations from './blueprints.js';
+import addDocVaultOperations from './docvault.js';
+import addProposalOperations from './proposals.js';
 import logger from '../logger.js';
 
 // Determine which service to use
@@ -56,6 +62,12 @@ addQuickBooksOperations(DatabaseService);
 addJobOperations(DatabaseService);
 addDocumentOperations(DatabaseService);
 addFileOperations(DatabaseService);
+addScheduleOperations(DatabaseService);
+addServiceAreaOperations(DatabaseService);
+addCanvasOperations(DatabaseService);
+addBlueprintOperations(DatabaseService);
+addDocVaultOperations(DatabaseService);
+addProposalOperations(DatabaseService);
 
 // Create and export singleton instance
 let db;

@@ -22,6 +22,7 @@ export { useBulkSelect } from './useBulkSelect';
 export { useFormPersistence } from './useFormPersistence';
 export { useLeadScoring } from './useLeadScoring';
 export { useModelPreference } from './useModelPreference';
+export { usePersistentMemory, MAX_SYSTEM_PROMPT } from './usePersistentMemory';
 export { useOllama } from './useOllama';
 export { useSorting } from './useSorting';
 export { useStreamingResponse } from './useStreamingResponse';
@@ -81,6 +82,19 @@ export {
   useInfiniteVirtualizedList,
 } from './useVirtualizedList';
 export {
+  useVirtualList,
+  useWindowVirtualList,
+} from './useVirtualList';
+export {
+  useServiceWorker,
+  registerServiceWorker,
+  unregisterServiceWorker,
+  skipWaiting,
+  clearCaches,
+  isOffline,
+  listenForConnectivityChanges,
+} from '../utils/serviceWorker';
+export {
   useHydration,
   useIsClient,
   useHydrationSafe,
@@ -98,3 +112,10 @@ export { usePageHeader, PageHeaderContext } from './usePageHeader';
 export { useFocusTrap } from './useFocusTrap';
 export { useScrollLock, useBodyScrollLock } from './useScrollLock';
 export { useSwipe, useSwipeable } from './useSwipe';
+
+// Knowledge Vault & Semantic Search
+export {
+  useSemanticSearch,
+  useDebouncedSemanticSearch,
+  useKnowledgeBase,
+} from './useSemanticSearch';

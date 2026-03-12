@@ -40,6 +40,7 @@ export const colors = {
     amber:    '#F59E0B',
     red:      '#EF4444',
     purple:   '#8B5CF6',
+    pink:     '#EC4899',
   },
 
   // ── Phase Colors ───────────────────────────────

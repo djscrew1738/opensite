@@ -34,6 +34,26 @@
             "date": 1772178674444,
             "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-27.log",
             "hash": "1d59e7575525a4ede3592182ac1fc9a3d9ecbf9d3cd713138f8481144fb228f6"
+        },
+        {
+            "date": 1772260403674,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-02-28.log",
+            "hash": "dacff3b2f50b229acf72a54120301138489927cc1579af97155fae4bedb55740"
+        },
+        {
+            "date": 1772323877358,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-03-01.log",
+            "hash": "cf9e60fca6a1f51fba4c4007c5d077e722322129159710512fb29204f2694810"
+        },
+        {
+            "date": 1772429344621,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-03-02.log",
+            "hash": "13f7643afcd3dfb5e458127b2acb69d79781970e156f82c30b2df179d4f3e5c7"
+        },
+        {
+            "date": 1772549765997,
+            "name": "/home/djscrew/opensite/tool/logs/exceptions-2026-03-03.log",
+            "hash": "06c53bf2d74bdc06b34074dae381e3f6be1bf3074029812ae2b916156fad9b3d"
         }
     ],
     "hashType": "sha256"

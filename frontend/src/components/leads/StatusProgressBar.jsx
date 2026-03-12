@@ -31,8 +31,8 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
                 : isCurrent
                   ? 'bg-blue-100 dark:bg-copper-950/30 text-blue-700 dark:text-blue-400 ring-1 ring-blue-300 dark:ring-blue-700'
                   : canClick
-                    ? 'bg-concrete-100 dark:bg-surface-800 text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-copper-950/20 hover:text-blue-600 cursor-pointer'
-                    : 'bg-concrete-50 dark:bg-surface-800/50 text-gray-300 dark:text-gray-600 cursor-default'
+                    ? 'bg-concrete-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 hover:bg-blue-50 dark:hover:bg-copper-950/20 hover:text-blue-600 cursor-pointer'
+                    : 'bg-concrete-50 dark:bg-surface-800/50 text-surface-300 dark:text-surface-600 cursor-default'
               }
             `}
             title={canClick ? `Advance to ${step.label}` : step.label}

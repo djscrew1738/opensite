@@ -14,98 +14,94 @@ router.use(authenticateToken);
 
 /**
  * Sanitize a CSV cell value to prevent formula injection
- * Prefixes cells starting with =, +, -, or @ with a single quote
- * Does not modify numeric values
- * @param {any} value - The cell value to sanitize
- * @returns {string} - Sanitized cell value
  */
 function sanitizeCsvCell(value) {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  
-  // Don't modify numbers
-  if (typeof value === 'number') {
-    return String(value);
-  }
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return String(value);
   
   const strValue = String(value);
-  
-  // Prefix formula-triggering characters with single quote
-  if (/^[\+\-=\@\t\r\n]/.test(strValue)) {
-    return "'" + strValue;
-  }
-  
+  if (/^[\+\-=\@\t\r\n]/.test(strValue)) return "'" + strValue;
   return strValue;
 }
 
 // ==================== Materials ====================
 
-// Get all materials (with advanced filtering and pagination)
+/**
+ * GET /takeoff/materials - List materials with advanced filtering
+ */
 router.get('/materials', tryCatch(async (req, res) => {
   const { category, search, supplier, minPrice, maxPrice, favorites, recentlyUsed, sort } = req.query;
   const { page, limit, offset } = parsePagination(req.query, { limit: 100 });
 
-  // Use advanced search if any extended filters are present
-  if (supplier || minPrice || maxPrice || favorites || recentlyUsed || sort) {
-    const allMaterials = await db.searchMaterials({
-      category, search, supplier,
-      minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
-      maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
-      favorites: favorites === 'true' || favorites === '1',
-      recentlyUsed: recentlyUsed === 'true' || recentlyUsed === '1',
-      sort
-    });
-    const total = allMaterials.length;
-    const materials = allMaterials.slice(offset, offset + limit);
-    return res.success({ materials, total }, null, paginationMeta(page, limit, total));
-  }
+  // Use advanced search
+  const allMaterials = await db.searchMaterials({
+    category, search, supplier,
+    minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
+    maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
+    favorites: favorites === 'true' || favorites === '1',
+    recentlyUsed: recentlyUsed === 'true' || recentlyUsed === '1',
+    sort
+  });
 
-  const allMaterials = await db.getAllMaterials({ category, search });
   const total = allMaterials.length;
   const materials = allMaterials.slice(offset, offset + limit);
+  
   res.success({ materials, total }, null, paginationMeta(page, limit, total));
 }));
 
-// Get material categories
+/**
+ * GET /takeoff/materials/categories - List unique categories
+ */
 router.get('/materials/categories', tryCatch(async (req, res) => {
   const categories = await db.getMaterialCategories();
   res.success({ categories });
 }));
 
-// Get material suppliers
+/**
+ * GET /takeoff/materials/suppliers - List unique suppliers
+ */
 router.get('/materials/suppliers', tryCatch(async (req, res) => {
   const suppliers = await db.getMaterialSuppliers();
   res.success({ suppliers });
 }));
 
-// Get material stats / analytics
+/**
+ * GET /takeoff/materials/stats - Material analytics
+ */
 router.get('/materials/stats', tryCatch(async (req, res) => {
   const stats = await db.getMaterialStats();
   res.success(stats);
 }));
 
-// Get favorite materials
+/**
+ * GET /takeoff/materials/favorites - Get favorite materials
+ */
 router.get('/materials/favorites', tryCatch(async (req, res) => {
   const materials = await db.getFavoriteMaterials();
   res.success({ materials, total: materials.length });
 }));
 
-// Get recently used materials
+/**
+ * GET /takeoff/materials/recent - Recently used materials
+ */
 router.get('/materials/recent', tryCatch(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const materials = await db.getRecentlyUsedMaterials(limit);
   res.success({ materials, total: materials.length });
 }));
 
-// Get most used materials
+/**
+ * GET /takeoff/materials/most-used - Popular materials
+ */
 router.get('/materials/most-used', tryCatch(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const materials = await db.getMostUsedMaterials(limit);
   res.success({ materials, total: materials.length });
 }));
 
-// Export materials as CSV
+/**
+ * GET /takeoff/materials/export/csv - Export catalog
+ */
 router.get('/materials/export/csv', tryCatch(async (req, res) => {
   const { category } = req.query;
   const materials = await db.getAllMaterials({ category });
@@ -115,12 +111,12 @@ router.get('/materials/export/csv', tryCatch(async (req, res) => {
     sanitizeCsvCell(m.name),
     sanitizeCsvCell(m.category),
     sanitizeCsvCell(m.unit),
-    m.unitCost, // numeric, no sanitization needed
+    m.unitCost,
     sanitizeCsvCell(m.supplier),
     sanitizeCsvCell(m.partNumber),
     sanitizeCsvCell(m.description),
     sanitizeCsvCell(m.notes),
-    m.markup || 0 // numeric, no sanitization needed
+    m.markup || 0
   ]);
 
   const csvContent = [header, ...rows]
@@ -132,7 +128,9 @@ router.get('/materials/export/csv', tryCatch(async (req, res) => {
   res.send(csvContent);
 }));
 
-// Bulk import materials
+/**
+ * POST /takeoff/materials/import - Bulk import
+ */
 router.post('/materials/import', tryCatch(async (req, res) => {
   const { materials: items } = req.body;
 
@@ -140,334 +138,239 @@ router.post('/materials/import', tryCatch(async (req, res) => {
     return res.error('Materials array is required', 'VALIDATION_ERROR', null, 400);
   }
 
-  // Validate each item
-  const errors = [];
-  items.forEach((item, index) => {
-    if (!item.name) errors.push(`Row ${index + 1}: name is required`);
-  });
-
-  if (errors.length > 0) {
-    return res.error('Validation errors in import data', 'VALIDATION_ERROR', { errors }, 400);
-  }
-
   const created = await db.bulkCreateMaterials(items);
   logger.info('Materials bulk imported', { count: created.length });
-  res.success({ materials: created, imported: created.length }, `${created.length} materials imported successfully`);
+  res.success({ materials: created, imported: created.length }, `${created.length} materials imported`);
 }));
 
-// Bulk delete materials
+/**
+ * POST /takeoff/materials/bulk-delete - Bulk delete
+ */
 router.post('/materials/bulk-delete', tryCatch(async (req, res) => {
   const { ids } = req.body;
-
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.error('Material IDs array is required', 'VALIDATION_ERROR', null, 400);
   }
 
   const deleted = await db.bulkDeleteMaterials(ids);
-  logger.info('Materials bulk deleted', { count: deleted, ids });
   res.success({ deleted }, `${deleted} materials deleted`);
 }));
 
-// Bulk price update
+/**
+ * POST /takeoff/materials/bulk-price-update - Global price adjustment
+ */
 router.post('/materials/bulk-price-update', tryCatch(async (req, res) => {
   const { ids, percentageChange } = req.body;
 
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.error('Material IDs array is required', 'VALIDATION_ERROR', null, 400);
-  }
-  if (percentageChange === undefined || percentageChange === null) {
-    return res.error('Percentage change is required', 'VALIDATION_ERROR', null, 400);
+  if (!Array.isArray(ids) || ids.length === 0 || percentageChange === undefined) {
+    return res.error('IDs and percentageChange are required', 'VALIDATION_ERROR', null, 400);
   }
 
   const changes = await db.bulkUpdatePrices(ids, Number(percentageChange));
-  logger.info('Materials bulk price update', { count: changes.length, percentageChange });
   res.success({ changes, updated: changes.length }, `${changes.length} material prices updated`);
 }));
 
-// Get single material
+/**
+ * GET /takeoff/materials/:id - Get single material
+ */
 router.get('/materials/:id', tryCatch(async (req, res) => {
   const material = await db.getMaterial(req.params.id);
-  if (!material) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
+  if (!material) return res.error('Material not found', 'NOT_FOUND', null, 404);
   res.success(material);
 }));
 
-// Get price history for a material
+/**
+ * GET /takeoff/materials/:id/price-history - History of price changes
+ */
 router.get('/materials/:id/price-history', tryCatch(async (req, res) => {
-  const material = await db.getMaterial(req.params.id);
-  if (!material) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
   const limit = Number(req.query.limit) || 50;
   const history = await db.getPriceHistory(req.params.id, limit);
   res.success({ history, total: history.length });
 }));
 
-// Create material
+/**
+ * POST /takeoff/materials - Create material
+ */
 router.post('/materials', tryCatch(async (req, res) => {
-  const { name, category, unit, unitCost, supplier, partNumber, description, notes, markup } = req.body;
-
+  const { name, category, unit } = req.body;
   if (!name || !category || !unit) {
     return res.error('Name, category, and unit are required', 'VALIDATION_ERROR', null, 400);
   }
 
-  const material = await db.createMaterial({
-    name, category, unit,
-    unitCost: Number(unitCost) || 0,
-    supplier, partNumber, description, notes,
-    markup: Number(markup) || 0
-  });
-
-  logger.info('Material created', { id: material.id, name });
+  const material = await db.createMaterial(req.body);
   res.success(material, 'Material created successfully');
 }));
 
-// Duplicate a material
+/**
+ * POST /takeoff/materials/:id/duplicate - Clone material
+ */
 router.post('/materials/:id/duplicate', tryCatch(async (req, res) => {
   const material = await db.duplicateMaterial(req.params.id);
-  if (!material) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
-  logger.info('Material duplicated', { originalId: req.params.id, newId: material.id });
-  res.success(material, 'Material duplicated successfully');
+  if (!material) return res.error('Material not found', 'NOT_FOUND', null, 404);
+  res.success(material, 'Material duplicated');
 }));
 
-// Toggle material favorite
+/**
+ * POST /takeoff/materials/:id/favorite - Toggle favorite
+ */
 router.post('/materials/:id/favorite', tryCatch(async (req, res) => {
   const material = await db.toggleMaterialFavorite(req.params.id);
-  if (!material) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
-  res.success(material, material.isFavorite ? 'Added to favorites' : 'Removed from favorites');
+  if (!material) return res.error('Material not found', 'NOT_FOUND', null, 404);
+  res.success(material);
 }));
 
-// Update material
+/**
+ * PUT /takeoff/materials/:id - Update material
+ */
 router.put('/materials/:id', tryCatch(async (req, res) => {
   const material = await db.updateMaterial(req.params.id, req.body);
-  if (!material) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
-  res.success(material, 'Material updated successfully');
+  if (!material) return res.error('Material not found', 'NOT_FOUND', null, 404);
+  res.success(material);
 }));
 
-// Delete material
+/**
+ * DELETE /takeoff/materials/:id - Delete material
+ */
 router.delete('/materials/:id', tryCatch(async (req, res) => {
   const deleted = await db.deleteMaterial(req.params.id);
-  if (!deleted) {
-    return res.error('Material not found', 'NOT_FOUND', null, 404);
-  }
-  res.success({ id: req.params.id }, 'Material deleted successfully');
+  if (!deleted) return res.error('Material not found', 'NOT_FOUND', null, 404);
+  res.success({ id: req.params.id }, 'Material deleted');
 }));
 
 // ==================== Takeoffs ====================
 
-// Get all takeoffs
+/**
+ * GET /takeoff - List takeoffs
+ */
 router.get('/', tryCatch(async (req, res) => {
   const { status, blueprintId } = req.query;
   const takeoffs = await db.getAllTakeoffs({ status, blueprintId, userId: req.user.id });
   res.success({ takeoffs, total: takeoffs.length });
 }));
 
-// Get single takeoff with items
+/**
+ * GET /takeoff/:id - Get takeoff with items
+ */
 router.get('/:id', tryCatch(async (req, res) => {
   const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security: Check if takeoff belongs to user
-  /* Ownership check disabled for company-wide access */
+  if (!takeoff) return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
 
   const items = await db.getTakeoffItems(req.params.id);
   res.success({ ...takeoff, items });
 }));
 
-// Create takeoff
+/**
+ * POST /takeoff - Create takeoff
+ */
 router.post('/', tryCatch(async (req, res) => {
-  const { name, blueprintId, projectId, notes } = req.body;
+  const { name } = req.body;
+  if (!name) return res.error('Name is required', 'VALIDATION_ERROR', null, 400);
 
-  if (!name) {
-    return res.error('Name is required', 'VALIDATION_ERROR', null, 400);
-  }
-
-  const takeoff = await db.createTakeoff({ 
-    name, 
-    blueprintId, 
-    projectId, 
-    notes,
-    userId: req.user.id 
-  });
-  logger.info('Takeoff created', { id: takeoff.id, name, userId: req.user.id });
-  res.success(takeoff, 'Takeoff created successfully');
+  const takeoff = await db.createTakeoff({ ...req.body, userId: req.user.id });
+  res.success(takeoff, 'Takeoff created');
 }));
 
-// Update takeoff (measurements, canvas data, scale, etc.)
+/**
+ * PUT /takeoff/:id - Update takeoff
+ */
 router.put('/:id', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security: Check if takeoff belongs to user
-  /* Ownership check disabled for company-wide access */
-
-  const updatedTakeoff = await db.updateTakeoff(req.params.id, req.body);
-  res.success(updatedTakeoff, 'Takeoff updated successfully');
+  const takeoff = await db.updateTakeoff(req.params.id, req.body);
+  if (!takeoff) return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
+  res.success(takeoff);
 }));
 
-// Delete takeoff
+/**
+ * DELETE /takeoff/:id - Delete takeoff
+ */
 router.delete('/:id', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security: Check if takeoff belongs to user
-  /* Ownership check disabled for company-wide access */
-
   const deleted = await db.deleteTakeoff(req.params.id);
-  res.success({ id: req.params.id }, 'Takeoff deleted successfully');
+  if (!deleted) return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
+  res.success({ id: req.params.id });
 }));
 
 // ==================== Takeoff Items ====================
 
-// Get items for a takeoff
+/**
+ * GET /takeoff/:id/items - List items for takeoff
+ */
 router.get('/:id/items', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security check
-  /* Ownership check disabled for company-wide access */
-
   const items = await db.getTakeoffItems(req.params.id);
   res.success({ items, total: items.length });
 }));
 
-// Add item to takeoff
+/**
+ * POST /takeoff/:id/items - Add item to takeoff
+ */
 router.post('/:id/items', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
+  const { materialId, measurementType, quantity, unitCost, unit } = req.body;
+  if (!measurementType) return res.error('Measurement type required', 'VALIDATION_ERROR', null, 400);
 
-  // Security check
-  /* Ownership check disabled for company-wide access */
-
-  const { materialId, measurementType, label, quantity, unit, unitCost, measurementData, notes } = req.body;
-
-  if (!measurementType) {
-    return res.error('Measurement type is required', 'VALIDATION_ERROR', null, 400);
-  }
-
-  // If materialId provided, look up unit cost from material
-  let resolvedUnitCost = Number(unitCost) || 0;
+  let resolvedCost = Number(unitCost) || 0;
   let resolvedUnit = unit || '';
+  
   if (materialId) {
     const material = await db.getMaterial(materialId);
     if (material) {
-      resolvedUnitCost = resolvedUnitCost || material.unitCost;
+      resolvedCost = resolvedCost || material.unitCost;
       resolvedUnit = resolvedUnit || material.unit;
     }
   }
 
   const qty = Number(quantity) || 0;
   const item = await db.createTakeoffItem({
+    ...req.body,
     takeoffId: req.params.id,
-    materialId,
-    measurementType,
-    label,
     quantity: qty,
     unit: resolvedUnit,
-    unitCost: resolvedUnitCost,
-    totalCost: qty * resolvedUnitCost,
-    measurementData,
-    notes
+    unitCost: resolvedCost,
+    totalCost: qty * resolvedCost
   });
 
-  // Track material usage
-  if (materialId) {
-    await db.incrementMaterialUsage(materialId);
-  }
-
-  logger.info('Takeoff item added', { takeoffId: req.params.id, itemId: item.id });
-  res.success(item, 'Item added to takeoff');
+  if (materialId) await db.incrementMaterialUsage(materialId);
+  res.success(item, 'Item added');
 }));
 
-// Update takeoff item
+/**
+ * PUT /takeoff/:takeoffId/items/:itemId - Update item
+ */
 router.put('/:takeoffId/items/:itemId', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.takeoffId);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security check
-  /* Ownership check disabled for company-wide access */
-
-  const { quantity, unitCost, ...rest } = req.body;
-  const qty = quantity !== undefined ? Number(quantity) : undefined;
-  const cost = unitCost !== undefined ? Number(unitCost) : undefined;
-
-  const updateData = { ...rest };
-  if (qty !== undefined) updateData.quantity = qty;
-  if (cost !== undefined) updateData.unitCost = cost;
-  if (qty !== undefined || cost !== undefined) {
+  const { quantity, unitCost } = req.body;
+  const updateData = { ...req.body };
+  
+  if (quantity !== undefined || unitCost !== undefined) {
     const existing = await db.getTakeoffItem(req.params.itemId);
-    const finalQty = qty !== undefined ? qty : existing.quantity;
-    const finalCost = cost !== undefined ? cost : existing.unitCost;
+    if (!existing) return res.error('Item not found', 'NOT_FOUND', null, 404);
+    
+    const finalQty = quantity !== undefined ? Number(quantity) : existing.quantity;
+    const finalCost = unitCost !== undefined ? Number(unitCost) : existing.unitCost;
     updateData.totalCost = finalQty * finalCost;
   }
 
   const item = await db.updateTakeoffItem(req.params.itemId, updateData);
-  if (!item) {
-    return res.error('Item not found', 'NOT_FOUND', null, 404);
-  }
-  res.success(item, 'Item updated');
+  if (!item) return res.error('Item not found', 'NOT_FOUND', null, 404);
+  res.success(item);
 }));
 
-// Delete takeoff item
+/**
+ * DELETE /takeoff/:takeoffId/items/:itemId - Remove item
+ */
 router.delete('/:takeoffId/items/:itemId', tryCatch(async (req, res) => {
-  const takeoff = await db.getTakeoff(req.params.takeoffId);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security check
-  /* Ownership check disabled for company-wide access */
-
   const deleted = await db.deleteTakeoffItem(req.params.itemId);
-  if (!deleted) {
-    return res.error('Item not found', 'NOT_FOUND', null, 404);
-  }
-  res.success({ id: req.params.itemId }, 'Item deleted');
+  if (!deleted) return res.error('Item not found', 'NOT_FOUND', null, 404);
+  res.success({ id: req.params.itemId });
 }));
 
-// ==================== Report Generation ====================
+// ==================== Reports ====================
 
-// Generate takeoff summary report
+/**
+ * GET /takeoff/:id/summary - Report summary
+ */
 router.get('/:id/summary', tryCatch(async (req, res) => {
   const takeoff = await db.getTakeoff(req.params.id);
-  if (!takeoff) {
-    return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
-  }
-
-  // Security check
-  /* Ownership check disabled for company-wide access */
-
+  if (!takeoff) return res.error('Takeoff not found', 'NOT_FOUND', null, 404);
+  
   const summary = await db.generateTakeoffSummary(req.params.id);
-  res.success({
-    takeoff: {
-      id: takeoff.id,
-      name: takeoff.name,
-      status: takeoff.status,
-      createdAt: takeoff.createdAt,
-      updatedAt: takeoff.updatedAt
-    },
-    ...summary
-  });
+  res.success({ takeoff, ...summary });
 }));
 
 export default router;
-

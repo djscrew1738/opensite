@@ -120,7 +120,7 @@ export default function Vision() {
             <div className="w-8 h-8 rounded-lg bg-accent-50 dark:bg-accent-900/20 flex items-center justify-center">
               <ScanEye className="w-4 h-4 text-accent-600" />
             </div>
-            <h2 className="text-base font-display font-bold text-surface-900 dark:text-surface-100">
+            <h2 className="text-base font-bold text-surface-900 dark:text-surface-100">
               Vision
             </h2>
           </div>
@@ -221,11 +221,11 @@ export default function Vision() {
                     {p.name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-surface-400 dark:text-surface-500 uppercase font-medium">
+                    <span className="text-xs text-surface-400 dark:text-surface-500 uppercase font-medium">
                       {p.fileType}
                     </span>
                     {p.width && p.height && (
-                      <span className="text-[10px] text-surface-400 dark:text-surface-500 font-mono">
+                      <span className="text-xs text-surface-400 dark:text-surface-500 font-mono">
                         {formatDimensions(p.width, p.height)}
                       </span>
                     )}

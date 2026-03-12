@@ -86,7 +86,7 @@ export default function VisionUpload({ onProjectCreated }) {
           transition-all duration-300
           ${dragDrop.isDragging
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10 scale-[1.02]'
-            : 'border-surface-300 dark:border-gray-600 hover:border-primary-400 hover:bg-surface-50 dark:hover:bg-gray-800/50'
+            : 'border-surface-300 dark:border-surface-600 hover:border-primary-400 hover:bg-surface-50 dark:hover:bg-surface-800/50'
           }
           ${isProcessing ? 'pointer-events-none' : ''}
         `}
@@ -110,7 +110,7 @@ export default function VisionUpload({ onProjectCreated }) {
                 {upload.progress}% complete
               </p>
             </div>
-            <div className="w-full bg-surface-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
               <div
                 className="h-full bg-primary-500 rounded-full transition-all duration-500"
                 style={{ width: `${upload.progress}%` }}
@@ -119,7 +119,7 @@ export default function VisionUpload({ onProjectCreated }) {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-surface-100 dark:bg-gray-800 flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-surface-100 dark:bg-surface-800 flex items-center justify-center mx-auto">
               <FileImage className="w-8 h-8 text-surface-400" />
             </div>
             <div>

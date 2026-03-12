@@ -2,9 +2,11 @@
  * HeroUpload Component
  * The centerpiece upload zone for blueprint analysis
  * Fully automated - no manual input required
+ * 
+ * @module components/upload/HeroUpload
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, FileText, X, CheckCircle, Sparkles,
@@ -13,14 +15,38 @@ import {
 import { useDragDrop, useFileInput } from '../../hooks/upload/useDragDrop';
 import { formatFileSize, validateFile, EXTENSION_SETS, MAX_FILE_SIZE } from './utils';
 import { CompactErrorDisplay } from './ErrorDisplay';
+import { colors } from '../../styles/tokens';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 const HERO_ACCEPTED_EXTENSIONS = new Set(['pdf', 'dwg', 'dxf']);
 const ACCEPT_INPUT = '.pdf,.dwg,.dxf';
 
+const STAGES = ['Upload', 'Extract', 'Analyze', 'Estimate'];
+
+const FEATURES = [
+  { icon: Zap, label: 'Instant Detection', value: '15+ fixture types', color: colors.warning.DEFAULT },
+  { icon: FileUp, label: 'Auto Extraction', value: 'PDF/DWG/DXF', color: colors.accent.DEFAULT },
+  { icon: Layers, label: 'Material Takeoff', value: 'Full BOM', color: colors.accent.purple },
+  { icon: Box, label: '3-Tier Estimates', value: 'Production to Premium', color: colors.success.DEFAULT },
+];
+
+const FILE_TYPES = [
+  { icon: FileText, label: 'PDF', color: colors.danger.DEFAULT },
+  { icon: Layers, label: 'DWG', color: colors.warning.DEFAULT },
+  { icon: Box, label: 'DXF', color: colors.info.DEFAULT },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
 /**
- * ProcessingView - Shows AI analysis progress
+ * Processing view with AI analysis progress
  */
-function ProcessingView({ progress }) {
+const ProcessingView = memo(function ProcessingView({ progress }) {
   const getStageMessage = () => {
     if (progress.percent < 30) return 'Uploading your blueprint to secure servers...';
     if (progress.percent < 50) return 'Reading PDF structure and extracting text layers...';
@@ -28,27 +54,33 @@ function ProcessingView({ progress }) {
     return 'Calculating material costs and labor estimates...';
   };
 
-  const stages = ['Upload', 'Extract', 'Analyze', 'Estimate'];
-
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-[#111318] border border-[#1F2430]">
+    <div 
+      className="relative overflow-hidden rounded-3xl"
+      style={{ backgroundColor: colors.surface.card, border: `1px solid ${colors.border.default}` }}
+    >
       {/* Animated background */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-transparent" />
+        <div 
+          className="absolute inset-0"
+          style={{ background: `linear-gradient(to bottom right, ${colors.accent.muted}, transparent)` }}
+        />
         
         {/* Scanning line animation */}
         <motion.div
-          className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+          className="absolute left-0 right-0 h-0.5"
+          style={{ background: `linear-gradient(to right, transparent, ${colors.accent.DEFAULT}, transparent)` }}
           animate={{ top: ['0%', '100%', '0%'] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
         />
         
         {/* Grid pattern */}
         <div 
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)`,
+            opacity: 0.02,
+            backgroundImage: `linear-gradient(${colors.accent.DEFAULT}80 1px, transparent 1px),
+                             linear-gradient(90deg, ${colors.accent.DEFAULT}80 1px, transparent 1px)`,
             backgroundSize: '40px 40px',
           }}
         />
@@ -58,16 +90,21 @@ function ProcessingView({ progress }) {
         {/* Animated icon */}
         <div className="w-24 h-24 mx-auto mb-6 relative">
           <motion.div 
-            className="absolute inset-0 rounded-2xl bg-blue-500/20"
+            className="absolute inset-0 rounded-2xl"
+            style={{ backgroundColor: colors.accent.muted }}
             animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
           <motion.div 
-            className="absolute inset-0 rounded-2xl bg-purple-500/20"
+            className="absolute inset-0 rounded-2xl"
+            style={{ backgroundColor: `${colors.accent.purple}33` }}
             animate={{ scale: [1.3, 1, 1.3], opacity: [0, 0.3, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
-          <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <div 
+            className="relative w-full h-full rounded-2xl flex items-center justify-center"
+            style={{ background: `linear-gradient(to bottom right, ${colors.accent.DEFAULT}, ${colors.accent.purple})` }}
+          >
             <Sparkles className="w-10 h-10 text-white" />
           </div>
         </div>
@@ -81,7 +118,8 @@ function ProcessingView({ progress }) {
         </motion.h3>
         
         <motion.p 
-          className="text-[#94A3B8] mb-8 max-w-md mx-auto"
+          className="mb-8 max-w-md mx-auto"
+          style={{ color: colors.text.secondary }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
@@ -96,26 +134,33 @@ function ProcessingView({ progress }) {
               key={progress.stage}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-blue-400 font-medium"
+              className="font-medium"
+              style={{ color: colors.accent.light }}
             >
               {progress.stage}
             </motion.span>
             <span className="text-white font-bold">{progress.percent}%</span>
           </div>
           
-          <div className="h-3 bg-[#1F2430] rounded-full overflow-hidden">
+          <div 
+            className="h-3 rounded-full overflow-hidden"
+            style={{ backgroundColor: colors.border.default }}
+          >
             <motion.div 
-              className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-full"
+              className="h-full rounded-full"
+              style={{ 
+                background: `linear-gradient(to right, ${colors.accent.DEFAULT}, ${colors.accent.purple}, ${colors.accent.DEFAULT})`,
+                backgroundSize: '200% 100%',
+              }}
               initial={{ width: 0 }}
               animate={{ width: `${progress.percent}%` }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
-              style={{ backgroundSize: '200% 100%' }}
             />
           </div>
           
           {/* Stage indicators */}
           <div className="flex justify-between mt-4">
-            {stages.map((stage, idx) => {
+            {STAGES.map((stage, idx) => {
               const stagePercent = (idx + 1) * 25;
               const isComplete = progress.percent >= stagePercent;
               const isCurrent = progress.percent >= (idx * 25) && progress.percent < stagePercent;
@@ -123,16 +168,21 @@ function ProcessingView({ progress }) {
               return (
                 <div key={stage} className="flex flex-col items-center">
                   <motion.div 
-                    className={`w-3 h-3 rounded-full mb-1 ${
-                      isComplete ? 'bg-green-500' : 
-                      isCurrent ? 'bg-blue-500' : 'bg-[#2D3548]'
-                    }`}
+                    className="w-3 h-3 rounded-full mb-1"
+                    style={{
+                      backgroundColor: isComplete 
+                        ? colors.success.DEFAULT 
+                        : isCurrent 
+                          ? colors.accent.DEFAULT 
+                          : colors.border.strong,
+                    }}
                     animate={isCurrent ? { scale: [1, 1.2, 1] } : {}}
                     transition={{ duration: 1, repeat: Infinity }}
                   />
-                  <span className={`text-[10px] uppercase tracking-wider ${
-                    isComplete || isCurrent ? 'text-white' : 'text-[#64748B]'
-                  }`}>
+                  <span 
+                    className="text-xs uppercase tracking-wider"
+                    style={{ color: isComplete || isCurrent ? colors.text.primary : colors.text.muted }}
+                  >
                     {stage}
                   </span>
                 </div>
@@ -143,7 +193,8 @@ function ProcessingView({ progress }) {
 
         {/* Fun facts / tips while waiting */}
         <motion.div 
-          className="mt-8 text-sm text-[#64748B]"
+          className="mt-8 text-sm"
+          style={{ color: colors.text.muted }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -153,33 +204,42 @@ function ProcessingView({ progress }) {
       </div>
     </div>
   );
-}
+});
+
+ProcessingView.displayName = 'ProcessingView';
 
 /**
  * Dropzone - Main file drop area
  */
-function Dropzone({ isDragging, onClick, children }) {
+const Dropzone = memo(function Dropzone({ isDragging, onClick, children }) {
   return (
     <motion.div
       onClick={onClick}
       className={`
         relative overflow-hidden rounded-3xl border-2 border-dashed cursor-pointer
         transition-all duration-300 min-h-[420px] flex items-center justify-center
-        ${isDragging 
-          ? 'border-blue-500 bg-blue-500/10 scale-[1.01]' 
-          : 'border-[#2D3548] bg-[#111318] hover:border-[#3B82F6]/50 hover:bg-[#181C24]'
-        }
       `}
+      style={{
+        backgroundColor: isDragging ? colors.accent.muted : colors.surface.card,
+        borderColor: isDragging ? colors.accent.DEFAULT : colors.border.strong,
+        transform: isDragging ? 'scale(1.01)' : 'scale(1)',
+      }}
+      whileHover={{ 
+        borderColor: colors.accent.DEFAULT,
+        backgroundColor: colors.surface.elevated,
+      }}
     >
       {/* Background effects */}
       <div className="absolute inset-0 pointer-events-none">
         <motion.div 
-          className="absolute top-10 left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"
+          className="absolute top-10 left-10 w-40 h-40 rounded-full blur-3xl"
+          style={{ backgroundColor: colors.accent.muted }}
           animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
         <motion.div 
-          className="absolute bottom-10 right-10 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl"
+          className="absolute bottom-10 right-10 w-48 h-48 rounded-full blur-3xl"
+          style={{ backgroundColor: `${colors.accent.purple}1A` }}
           animate={{ scale: [1.2, 1, 1.2], opacity: [0.5, 0.3, 0.5] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
@@ -187,10 +247,11 @@ function Dropzone({ isDragging, onClick, children }) {
 
       {/* Blueprint grid overlay */}
       <div 
-        className="absolute inset-0 opacity-[0.02] pointer-events-none"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(rgba(59,130,246,0.8) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(59,130,246,0.8) 1px, transparent 1px)`,
+          opacity: 0.02,
+          backgroundImage: `linear-gradient(${colors.accent.DEFAULT}CC 1px, transparent 1px),
+                           linear-gradient(90deg, ${colors.accent.DEFAULT}CC 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
         }}
       />
@@ -200,104 +261,134 @@ function Dropzone({ isDragging, onClick, children }) {
       </div>
     </motion.div>
   );
-}
+});
+
+Dropzone.displayName = 'Dropzone';
 
 /**
- * FileTypeBadges - Display accepted file types
+ * File type badges display
  */
-function FileTypeBadges() {
-  const types = [
-    { icon: FileText, label: 'PDF', color: 'text-red-400' },
-    { icon: Layers, label: 'DWG', color: 'text-amber-400' },
-    { icon: Box, label: 'DXF', color: 'text-cyan-400' },
-  ];
-
+const FileTypeBadges = memo(function FileTypeBadges() {
   return (
     <div className="flex items-center justify-center gap-4 mt-8">
-      {types.map((type) => (
+      {FILE_TYPES.map((type) => (
         <div 
           key={type.label}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0A0B0D] border border-[#1F2430]"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+          style={{ 
+            backgroundColor: colors.surface.primary, 
+            border: `1px solid ${colors.border.default}` 
+          }}
         >
-          <type.icon className={`w-4 h-4 ${type.color}`} />
-          <span className="text-[#94A3B8] text-sm">{type.label}</span>
+          <type.icon className="w-4 h-4" style={{ color: type.color }} />
+          <span 
+            className="text-sm"
+            style={{ color: colors.text.secondary }}
+          >
+            {type.label}
+          </span>
         </div>
       ))}
     </div>
   );
-}
+});
+
+FileTypeBadges.displayName = 'FileTypeBadges';
 
 /**
- * UploadIcon - Animated upload icon with floating elements
+ * Animated upload icon with floating elements
  */
-function UploadIcon() {
+const UploadIcon = memo(function UploadIcon() {
   return (
     <motion.div 
-      className="w-32 h-32 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-[#1F2430] to-[#2D3548] 
-               flex items-center justify-center border border-[#2D3548] relative"
+      className="w-32 h-32 mx-auto mb-6 rounded-3xl flex items-center justify-center relative"
+      style={{ 
+        background: `linear-gradient(to bottom right, ${colors.border.default}, ${colors.border.strong})`,
+        border: `1px solid ${colors.border.strong}`,
+      }}
       whileHover={{ scale: 1.05, rotate: 3 }}
       transition={{ type: 'spring', stiffness: 300 }}
     >
-      <Upload className="w-14 h-14 text-blue-400" />
+      <Upload className="w-14 h-14" style={{ color: colors.accent.light }} />
       
       {/* Floating elements */}
       <motion.div
-        className="absolute -top-2 -right-2 w-10 h-10 rounded-xl bg-[#111318] border border-[#2D3548] 
-                 flex items-center justify-center"
+        className="absolute -top-2 -right-2 w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.surface.card, 
+          border: `1px solid ${colors.border.strong}` 
+        }}
         animate={{ y: [0, -5, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
-        <FileText className="w-5 h-5 text-purple-400" />
+        <FileText className="w-5 h-5" style={{ color: colors.accent.purple }} />
       </motion.div>
       <motion.div
-        className="absolute -bottom-2 -left-2 w-10 h-10 rounded-xl bg-[#111318] border border-[#2D3548] 
-                 flex items-center justify-center"
+        className="absolute -bottom-2 -left-2 w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.surface.card, 
+          border: `1px solid ${colors.border.strong}` 
+        }}
         animate={{ y: [0, 5, 0] }}
         transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
       >
-        <Layers className="w-5 h-5 text-green-400" />
+        <Layers className="w-5 h-5" style={{ color: colors.success.DEFAULT }} />
       </motion.div>
     </motion.div>
   );
-}
+});
+
+UploadIcon.displayName = 'UploadIcon';
 
 /**
- * FeatureHighlights - Grid of feature cards
+ * Feature highlights grid
  */
-function FeatureHighlights() {
-  const features = [
-    { icon: Zap, label: 'Instant Detection', value: '15+ fixture types', color: 'yellow' },
-    { icon: FileUp, label: 'Auto Extraction', value: 'PDF/DWG/DXF', color: 'blue' },
-    { icon: Layers, label: 'Material Takeoff', value: 'Full BOM', color: 'purple' },
-    { icon: Box, label: '3-Tier Estimates', value: 'Production to Premium', color: 'green' },
-  ];
-
+const FeatureHighlights = memo(function FeatureHighlights() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {features.map((feature, idx) => (
+      {FEATURES.map((feature, idx) => (
         <motion.div 
           key={idx}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: idx * 0.1 }}
-          className="bg-[#111318]/50 rounded-xl p-4 border border-[#1F2430]/50 text-center
-                   hover:border-[#2D3548] transition-colors"
+          className="rounded-xl p-4 text-center transition-colors"
+          style={{ 
+            backgroundColor: `${colors.surface.card}80`,
+            border: `1px solid ${colors.border.muted}`,
+          }}
+          whileHover={{ borderColor: colors.border.default }}
         >
-          <div className={`w-10 h-10 mx-auto mb-2 rounded-lg bg-${feature.color}-500/10 flex items-center justify-center`}>
-            <feature.icon className={`w-5 h-5 text-${feature.color}-400`} />
+          <div 
+            className="w-10 h-10 mx-auto mb-2 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: `${feature.color}1A` }}
+          >
+            <feature.icon className="w-5 h-5" style={{ color: feature.color }} />
           </div>
-          <p className="text-white font-medium text-sm">{feature.label}</p>
-          <p className="text-[#64748B] text-xs">{feature.value}</p>
+          <p 
+            className="font-medium text-sm"
+            style={{ color: colors.text.primary }}
+          >
+            {feature.label}
+          </p>
+          <p 
+            className="text-xs"
+            style={{ color: colors.text.muted }}
+          >
+            {feature.value}
+          </p>
         </motion.div>
       ))}
     </div>
   );
-}
+});
+
+FeatureHighlights.displayName = 'FeatureHighlights';
 
 /**
- * SelectedFilesList - Shows selected files with actions
+ * Selected files list with actions
  */
-function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
+const SelectedFilesList = memo(function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
   return (
     <AnimatePresence>
       {files.length > 0 && (
@@ -305,13 +396,23 @@ function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="bg-[#111318] rounded-2xl border border-[#1F2430] overflow-hidden"
+          className="rounded-2xl overflow-hidden"
+          style={{ 
+            backgroundColor: colors.surface.card, 
+            border: `1px solid ${colors.border.default}` 
+          }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#1F2430]">
+          <div 
+            className="flex items-center justify-between px-5 py-4"
+            style={{ borderBottom: `1px solid ${colors.border.default}` }}
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="font-semibold text-white">
+              <CheckCircle className="w-5 h-5" style={{ color: colors.success.DEFAULT }} />
+              <span 
+                className="font-semibold"
+                style={{ color: colors.text.primary }}
+              >
                 {files.length} file{files.length > 1 ? 's' : ''} selected
               </span>
             </div>
@@ -320,7 +421,14 @@ function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
                 e.stopPropagation();
                 onClear();
               }}
-              className="text-[#64748B] hover:text-red-400 transition-colors text-sm"
+              className="text-sm transition-colors"
+              style={{ color: colors.text.muted }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = colors.danger.DEFAULT;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = colors.text.muted;
+              }}
             >
               Clear all
             </button>
@@ -334,23 +442,49 @@ function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="flex items-center gap-3 p-3 bg-[#0A0B0D] rounded-xl border border-[#1F2430]/50
-                         hover:border-[#2D3548] transition-colors group"
+                className="flex items-center gap-3 p-3 rounded-xl transition-colors group"
+                style={{ 
+                  backgroundColor: colors.surface.primary,
+                  border: `1px solid ${colors.border.muted}`,
+                }}
+                whileHover={{ borderColor: colors.border.default }}
               >
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-blue-400" />
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: colors.accent.muted }}
+                >
+                  <FileText className="w-5 h-5" style={{ color: colors.accent.light }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate">{file.name}</p>
-                  <p className="text-xs text-[#64748B]">{formatFileSize(file.size)}</p>
+                  <p 
+                    className="font-medium truncate"
+                    style={{ color: colors.text.primary }}
+                  >
+                    {file.name}
+                  </p>
+                  <p 
+                    className="text-xs"
+                    style={{ color: colors.text.muted }}
+                  >
+                    {formatFileSize(file.size)}
+                  </p>
                 </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onRemove(idx);
                   }}
-                  className="p-2 rounded-lg text-[#64748B] hover:text-red-400 hover:bg-red-400/10 
-                           transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                  style={{ color: colors.text.muted }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.danger.muted;
+                    e.currentTarget.style.color = colors.danger.DEFAULT;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = colors.text.muted;
+                  }}
+                  aria-label={`Remove ${file.name}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -359,28 +493,49 @@ function SelectedFilesList({ files, onRemove, onClear, onUpload }) {
           </div>
 
           {/* Action button */}
-          <div className="p-4 border-t border-[#1F2430]">
-            <button
+          <div 
+            className="p-4"
+            style={{ borderTop: `1px solid ${colors.border.default}` }}
+          >
+            <motion.button
               onClick={onUpload}
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 
-                       hover:from-blue-600 hover:to-purple-700 rounded-xl font-bold text-white 
-                       flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 
-                       transition-all hover:shadow-blue-500/40 hover:scale-[1.01]"
+              className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all"
+              style={{ 
+                background: `linear-gradient(to right, ${colors.accent.DEFAULT}, ${colors.accent.purple})`,
+                boxShadow: `0 10px 25px -5px ${colors.accent.glow}`,
+              }}
+              whileHover={{ 
+                scale: 1.01,
+                boxShadow: `0 20px 30px -10px ${colors.accent.glow}`,
+              }}
+              whileTap={{ scale: 0.99 }}
             >
               <Sparkles className="w-5 h-5" />
               Start AI Analysis
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       )}
     </AnimatePresence>
   );
-}
+});
+
+SelectedFilesList.displayName = 'SelectedFilesList';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
 
 /**
- * Main HeroUpload Component
+ * HeroUpload - Main blueprint upload component
+ * 
+ * @param {{
+ *   onUpload: (files: File[]) => void,
+ *   isProcessing: boolean,
+ *   uploadProgress: { stage: string, percent: number }
+ * }} props
  */
-export function HeroUpload({ onUpload, isProcessing, uploadProgress }) {
+const HeroUpload = memo(function HeroUpload({ onUpload, isProcessing, uploadProgress }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [error, setError] = useState(null);
 
@@ -464,13 +619,22 @@ export function HeroUpload({ onUpload, isProcessing, uploadProgress }) {
 
         <UploadIcon />
 
-        <h2 className="text-3xl font-bold text-white mb-3">
+        <h2 
+          className="text-3xl font-bold mb-3"
+          style={{ color: colors.text.primary }}
+        >
           Drop Your Blueprint Here
         </h2>
-        <p className="text-[#94A3B8] text-lg mb-2 max-w-md mx-auto">
+        <p 
+          className="text-lg mb-2 max-w-md mx-auto"
+          style={{ color: colors.text.secondary }}
+        >
           Upload PDF floorplans, architectural drawings, or construction blueprints
         </p>
-        <p className="text-[#64748B] text-sm">
+        <p 
+          className="text-sm"
+          style={{ color: colors.text.muted }}
+        >
           Our AI will automatically extract fixtures, dimensions, and generate estimates
         </p>
 
@@ -489,6 +653,8 @@ export function HeroUpload({ onUpload, isProcessing, uploadProgress }) {
       <FeatureHighlights />
     </div>
   );
-}
+});
+
+HeroUpload.displayName = 'HeroUpload';
 
 export default HeroUpload;

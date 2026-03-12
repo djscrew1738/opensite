@@ -5,6 +5,7 @@
 
 import { db } from './database.js';
 import logger from './logger.js';
+import { sendSystemAlert } from './notifications/index.js';
 
 /**
  * Get orphaned files count and details
@@ -170,20 +171,23 @@ export async function healthCheck() {
 }
 
 /**
- * Send alert for critical issues (placeholder - integrate with notification service)
+ * Send alert for critical issues
  * @param {string} message - Alert message
  * @param {object} details - Additional details
  */
 export async function sendAlert(message, details = {}) {
   logger.error('[ALERT]', { message, ...details });
   
-  // TODO: Integrate with notification service (email, Slack, etc.)
-  // Example:
-  // await notificationService.send({
-  //   type: 'critical',
-  //   message,
-  //   details
-  // });
+  // Send through notification service
+  try {
+    await sendSystemAlert(message, {
+      title: details.title || 'OpenSite System Alert',
+      urgent: details.urgent || false,
+      data: details
+    });
+  } catch (err) {
+    logger.error('[monitoring] Failed to send alert notification:', err.message);
+  }
 }
 
 /**

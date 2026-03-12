@@ -62,7 +62,7 @@ const CityCard = ({ city, stats, onSelect, isSelected }) => {
                 {stats.topBuilders.slice(0, 3).map((builder, i) => (
                   <div 
                     key={i}
-                    className="w-6 h-6 rounded-full bg-surface-600 border-2 border-surface-800 flex items-center justify-center text-[10px] font-bold text-text-secondary"
+                    className="w-6 h-6 rounded-full bg-surface-600 border-2 border-surface-800 flex items-center justify-center text-xs font-bold text-text-secondary"
                     title={builder}
                   >
                     {builder.charAt(0)}

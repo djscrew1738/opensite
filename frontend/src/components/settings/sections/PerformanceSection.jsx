@@ -1,163 +1,129 @@
 /**
  * Performance Section
- * System performance and optimization settings
+ * System optimization and resource management
  */
 
-import { Gauge, Zap, Shield, Clock, Server, MemoryStick, Loader2, Save } from 'lucide-react';
+import { memo } from 'react';
+import { 
+  Gauge, Clock, Zap, Shield, Server, 
+  Save, Loader2, HardDrive, Cpu, Database
+} from 'lucide-react';
 import { useSettings } from '../SettingsContext';
 import { useSettingsActions } from '../hooks/useSettingsActions';
 import { Section, SliderField, SettingsRow, Toggle } from '../primitives';
 
-export default function PerformanceSection() {
+export default memo(function PerformanceSection() {
   const ctx = useSettings();
   const { handleSavePerformance } = useSettingsActions();
-  
-  const {
-    perfCacheTtl, setPerfCacheTtl, perfRateLimit, setPerfRateLimit,
-    perfTimeout, setPerfTimeout, perfCbEnabled, setPerfCbEnabled,
-    perfCbThreshold, setPerfCbThreshold, perfLowMemory, setPerfLowMemory,
-    perfBgJobs, setPerfBgJobs, savingPerformance, metrics
-  } = ctx;
-
-  const circuitBreakerStatus = metrics.circuitBreaker || 'closed';
-  const isHealthy = circuitBreakerStatus === 'closed';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-transition-wrapper">
       <Section 
         icon={Gauge} 
-        title="Performance Settings"
-        badge={
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-            isHealthy 
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            Circuit: {circuitBreakerStatus}
-          </span>
-        }
+        title="Performance & Optimization"
+        description="Fine-tune system resource usage and response times"
       >
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6 mt-4">
+          <div className="grid gap-6 p-5 rounded-2xl bg-surface-elevated border border-border-default">
             <SliderField 
-              label="Cache TTL" 
-              value={perfCacheTtl} 
-              onChange={setPerfCacheTtl} 
+              label="Cache TTL (Time-to-Live)" 
+              value={ctx.perfCacheTtl} 
+              onChange={ctx.setPerfCacheTtl} 
               min={1} max={60} step={1} 
               unit=" minutes" 
+              markers={['1min', '30min', '60min']} 
             />
-            <SliderField 
-              label="Rate Limit" 
-              value={perfRateLimit} 
-              onChange={setPerfRateLimit} 
-              min={10} max={500} step={10} 
-              unit=" req/min" 
-            />
+
+            <div className="border-t border-border-muted pt-6">
+              <SliderField 
+                label="API Rate Limit" 
+                value={ctx.perfRateLimit} 
+                onChange={ctx.setPerfRateLimit} 
+                min={10} max={1000} step={10} 
+                unit=" req/min" 
+                markers={['10', '500', '1000']} 
+              />
+            </div>
+
+            <div className="border-t border-border-muted pt-6">
+              <SliderField 
+                label="Request Timeout" 
+                value={ctx.perfTimeout} 
+                onChange={ctx.setPerfTimeout} 
+                min={5} max={120} step={5} 
+                unit=" seconds" 
+                markers={['5s', '60s', '120s']} 
+              />
+            </div>
           </div>
 
-          <div>
-            <SliderField 
-              label="Request Timeout" 
-              value={perfTimeout} 
-              onChange={setPerfTimeout} 
-              min={5} max={120} step={5} 
-              unit=" seconds" 
-            />
-          </div>
-
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="grid gap-4 p-5 rounded-2xl bg-surface-elevated border border-border-default">
             <SettingsRow 
               label="Circuit Breaker" 
-              description="Automatically disable failing services to prevent cascade failures"
+              description="Protect system by failing fast when downstream services are unstable"
+              icon={Shield}
             >
-              <Toggle enabled={perfCbEnabled} onChange={setPerfCbEnabled} />
+              <Toggle enabled={ctx.perfCbEnabled} onChange={ctx.setPerfCbEnabled} />
             </SettingsRow>
 
-            {perfCbEnabled && (
-              <div className="mt-4 pl-4 border-l-2 border-accent-200 dark:border-accent-800">
+            {ctx.perfCbEnabled && (
+              <div className="pl-11 pr-2 pb-2">
                 <SliderField 
-                  label="Failure Threshold" 
-                  value={perfCbThreshold} 
-                  onChange={setPerfCbThreshold} 
+                  label="Error Threshold" 
+                  value={ctx.perfCbThreshold} 
+                  onChange={ctx.setPerfCbThreshold} 
                   min={1} max={20} step={1} 
-                  unit=" failures" 
+                  unit=" errors" 
                 />
               </div>
             )}
-          </div>
 
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
             <SettingsRow 
               label="Low Memory Mode" 
-              description="Reduce memory usage at the cost of performance"
+              description="Disable non-critical background processes to save RAM"
+              icon={Cpu}
             >
-              <Toggle enabled={perfLowMemory} onChange={setPerfLowMemory} />
+              <Toggle enabled={ctx.perfLowMemory} onChange={ctx.setPerfLowMemory} />
             </SettingsRow>
 
             <SettingsRow 
-              label="Background Jobs" 
-              description="Enable background processing for long-running tasks"
+              label="Background Workers" 
+              description="Allow scheduled tasks and automated discovery to run"
+              icon={Server}
             >
-              <Toggle enabled={perfBgJobs} onChange={setPerfBgJobs} />
+              <Toggle enabled={ctx.perfBgJobs} onChange={ctx.setPerfBgJobs} />
             </SettingsRow>
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-            <button onClick={handleSavePerformance} disabled={savingPerformance} className="btn-primary text-sm">
-              {savingPerformance ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Performance Settings
+          <div className="p-5 rounded-2xl bg-surface-elevated border border-border-default">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-surface-card text-text-muted">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-text-primary">Database Persistence</h4>
+                  <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">SQLite (WAL Mode)</p>
+                </div>
+              </div>
+              <div className="text-xs font-bold text-success-light uppercase tracking-widest px-2 py-1 bg-success-muted rounded border border-success-border">
+                Optimized
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-border-default">
+            <button 
+              onClick={handleSavePerformance} 
+              disabled={ctx.savingPerformance} 
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            >
+              {ctx.savingPerformance ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              Apply Optimizations
             </button>
-          </div>
-        </div>
-      </Section>
-
-      <Section icon={Zap} title="Current Metrics">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-500 uppercase">Avg Response</span>
-            </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">
-              {metrics.avgResponseMs ? `${metrics.avgResponseMs}ms` : '--'}
-            </p>
-          </div>
-
-          <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-500 uppercase">Success Rate</span>
-            </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">
-              {metrics.totalRequests > 0 
-                ? `${((metrics.successCount / metrics.totalRequests) * 100).toFixed(1)}%`
-                : '--'}
-            </p>
-          </div>
-
-          <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-            <div className="flex items-center gap-2 mb-1">
-              <Server className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-500 uppercase">Cache Hit Rate</span>
-            </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">
-              {metrics.cacheHitRate !== undefined 
-                ? `${metrics.cacheHitRate.toFixed(1)}%`
-                : '--'}
-            </p>
-          </div>
-
-          <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-            <div className="flex items-center gap-2 mb-1">
-              <MemoryStick className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-500 uppercase">Total Requests</span>
-            </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">
-              {metrics.totalRequests?.toLocaleString() || '0'}
-            </p>
           </div>
         </div>
       </Section>
     </div>
   );
-}
+});

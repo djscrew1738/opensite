@@ -79,7 +79,7 @@ const ContextIndicator = memo(function ContextIndicator({ title }) {
   if (!title) return null;
   
   return (
-    <div className="mb-1 px-3 py-1 bg-accent-muted/80 backdrop-blur-sm rounded-full text-[10px] uppercase tracking-wider text-accent-blue font-bold animate-fade-in border border-accent-blue/20">
+    <div className="mb-1 px-3 py-1 bg-accent-muted/80 backdrop-blur-sm rounded-full text-xs uppercase tracking-wider text-accent-blue font-bold animate-fade-in border border-accent-blue/20">
       Ask about {title}
     </div>
   );

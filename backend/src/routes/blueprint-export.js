@@ -5,8 +5,10 @@
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs/promises';
 import { blueprintExportService } from '../services/blueprint-export.js';
 import { blueprintOrchestrator } from '../services/blueprint-orchestrator.js';
+import { sendEmail } from '../services/notifications/email.js';
 import { tryCatch } from '../utils/response.js';
 import logger from '../services/logger.js';
 
@@ -178,26 +180,69 @@ router.post('/email/:jobId', tryCatch(async (req, res) => {
     return res.error('Analysis not complete', 'ANALYSIS_INCOMPLETE', null, 400);
   }
 
-  // TODO: Implement email sending with nodemailer
-  // For now, just export and return download URL
-  
+  // Export the analysis data
   const analysisData = {
     jobId: job.id,
     fileName: path.basename(job.filePath),
     ...job.results
   };
 
-  const { filename } = await blueprintExportService.export(
+  const { filename, filepath } = await blueprintExportService.export(
     analysisData,
     format
   );
 
-  res.success({
-    jobId,
-    email,
-    message: 'Export prepared for email (email sending not yet implemented)',
-    downloadUrl: `/api/blueprint/exports/${filename}`
-  });
+  // Send email with attachment
+  try {
+    const fileBuffer = await fs.readFile(filepath);
+    
+    await sendEmail({
+      to: email,
+      subject: `Blueprint Analysis Export - ${analysisData.fileName}`,
+      text: `Please find attached the blueprint analysis export for ${analysisData.fileName}.\n\nAnalysis completed on ${new Date().toLocaleString()}.`,
+      html: `
+        <h2>Blueprint Analysis Export</h2>
+        <p>Please find attached the blueprint analysis export for <strong>${analysisData.fileName}</strong>.</p>
+        <p>Analysis completed on ${new Date().toLocaleString()}.</p>
+        <hr>
+        <p><small>Sent by OpenSite - CTL Plumbing Intelligence Platform</small></p>
+      `,
+      attachments: [
+        {
+          filename: path.basename(filename),
+          content: fileBuffer,
+          contentType: format === 'pdf' ? 'application/pdf' : 
+                      format === 'csv' ? 'text/csv' : 
+                      format === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                      'application/json'
+        }
+      ]
+    });
+
+    logger.info('[blueprint-export] Analysis exported and emailed', {
+      jobId,
+      email,
+      format
+    });
+
+    res.success({
+      jobId,
+      email,
+      message: 'Export sent successfully via email',
+      filename: path.basename(filename)
+    });
+  } catch (err) {
+    logger.error('[blueprint-export] Email failed:', err.message);
+    
+    // Return download URL as fallback
+    res.success({
+      jobId,
+      email,
+      message: 'Export prepared but email failed. Download link provided.',
+      downloadUrl: `/api/blueprint/exports/${filename}`,
+      error: err.message
+    });
+  }
 }));
 
 export default router;

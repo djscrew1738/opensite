@@ -1,19 +1,66 @@
-import { useState, useEffect, useRef } from 'react';
+/**
+ * OptimizedImage Component
+ * Lazy-loaded image with blur-up placeholder
+ * Features: Intersection Observer lazy loading, blur-up effect, error fallback
+ * 
+ * @module components/shared/OptimizedImage
+ */
+
+import { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageSkeleton } from './LoadingSkeleton';
+import { colors } from '../../styles/tokens';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
+
+/** Default placeholder color from design tokens */
+const DEFAULT_PLACEHOLDER_COLOR = colors.surface.elevated;
+
+// ═══════════════════════════════════════════════════════════════
+// Helper Functions
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Generate a tiny blur placeholder (LQIP - Low Quality Image Placeholder)
+ * @param {number} width
+ * @param {number} height
+ * @returns {string} SVG data URI
+ */
+function generateBlurPlaceholder(width = 20, height = 15) {
+  // Returns a tiny SVG as data URI for blur effect
+  const fillColor = encodeURIComponent(DEFAULT_PLACEHOLDER_COLOR);
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='${fillColor}'/%3E%3C/svg%3E`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * OptimizedImage — Lazy-loaded image with blur-up placeholder
- * Features: Intersection Observer lazy loading, blur-up effect, error fallback
+ * 
+ * @param {{
+ *   src: string,
+ *   alt: string,
+ *   width?: number,
+ *   height?: number,
+ *   className?: string,
+ *   containerClassName?: string,
+ *   priority?: boolean,
+ *   placeholder?: 'blur' | 'color' | 'skeleton' | 'none',
+ *   placeholderColor?: string,
+ *   onLoad?: () => void,
+ *   onError?: () => void,
+ *   fallback?: React.ReactNode,
+ *   loading?: 'lazy' | 'eager',
+ *   decoding?: 'async' | 'sync' | 'auto',
+ *   sizes?: string,
+ *   srcSet?: string
+ * }} props
  */
-
-// Generate a tiny blur placeholder (LQIP - Low Quality Image Placeholder)
-function generateBlurPlaceholder(width = 20, height = 15) {
-  // Returns a tiny SVG as data URI for blur effect
-  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23374151'/%3E%3C/svg%3E`;
-}
-
-export function OptimizedImage({
+export const OptimizedImage = memo(function OptimizedImage({
   src,
   alt,
   width,
@@ -21,8 +68,8 @@ export function OptimizedImage({
   className = '',
   containerClassName = '',
   priority = false,
-  placeholder = 'blur', // 'blur', 'color', 'none'
-  placeholderColor = '#374151',
+  placeholder = 'blur',
+  placeholderColor = DEFAULT_PLACEHOLDER_COLOR,
   onLoad,
   onError,
   fallback = null,
@@ -147,12 +194,25 @@ export function OptimizedImage({
       )}
     </div>
   );
-}
+});
+
+OptimizedImage.displayName = 'OptimizedImage';
+
+// ═══════════════════════════════════════════════════════════════
+// Convenience Exports
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * LazyImage — Simplified lazy loading image component
+ * 
+ * @param {{
+ *   src: string,
+ *   alt: string,
+ *   className?: string,
+ *   aspectRatio?: string
+ * }} props
  */
-export function LazyImage({
+export const LazyImage = memo(function LazyImage({
   src,
   alt,
   className = '',
@@ -169,12 +229,22 @@ export function LazyImage({
       {...props}
     />
   );
-}
+});
+
+LazyImage.displayName = 'LazyImage';
 
 /**
  * Avatar — Optimized avatar image with fallback
+ * 
+ * @param {{
+ *   src: string,
+ *   alt?: string,
+ *   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl',
+ *   fallback?: React.ReactNode,
+ *   className?: string
+ * }} props
  */
-export function Avatar({
+export const Avatar = memo(function Avatar({
   src,
   alt = '',
   size = 'md',
@@ -193,7 +263,10 @@ export function Avatar({
   const sizeClass = sizes[size] || sizes.md;
 
   return (
-    <div className={`relative rounded-full overflow-hidden bg-surface-200 dark:bg-surface-700 ${sizeClass} ${className}`}>
+    <div 
+      className={`relative rounded-full overflow-hidden ${sizeClass} ${className}`}
+      style={{ backgroundColor: colors.surface.elevated }}
+    >
       <OptimizedImage
         src={src}
         alt={alt}
@@ -202,7 +275,10 @@ export function Avatar({
         placeholder="color"
         fallback={
           fallback || (
-            <div className="w-full h-full flex items-center justify-center text-surface-400 dark:text-surface-500 text-sm font-medium">
+            <div 
+              className="w-full h-full flex items-center justify-center text-sm font-medium"
+              style={{ color: colors.text.muted }}
+            >
               {alt?.charAt(0).toUpperCase() || '?'}
             </div>
           )
@@ -210,17 +286,28 @@ export function Avatar({
       />
     </div>
   );
-}
+});
+
+Avatar.displayName = 'Avatar';
 
 /**
  * BackgroundImage — Optimized background image with lazy loading
+ * 
+ * @param {{
+ *   src: string,
+ *   alt?: string,
+ *   className?: string,
+ *   overlay?: boolean,
+ *   overlayClassName?: string,
+ *   children?: React.ReactNode
+ * }} props
  */
-export function BackgroundImage({
+export const BackgroundImage = memo(function BackgroundImage({
   src,
   alt = '',
   className = '',
   overlay = false,
-  overlayClassName = 'bg-black/40',
+  overlayClassName = '',
   children,
   ...props
 }) {
@@ -236,11 +323,16 @@ export function BackgroundImage({
         {...props}
       />
       {overlay && (
-        <div className={`absolute inset-0 ${overlayClassName}`} />
+        <div 
+          className={`absolute inset-0 ${overlayClassName}`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
+        />
       )}
       <div className="relative z-10">{children}</div>
     </div>
   );
-}
+});
+
+BackgroundImage.displayName = 'BackgroundImage';
 
 export default OptimizedImage;

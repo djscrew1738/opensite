@@ -1,0 +1,13 @@
+tunnel: 675053e2-b4cf-4570-a2cd-fc58a3abeb82
+credentials-file: /etc/cloudflared/675053e2-b4cf-4570-a2cd-fc58a3abeb82.json
+
+ingress:
+  - hostname: ctlplumbingllc.com
+    service: http://localhost:3999
+  - hostname: www.ctlplumbingllc.com
+    service: http://localhost:3999
+  - hostname: app.ctlplumbingllc.com
+    service: http://localhost:3999
+  - hostname: app.cbrnholdings.com
+    service: http://localhost:3999
+  - service: http_status:404

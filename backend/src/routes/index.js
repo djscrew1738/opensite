@@ -33,6 +33,15 @@ import canvasRoutes from './canvas.js';
 import usersRoutes from './users.js';
 import docvaultRoutes from './docvault.js';
 import universalUploadRoutes from './universal-upload.js';
+import knowledgeRoutes from './knowledge.js';
+import knowledgeV2Routes from './knowledge-v2.js';
+import schedulesRoutes from './schedules.js';
+import serviceAreaRoutes from './service-areas.js';
+import adminRoutes from './admin.js';
+import proposalRoutes from './proposals.js';
+import integrationsRoutes from './integrations.js';
+import quickBooksRoutes from './quickbooks.js';
+import aiTakeoffRoutes from './ai-takeoff.js';
 import { visionService } from '../services/vision.js';
 import { authLimiter, aiChatLimiter, uploadLimiter, discoveryLimiter } from '../middleware/security.js';
 import { requireAdminToken } from '../middleware/auth.js';
@@ -73,6 +82,15 @@ export function registerRoutes(app) {
   router.use('/users', usersRoutes);
   router.use('/docvault', docvaultRoutes);
   router.use('/upload/universal', universalUploadRoutes);
+  router.use('/knowledge', knowledgeRoutes);
+  router.use('/knowledge-v2', knowledgeV2Routes);
+  router.use('/schedules', schedulesRoutes);
+  router.use('/service-areas', serviceAreaRoutes);
+  router.use('/admin', adminRoutes);
+  router.use('/proposals', proposalRoutes);
+  router.use('/integrations', integrationsRoutes);
+  router.use('/integrations/qb', quickBooksRoutes);
+  router.use('/ai-takeoff', aiTakeoffRoutes);
   router.use('/vision/tiles', express.static(visionService.tilesDir, { maxAge: '86400000' }));
 
   // Mount at /api/v1 (canonical) and /api (backward-compatible with deprecation headers)

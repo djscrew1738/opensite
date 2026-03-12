@@ -1,156 +1,156 @@
 /**
  * Business Section
- * Company profile and contact information
+ * Company profile and service specialization
  */
 
-import { Building2, Phone, Mail, Globe, MapPin, Shield, Loader2, Save } from 'lucide-react';
+import { memo } from 'react';
+import { 
+  Building2, Phone, Mail, Globe, MapPin, 
+  Briefcase, FileText, ShieldCheck, Save, Loader2
+} from 'lucide-react';
 import { useSettings } from '../SettingsContext';
 import { useSettingsActions } from '../hooks/useSettingsActions';
-import { Section } from '../primitives';
+import { Section, SettingsRow } from '../primitives';
 
-export default function BusinessSection() {
+export default memo(function BusinessSection() {
   const ctx = useSettings();
   const { handleSaveBusiness } = useSettingsActions();
-  
-  const { 
-    companyName, setCompanyName, serviceArea, setServiceArea,
-    specialization, setSpecialization, businessPhone, setBusinessPhone,
-    businessEmail, setBusinessEmail, businessWebsite, setBusinessWebsite,
-    businessLicense, setBusinessLicense, businessInsurance, setBusinessInsurance,
-    businessState, setBusinessState, businessZip, setBusinessZip,
-    savingBusiness
-  } = ctx;
 
   return (
-    <Section icon={Building2} title="Business Profile">
-      <div className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className="label">Company Name</label>
-            <input 
-              type="text" 
-              value={companyName} 
-              onChange={e => setCompanyName(e.target.value)} 
-              className="input" 
-              placeholder="CTL Plumbing LLC" 
-            />
-          </div>
-          <div>
-            <label className="label flex items-center gap-2">
-              <Phone className="w-4 h-4 text-gray-400" /> Phone Number
-            </label>
-            <input 
-              type="tel" 
-              value={businessPhone} 
-              onChange={e => setBusinessPhone(e.target.value)} 
-              className="input" 
-              placeholder="(555) 123-4567" 
-            />
-          </div>
-          <div>
-            <label className="label flex items-center gap-2">
-              <Mail className="w-4 h-4 text-gray-400" /> Email Address
-            </label>
-            <input 
-              type="email" 
-              value={businessEmail} 
-              onChange={e => setBusinessEmail(e.target.value)} 
-              className="input" 
-              placeholder="contact@company.com" 
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="label flex items-center gap-2">
-              <Globe className="w-4 h-4 text-gray-400" /> Website
-            </label>
-            <input 
-              type="url" 
-              value={businessWebsite} 
-              onChange={e => setBusinessWebsite(e.target.value)} 
-              className="input" 
-              placeholder="https://company.com" 
-            />
-          </div>
-        </div>
+    <div className="space-y-6 page-transition-wrapper">
+      <Section 
+        icon={Building2} 
+        title="Company Profile"
+        description="Core business details used for automated estimations and AI context"
+      >
+        <div className="space-y-6 mt-4">
+          <div className="grid md:grid-cols-2 gap-6 p-5 rounded-2xl bg-surface-elevated border border-border-default">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Legal Entity Name</label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="text" 
+                  value={ctx.companyName} 
+                  onChange={e => ctx.setCompanyName(e.target.value)} 
+                  className="input pl-10 font-semibold h-11" 
+                  placeholder="e.g. CTL Plumbing LLC" 
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-          <div>
-            <label className="label flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-400" /> Service Area
-            </label>
-            <input 
-              type="text" 
-              value={serviceArea} 
-              onChange={e => setServiceArea(e.target.value)} 
-              className="input" 
-              placeholder="DFW Metroplex" 
-            />
-          </div>
-          <div>
-            <label className="label">State</label>
-            <input 
-              type="text" 
-              value={businessState} 
-              onChange={e => setBusinessState(e.target.value)} 
-              className="input" 
-              placeholder="TX" 
-            />
-          </div>
-          <div>
-            <label className="label">ZIP Code</label>
-            <input 
-              type="text" 
-              value={businessZip} 
-              onChange={e => setBusinessZip(e.target.value)} 
-              className="input" 
-              placeholder="75034" 
-            />
-          </div>
-          <div>
-            <label className="label">Specialization</label>
-            <input 
-              type="text" 
-              value={specialization} 
-              onChange={e => setSpecialization(e.target.value)} 
-              className="input" 
-              placeholder="Residential & Commercial Plumbing" 
-            />
-          </div>
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Primary Service Area</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="text" 
+                  value={ctx.serviceArea} 
+                  onChange={e => ctx.setServiceArea(e.target.value)} 
+                  className="input pl-10 h-11" 
+                  placeholder="e.g. DFW Metroplex" 
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-          <div>
-            <label className="label flex items-center gap-2">
-              <Shield className="w-4 h-4 text-gray-400" /> License Number
-            </label>
-            <input 
-              type="text" 
-              value={businessLicense} 
-              onChange={e => setBusinessLicense(e.target.value)} 
-              className="input" 
-              placeholder="TACLB12345E" 
-            />
-          </div>
-          <div>
-            <label className="label flex items-center gap-2">
-              <Shield className="w-4 h-4 text-gray-400" /> Insurance Policy
-            </label>
-            <input 
-              type="text" 
-              value={businessInsurance} 
-              onChange={e => setBusinessInsurance(e.target.value)} 
-              className="input" 
-              placeholder="INS-123456789" 
-            />
-          </div>
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Business Phone</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="tel" 
+                  value={ctx.businessPhone} 
+                  onChange={e => ctx.setBusinessPhone(e.target.value)} 
+                  className="input pl-10 h-11" 
+                  placeholder="+1 (000) 000-0000" 
+                />
+              </div>
+            </div>
 
-        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-          <button onClick={handleSaveBusiness} disabled={savingBusiness} className="btn-primary text-sm">
-            {savingBusiness ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Business Profile
-          </button>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Public Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="email" 
+                  value={ctx.businessEmail} 
+                  onChange={e => ctx.setBusinessEmail(e.target.value)} 
+                  className="input pl-10 h-11" 
+                  placeholder="info@company.com" 
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Company Website</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="url" 
+                  value={ctx.businessWebsite} 
+                  onChange={e => ctx.setBusinessWebsite(e.target.value)} 
+                  className="input pl-10 h-11" 
+                  placeholder="https://www.company.com" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 p-5 rounded-2xl bg-surface-elevated border border-border-default">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">State License #</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="text" 
+                  value={ctx.businessLicense} 
+                  onChange={e => ctx.setBusinessLicense(e.target.value)} 
+                  className="input pl-10 h-11 font-mono uppercase" 
+                  placeholder="MPL-00000" 
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Insurance Policy #</label>
+              <div className="relative">
+                <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
+                <input 
+                  type="text" 
+                  value={ctx.businessInsurance} 
+                  onChange={e => ctx.setBusinessInsurance(e.target.value)} 
+                  className="input pl-10 h-11 font-mono" 
+                  placeholder="POL-123456789" 
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Service Specialization</label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-3 w-4 h-4 text-text-muted opacity-50" />
+                <textarea 
+                  value={ctx.specialization} 
+                  onChange={e => ctx.setSpecialization(e.target.value)} 
+                  className="input pl-10 py-2.5 min-h-[100px] resize-none" 
+                  placeholder="Describe your primary services, e.g. Commercial New Construction, Residential Service, etc." 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-border-default">
+            <button 
+              onClick={handleSaveBusiness} 
+              disabled={ctx.savingBusiness} 
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            >
+              {ctx.savingBusiness ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              Save Profile
+            </button>
+          </div>
         </div>
-      </div>
-    </Section>
+      </Section>
+    </div>
   );
-}
+});

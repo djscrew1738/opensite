@@ -20,10 +20,16 @@ export function prefetchRoute(importFn, id) {
     importFn()
       .then(() => {
         prefetchCache.add(id);
-        console.debug(`[Prefetch] Loaded: ${id}`);
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.debug(`[Prefetch] Loaded: ${id}`);
+        }
       })
       .catch(err => {
-        console.debug(`[Prefetch] Failed: ${id}`, err);
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.debug(`[Prefetch] Failed: ${id}`, err);
+        }
       });
   }, { timeout: 2000 });
 }

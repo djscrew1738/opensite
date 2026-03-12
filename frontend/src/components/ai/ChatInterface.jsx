@@ -1,5 +1,14 @@
+/**
+ * ChatInterface Component
+ * AI Assistant chat component with accessibility features
+ * 
+ * @module components/ai/ChatInterface
+ */
+
 import { useEffect, useRef, useMemo, memo } from 'react';
-import { User, Bot, Sparkles, MessageSquare, FileText, Calculator } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Bot, Sparkles, MessageSquare, FileText, Calculator, Zap, Cpu } from 'lucide-react';
+import { colors, shadows, radius, animation } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
@@ -23,20 +32,24 @@ const SuggestedAction = memo(function SuggestedAction({ action, onClick }) {
   const Icon = action.icon;
   
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.02, backgroundColor: 'rgba(59, 130, 246, 0.1)' }}
+      whileTap={{ scale: 0.98 }}
       type="button"
       onClick={() => onClick?.(action.prompt)}
-      className="
-        flex items-center gap-2 px-4 py-3 rounded-lg text-left 
-        transition-all duration-200
-        bg-surface-card border border-border text-text-secondary
-        hover:border-border-strong hover:text-text-primary hover:bg-surface-elevated
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50
-      "
+      className="flex items-center gap-3 px-4 py-4 rounded-2xl text-left transition-all duration-200 focus:outline-none focus-visible:ring-2"
+      style={{
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        border: `1px solid ${colors.border.default}`,
+        color: colors.text.secondary,
+        backdropFilter: 'blur(10px)',
+      }}
     >
-      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-      <span className="text-sm font-medium">{action.label}</span>
-    </button>
+      <div className="w-10 h-10 rounded-xl bg-surface-elevated flex items-center justify-center flex-shrink-0">
+        <Icon className="w-5 h-5" style={{ color: colors.accent.blue }} aria-hidden="true" />
+      </div>
+      <span className="text-sm font-bold text-surface-100">{action.label}</span>
+    </motion.button>
   );
 });
 
@@ -45,18 +58,40 @@ const SuggestedAction = memo(function SuggestedAction({ action, onClick }) {
  */
 const EmptyState = memo(function EmptyState({ onSuggestionClick }) {
   return (
-    <div className="text-center mt-12">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent-muted flex items-center justify-center">
-        <Bot className="w-8 h-8 text-accent-blue" aria-hidden="true" />
-      </div>
-      <h3 className="text-lg font-semibold text-text-primary mb-2">
-        CTL Plumbing AI Assistant
-      </h3>
-      <p className="text-sm text-text-secondary mb-6 max-w-md mx-auto">
-        Ask me about lead analysis, pricing guidance, material recommendations, or code compliance
-      </p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+      <motion.div 
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+        className="w-20 h-20 mb-6 rounded-[28px] bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-xl shadow-accent-500/20 relative"
+      >
+        <Zap className="w-10 h-10 text-white" fill="currentColor" />
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity }}
+          className="absolute inset-[-8px] rounded-[32px] border-2 border-accent-500/20" 
+        />
+      </motion.div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg mx-auto px-4">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <h3 className="text-2xl font-bold mb-3 text-surface-50">
+          OpenSite Intelligence
+        </h3>
+        <p className="text-sm mb-10 max-w-xs mx-auto text-surface-400 leading-relaxed">
+          Ask about lead analysis, DFW plumbing codes, pricing strategies, or material takeoffs.
+        </p>
+      </motion.div>
+      
+      <motion.div 
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg"
+      >
         {SUGGESTED_ACTIONS.map((action) => (
           <SuggestedAction 
             key={action.label} 
@@ -64,7 +99,7 @@ const EmptyState = memo(function EmptyState({ onSuggestionClick }) {
             onClick={onSuggestionClick} 
           />
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 });
@@ -74,128 +109,123 @@ const EmptyState = memo(function EmptyState({ onSuggestionClick }) {
  */
 const UserMessage = memo(function UserMessage({ content }) {
   return (
-    <div className="flex gap-3 justify-end">
-      <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-br-md px-4 py-3 bg-accent-blue text-white">
-        <p className="whitespace-pre-wrap text-sm sm:text-base">{content}</p>
+    <motion.div 
+      initial={{ x: 20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      className="flex gap-3 justify-end items-end mb-4"
+    >
+      <div 
+        className="max-w-[85%] sm:max-w-[70%] rounded-[20px] rounded-br-md px-5 py-3.5 text-white shadow-lg"
+        style={{ 
+          background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.hover})`,
+          boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+        }}
+      >
+        <p className="whitespace-pre-wrap text-[15px] leading-relaxed font-medium">{content}</p>
       </div>
-      <div className="w-8 h-8 rounded-full bg-surface-elevated flex items-center justify-center flex-shrink-0">
-        <span className="text-xs font-semibold text-text-secondary">You</span>
-      </div>
-    </div>
+    </motion.div>
   );
 });
 
 /**
  * Assistant message bubble
  */
-const AssistantMessage = memo(function AssistantMessage({ content }) {
+const AssistantMessage = memo(function AssistantMessage({ content, isStreaming }) {
   return (
-    <div className="flex gap-3 justify-start">
-      <div className="w-8 h-8 rounded-full bg-accent-muted flex items-center justify-center flex-shrink-0">
-        <Bot className="w-4 h-4 text-accent-blue" aria-hidden="true" />
+    <motion.div 
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      className="flex gap-3 justify-start items-start mb-6"
+    >
+      <div 
+        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-md"
+        style={{ 
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.2)'
+        }}
+      >
+        <Bot className="w-5 h-5 text-accent-blue" />
       </div>
-      <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-bl-md px-4 py-3 bg-surface-card border border-border text-text-primary">
-        <p className="whitespace-pre-wrap text-sm sm:text-base">{content}</p>
-      </div>
-    </div>
-  );
-});
-
-/**
- * Streaming message with typing indicator
- */
-const StreamingMessage = memo(function StreamingMessage({ content, isStreaming }) {
-  return (
-    <div className="flex gap-3 justify-start">
-      <div className="w-8 h-8 rounded-full bg-accent-muted flex items-center justify-center flex-shrink-0">
-        <Bot className="w-4 h-4 text-accent-blue" aria-hidden="true" />
-      </div>
-      <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-bl-md px-4 py-3 bg-surface-card border border-border text-text-primary">
-        <p className="whitespace-pre-wrap text-sm sm:text-base">
+      <div 
+        className="max-w-[88%] sm:max-w-[80%] rounded-[22px] rounded-tl-md px-5 py-4 relative group"
+        style={{ 
+          backgroundColor: 'rgba(24, 28, 36, 0.5)', 
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(10px)',
+          color: colors.text.primary,
+        }}
+      >
+        <div className="absolute -top-3 left-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-accent-500 bg-surface-primary px-2 py-0.5 rounded-full border border-accent-500/20">
+            AI Assistant
+          </span>
+        </div>
+        <div className="whitespace-pre-wrap text-[15px] leading-relaxed">
           {content}
           {isStreaming && (
-            <span className="inline-block w-2 h-4 ml-1 bg-accent-blue animate-pulse" aria-hidden="true" />
+            <span className="inline-flex gap-1 ml-2 items-center align-middle">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-bounce" style={{ animationDelay: '200ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-bounce" style={{ animationDelay: '400ms' }} />
+            </span>
           )}
-        </p>
-        {/* Screen reader announcement for streaming */}
-        <span className="sr-only" role="status" aria-live="polite">
-          {isStreaming ? 'AI is typing...' : 'Message complete'}
-        </span>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 });
-
-// ═══════════════════════════════════════════════════════════════
-// Custom Hooks
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Hook to auto-scroll to bottom of chat
- */
-function useAutoScroll(dependencies, ref) {
-  useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: 'smooth' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
-}
 
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * ChatInterface - AI Assistant chat component
- * 
- * Accessibility features:
- * - aria-live region for new messages
- * - role="log" for chat history
- * - Reduced motion support for streaming indicator
- * - Suggested actions in empty state
- */
-function ChatInterface({ messages, streamingMessage, isStreaming, onSuggestionClick }) {
+const ChatInterface = memo(function ChatInterface({ 
+  messages, 
+  streamingMessage, 
+  isStreaming, 
+  onSuggestionClick 
+}) {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
-  // Scroll to bottom when messages change
-  useAutoScroll([messages, streamingMessage], messagesEndRef);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingMessage]);
 
   const hasMessages = messages.length > 0 || Boolean(streamingMessage);
-
-  // Memoize message list to prevent unnecessary re-renders
-  const messageList = useMemo(() => {
-    return messages.map((msg, idx) => {
-      if (msg.role === 'user') {
-        return <UserMessage key={idx} content={msg.content} />;
-      }
-      return <AssistantMessage key={idx} content={msg.content} />;
-    });
-  }, [messages]);
 
   return (
     <div 
       ref={chatContainerRef}
-      className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
+      className="flex-1 overflow-y-auto px-4 py-6 sm:p-8 space-y-2 scrollbar-hide"
       role="log"
       aria-live="polite"
-      aria-label="Chat messages"
-      aria-atomic="false"
+      aria-label="Chat history"
     >
       {!hasMessages && <EmptyState onSuggestionClick={onSuggestionClick} />}
 
-      {messageList}
+      <AnimatePresence initial={false}>
+        {messages.map((msg, idx) => (
+          msg.role === 'user' 
+            ? <UserMessage key={`user-${idx}`} content={msg.content} />
+            : <AssistantMessage key={`ai-${idx}`} content={msg.content} />
+        ))}
+        
+        {streamingMessage && (
+          <AssistantMessage 
+            key="streaming"
+            content={streamingMessage} 
+            isStreaming={true} 
+          />
+        )}
+      </AnimatePresence>
 
-      {streamingMessage && (
-        <StreamingMessage 
-          content={streamingMessage} 
-          isStreaming={isStreaming} 
-        />
-      )}
-
-      <div ref={messagesEndRef} />
+      <div ref={messagesEndRef} className="h-4" />
     </div>
   );
-}
+});
+
+ChatInterface.displayName = 'ChatInterface';
 
 export { ChatInterface };
 export default ChatInterface;

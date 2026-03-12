@@ -1,7 +1,9 @@
 // Email Watcher Database Operations
-// Adds email watcher related methods to DatabaseService
+// Adds email watcher, account, and alert rule methods to DatabaseService
 
+import { v4 as uuidv4 } from 'uuid';
 import { encrypt, decrypt, isEncrypted } from '../../utils/encryption.js';
+import logger from '../logger.js';
 
 // Encrypt an OAuth token before storing in DB
 function encryptToken(token) {
@@ -26,212 +28,293 @@ function decryptAccountTokens(account) {
     ...account,
     access_token: decryptToken(account.access_token),
     refresh_token: decryptToken(account.refresh_token),
+    isActive: Boolean(account.isActive)
   };
 }
 
 /**
  * Email Watcher operations mixin
- * Adds email watcher related methods to DatabaseService
  */
 export function addEmailWatcherOperations(DatabaseService) {
   // ==================== Email Accounts ====================
 
-  // Get all email watcher accounts (tokens decrypted)
+  /**
+   * Get all email watcher accounts
+   */
   DatabaseService.prototype.getAllEmailWatcherAccounts = async function() {
-    const rows = await this.all(`
-      SELECT * FROM email_accounts ORDER BY createdAt DESC
-    `);
-    return rows.map(decryptAccountTokens);
+    try {
+      const rows = await this.all('SELECT * FROM email_accounts ORDER BY createdAt DESC');
+      return rows.map(decryptAccountTokens);
+    } catch (error) {
+      logger.error('Error getting all email watcher accounts', { error: error.message });
+      return [];
+    }
   };
 
-  // Get active email watcher accounts (tokens decrypted)
+  /**
+   * Get active email watcher accounts
+   */
   DatabaseService.prototype.getActiveEmailWatcherAccounts = async function() {
-    const rows = await this.all(`
-      SELECT * FROM email_accounts WHERE isActive = 1 ORDER BY createdAt DESC
-    `);
-    return rows.map(decryptAccountTokens);
+    try {
+      const rows = await this.all('SELECT * FROM email_accounts WHERE isActive = 1 ORDER BY createdAt DESC');
+      return rows.map(decryptAccountTokens);
+    } catch (error) {
+      return [];
+    }
   };
 
-  // Get email account by ID (tokens decrypted)
+  /**
+   * Get email account by ID
+   */
   DatabaseService.prototype.getEmailWatcherAccount = async function(id) {
-    const row = await this.get('SELECT * FROM email_accounts WHERE id = ?', [id]);
-    return decryptAccountTokens(row);
+    try {
+      const row = await this.get('SELECT * FROM email_accounts WHERE id = ?', [id]);
+      return decryptAccountTokens(row);
+    } catch (error) {
+      return null;
+    }
   };
 
-  // Create email account (tokens encrypted before storage)
+  /**
+   * Create email account
+   */
   DatabaseService.prototype.createEmailWatcherAccount = async function(data) {
-    const { v4: uuidv4 } = await import('uuid');
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    await this.run(`
-      INSERT INTO email_accounts (
-        id, email_address, provider, access_token, refresh_token,
-        token_expires_at, isActive, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      data.email_address,
-      data.provider,
-      encryptToken(data.access_token) || null,
-      encryptToken(data.refresh_token) || null,
-      data.token_expires_at || null,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
-      now,
-      now
-    ]);
+    try {
+      await this.run(`
+        INSERT INTO email_accounts (
+          id, email_address, provider, access_token, refresh_token,
+          token_expires_at, isActive, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        data.email_address,
+        data.provider,
+        encryptToken(data.access_token),
+        encryptToken(data.refresh_token),
+        data.token_expires_at || null,
+        data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
+        now,
+        now
+      ]);
 
-    return await this.getEmailWatcherAccount(id);
+      return await this.getEmailWatcherAccount(id);
+    } catch (error) {
+      logger.error('Failed to create email watcher account', { error: error.message, email: data.email_address });
+      throw error;
+    }
   };
 
-  // Update email account (tokens encrypted if provided)
+  /**
+   * Update email account
+   */
   DatabaseService.prototype.updateEmailWatcherAccount = async function(id, data) {
+    const fields = [];
+    const params = [];
     const now = new Date().toISOString();
-    const sets = [];
-    const values = [];
 
-    if (data.email_address !== undefined) { sets.push('email_address = ?'); values.push(data.email_address); }
-    if (data.provider !== undefined) { sets.push('provider = ?'); values.push(data.provider); }
-    if (data.access_token !== undefined) { sets.push('access_token = ?'); values.push(encryptToken(data.access_token)); }
-    if (data.refresh_token !== undefined) { sets.push('refresh_token = ?'); values.push(encryptToken(data.refresh_token)); }
-    if (data.token_expires_at !== undefined) { sets.push('token_expires_at = ?'); values.push(data.token_expires_at); }
-    if (data.isActive !== undefined) { sets.push('isActive = ?'); values.push(data.isActive ? 1 : 0); }
-    if (data.lastCheckedAt !== undefined) { sets.push('lastCheckedAt = ?'); values.push(data.lastCheckedAt); }
-    if (data.lastError !== undefined) { sets.push('lastError = ?'); values.push(data.lastError); }
+    const allowed = ['email_address', 'provider', 'access_token', 'refresh_token', 'token_expires_at', 'isActive', 'lastCheckedAt', 'lastError'];
+    
+    for (const key of allowed) {
+      if (data[key] !== undefined) {
+        fields.push(`${key} = ?`);
+        if (key === 'access_token' || key === 'refresh_token') {
+          params.push(encryptToken(data[key]));
+        } else if (key === 'isActive') {
+          params.push(data[key] ? 1 : 0);
+        } else {
+          params.push(data[key]);
+        }
+      }
+    }
 
-    if (sets.length === 0) return await this.getEmailWatcherAccount(id);
+    if (fields.length === 0) return await this.getEmailWatcherAccount(id);
 
-    sets.push('updatedAt = ?');
-    values.push(now);
-    values.push(id);
+    fields.push('updatedAt = ?');
+    params.push(now);
+    params.push(id);
 
-    await this.run(`UPDATE email_accounts SET ${sets.join(', ')} WHERE id = ?`, values);
-    return await this.getEmailWatcherAccount(id);
+    try {
+      const result = await this.run(`UPDATE email_accounts SET ${fields.join(', ')} WHERE id = ?`, params);
+      if (result.changes === 0) return null;
+      return await this.getEmailWatcherAccount(id);
+    } catch (error) {
+      logger.error(`Failed to update email account: ${id}`, { error: error.message });
+      throw error;
+    }
   };
 
-  // Update tokens specifically (called by outlookClient/gmailClient on refresh)
-  DatabaseService.prototype.updateEmailWatcherAccountTokens = async function(id, data) {
-    const now = new Date().toISOString();
-    await this.run(`
-      UPDATE email_accounts
-      SET access_token = ?, refresh_token = ?, token_expires_at = ?, updatedAt = ?
-      WHERE id = ?
-    `, [
-      encryptToken(data.access_token),
-      encryptToken(data.refresh_token),
-      data.expires_at || null,
-      now,
-      id,
-    ]);
-  };
-
-  // Delete email account
+  /**
+   * Delete email account
+   */
   DatabaseService.prototype.deleteEmailWatcherAccount = async function(id) {
-    const result = await this.run('DELETE FROM email_accounts WHERE id = ?', [id]);
-    return result.changes > 0;
+    try {
+      const result = await this.run('DELETE FROM email_accounts WHERE id = ?', [id]);
+      return result.changes > 0;
+    } catch (error) {
+      return false;
+    }
   };
 
   // ==================== Email Alert Rules ====================
   
-  // Get all email alert rules
+  /**
+   * Get all email alert rules
+   */
   DatabaseService.prototype.getAllEmailAlertRules = async function(activeOnly = false) {
     let query = 'SELECT * FROM email_alert_rules';
-    if (activeOnly) {
-      query += ' WHERE isActive = 1';
-    }
+    if (activeOnly) query += ' WHERE isActive = 1';
     query += ' ORDER BY priority DESC, createdAt DESC';
-    return await this.all(query);
+    
+    try {
+      const rows = await this.all(query);
+      return rows.map(r => ({ ...r, isActive: Boolean(r.isActive) }));
+    } catch (error) {
+      return [];
+    }
   };
 
-  // Get email alert rule by ID
+  /**
+   * Get single rule
+   */
   DatabaseService.prototype.getEmailAlertRule = async function(id) {
-    return await this.get('SELECT * FROM email_alert_rules WHERE id = ?', [id]);
+    try {
+      const row = await this.get('SELECT * FROM email_alert_rules WHERE id = ?', [id]);
+      if (row) row.isActive = Boolean(row.isActive);
+      return row;
+    } catch (error) {
+      return null;
+    }
   };
 
-  // Create email alert rule
+  /**
+   * Create email alert rule
+   */
   DatabaseService.prototype.createEmailAlertRule = async function(data) {
-    const { v4: uuidv4 } = await import('uuid');
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    await this.run(`
-      INSERT INTO email_alert_rules (
-        id, name, keywords, channels, priority, isActive, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      data.name,
-      JSON.stringify(data.keywords || []),
-      JSON.stringify(data.channels || ['email']),
-      data.priority || 0,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
-      now,
-      now
-    ]);
-    
-    return await this.getEmailAlertRule(id);
+    try {
+      // Ensure columns match what's in core.js or what the route expects
+      // Route sends: name, keyword, secondary_keyword, match_type, priority, alert_channels, active
+      // core.js defines: id, name, keywords, channels, priority, isActive, createdAt, updatedAt
+      
+      await this.run(`
+        INSERT INTO email_alert_rules (
+          id, name, keywords, channels, priority, isActive, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        data.name,
+        data.keyword || data.keywords || '', // Support both formats
+        data.alert_channels || data.channels || 'both',
+        data.priority || 'medium',
+        data.isActive !== undefined ? (data.isActive ? 1 : 0) : (data.active !== undefined ? (data.active ? 1 : 0) : 1),
+        now,
+        now
+      ]);
+      
+      return await this.getEmailAlertRule(id);
+    } catch (error) {
+      logger.error('Failed to create alert rule', { error: error.message, name: data.name });
+      throw error;
+    }
   };
 
-  // Update email alert rule
+  /**
+   * Update email alert rule
+   */
   DatabaseService.prototype.updateEmailAlertRule = async function(id, data) {
+    const fields = [];
+    const params = [];
     const now = new Date().toISOString();
-    const sets = [];
-    const values = [];
 
-    if (data.name !== undefined) { sets.push('name = ?'); values.push(data.name); }
-    if (data.keywords !== undefined) { sets.push('keywords = ?'); values.push(JSON.stringify(data.keywords)); }
-    if (data.channels !== undefined) { sets.push('channels = ?'); values.push(JSON.stringify(data.channels)); }
-    if (data.priority !== undefined) { sets.push('priority = ?'); values.push(data.priority); }
-    if (data.isActive !== undefined) { sets.push('isActive = ?'); values.push(data.isActive ? 1 : 0); }
+    const fieldMap = {
+      name: 'name',
+      keyword: 'keywords',
+      keywords: 'keywords',
+      channels: 'channels',
+      alert_channels: 'channels',
+      priority: 'priority',
+      isActive: 'isActive',
+      active: 'isActive'
+    };
 
-    if (sets.length === 0) return await this.getEmailAlertRule(id);
+    for (const [inputKey, dbKey] of Object.entries(fieldMap)) {
+      if (data[inputKey] !== undefined) {
+        fields.push(`${dbKey} = ?`);
+        if (dbKey === 'isActive') {
+          params.push(data[inputKey] ? 1 : 0);
+        } else {
+          params.push(data[inputKey]);
+        }
+      }
+    }
 
-    sets.push('updatedAt = ?');
-    values.push(now);
-    values.push(id);
+    if (fields.length === 0) return await this.getEmailAlertRule(id);
 
-    await this.run(`UPDATE email_alert_rules SET ${sets.join(', ')} WHERE id = ?`, values);
-    return await this.getEmailAlertRule(id);
+    fields.push('updatedAt = ?');
+    params.push(now);
+    params.push(id);
+
+    try {
+      await this.run(`UPDATE email_alert_rules SET ${fields.join(', ')} WHERE id = ?`, params);
+      return await this.getEmailAlertRule(id);
+    } catch (error) {
+      logger.error(`Failed to update alert rule: ${id}`, { error: error.message });
+      throw error;
+    }
   };
 
-  // Delete email alert rule
+  /**
+   * Delete rule
+   */
   DatabaseService.prototype.deleteEmailAlertRule = async function(id) {
-    const result = await this.run('DELETE FROM email_alert_rules WHERE id = ?', [id]);
-    return result.changes > 0;
+    try {
+      const result = await this.run('DELETE FROM email_alert_rules WHERE id = ?', [id]);
+      return result.changes > 0;
+    } catch (error) {
+      return false;
+    }
   };
 
-  // Toggle email alert rule
-  DatabaseService.prototype.toggleEmailAlertRule = async function(id) {
-    const rule = await this.getEmailAlertRule(id);
-    if (!rule) return null;
+  // ==================== Alert Logs/Stats ====================
 
-    return await this.updateEmailAlertRule(id, { isActive: !rule.isActive });
-  };
-
-  // ==================== Alert Stats ====================
-
-  // Get alert statistics for the past N days
+  /**
+   * Get alert stats
+   */
   DatabaseService.prototype.getAlertStats = async function(days = 7) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    const row = await this.get(`
-      SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN smsSent = 1 THEN 1 ELSE 0 END) AS sent,
-        0 AS failed
-      FROM email_alerts
-      WHERE receivedAt >= ?
-    `, [since]);
-    return { total: row?.total || 0, sent: row?.sent || 0, failed: row?.failed || 0, days };
+    try {
+      const row = await this.get(`
+        SELECT
+          COUNT(*) AS total,
+          SUM(CASE WHEN smsSent = 1 THEN 1 ELSE 0 END) AS sent
+        FROM email_alerts
+        WHERE receivedAt >= ?
+      `, [since]);
+      return { total: row?.total || 0, sent: row?.sent || 0, days };
+    } catch (error) {
+      return { total: 0, sent: 0, days };
+    }
   };
 
-  // Get N most recently processed emails
+  /**
+   * Get recent processed emails
+   */
   DatabaseService.prototype.getRecentProcessedEmails = async function(limit = 10) {
-    return await this.all(`
-      SELECT id, subject, fromAddress AS sender, messageId, smsSent, receivedAt
-      FROM email_alerts
-      ORDER BY receivedAt DESC
-      LIMIT ?
-    `, [limit]);
+    try {
+      return await this.all(`
+        SELECT id, subject, fromAddress AS sender, messageId, smsSent, receivedAt
+        FROM email_alerts
+        ORDER BY receivedAt DESC
+        LIMIT ?
+      `, [limit]);
+    } catch (error) {
+      return [];
+    }
   };
 }
 

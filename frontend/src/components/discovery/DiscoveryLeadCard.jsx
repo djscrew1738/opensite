@@ -1,3 +1,10 @@
+/**
+ * DiscoveryLeadCard Component
+ * Card display for discovered leads with tier styling and contact info
+ * 
+ * @module components/discovery/DiscoveryLeadCard
+ */
+
 import { 
   Mail, 
   Phone, 
@@ -11,56 +18,63 @@ import {
   Sparkles 
 } from 'lucide-react';
 import { useState, useCallback, memo } from 'react';
+import { colors, shadows } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Constants
 // ═══════════════════════════════════════════════════════════════
 
+/** @type {Record<string, {bg: string, border: string, accent: string, text: string, badge: string, label: string, icon: string, gradient: string}>} */
 const TIER_STYLES = {
   hot: { 
-    bg: 'bg-gradient-to-br from-red-50 to-orange-50', 
-    border: 'border-red-200', 
-    accent: 'border-l-red-500',
-    text: 'text-red-700', 
-    badge: 'bg-red-100 text-red-700 ring-red-200',
+    bg: `linear-gradient(to bottom right, #fef2f2, #fff7ed)`, 
+    border: colors.danger.border, 
+    accent: colors.danger.DEFAULT,
+    text: colors.danger.dark, 
+    badge: `${colors.danger.muted} ${colors.danger.DEFAULT}`,
     label: 'Hot Lead',
-    icon: '🔥'
+    icon: '🔥',
+    gradient: 'from-red-500 to-orange-500',
   },
   warm: { 
-    bg: 'bg-gradient-to-br from-orange-50 to-amber-50', 
-    border: 'border-orange-200', 
-    accent: 'border-l-orange-500',
-    text: 'text-orange-700', 
-    badge: 'bg-orange-100 text-orange-700 ring-orange-200',
+    bg: `linear-gradient(to bottom right, #fff7ed, #fef3c7)`, 
+    border: colors.warning.border, 
+    accent: colors.warning.DEFAULT,
+    text: colors.warning.dark, 
+    badge: `${colors.warning.muted} ${colors.warning.DEFAULT}`,
     label: 'Warm Lead',
-    icon: '☀️'
+    icon: '☀️',
+    gradient: 'from-orange-400 to-amber-400',
   },
   cold: { 
-    bg: 'bg-gradient-to-br from-slate-50 to-gray-50', 
-    border: 'border-slate-200', 
-    accent: 'border-l-slate-400',
-    text: 'text-slate-600', 
-    badge: 'bg-slate-100 text-slate-600 ring-slate-200',
+    bg: `linear-gradient(to bottom right, #f8fafc, #f1f5f9)`, 
+    border: colors.border.strong, 
+    accent: colors.text.muted,
+    text: colors.text.secondary, 
+    badge: `${colors.border.default} ${colors.text.muted}`,
     label: 'Cold Lead',
-    icon: '❄️'
+    icon: '❄️',
+    gradient: 'from-slate-400 to-gray-400',
   },
   unscored: { 
-    bg: 'bg-surface-50', 
-    border: 'border-surface-200', 
-    accent: 'border-l-surface-300',
-    text: 'text-surface-500', 
-    badge: 'bg-surface-100 text-surface-500',
+    bg: colors.surface.card, 
+    border: colors.border.default, 
+    accent: colors.border.strong,
+    text: colors.text.muted, 
+    badge: `${colors.border.default} ${colors.text.muted}`,
     label: 'Unscored',
-    icon: '○'
+    icon: '○',
+    gradient: 'from-gray-300 to-gray-400',
   },
 };
 
+/** @type {Record<string, {bg: string, label: string}>} */
 const STATUS_STYLES = {
-  new: { bg: 'bg-blue-50 text-blue-700 ring-blue-200', label: 'New' },
-  contacted: { bg: 'bg-amber-50 text-amber-700 ring-amber-200', label: 'Contacted' },
-  responded: { bg: 'bg-emerald-50 text-emerald-700 ring-emerald-200', label: 'Responded' },
-  converted: { bg: 'bg-purple-50 text-purple-700 ring-purple-200', label: 'Converted' },
-  dismissed: { bg: 'bg-gray-100 text-gray-500', label: 'Dismissed' },
+  new: { bg: `${colors.info.muted} ${colors.info.DEFAULT}`, label: 'New' },
+  contacted: { bg: `${colors.warning.muted} ${colors.warning.DEFAULT}`, label: 'Contacted' },
+  responded: { bg: `${colors.success.muted} ${colors.success.DEFAULT}`, label: 'Responded' },
+  converted: { bg: `${colors.accent.muted} ${colors.accent.DEFAULT}`, label: 'Converted' },
+  dismissed: { bg: colors.border.default, label: 'Dismissed' },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -69,6 +83,7 @@ const STATUS_STYLES = {
 
 /**
  * Hook to manage copy to clipboard state
+ * @returns {{copiedEmail: boolean, copiedPhone: boolean, copyEmail: () => void, copyPhone: () => void}}
  */
 function useCopyState() {
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -93,11 +108,19 @@ function useCopyState() {
 
 /**
  * Score badge with tier label
+ * @param {{score: number, tier: typeof TIER_STYLES[keyof typeof TIER_STYLES]}} props
  */
 const ScoreBadge = memo(function ScoreBadge({ score, tier }) {
   return (
     <div className="shrink-0 flex flex-col items-end">
-      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold ring-1 ${tier.badge} shadow-sm`}>
+      <div 
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold shadow-sm"
+        style={{ 
+          backgroundColor: tier.badge.split(' ')[0],
+          color: tier.badge.split(' ')[1],
+          boxShadow: shadows.card,
+        }}
+      >
         <span className="font-mono text-base">{score || '--'}</span>
         <span className="text-xs opacity-80">{tier.label}</span>
       </div>
@@ -105,21 +128,64 @@ const ScoreBadge = memo(function ScoreBadge({ score, tier }) {
   );
 });
 
+ScoreBadge.displayName = 'ScoreBadge';
+
 /**
  * Plumbing relevance indicator
+ * @param {{relevance: number}} props
  */
 const RelevanceIndicator = memo(function RelevanceIndicator({ relevance }) {
   if (!relevance > 0) return null;
 
   return (
-    <span className="text-2xs text-surface-400 mt-1">
+    <span 
+      className="text-2xs mt-1"
+      style={{ color: colors.text.muted }}
+    >
       {Math.round(relevance * 100)}% match
     </span>
   );
 });
 
+RelevanceIndicator.displayName = 'RelevanceIndicator';
+
+/**
+ * Copy button component
+ * @param {{copied: boolean, onClick: () => void}} props
+ */
+const CopyButton = memo(function CopyButton({ copied, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md"
+      style={{ 
+        color: colors.text.muted,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = colors.border.default;
+        e.currentTarget.style.color = colors.text.secondary;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.color = colors.text.muted;
+      }}
+      title="Copy"
+      type="button"
+    >
+      {copied ? (
+        <Check className="w-3.5 h-3.5" style={{ color: colors.success.DEFAULT }} />
+      ) : (
+        <Copy className="w-3.5 h-3.5" />
+      )}
+    </button>
+  );
+});
+
+CopyButton.displayName = 'CopyButton';
+
 /**
  * Email row with verification badge
+ * @param {{email: string, isVerified: boolean, score: number, copied: boolean, onCopy: () => void}} props
  */
 const EmailRow = memo(function EmailRow({ 
   email, 
@@ -128,24 +194,38 @@ const EmailRow = memo(function EmailRow({
   copied, 
   onCopy 
 }) {
+  const iconBg = isVerified ? colors.success.muted : colors.border.default;
+  const iconColor = isVerified ? colors.success.DEFAULT : colors.text.muted;
+
   return (
     <div className="flex items-center gap-2 group/email">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-        isVerified ? 'bg-emerald-50 text-emerald-600' : 'bg-surface-100 text-surface-500'
-      }`}>
+      <div 
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+        style={{ backgroundColor: iconBg, color: iconColor }}
+      >
         <Mail className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm text-surface-700 dark:text-surface-300 truncate font-medium">
+          <span 
+            className="text-sm truncate font-medium"
+            style={{ color: colors.text.secondary }}
+          >
             {email}
           </span>
           {isVerified && (
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Verified email" />
+            <CheckCircle 
+              className="w-3.5 h-3.5 shrink-0" 
+              style={{ color: colors.success.DEFAULT }}
+              title="Verified email" 
+            />
           )}
         </div>
         {score > 0 && (
-          <span className="text-2xs text-surface-400">
+          <span 
+            className="text-2xs"
+            style={{ color: colors.text.muted }}
+          >
             Quality: {score}/100
           </span>
         )}
@@ -155,16 +235,25 @@ const EmailRow = memo(function EmailRow({
   );
 });
 
+EmailRow.displayName = 'EmailRow';
+
 /**
  * Phone row
+ * @param {{phone: string, copied: boolean, onCopy: () => void}} props
  */
 const PhoneRow = memo(function PhoneRow({ phone, copied, onCopy }) {
   return (
     <div className="flex items-center gap-2 group/phone">
-      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+      <div 
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: colors.accent.muted, color: colors.accent.DEFAULT }}
+      >
         <Phone className="w-3.5 h-3.5" />
       </div>
-      <span className="text-sm text-surface-700 dark:text-surface-300 font-medium">
+      <span 
+        className="text-sm font-medium"
+        style={{ color: colors.text.secondary }}
+      >
         {phone}
       </span>
       <CopyButton copied={copied} onClick={onCopy} />
@@ -172,27 +261,11 @@ const PhoneRow = memo(function PhoneRow({ phone, copied, onCopy }) {
   );
 });
 
-/**
- * Copy button component
- */
-const CopyButton = memo(function CopyButton({ copied, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-surface-100 text-surface-400 hover:text-surface-600"
-      title="Copy"
-    >
-      {copied ? (
-        <Check className="w-3.5 h-3.5 text-emerald-500" />
-      ) : (
-        <Copy className="w-3.5 h-3.5" />
-      )}
-    </button>
-  );
-});
+PhoneRow.displayName = 'PhoneRow';
 
 /**
  * Website link row
+ * @param {{url: string}} props
  */
 const WebsiteRow = memo(function WebsiteRow({ url }) {
   const getDomain = (url) => {
@@ -206,7 +279,10 @@ const WebsiteRow = memo(function WebsiteRow({ url }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+      <div 
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: colors.accent.muted, color: colors.accent.DEFAULT }}
+      >
         <Globe className="w-3.5 h-3.5" />
       </div>
       <a
@@ -214,7 +290,10 @@ const WebsiteRow = memo(function WebsiteRow({ url }) {
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="text-sm text-accent-600 hover:text-accent-700 hover:underline truncate flex items-center gap-1"
+        className="text-sm truncate flex items-center gap-1 transition-colors"
+        style={{ color: colors.accent.DEFAULT }}
+        onMouseEnter={(e) => e.currentTarget.style.color = colors.accent.light}
+        onMouseLeave={(e) => e.currentTarget.style.color = colors.accent.DEFAULT}
       >
         {getDomain(url)}
         <ExternalLink className="w-3 h-3 opacity-50" />
@@ -223,35 +302,69 @@ const WebsiteRow = memo(function WebsiteRow({ url }) {
   );
 });
 
+WebsiteRow.displayName = 'WebsiteRow';
+
 /**
  * Address row
+ * @param {{address: string}} props
  */
 const AddressRow = memo(function AddressRow({ address }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+      <div 
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: colors.warning.muted, color: colors.warning.DEFAULT }}
+      >
         <MapPin className="w-3.5 h-3.5" />
       </div>
-      <span className="text-sm text-surface-600 dark:text-surface-400 truncate">
+      <span 
+        className="text-sm truncate"
+        style={{ color: colors.text.muted }}
+      >
         {address}
       </span>
     </div>
   );
 });
 
+AddressRow.displayName = 'AddressRow';
+
 /**
  * Rating display
+ * @param {{rating: number, reviewCount: number, isEnriched: boolean}} props
  */
 const RatingDisplay = memo(function RatingDisplay({ rating, reviewCount, isEnriched }) {
   return (
     <div className="flex items-center gap-2 pt-1">
-      <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg">
-        <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-        <span className="text-sm font-bold text-surface-700">{rating}</span>
-        <span className="text-xs text-surface-500">({reviewCount || 0})</span>
+      <div 
+        className="flex items-center gap-1 px-2 py-1 rounded-lg"
+        style={{ backgroundColor: colors.warning.muted }}
+      >
+        <Star 
+          className="w-3.5 h-3.5" 
+          style={{ color: colors.warning.DEFAULT, fill: colors.warning.DEFAULT }}
+        />
+        <span 
+          className="text-sm font-bold"
+          style={{ color: colors.text.secondary }}
+        >
+          {rating}
+        </span>
+        <span 
+          className="text-xs"
+          style={{ color: colors.text.muted }}
+        >
+          ({reviewCount || 0})
+        </span>
       </div>
       {isEnriched && (
-        <span className="text-2xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full flex items-center gap-1">
+        <span 
+          className="text-2xs px-2 py-1 rounded-full flex items-center gap-1"
+          style={{ 
+            backgroundColor: colors.success.muted,
+            color: colors.success.DEFAULT,
+          }}
+        >
           <Sparkles className="w-3 h-3" />
           Enriched
         </span>
@@ -260,24 +373,42 @@ const RatingDisplay = memo(function RatingDisplay({ rating, reviewCount, isEnric
   );
 });
 
+RatingDisplay.displayName = 'RatingDisplay';
+
 /**
  * Outreach preview section
+ * @param {{subject: string}} props
  */
 const OutreachPreview = memo(function OutreachPreview({ subject }) {
   return (
-    <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-3 border border-surface-100 dark:border-surface-600">
-      <p className="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1">
+    <div 
+      className="rounded-lg p-3 border"
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderColor: colors.border.default,
+      }}
+    >
+      <p 
+        className="text-xs font-semibold mb-1"
+        style={{ color: colors.text.muted }}
+      >
         Suggested Outreach:
       </p>
-      <p className="text-sm text-surface-700 dark:text-surface-300 line-clamp-2">
+      <p 
+        className="text-sm line-clamp-2"
+        style={{ color: colors.text.secondary }}
+      >
         {subject}
       </p>
     </div>
   );
 });
 
+OutreachPreview.displayName = 'OutreachPreview';
+
 /**
  * Status selector dropdown
+ * @param {{value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void}} props
  */
 const StatusSelector = memo(function StatusSelector({ value, onChange }) {
   const status = STATUS_STYLES[value] || STATUS_STYLES.new;
@@ -286,7 +417,11 @@ const StatusSelector = memo(function StatusSelector({ value, onChange }) {
     <select
       value={value}
       onChange={onChange}
-      className={`text-xs font-semibold rounded-lg px-3 py-1.5 border-0 ring-1 ring-inset cursor-pointer hover:ring-2 transition-all ${status.bg} ${status.ring || 'ring-transparent'}`}
+      className="text-xs font-semibold rounded-lg px-3 py-1.5 border-0 ring-1 ring-inset cursor-pointer hover:ring-2 transition-all"
+      style={{ 
+        backgroundColor: status.bg.split(' ')[0],
+        color: status.bg.split(' ')[1],
+      }}
     >
       {Object.entries(STATUS_STYLES).map(([val, config]) => (
         <option key={val} value={val}>{config.label}</option>
@@ -295,10 +430,16 @@ const StatusSelector = memo(function StatusSelector({ value, onChange }) {
   );
 });
 
+StatusSelector.displayName = 'StatusSelector';
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * DiscoveryLeadCard - Card display for discovered leads
+ * @param {{lead: Record<string, any>, onViewDetail?: (lead: any) => void, onStatusUpdate?: (id: string, status: string) => void}} props
+ */
 export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }) {
   const [isHovered, setIsHovered] = useState(false);
   const { copiedEmail, copiedPhone, copyEmail, copyPhone } = useCopyState();
@@ -334,24 +475,39 @@ export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }
       onClick={() => onViewDetail?.(lead)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative overflow-hidden rounded-xl border ${tier.border} ${tier.accent} border-l-4 bg-white dark:bg-surface-800 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer`}
+      className="group relative overflow-hidden rounded-xl border border-l-4 shadow-sm transition-all duration-300 cursor-pointer"
+      style={{ 
+        backgroundColor: colors.surface.card,
+        borderColor: tier.border,
+        borderLeftColor: tier.accent,
+        boxShadow: isHovered ? shadows.cardHover : shadows.card,
+      }}
     >
       {/* Tier accent bar at top */}
-      <div className={`h-1 w-full bg-gradient-to-r ${
-        lead.icpTier === 'hot' ? 'from-red-500 to-orange-500' : 
-        lead.icpTier === 'warm' ? 'from-orange-400 to-amber-400' : 
-        'from-slate-300 to-gray-300'
-      }`} />
+      <div 
+        className="h-1 w-full"
+        style={{ 
+          background: tier.gradient 
+            ? `linear-gradient(to right, ${tier.gradient.replace('from-', '').replace(' to-', ', ')})`
+            : tier.accent,
+        }}
+      />
       
       <div className="p-4 space-y-3">
         {/* Header: Score badge + Business Name */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-display font-bold text-surface-900 dark:text-surface-100 truncate text-lg group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
+            <h3 
+              className="font-bold truncate text-lg transition-colors"
+              style={{ color: colors.text.primary }}
+            >
               {lead.businessName}
             </h3>
             {lead.category && (
-              <p className="text-xs text-surface-500 dark:text-surface-400 truncate mt-0.5">
+              <p 
+                className="text-xs truncate mt-0.5"
+                style={{ color: colors.text.muted }}
+              >
                 {lead.category}
               </p>
             )}
@@ -402,22 +558,34 @@ export default function DiscoveryLeadCard({ lead, onViewDetail, onStatusUpdate }
         )}
 
         {/* Footer: Status selector + Meta */}
-        <div className="flex items-center justify-between pt-3 border-t border-surface-100 dark:border-surface-700">
+        <div 
+          className="flex items-center justify-between pt-3"
+          style={{ borderTop: `1px solid ${colors.border.default}` }}
+        >
           <StatusSelector 
             value={lead.contactStatus} 
             onChange={handleStatusChange}
           />
           
-          <span className="text-2xs text-surface-400">
+          <span 
+            className="text-2xs"
+            style={{ color: colors.text.muted }}
+          >
             {lead.servicesOffered?.length > 0 && `${lead.servicesOffered.length} services detected`}
           </span>
         </div>
       </div>
 
       {/* Hover overlay hint */}
-      <div className={`absolute inset-0 bg-accent-500/5 pointer-events-none transition-opacity duration-300 ${
-        isHovered ? 'opacity-100' : 'opacity-0'
-      }`} />
+      <div 
+        className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+        style={{ 
+          backgroundColor: `${colors.accent.DEFAULT}05`,
+          opacity: isHovered ? 1 : 0,
+        }}
+      />
     </div>
   );
 }
+
+DiscoveryLeadCard.displayName = 'DiscoveryLeadCard';

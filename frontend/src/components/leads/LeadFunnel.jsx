@@ -22,12 +22,12 @@ export default function LeadFunnel({ leads = [] }) {
 
   return (
     <div className="card">
-      <div className="card-body p-4">
+      <div className="card-body p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-surface-500 dark:text-surface-400">
             Lead Pipeline
           </h3>
-          <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-300 tabular-nums">
+          <span className="text-xs font-mono font-bold text-surface-600 dark:text-surface-300 tabular-nums">
             {counts.total} total
           </span>
         </div>
@@ -52,10 +52,10 @@ export default function LeadFunnel({ leads = [] }) {
           {stages.map(stage => (
             <div key={stage.key} className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+              <span className="text-xs font-semibold text-surface-600 dark:text-surface-400">
                 {stage.label}
               </span>
-              <span className="text-xs font-bold font-mono text-gray-900 dark:text-gray-200 tabular-nums">
+              <span className="text-xs font-semibold font-mono text-surface-900 dark:text-surface-200 tabular-nums">
                 {counts[stage.key]}
               </span>
             </div>

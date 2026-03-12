@@ -1,204 +1,242 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback, memo } from 'react';
+import PropTypes from 'prop-types';
 import { FileText, Trash2, Loader2, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { colors } from '../../styles/tokens';
+import { useRelativeTime, formatWordCount, truncateFilename } from '../../hooks/useDocuments';
+
+// ═══════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════
 
 /**
- * DocSidebar — Sidebar listing uploaded text documents.
- * Dark Forge design system with inline styles for custom colors.
- *
- * @param {Array}    documents   - Array of document objects
- * @param {string}   selectedId  - Currently selected document ID
- * @param {Function} onSelect    - Called with document ID on click
- * @param {Function} onDelete    - Called with document ID on delete
- * @param {boolean}  isLoading   - Show skeleton loading state
+ * Status configuration mapping for document states
+ * @type {Object.<string, {label: string, color: string, bg: string, border: string, icon: import('lucide-react').LucideIcon, animate: boolean}>}
  */
-
-// ── Helpers ────────────────────────────────────────────────
-
-function relativeTime(dateStr) {
-  if (!dateStr) return '';
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffSec = Math.floor((now - then) / 1000);
-
-  if (diffSec < 60) return 'just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  const diffMonth = Math.floor(diffDay / 30);
-  if (diffMonth < 12) return `${diffMonth}mo ago`;
-  return `${Math.floor(diffMonth / 12)}y ago`;
-}
-
-function truncateName(name, max = 28) {
-  if (!name || name.length <= max) return name;
-  const ext = name.lastIndexOf('.');
-  if (ext === -1) return name.slice(0, max - 3) + '...';
-  const extension = name.slice(ext);
-  const stem = name.slice(0, ext);
-  const available = max - extension.length - 3;
-  if (available <= 0) return name.slice(0, max - 3) + '...';
-  return stem.slice(0, available) + '...' + extension;
-}
-
-function formatWordCount(count) {
-  if (count == null) return null;
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}k words`;
-  return `${count} words`;
-}
-
-// ── Status badge config ────────────────────────────────────
-
 const STATUS_CONFIG = {
   processing: {
     label: 'Processing',
-    color: '#F59E0B',
-    bg: 'rgba(245, 158, 11, 0.12)',
-    border: 'rgba(245, 158, 11, 0.2)',
+    color: colors.warning.DEFAULT,
+    bg: colors.warning.muted,
+    border: colors.warning.border,
     icon: Loader2,
-    pulse: true,
+    animate: true,
   },
   ready: {
     label: 'Ready',
-    color: '#10B981',
-    bg: 'rgba(16, 185, 129, 0.12)',
-    border: 'rgba(16, 185, 129, 0.2)',
+    color: colors.success.DEFAULT,
+    bg: colors.success.muted,
+    border: colors.success.border,
     icon: CheckCircle2,
-    pulse: false,
+    animate: false,
   },
   error: {
     label: 'Error',
-    color: '#EF4444',
-    bg: 'rgba(239, 68, 68, 0.12)',
-    border: 'rgba(239, 68, 68, 0.2)',
+    color: colors.danger.DEFAULT,
+    bg: colors.danger.muted,
+    border: colors.danger.border,
     icon: AlertCircle,
-    pulse: false,
+    animate: false,
   },
 };
 
-function StatusBadge({ status }) {
+// ═══════════════════════════════════════════════════════════════
+// Sub-Components
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Status badge showing document processing state
+ * 
+ * @param {Object} props - Component props
+ * @param {string} props.status - Document status ('processing', 'ready', 'error')
+ * @returns {JSX.Element} Status badge component
+ */
+const StatusBadge = memo(function StatusBadge({ status }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.processing;
   const Icon = config.icon;
 
   return (
     <span
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium leading-none"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium leading-none border"
       style={{
+        backgroundColor: config.bg,
         color: config.color,
-        background: config.bg,
-        border: `1px solid ${config.border}`,
+        borderColor: config.border,
       }}
+      aria-label={`Status: ${config.label}`}
     >
-      <Icon
-        className={`w-3 h-3 ${config.pulse ? 'animate-spin' : ''}`}
-        style={{ color: config.color }}
+      <Icon 
+        className={`w-3 h-3 ${config.animate ? 'animate-spin' : ''}`} 
+        aria-hidden="true"
       />
       {config.label}
     </span>
   );
-}
+});
 
-// ── Skeleton rows ──────────────────────────────────────────
+StatusBadge.propTypes = {
+  status: PropTypes.oneOf(['processing', 'ready', 'error']).isRequired,
+};
 
-function SkeletonRow({ delay = 0 }) {
+StatusBadge.displayName = 'StatusBadge';
+
+/**
+ * Skeleton loading row for loading state
+ * 
+ * @param {Object} props - Component props
+ * @param {number} [props.delay] - Animation delay in milliseconds
+ * @returns {JSX.Element} Skeleton row component
+ */
+const SkeletonRow = memo(function SkeletonRow({ delay = 0 }) {
   return (
-    <div
-      className="flex items-center gap-3 px-3 py-3"
-      style={{
-        borderBottom: '1px solid #1F2430',
-        animationDelay: `${delay}ms`,
+    <div 
+      className="flex items-center gap-3 px-3 py-3 border-b"
+      style={{ 
+        borderColor: colors.border.default,
+        animationDelay: `${delay}ms` 
       }}
+      aria-hidden="true"
     >
       {/* Icon placeholder */}
-      <div
-        className="w-8 h-8 rounded-lg flex-shrink-0 skeleton-shimmer"
-        style={{ background: '#181C24' }}
+      <div 
+        className="w-8 h-8 rounded-lg flex-shrink-0 animate-pulse" 
+        style={{ backgroundColor: colors.surface.elevated }} 
       />
       {/* Text placeholders */}
       <div className="flex-1 space-y-2">
-        <div
-          className="h-3.5 rounded skeleton-shimmer"
-          style={{ background: '#181C24', width: '75%' }}
+        <div 
+          className="h-3.5 rounded animate-pulse w-3/4" 
+          style={{ backgroundColor: colors.surface.elevated }} 
         />
-        <div
-          className="h-2.5 rounded skeleton-shimmer"
-          style={{ background: '#181C24', width: '50%' }}
+        <div 
+          className="h-2.5 rounded animate-pulse w-1/2" 
+          style={{ backgroundColor: colors.surface.elevated }} 
         />
       </div>
       {/* Badge placeholder */}
-      <div
-        className="w-14 h-5 rounded skeleton-shimmer flex-shrink-0"
-        style={{ background: '#181C24' }}
+      <div 
+        className="w-14 h-5 rounded animate-pulse flex-shrink-0" 
+        style={{ backgroundColor: colors.surface.elevated }} 
       />
     </div>
   );
-}
+});
 
-// ── Document row ───────────────────────────────────────────
+SkeletonRow.propTypes = {
+  delay: PropTypes.number,
+};
 
-function DocRow({ doc, isSelected, onSelect, onDelete }) {
+SkeletonRow.defaultProps = {
+  delay: 0,
+};
+
+SkeletonRow.displayName = 'SkeletonRow';
+
+/**
+ * Individual document row in sidebar
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.doc - Document data
+ * @param {string} props.doc.id - Unique document identifier
+ * @param {string} props.doc.original_name - Original file name
+ * @param {string} props.doc.status - Document status
+ * @param {number} [props.doc.word_count] - Word count
+ * @param {string} [props.doc.created_at] - Creation timestamp
+ * @param {boolean} props.isSelected - Whether this document is selected
+ * @param {Function} props.onSelect - Callback when document is selected
+ * @param {Function} props.onDelete - Callback when delete is requested
+ * @returns {JSX.Element} Document row component
+ */
+const DocRow = memo(function DocRow({ doc, isSelected, onSelect, onDelete }) {
+  const timeAgo = useRelativeTime(doc.created_at);
   const wordCount = formatWordCount(doc.word_count);
-  const timeAgo = relativeTime(doc.created_at);
+
+  /**
+   * Handles row click/selection
+   */
+  const handleSelect = useCallback(() => {
+    onSelect(doc.id);
+  }, [onSelect, doc.id]);
+
+  /**
+   * Handles delete button click
+   * @param {React.MouseEvent} e - Click event
+   */
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    onDelete(doc.id);
+  }, [onDelete, doc.id]);
+
+  /**
+   * Handles keyboard interaction
+   * @param {React.KeyboardEvent} e - Keyboard event
+   */
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(doc.id);
+    }
+  }, [onSelect, doc.id]);
+
+  // Row styles based on selection state
+  const rowStyle = isSelected
+    ? {
+        backgroundColor: colors.accent.muted,
+        borderLeftColor: colors.accent.DEFAULT,
+      }
+    : {
+        backgroundColor: 'transparent',
+        borderLeftColor: 'transparent',
+      };
+
+  // Icon container styles
+  const iconContainerStyle = isSelected
+    ? { backgroundColor: colors.accent.muted }
+    : { backgroundColor: colors.surface.elevated };
+
+  // Icon color
+  const iconColor = isSelected ? colors.accent.DEFAULT : colors.text.muted;
 
   return (
     <div
       data-doc-id={doc.id}
-      onClick={() => onSelect(doc.id)}
-      className="group flex items-start gap-3 px-3 py-3 cursor-pointer transition-colors"
+      onClick={handleSelect}
+      className="group flex items-start gap-3 px-3 py-3 cursor-pointer transition-colors border-b border-l-[3px]"
       style={{
-        background: isSelected ? 'rgba(59, 130, 246, 0.06)' : 'transparent',
-        borderLeft: isSelected ? '3px solid #3B82F6' : '3px solid transparent',
-        borderBottom: '1px solid #1F2430',
+        borderColor: colors.border.default,
+        ...rowStyle,
       }}
-      onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.background = '#111318';
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.background = 'transparent';
-      }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      aria-selected={isSelected}
+      aria-label={`${doc.original_name}, ${doc.status}`}
     >
       {/* File icon */}
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-        style={{
-          background: isSelected
-            ? 'rgba(59, 130, 246, 0.12)'
-            : '#181C24',
-        }}
+        style={iconContainerStyle}
       >
-        <FileText
-          className="w-4 h-4"
-          style={{
-            color: isSelected ? '#3B82F6' : '#64748B',
-          }}
-        />
+        <FileText className="w-4 h-4" style={{ color: iconColor }} />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        {/* Name + status row */}
-        <div className="flex items-center gap-2">
-          <span
-            className="text-sm font-medium truncate"
-            style={{ color: '#F1F5F9' }}
-            title={doc.original_name}
-          >
-            {truncateName(doc.original_name)}
-          </span>
-        </div>
+        {/* Name */}
+        <span
+          className="text-sm font-medium truncate block"
+          style={{ color: colors.text.primary }}
+          title={doc.original_name}
+        >
+          {truncateFilename(doc.original_name)}
+        </span>
 
         {/* Meta row */}
         <div className="flex items-center gap-2 mt-1">
           <StatusBadge status={doc.status} />
           {wordCount && (
-            <span
-              className="text-[11px]"
-              style={{
-                color: '#64748B',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
+            <span 
+              className="text-[11px] font-mono"
+              style={{ color: colors.text.muted }}
             >
               {wordCount}
             </span>
@@ -208,8 +246,11 @@ function DocRow({ doc, isSelected, onSelect, onDelete }) {
         {/* Time */}
         {timeAgo && (
           <div className="flex items-center gap-1 mt-1">
-            <Clock className="w-3 h-3" style={{ color: '#475569' }} />
-            <span className="text-[11px]" style={{ color: '#475569' }}>
+            <Clock className="w-3 h-3" style={{ color: colors.text.disabled }} />
+            <span 
+              className="text-[11px]"
+              style={{ color: colors.text.disabled }}
+            >
               {timeAgo}
             </span>
           </div>
@@ -218,35 +259,141 @@ function DocRow({ doc, isSelected, onSelect, onDelete }) {
 
       {/* Delete button — visible on hover */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(doc.id);
-        }}
-        className="flex-shrink-0 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{
-          color: '#64748B',
-          background: 'transparent',
+        onClick={handleDelete}
+        className="flex-shrink-0 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 focus:outline-none"
+        style={{ 
+          color: colors.text.muted,
+          backgroundColor: 'transparent'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#EF4444';
-          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+          e.currentTarget.style.color = colors.danger.DEFAULT;
+          e.currentTarget.style.backgroundColor = colors.danger.muted;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.color = '#64748B';
-          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = colors.text.muted;
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.opacity = '1';
+          e.currentTarget.style.boxShadow = `0 0 0 2px ${colors.danger.muted}`;
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.boxShadow = 'none';
         }}
         title="Delete document"
         aria-label={`Delete ${doc.original_name}`}
+        type="button"
       >
         <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );
-}
+});
 
-// ── Main component ─────────────────────────────────────────
+DocRow.propTypes = {
+  doc: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    original_name: PropTypes.string.isRequired,
+    status: PropTypes.oneOf(['processing', 'ready', 'error']).isRequired,
+    word_count: PropTypes.number,
+    created_at: PropTypes.string,
+  }).isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  onSelect: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+};
 
-export default function DocSidebar({
+DocRow.displayName = 'DocRow';
+
+/**
+ * Empty state when no documents exist
+ * @returns {JSX.Element} Empty state component
+ */
+const EmptyState = memo(function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+      <div 
+        className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+        style={{ backgroundColor: colors.surface.elevated }}
+      >
+        <FileText className="w-6 h-6" style={{ color: colors.text.disabled }} />
+      </div>
+      <p 
+        className="text-sm font-medium"
+        style={{ color: colors.text.secondary }}
+      >
+        No documents uploaded yet
+      </p>
+      <p 
+        className="text-xs mt-1"
+        style={{ color: colors.text.muted }}
+      >
+        Upload a document to get started
+      </p>
+    </div>
+  );
+});
+
+EmptyState.displayName = 'EmptyState';
+
+/**
+ * Sidebar header with document count
+ * 
+ * @param {Object} props - Component props
+ * @param {number} props.count - Number of documents
+ * @returns {JSX.Element} Sidebar header component
+ */
+const SidebarHeader = memo(function SidebarHeader({ count }) {
+  return (
+    <div 
+      className="px-3 py-2.5 flex items-center justify-between border-b"
+      style={{ borderColor: colors.border.default }}
+    >
+      <span 
+        className="text-xs font-semibold uppercase tracking-wider"
+        style={{ color: colors.text.muted }}
+      >
+        Documents
+      </span>
+      {count > 0 && (
+        <span 
+          className="text-[11px] font-medium px-1.5 py-0.5 rounded font-mono"
+          style={{ 
+            backgroundColor: colors.surface.elevated,
+            color: colors.text.secondary 
+          }}
+          aria-label={`${count} documents`}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+});
+
+SidebarHeader.propTypes = {
+  count: PropTypes.number.isRequired,
+};
+
+SidebarHeader.displayName = 'SidebarHeader';
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * DocSidebar — Sidebar listing uploaded text documents.
+ * Dark Forge design system with design tokens.
+ * 
+ * @param {Object} props - Component props
+ * @param {Array} [props.documents] - Array of document objects
+ * @param {string} [props.selectedId] - ID of currently selected document
+ * @param {Function} props.onSelect - Callback when a document is selected
+ * @param {Function} props.onDelete - Callback when a document is deleted
+ * @param {boolean} [props.isLoading] - Whether documents are loading
+ * @returns {JSX.Element} Document sidebar component
+ */
+function DocSidebar({
   documents = [],
   selectedId,
   onSelect,
@@ -262,27 +409,39 @@ export default function DocSidebar({
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
 
+  /**
+   * Handles document selection
+   * @param {string} id - Document ID to select
+   */
+  const handleSelect = useCallback((id) => {
+    onSelect(id);
+  }, [onSelect]);
+
+  /**
+   * Handles document deletion
+   * @param {string} id - Document ID to delete
+   */
+  const handleDelete = useCallback((id) => {
+    onDelete(id);
+  }, [onDelete]);
+
+  // Container styles
+  const containerStyle = {
+    backgroundColor: colors.surface.card,
+    borderColor: colors.border.default,
+  };
+
   // Loading state — 3 skeleton rows
   if (isLoading) {
     return (
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{
-          background: '#111318',
-          border: '1px solid #1F2430',
-        }}
+      <div 
+        className="rounded-xl overflow-hidden border"
+        style={containerStyle}
+        role="region"
+        aria-label="Documents sidebar"
+        aria-busy="true"
       >
-        <div
-          className="px-3 py-2.5"
-          style={{ borderBottom: '1px solid #1F2430' }}
-        >
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: '#64748B' }}
-          >
-            Documents
-          </span>
-        </div>
+        <SidebarHeader count={0} />
         {[0, 1, 2].map((i) => (
           <SkeletonRow key={i} delay={i * 50} />
         ))}
@@ -293,92 +452,69 @@ export default function DocSidebar({
   // Empty state
   if (!documents || documents.length === 0) {
     return (
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{
-          background: '#111318',
-          border: '1px solid #1F2430',
-        }}
+      <div 
+        className="rounded-xl overflow-hidden border"
+        style={containerStyle}
+        role="region"
+        aria-label="Documents sidebar"
       >
-        <div
-          className="px-3 py-2.5"
-          style={{ borderBottom: '1px solid #1F2430' }}
-        >
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: '#64748B' }}
-          >
-            Documents
-          </span>
-        </div>
-        <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: '#181C24' }}
-          >
-            <FileText className="w-6 h-6" style={{ color: '#475569' }} />
-          </div>
-          <p
-            className="text-sm font-medium"
-            style={{ color: '#94A3B8' }}
-          >
-            No documents uploaded yet
-          </p>
-          <p
-            className="text-xs mt-1"
-            style={{ color: '#475569' }}
-          >
-            Upload a document to get started
-          </p>
-        </div>
+        <SidebarHeader count={0} />
+        <EmptyState />
       </div>
     );
   }
 
   // Document list
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: '#111318',
-        border: '1px solid #1F2430',
-      }}
+    <div 
+      className="rounded-xl overflow-hidden border"
+      style={containerStyle}
+      role="region"
+      aria-label="Documents sidebar"
     >
-      {/* Header */}
-      <div
-        className="px-3 py-2.5 flex items-center justify-between"
-        style={{ borderBottom: '1px solid #1F2430' }}
-      >
-        <span
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: '#64748B' }}
-        >
-          Documents
-        </span>
-        <span
-          className="text-[11px] font-medium px-1.5 py-0.5 rounded"
-          style={{
-            color: '#94A3B8',
-            background: '#181C24',
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          {documents.length}
-        </span>
-      </div>
+      <SidebarHeader count={documents.length} />
 
       {/* Scrollable list */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+      <div 
+        ref={scrollContainerRef} 
+        className="max-h-[calc(100vh-300px)] overflow-y-auto"
+        role="listbox"
+        aria-label="Documents"
+      >
         {documents.map((doc) => (
           <DocRow
             key={doc.id}
             doc={doc}
             isSelected={doc.id === selectedId}
-            onSelect={onSelect}
-            onDelete={onDelete}
+            onSelect={handleSelect}
+            onDelete={handleDelete}
           />
         ))}
       </div>
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PropTypes
+// ═══════════════════════════════════════════════════════════════
+
+DocSidebar.propTypes = {
+  documents: PropTypes.arrayOf(PropTypes.object),
+  selectedId: PropTypes.string,
+  onSelect: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool,
+};
+
+DocSidebar.defaultProps = {
+  documents: [],
+  selectedId: null,
+  isLoading: false,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Export
+// ═══════════════════════════════════════════════════════════════
+
+export default memo(DocSidebar);

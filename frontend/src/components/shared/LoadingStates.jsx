@@ -63,7 +63,7 @@ export function ListSkeleton({ count = 4 }) {
       {Array.from({ length: count }).map((_, i) => (
         <div 
           key={i} 
-          className="card p-4 flex items-center gap-4"
+          className="card p-5 flex items-center gap-4"
           style={{ animationDelay: `${i * 40}ms` }}
         >
           <div className="w-10 h-10 rounded-xl skeleton-shimmer flex-shrink-0" />
@@ -116,7 +116,7 @@ export function StatsSkeleton({ count = 4 }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="card p-4 space-y-3" style={{ animationDelay: `${i * 60}ms` }}>
+        <div key={i} className="card p-5 space-y-3" style={{ animationDelay: `${i * 60}ms` }}>
           <div className="h-3 skeleton-shimmer rounded w-16" />
           <div className="h-8 skeleton-shimmer rounded w-24" />
           <div className="h-3 skeleton-shimmer rounded w-20" />

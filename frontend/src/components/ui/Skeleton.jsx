@@ -1,302 +1,393 @@
 /**
- * Dark Forge Skeleton System
- * Shimmer uses card surface as base, elevated surface as highlight
- * 1.5s animation, left-to-right, loops
- * 50ms stagger between items for organic feel
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * SKELETON COMPONENT v2.0 — UI/UX Overhaul
+ * Beautiful loading states with shimmer effects
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-// Base Skeleton
+import React from 'react';
+import { motion } from 'framer-motion';
+import { easings, durations, staggerItem } from '../../design-system';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BASE SKELETON
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export const Skeleton = ({
   className = '',
   width,
   height,
   circle = false,
-  style: extraStyle,
-}) => (
-  <div
-    className={`skeleton-shimmer ${circle ? 'rounded-full' : 'rounded-lg'} ${className}`}
-    style={{ width: width || '100%', height: height || '1rem', ...extraStyle }}
-  />
-);
+  animate = true,
+}) => {
+  const baseClasses = `
+    relative overflow-hidden
+    bg-[#161A22]
+    ${circle ? 'rounded-full' : 'rounded-lg'}
+  `;
 
-// Job Card Skeleton — matches card anatomy exactly
-export const JobCardSkeleton = ({ delay = 0 }) => (
-  <div
-    className="rounded-xl p-4 space-y-3"
-    style={{
-      background: '#111318',
-      border: '1px solid #1F2430',
-      animationDelay: `${delay}ms`,
-    }}
-  >
-    {/* Row 1: badge + ID */}
-    <div className="flex items-center justify-between">
-      <Skeleton width={36} height={18} style={{ borderRadius: '6px' }} />
-      <Skeleton width={50} height={14} />
-    </div>
-    {/* Row 2: address */}
-    <Skeleton width="85%" height={18} />
-    {/* Row 3: phase dots */}
-    <div className="flex items-center gap-2">
-      {[...Array(5)].map((_, i) => (
-        <Skeleton key={i} width={10} height={10} circle style={{ animationDelay: `${i * 50}ms` }} />
-      ))}
-      <Skeleton width={60} height={14} className="ml-2" />
-    </div>
-    {/* Row 4: action buttons */}
-    <div className="flex gap-2 pt-1">
-      <Skeleton width="33%" height={32} style={{ borderRadius: '6px' }} />
-      <Skeleton width="33%" height={32} style={{ borderRadius: '6px' }} />
-      <Skeleton width="33%" height={32} style={{ borderRadius: '6px' }} />
-    </div>
-  </div>
-);
+  const style = {
+    width: width || '100%',
+    height: height || '1em',
+  };
 
-// Dashboard Skeleton — metrics + today's focus + cards
-export const DashboardSkeleton = () => (
-  <div className="space-y-6 p-4">
-    {/* Metrics strip */}
-    <div className="flex gap-3 overflow-hidden">
-      {[...Array(5)].map((_, i) => (
-        <div
-          key={i}
-          className="flex-shrink-0 rounded-xl p-3.5 space-y-2"
+  return (
+    <div
+      className={`${baseClasses} ${className}`}
+      style={style}
+    >
+      {animate && (
+        <motion.div
+          className="absolute inset-0"
           style={{
-            width: '140px',
-            background: '#111318',
-            border: '1px solid #1F2430',
-            animationDelay: `${i * 50}ms`,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.08) 50%, transparent 100%)',
+            backgroundSize: '200% 100%',
+          }}
+          animate={{
+            backgroundPosition: ['200% 0', '-200% 0'],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON TEXT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonText = ({
+  lines = 3,
+  className = '',
+  lastLineWidth = '60%',
+}) => {
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{
+            delay: i * 0.05,
+            duration: durations.normal,
+            ease: easings.enterExpo,
           }}
         >
-          <Skeleton width={20} height={20} circle />
-          <Skeleton width="70%" height={28} />
-          <Skeleton width="50%" height={12} />
-        </div>
-      ))}
-    </div>
-    {/* Today's Focus */}
-    <div className="space-y-2">
-      <Skeleton width={120} height={20} />
-      {[...Array(3)].map((_, i) => (
-        <div
-          key={i}
-          className="rounded-lg p-3 flex items-center gap-3"
-          style={{
-            background: '#111318',
-            border: '1px solid #1F2430',
-            minHeight: '56px',
-            animationDelay: `${(i + 5) * 50}ms`,
-          }}
-        >
-          <Skeleton width={3} height={32} style={{ borderRadius: '2px' }} />
-          <Skeleton width="60%" height={16} />
-          <Skeleton width="25%" height={14} className="ml-auto" />
-        </div>
-      ))}
-    </div>
-    {/* Job cards grid */}
-    <div className="space-y-3">
-      {[...Array(4)].map((_, i) => (
-        <JobCardSkeleton key={i} delay={(i + 8) * 50} />
-      ))}
-    </div>
-  </div>
-);
-
-// Metrics Strip Skeleton
-export const MetricsStripSkeleton = () => (
-  <div className="flex gap-3 overflow-hidden">
-    {[...Array(5)].map((_, i) => (
-      <Skeleton
-        key={i}
-        width={140}
-        height={80}
-        style={{
-          flexShrink: 0,
-          borderRadius: '12px',
-          animationDelay: `${i * 50}ms`,
-        }}
-      />
-    ))}
-  </div>
-);
-
-// Table Skeleton — header + 8 rows
-export const TableSkeleton = ({ rows = 8, columns = 4 }) => (
-  <div className="rounded-xl overflow-hidden" style={{ background: '#111318', border: '1px solid #1F2430' }}>
-    <div className="px-4 py-3 flex gap-4" style={{ borderBottom: '1px solid #1F2430' }}>
-      {[...Array(columns)].map((_, i) => (
-        <Skeleton key={i} height={16} className="flex-1" style={{ maxWidth: `${15 + i * 5}%` }} />
-      ))}
-    </div>
-    {[...Array(rows)].map((_, rowIndex) => (
-      <div
-        key={rowIndex}
-        className="px-4 py-3 flex gap-4 items-center"
-        style={{
-          borderBottom: rowIndex < rows - 1 ? '1px solid #161A22' : 'none',
-          minHeight: '56px',
-        }}
-      >
-        {[...Array(columns)].map((_, colIndex) => (
           <Skeleton
-            key={colIndex}
-            height={16}
-            className="flex-1"
-            style={{
-              maxWidth: `${50 + Math.random() * 50}%`,
-              animationDelay: `${(rowIndex * columns + colIndex) * 30}ms`,
-            }}
+            height="1em"
+            width={i === lines - 1 ? lastLineWidth : '100%'}
           />
-        ))}
-      </div>
-    ))}
-  </div>
-);
+        </motion.div>
+      ))}
+    </div>
+  );
+};
 
-// Canvas Skeleton — dark grid with ghost nodes
-export const CanvasSkeleton = () => (
-  <div
-    className="h-screen flex"
-    style={{ background: '#0A0B0D' }}
-  >
-    <div className="flex-1 relative">
-      {/* Grid background */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(31,36,48,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(31,36,48,0.3) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
-      {/* Ghost nodes */}
-      {[
-        { x: '20%', y: '25%', w: 180 },
-        { x: '55%', y: '35%', w: 160 },
-        { x: '35%', y: '60%', w: 200 },
-      ].map((node, i) => (
-        <div
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonCard = ({
+  hasHeader = true,
+  hasMedia = false,
+  lines = 2,
+  hasFooter = true,
+  className = '',
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: durations.medium, ease: easings.enterExpo }}
+      className={`bg-[#111318] rounded-xl p-5 border border-transparent ${className}`}
+    >
+      {/* Media placeholder */}
+      {hasMedia && (
+        <Skeleton
+          height="160px"
+          className="rounded-lg mb-4"
+        />
+      )}
+
+      {/* Header */}
+      {hasHeader && (
+        <div className="flex items-center gap-3 mb-4">
+          <Skeleton circle width={40} height={40} />
+          <div className="flex-1 space-y-2">
+            <Skeleton height="1em" width="60%" />
+            <Skeleton height="0.75em" width="40%" />
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      <SkeletonText lines={lines} />
+
+      {/* Footer */}
+      {hasFooter && (
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#1F2430]">
+          <Skeleton height="2em" width="80px" />
+          <Skeleton height="2em" width="60px" />
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON STAT CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonStatCard = ({ className = '' }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: durations.medium, ease: easings.enterExpo }}
+      className={`bg-[#111318] rounded-xl p-5 border border-transparent ${className}`}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Skeleton height="0.75em" width="40%" />
+      </div>
+      <Skeleton height="2em" width="60%" className="mb-2" />
+      <Skeleton height="1em" width="30%" />
+    </motion.div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON LIST
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonList = ({
+  items = 5,
+  hasIcon = true,
+  hasAction = true,
+  className = '',
+}) => {
+  return (
+    <div className={`space-y-2 ${className}`}>
+      {Array.from({ length: items }).map((_, i) => (
+        <motion.div
           key={i}
-          className="absolute rounded-xl p-4 space-y-2"
-          style={{
-            left: node.x, top: node.y, width: node.w,
-            background: '#111318', border: '1px solid #1F2430',
-            animationDelay: `${i * 100}ms`,
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{
+            delay: i * 0.05,
+            duration: durations.normal,
+            ease: easings.enterExpo,
+          }}
+          className="flex items-center gap-3 p-3 rounded-lg bg-[#111318]/50"
+        >
+          {hasIcon && (
+            <Skeleton circle width={36} height={36} />
+          )}
+          <div className="flex-1 space-y-2">
+            <Skeleton height="0.875em" width="40%" />
+            <Skeleton height="0.75em" width="60%" />
+          </div>
+          {hasAction && (
+            <Skeleton height="2em" width="60px" />
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON TABLE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonTable = ({
+  rows = 5,
+  columns = 4,
+  hasHeader = true,
+  className = '',
+}) => {
+  return (
+    <div className={`space-y-1 ${className}`}>
+      {/* Header */}
+      {hasHeader && (
+        <div className="flex gap-4 p-3 bg-[#161A22] rounded-lg">
+          {Array.from({ length: columns }).map((_, i) => (
+            <Skeleton key={i} height="0.875em" className="flex-1" />
+          ))}
+        </div>
+      )}
+
+      {/* Rows */}
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <motion.div
+          key={rowIndex}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            delay: rowIndex * 0.03,
+            duration: durations.fast,
+          }}
+          className="flex gap-4 p-3 bg-[#111318]/30 rounded-lg"
+        >
+          {Array.from({ length: columns }).map((_, colIndex) => (
+            <Skeleton 
+              key={colIndex} 
+              height="0.875em" 
+              className="flex-1"
+              width={colIndex === 0 ? '80%' : undefined}
+            />
+          ))}
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON GRID
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonGrid = ({
+  items = 6,
+  columns = 3,
+  className = '',
+}) => {
+  return (
+    <div 
+      className={`grid gap-4 ${className}`}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {Array.from({ length: items }).map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: i * 0.05,
+            duration: durations.normal,
+            ease: easings.enterExpo,
           }}
         >
-          <Skeleton width="70%" height={16} />
-          <Skeleton width="50%" height={12} />
-        </div>
+          <SkeletonCard hasHeader={false} lines={1} hasFooter={false} />
+        </motion.div>
       ))}
-      {/* Ghost edges */}
-      <svg className="absolute inset-0 pointer-events-none" style={{ opacity: 0.3 }}>
-        <line x1="25%" y1="30%" x2="52%" y2="38%" stroke="#1F2430" strokeWidth="2" strokeDasharray="6 4" />
-        <line x1="40%" y1="40%" x2="40%" y2="58%" stroke="#1F2430" strokeWidth="2" strokeDasharray="6 4" />
-      </svg>
     </div>
-  </div>
-);
+  );
+};
 
-// Alert Feed Skeleton
-export const AlertFeedSkeleton = ({ count = 5 }) => (
-  <div className="space-y-2">
-    {[...Array(count)].map((_, i) => (
-      <div
-        key={i}
-        className="flex items-start gap-3 p-3 rounded-lg"
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON AVATAR GROUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SkeletonAvatarGroup = ({
+  count = 3,
+  size = 'md',
+  className = '',
+}) => {
+  const sizeClasses = {
+    sm: 'w-8 h-8',
+    md: 'w-10 h-10',
+    lg: 'w-12 h-12',
+  };
+
+  return (
+    <div className={`flex -space-x-2 ${className}`}>
+      {Array.from({ length: count }).map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{
+            delay: i * 0.05,
+            duration: durations.fast,
+            ease: easings.spring,
+          }}
+        >
+          <Skeleton 
+            circle 
+            className={`${sizeClasses[size]} ring-2 ring-[#0A0B0D]`}
+          />
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PULSE LOADER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const PulseLoader = ({
+  size = 'default',
+  color = '#3B82F6',
+  className = '',
+}) => {
+  const sizeClasses = {
+    sm: 'w-1.5 h-1.5',
+    default: 'w-2 h-2',
+    lg: 'w-3 h-3',
+  };
+
+  return (
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className={`${sizeClasses[size]} rounded-full`}
+          style={{ backgroundColor: color }}
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.5, 1, 0.5],
+          }}
+          transition={{
+            duration: 0.6,
+            repeat: Infinity,
+            delay: i * 0.15,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHIMMER CARD (for featured content)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const ShimmerCard = ({ className = '' }) => {
+  return (
+    <div className={`relative overflow-hidden bg-[#111318] rounded-xl ${className}`}>
+      {/* Animated gradient background */}
+      <motion.div
+        className="absolute inset-0"
         style={{
-          background: '#111318',
-          border: '1px solid #1F2430',
-          animationDelay: `${i * 50}ms`,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.05) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
         }}
-      >
-        <Skeleton width={32} height={32} circle />
-        <div className="flex-1 space-y-2">
-          <Skeleton width="70%" height={16} />
-          <Skeleton width="90%" height={14} />
-        </div>
-        <Skeleton width={40} height={12} />
-      </div>
-    ))}
-  </div>
-);
-
-// Card Skeleton
-export const CardSkeleton = ({ hasHeader = true, hasFooter = false, rows = 3 }) => (
-  <div className="rounded-xl p-5" style={{ background: '#111318', border: '1px solid #1F2430' }}>
-    {hasHeader && (
-      <div className="flex items-center gap-4 mb-5">
-        <Skeleton width={40} height={40} circle />
-        <div className="flex-1 space-y-2">
-          <Skeleton width="60%" height={20} />
-          <Skeleton width="40%" height={14} />
-        </div>
-      </div>
-    )}
-    <div className="space-y-3">
-      {[...Array(rows)].map((_, i) => (
-        <Skeleton key={i} width={`${85 - (i % 3) * 10}%`} height={16} />
-      ))}
-    </div>
-    {hasFooter && (
-      <div className="flex justify-end gap-3 mt-5 pt-4" style={{ borderTop: '1px solid #1F2430' }}>
-        <Skeleton width={80} height={36} style={{ borderRadius: '6px' }} />
-        <Skeleton width={80} height={36} style={{ borderRadius: '6px' }} />
-      </div>
-    )}
-  </div>
-);
-
-// Stat Card Skeleton
-export const StatCardSkeleton = () => (
-  <div className="rounded-xl p-5" style={{ background: '#111318', border: '1px solid #1F2430' }}>
-    <div className="flex items-start justify-between">
-      <div className="space-y-3 flex-1">
-        <Skeleton width={80} height={12} />
-        <Skeleton width={100} height={32} />
-        <Skeleton width={60} height={14} />
-      </div>
-      <Skeleton width={44} height={44} circle />
-    </div>
-  </div>
-);
-
-// List Item Skeleton
-export const ListItemSkeleton = ({ hasAvatar = true }) => (
-  <div className="flex items-center gap-4 py-3" style={{ minHeight: '56px' }}>
-    {hasAvatar && <Skeleton width={40} height={40} circle />}
-    <div className="flex-1 space-y-2">
-      <Skeleton width="70%" height={16} />
-      <Skeleton width="40%" height={12} />
-    </div>
-    <Skeleton width={60} height={24} />
-  </div>
-);
-
-// Detail Panel Skeleton
-export const DetailPanelSkeleton = () => (
-  <div className="space-y-5">
-    <div className="flex items-center gap-4">
-      <Skeleton width={56} height={56} circle />
-      <div className="space-y-2 flex-1">
-        <Skeleton width={200} height={22} />
-        <Skeleton width={140} height={16} />
+        animate={{
+          backgroundPosition: ['200% 0', '-200% 0'],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: 'linear',
+        }}
+      />
+      
+      {/* Content placeholder */}
+      <div className="p-5 space-y-4">
+        <Skeleton height="180px" className="rounded-lg" />
+        <Skeleton height="1.25em" width="70%" />
+        <SkeletonText lines={2} />
       </div>
     </div>
-    <div className="grid grid-cols-2 gap-3">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="rounded-xl p-4 space-y-2" style={{ background: '#111318', border: '1px solid #1F2430' }}>
-          <Skeleton width={60} height={12} />
-          <Skeleton width="80%" height={20} />
-        </div>
-      ))}
-    </div>
-    <div className="space-y-3">
-      {[...Array(5)].map((_, i) => (
-        <Skeleton key={i} width={`${75 + (i % 2) * 15}%`} height={14} />
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 export default Skeleton;

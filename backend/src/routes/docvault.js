@@ -2,15 +2,15 @@
 
 import express from 'express';
 import fs from 'fs/promises';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { randomUUID } from 'crypto';
 import { authenticateToken } from '../middleware/auth-jwt.js';
 import { aiChatLimiter } from '../middleware/security.js';
 import { db } from '../services/database.js';
-import { docUpload, UPLOAD_DIR } from '../middleware/docUpload.js';
+import { docUpload } from '../middleware/docUpload.js';
 import { extractText } from '../services/text-extractor.js';
 import { summarize, extractEntities, chat } from '../services/docvault-ai.js';
+import { tryCatch, parsePagination, paginationMeta } from '../utils/response.js';
+import { validateId } from '../middleware/validation.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -19,405 +19,192 @@ const router = express.Router();
 router.use(authenticateToken);
 
 /**
- * POST /upload — Upload a document and kick off text extraction
+ * POST /api/docvault/upload — Upload a document and kick off text extraction
  */
-router.post('/upload', docUpload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
-    }
-
-    const id = uuidv4();
-    const now = new Date().toISOString();
-    const { filename, originalname, mimetype, size, path: filePath } = req.file;
-
-    db.prepare(`
-      INSERT INTO text_documents (id, userId, filename, originalName, mimeType, fileSize, filePath, status, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?)
-    `).run(id, req.user.id, filename, originalname, mimetype, size, filePath, now, now);
-
-    // Fire-and-forget async text extraction with timeout handling
-    (async () => {
-      try {
-        const result = await extractText(filePath, mimetype, id);
-        const text = result.text || '';
-        const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-        const pageCount = result.pageCount || null;
-
-        db.prepare(`
-          UPDATE text_documents
-          SET extractedText = ?, wordCount = ?, pageCount = ?, status = 'ready', updatedAt = ?
-          WHERE id = ?
-        `).run(text, wordCount, pageCount, new Date().toISOString(), id);
-
-        logger.info(`DocVault: Text extracted for document ${id}`, { wordCount, pageCount });
-      } catch (err) {
-        logger.error(`DocVault: Text extraction failed for document ${id}`, { error: err.message });
-        db.prepare(`
-          UPDATE text_documents
-          SET status = 'error', errorMessage = ?, updatedAt = ?
-          WHERE id = ?
-        `).run(err.message, new Date().toISOString(), id);
-      }
-    })();
-
-    return res.json({
-      success: true,
-      data: {
-        id,
-        filename,
-        originalName: originalname,
-        fileSize: size,
-        status: 'processing',
-        message: 'Document uploaded. Text extraction in progress.',
-      },
-    });
-  } catch (err) {
-    logger.error('DocVault: Upload failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Upload failed' });
+router.post('/upload', docUpload.single('file'), tryCatch(async (req, res) => {
+  if (!req.file) {
+    return res.error('No file uploaded', 'VALIDATION_ERROR', null, 400);
   }
-});
 
-/**
- * GET / — List all documents for the authenticated user with pagination
- */
-router.get('/', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100
-    const offset = parseInt(req.query.offset) || 0;
-    const cursor = req.query.cursor; // For cursor-based pagination
+  const { filename, originalname, mimetype, size, path: filePath } = req.file;
 
-    let rows;
-    let nextCursor = null;
+  const doc = await db.createTextDocument({
+    userId: req.user.id,
+    filename,
+    originalName: originalname,
+    mimeType: mimetype,
+    fileSize: size,
+    filePath,
+    status: 'processing'
+  });
 
-    if (cursor) {
-      // Cursor-based pagination for better performance with large datasets
-      const decodedCursor = Buffer.from(cursor, 'base64').toString('utf8');
-      const [cursorDate, cursorId] = decodedCursor.split('|');
+  // Background text extraction
+  (async () => {
+    try {
+      const result = await extractText(filePath, mimetype, doc.id);
+      const text = result.text || '';
+      const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
       
-      rows = db.prepare(`
-        SELECT id, originalName, mimeType, fileSize, pageCount, wordCount, status,
-               summary IS NOT NULL as hasSummary,
-               entities IS NOT NULL as hasEntities,
-               createdAt, updatedAt
-        FROM text_documents
-        WHERE userId = ? AND (createdAt < ? OR (createdAt = ? AND id < ?))
-        ORDER BY createdAt DESC, id DESC
-        LIMIT ?
-      `).all(req.user.id, cursorDate, cursorDate, cursorId, limit + 1);
+      await db.updateTextDocument(doc.id, {
+        extractedText: text,
+        wordCount,
+        pageCount: result.pageCount || 1,
+        status: 'ready'
+      });
 
-      // Check if there are more results
-      if (rows.length > limit) {
-        const lastRow = rows[limit - 1];
-        nextCursor = Buffer.from(`${lastRow.createdAt}|${lastRow.id}`).toString('base64');
-        rows = rows.slice(0, limit);
-      }
-    } else {
-      // Offset-based pagination (default)
-      rows = db.prepare(`
-        SELECT id, originalName, mimeType, fileSize, pageCount, wordCount, status,
-               summary IS NOT NULL as hasSummary,
-               entities IS NOT NULL as hasEntities,
-               createdAt, updatedAt
-        FROM text_documents
-        WHERE userId = ?
-        ORDER BY createdAt DESC
-        LIMIT ? OFFSET ?
-      `).all(req.user.id, limit, offset);
-
-      // Check if there are more results
-      const countResult = db.prepare(`
-        SELECT COUNT(*) as total FROM text_documents WHERE userId = ?
-      `).get(req.user.id);
-      
-      if (offset + rows.length < countResult.total) {
-        nextCursor = Buffer.from(`${rows[rows.length - 1]?.createdAt || ''}|${rows[rows.length - 1]?.id || ''}`).toString('base64');
-      }
+      logger.info(`DocVault: Text extracted for document ${doc.id}`, { wordCount });
+    } catch (err) {
+      logger.error(`DocVault: Text extraction failed for document ${doc.id}`, { error: err.message });
+      await db.updateTextDocument(doc.id, {
+        status: 'error',
+        errorMessage: err.message
+      });
     }
+  })();
 
-    return res.json({ 
-      success: true, 
-      data: rows,
-      pagination: {
-        limit,
-        offset,
-        hasMore: !!nextCursor,
-        nextCursor,
-        total: db.prepare('SELECT COUNT(*) as total FROM text_documents WHERE userId = ?').get(req.user.id)?.total || 0
-      }
-    });
-  } catch (err) {
-    logger.error('DocVault: List failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to list documents' });
-  }
-});
+  res.status(201).success({
+    doc,
+    message: 'Document uploaded. Text extraction in progress.'
+  });
+}));
 
 /**
- * GET /:id — Get a single document with full content
+ * GET /api/docvault — List documents
  */
-router.get('/:id', async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT * FROM text_documents WHERE id = ?').get(req.params.id);
+router.get('/', tryCatch(async (req, res) => {
+  const { page, limit, offset } = parsePagination(req.query);
+  
+  const documents = await db.getAllTextDocuments({
+    userId: req.user.id,
+    limit,
+    offset
+  });
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
+  const total = await db.countTextDocuments(req.user.id);
 
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    // Parse entities from JSON string if present
-    const data = { ...doc };
-    if (data.entities) {
-      try {
-        data.entities = JSON.parse(data.entities);
-      } catch {
-        // Leave as string if parsing fails
-      }
-    }
-
-    return res.json({ success: true, data });
-  } catch (err) {
-    logger.error('DocVault: Get document failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to get document' });
-  }
-});
+  res.success({
+    documents,
+    total
+  }, null, paginationMeta(page, limit, total));
+}));
 
 /**
- * DELETE /:id — Delete a document and its file from disk
+ * GET /api/docvault/:id — Get document details
  */
-router.delete('/:id', async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId, filePath FROM text_documents WHERE id = ?').get(req.params.id);
+router.get('/:id', validateId, tryCatch(async (req, res) => {
+  const doc = await db.getTextDocument(req.params.id);
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
-
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    // Delete from database
-    db.prepare('DELETE FROM document_chat_messages WHERE documentId = ?').run(req.params.id);
-    db.prepare('DELETE FROM text_documents WHERE id = ?').run(req.params.id);
-
-    // Delete file from disk with proper error handling
-    if (doc.filePath) {
-      try {
-        await fs.unlink(doc.filePath);
-        logger.info(`Deleted physical file: ${doc.filePath}`);
-      } catch (err) {
-        // Log detailed error
-        logger.error('File deletion failed', {
-          fileId: doc.id,
-          path: doc.filePath,
-          error: err.message,
-          code: err.code
-        });
-        
-        // Mark as orphaned for cleanup job
-        try {
-          db.prepare(`
-            INSERT INTO orphaned_files (id, original_path, file_id, reason, created_at)
-            VALUES (?, ?, ?, ?, ?)
-          `).run(randomUUID(), doc.filePath, doc.id, err.message, new Date().toISOString());
-        } catch (dbErr) {
-          // Table might not exist, just log
-          logger.warn('Could not mark file as orphaned:', dbErr.message);
-        }
-      }
-    }
-
-    return res.json({ success: true, data: { message: 'Document deleted' } });
-  } catch (err) {
-    logger.error('DocVault: Delete failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to delete document' });
+  if (!doc) return res.error('Document not found', 'NOT_FOUND', null, 404);
+  if (doc.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
-});
+
+  res.success(doc);
+}));
 
 /**
- * POST /:id/summarize — Generate an AI summary of the document
- * Rate limited: 10 requests per minute
+ * DELETE /api/docvault/:id — Delete document
  */
-router.post('/:id/summarize', aiChatLimiter, async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId, status, extractedText FROM text_documents WHERE id = ?').get(req.params.id);
+router.delete('/:id', validateId, tryCatch(async (req, res) => {
+  const doc = await db.getTextDocument(req.params.id);
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
-
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    if (doc.status !== 'ready') {
-      return res.status(400).json({ success: false, error: 'Document is not ready for analysis' });
-    }
-
-    if (!doc.extractedText) {
-      return res.status(400).json({ success: false, error: 'No extracted text available' });
-    }
-
-    const summary = await summarize(doc.extractedText);
-    const now = new Date().toISOString();
-
-    db.prepare('UPDATE text_documents SET summary = ?, updatedAt = ? WHERE id = ?').run(summary, now, doc.id);
-
-    return res.json({ success: true, data: { summary } });
-  } catch (err) {
-    logger.error('DocVault: Summarize failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to generate summary' });
+  if (!doc) return res.error('Document not found', 'NOT_FOUND', null, 404);
+  if (doc.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.error('Access denied', 'FORBIDDEN', null, 403);
   }
-});
+
+  // Delete from disk
+  if (doc.filePath) {
+    try {
+      await fs.unlink(doc.filePath);
+    } catch (e) {
+      logger.warn(`Could not delete file: ${doc.filePath}`, { error: e.message });
+    }
+  }
+
+  await db.deleteTextDocument(req.params.id);
+  res.success({ id: req.params.id }, 'Document deleted successfully');
+}));
 
 /**
- * POST /:id/extract — Extract named entities from the document
- * Rate limited: 10 requests per minute
+ * POST /api/docvault/:id/summarize — Generate AI summary
  */
-router.post('/:id/extract', aiChatLimiter, async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId, status, extractedText FROM text_documents WHERE id = ?').get(req.params.id);
+router.post('/:id/summarize', validateId, aiChatLimiter, tryCatch(async (req, res) => {
+  const doc = await db.getTextDocument(req.params.id);
+  const { model } = req.body;
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
+  if (!doc) return res.error('Document not found', 'NOT_FOUND', null, 404);
+  if (doc.status !== 'ready') return res.error('Document not ready', 'INVALID_STATE', null, 400);
 
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+  const summary = await summarize(doc.extractedText, model);
+  await db.updateTextDocument(req.params.id, { summary });
 
-    if (doc.status !== 'ready') {
-      return res.status(400).json({ success: false, error: 'Document is not ready for analysis' });
-    }
-
-    if (!doc.extractedText) {
-      return res.status(400).json({ success: false, error: 'No extracted text available' });
-    }
-
-    const entities = await extractEntities(doc.extractedText);
-    const entitiesJson = JSON.stringify(entities);
-    const now = new Date().toISOString();
-
-    db.prepare('UPDATE text_documents SET entities = ?, updatedAt = ? WHERE id = ?').run(entitiesJson, now, doc.id);
-
-    return res.json({ success: true, data: { entities } });
-  } catch (err) {
-    logger.error('DocVault: Entity extraction failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to extract entities' });
-  }
-});
+  res.success({ summary });
+}));
 
 /**
- * POST /:id/chat — Send a Q&A message about the document
- * Rate limited: 10 requests per minute
+ * POST /api/docvault/:id/extract — Entity extraction
  */
-router.post('/:id/chat', aiChatLimiter, async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId, status, extractedText FROM text_documents WHERE id = ?').get(req.params.id);
+router.post('/:id/extract', validateId, aiChatLimiter, tryCatch(async (req, res) => {
+  const doc = await db.getTextDocument(req.params.id);
+  const { model } = req.body;
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
+  if (!doc) return res.error('Document not found', 'NOT_FOUND', null, 404);
+  if (doc.status !== 'ready') return res.error('Document not ready', 'INVALID_STATE', null, 400);
 
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+  const entities = await extractEntities(doc.extractedText, model);
+  await db.updateTextDocument(req.params.id, { entities });
 
-    if (doc.status !== 'ready') {
-      return res.status(400).json({ success: false, error: 'Document is not ready for chat' });
-    }
-
-    if (!doc.extractedText) {
-      return res.status(400).json({ success: false, error: 'No extracted text available' });
-    }
-
-    const { question } = req.body;
-    if (!question) {
-      return res.status(400).json({ success: false, error: 'Question is required' });
-    }
-
-    // Get existing chat history
-    const history = db.prepare(
-      'SELECT role, content FROM document_chat_messages WHERE documentId = ? ORDER BY createdAt ASC'
-    ).all(req.params.id);
-
-    const now = new Date().toISOString();
-    const userMsgId = uuidv4();
-
-    // Insert user message
-    db.prepare(
-      'INSERT INTO document_chat_messages (id, documentId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)'
-    ).run(userMsgId, req.params.id, 'user', question, now);
-
-    // Get AI response with contextually relevant passages
-    const answer = await chat(doc.extractedText, question, history);
-
-    const assistantMsgId = uuidv4();
-    const assistantNow = new Date().toISOString();
-
-    // Insert assistant message
-    db.prepare(
-      'INSERT INTO document_chat_messages (id, documentId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)'
-    ).run(assistantMsgId, req.params.id, 'assistant', answer, assistantNow);
-
-    return res.json({ success: true, data: { answer, messageId: assistantMsgId } });
-  } catch (err) {
-    logger.error('DocVault: Chat failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to process chat message' });
-  }
-});
+  res.success({ entities });
+}));
 
 /**
- * GET /:id/chat — Get chat history for a document
+ * POST /api/docvault/:id/chat — Chat with document
  */
-router.get('/:id/chat', async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId FROM text_documents WHERE id = ?').get(req.params.id);
+router.post('/:id/chat', validateId, aiChatLimiter, tryCatch(async (req, res) => {
+  const doc = await db.getTextDocument(req.params.id);
+  const { question, model } = req.body;
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
+  if (!doc) return res.error('Document not found', 'NOT_FOUND', null, 404);
+  if (doc.status !== 'ready') return res.error('Document not ready', 'INVALID_STATE', null, 400);
 
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+  if (!question) return res.error('Question is required', 'VALIDATION_ERROR', null, 400);
 
-    const messages = db.prepare(
-      'SELECT id, documentId, role, content, createdAt FROM document_chat_messages WHERE documentId = ? ORDER BY createdAt ASC'
-    ).all(req.params.id);
+  const history = await db.getDocumentChatHistory(req.params.id);
+  
+  // Save user message
+  await db.createDocumentChatMessage({
+    documentId: req.params.id,
+    role: 'user',
+    content: question
+  });
 
-    return res.json({ success: true, data: messages });
-  } catch (err) {
-    logger.error('DocVault: Get chat history failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to get chat history' });
-  }
-});
+  const answer = await chat(doc.extractedText, question, history.map(m => ({ role: m.role, content: m.content })), model);
+
+  // Save assistant message
+  const assistantMsg = await db.createDocumentChatMessage({
+    documentId: req.params.id,
+    role: 'assistant',
+    content: answer
+  });
+
+  res.success({ answer, messageId: assistantMsg.id });
+}));
 
 /**
- * DELETE /:id/chat — Clear chat history for a document
+ * GET /api/docvault/:id/chat — Get history
  */
-router.delete('/:id/chat', async (req, res) => {
-  try {
-    const doc = db.prepare('SELECT id, userId FROM text_documents WHERE id = ?').get(req.params.id);
+router.get('/:id/chat', validateId, tryCatch(async (req, res) => {
+  const history = await db.getDocumentChatHistory(req.params.id);
+  res.success(history);
+}));
 
-    if (!doc) {
-      return res.status(404).json({ success: false, error: 'Document not found' });
-    }
-
-    if (doc.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    db.prepare('DELETE FROM document_chat_messages WHERE documentId = ?').run(req.params.id);
-
-    return res.json({ success: true, data: { message: 'Chat history cleared' } });
-  } catch (err) {
-    logger.error('DocVault: Clear chat history failed', { error: err.message });
-    return res.status(500).json({ success: false, error: 'Failed to clear chat history' });
-  }
-});
+/**
+ * DELETE /api/docvault/:id/chat — Clear history
+ */
+router.delete('/:id/chat', validateId, tryCatch(async (req, res) => {
+  await db.clearDocumentChatHistory(req.params.id);
+  res.success({ cleared: true });
+}));
 
 export default router;

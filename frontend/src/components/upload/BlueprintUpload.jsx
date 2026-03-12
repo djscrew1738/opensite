@@ -52,7 +52,7 @@ function IdleView({ file, onFileSelect, onFileRemove, onExtract, onQuickAnalyze,
       )}
 
       {selectedModel && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-surface-500 dark:text-surface-400">
           Using model: <span className="font-medium">{selectedModel}</span>
         </p>
       )}
@@ -144,11 +144,11 @@ function ReviewView({
       />
 
       {/* Skip review option */}
-      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+      <div className="pt-2 border-t border-surface-200 dark:border-surface-700">
         <button
           onClick={onSkip}
           disabled={isAnalyzing}
-          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline disabled:opacity-50"
+          className="text-sm text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 underline disabled:opacity-50"
         >
           Skip review and analyze immediately
         </button>
@@ -476,10 +476,10 @@ export default function BlueprintUpload({
           <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
             Blueprint Upload & Analysis
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-surface-500 dark:text-surface-400">
             {getSubtitle()}
           </p>
         </div>

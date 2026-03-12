@@ -1,8 +1,16 @@
+/**
+ * EntityNode Component
+ * Canvas node for displaying entities like contacts, companies, and properties
+ * 
+ * @module components/canvas/nodes/EntityNode
+ */
+
 import { memo, useState, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { motion as Motion } from 'framer-motion';
 import { Edit2, Check, Link2 } from 'lucide-react';
-import { ENTITY_TYPES } from '../canvasStore';
+import { ENTITY_TYPES, useCanvasStore } from '../canvasStore';
+import { colors, shadows } from '../../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
 // Sub-Components
@@ -10,6 +18,7 @@ import { ENTITY_TYPES } from '../canvasStore';
 
 /**
  * Entity icon in header
+ * @param {{type: {color: string, icon: string}}} props
  */
 const EntityIcon = memo(function EntityIcon({ type }) {
   return (
@@ -27,8 +36,11 @@ const EntityIcon = memo(function EntityIcon({ type }) {
   );
 });
 
+EntityIcon.displayName = 'EntityIcon';
+
 /**
  * Editable name input
+ * @param {{value: string, onChange: (value: string) => void, onSave: () => void, typeColor: string}} props
  */
 const EditableName = memo(function EditableName({ 
   value, 
@@ -36,24 +48,38 @@ const EditableName = memo(function EditableName({
   onSave, 
   typeColor 
 }) {
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter') {
+      onSave();
+    } else if (e.key === 'Escape') {
+      // Cancel edit - parent should handle this
+      onSave();
+    }
+  }, [onSave]);
+
   return (
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => e.key === 'Enter' && onSave()}
+      onKeyDown={handleKeyDown}
+      onBlur={onSave}
       autoFocus
-      className="w-full px-2 py-1 text-sm font-semibold bg-black/30 rounded-md outline-none"
+      className="w-full px-2 py-1 text-sm font-semibold rounded-md outline-none"
       style={{
+        backgroundColor: `${colors.surface.primary}4D`, // 30% opacity
         border: `1px solid ${typeColor}`,
-        color: '#f5f3f0',
+        color: colors.text.primary,
       }}
     />
   );
 });
 
+EditableName.displayName = 'EditableName';
+
 /**
  * Display name and type
+ * @param {{label: string, typeLabel: string, typeColor: string}} props
  */
 const NameDisplay = memo(function NameDisplay({ 
   label, 
@@ -63,13 +89,14 @@ const NameDisplay = memo(function NameDisplay({
   return (
     <>
       <div
-        className="text-sm font-semibold truncate text-[#f5f3f0]"
+        className="text-sm font-semibold truncate"
+        style={{ color: colors.text.primary }}
         title={label}
       >
         {label}
       </div>
       <div
-        className="text-[10px] uppercase tracking-wide font-medium"
+        className="text-xs uppercase tracking-wide font-medium"
         style={{ color: typeColor }}
       >
         {typeLabel}
@@ -78,8 +105,11 @@ const NameDisplay = memo(function NameDisplay({
   );
 });
 
+NameDisplay.displayName = 'NameDisplay';
+
 /**
  * Edit toggle button
+ * @param {{isEditing: boolean, onClick: () => void, typeColor: string}} props
  */
 const EditButton = memo(function EditButton({ 
   isEditing, 
@@ -91,19 +121,23 @@ const EditButton = memo(function EditButton({
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
-      className="p-1.5 border-none rounded-md cursor-pointer"
+      className="p-1.5 border-none rounded-md cursor-pointer transition-colors"
       style={{
-        background: isEditing ? `${typeColor}30` : 'rgba(255,255,255,0.1)',
-        color: isEditing ? typeColor : '#9a9590',
+        backgroundColor: isEditing ? `${typeColor}30` : colors.surface.elevated,
+        color: isEditing ? typeColor : colors.text.muted,
       }}
+      aria-label={isEditing ? 'Save changes' : 'Edit entity'}
     >
       {isEditing ? <Check size={14} /> : <Edit2 size={14} />}
     </Motion.button>
   );
 });
 
+EditButton.displayName = 'EditButton';
+
 /**
  * Role/Status badges
+ * @param {{role?: string, status?: string, typeColor: string}} props
  */
 const RoleBadges = memo(function RoleBadges({ role, status, typeColor }) {
   if (!role && !status) return null;
@@ -112,9 +146,9 @@ const RoleBadges = memo(function RoleBadges({ role, status, typeColor }) {
     <div className="flex flex-wrap gap-2 mb-3">
       {role && (
         <span
-          className="px-2 py-0.5 text-[10px] font-medium rounded"
+          className="px-2 py-0.5 text-xs font-medium rounded"
           style={{
-            background: `${typeColor}20`,
+            backgroundColor: `${typeColor}20`,
             border: `1px solid ${typeColor}40`,
             color: typeColor,
           }}
@@ -124,11 +158,11 @@ const RoleBadges = memo(function RoleBadges({ role, status, typeColor }) {
       )}
       {status && (
         <span
-          className="px-2 py-0.5 text-[10px] font-medium rounded"
+          className="px-2 py-0.5 text-xs font-medium rounded"
           style={{
-            background: '#22c55e20',
-            border: '1px solid #22c55e40',
-            color: '#22c55e',
+            backgroundColor: colors.success.muted,
+            border: `1px solid ${colors.success.border}`,
+            color: colors.success.DEFAULT,
           }}
         >
           {status}
@@ -138,8 +172,11 @@ const RoleBadges = memo(function RoleBadges({ role, status, typeColor }) {
   );
 });
 
+RoleBadges.displayName = 'RoleBadges';
+
 /**
  * Editable notes textarea
+ * @param {{value: string, onChange: (value: string) => void, typeColor: string}} props
  */
 const EditableNotes = memo(function EditableNotes({ 
   value, 
@@ -151,48 +188,69 @@ const EditableNotes = memo(function EditableNotes({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Add notes..."
-      className="w-full min-h-[60px] p-2 text-xs bg-black/30 rounded-lg resize-none outline-none"
+      className="w-full min-h-[60px] p-2 text-xs rounded-lg resize-none outline-none"
       style={{
+        backgroundColor: `${colors.surface.primary}4D`, // 30% opacity
         border: `1px solid ${typeColor}40`,
-        color: '#c4bfb8',
+        color: colors.text.secondary,
         fontFamily: 'inherit',
       }}
     />
   );
 });
 
+EditableNotes.displayName = 'EditableNotes';
+
 /**
  * Display notes
+ * @param {{notes?: string}} props
  */
 const NotesDisplay = memo(function NotesDisplay({ notes }) {
   if (!notes) return null;
 
   return (
-    <div className="text-xs leading-relaxed text-[#c4bfb8] max-h-20 overflow-hidden">
+    <div 
+      className="text-xs leading-relaxed max-h-20 overflow-hidden"
+      style={{ color: colors.text.secondary }}
+    >
       {notes}
     </div>
   );
 });
 
+NotesDisplay.displayName = 'NotesDisplay';
+
 /**
  * Connection count indicator
+ * @param {{count: number}} props
  */
 const ConnectionCount = memo(function ConnectionCount({ count }) {
   if (count === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 pt-3 mt-3 text-[11px] text-[#9a9590] border-t border-white/10">
+    <div 
+      className="flex items-center gap-1.5 pt-3 mt-3 text-[11px] border-t"
+      style={{ 
+        color: colors.text.muted,
+        borderColor: colors.border.default,
+      }}
+    >
       <Link2 size={12} />
       {count} connection{count !== 1 ? 's' : ''}
     </div>
   );
 });
 
+ConnectionCount.displayName = 'ConnectionCount';
+
 /**
  * Connection handles
+ * @param {{color: string}} props
  */
 const ConnectionHandles = memo(function ConnectionHandles({ color }) {
-  const handleStyle = { border: '2px solid #1a1d24' };
+  const handleStyle = { 
+    border: `2px solid ${colors.surface.card}`,
+  };
 
   return (
     <>
@@ -209,35 +267,43 @@ const ConnectionHandles = memo(function ConnectionHandles({ color }) {
       <Handle 
         type="target" 
         position={Position.Top} 
-        style={{ width: 8, height: 8, background: '#6b7280', ...handleStyle }} 
+        style={{ width: 8, height: 8, background: colors.text.muted, ...handleStyle }} 
       />
       <Handle 
         type="source" 
         position={Position.Bottom} 
-        style={{ width: 8, height: 8, background: '#6b7280', ...handleStyle }} 
+        style={{ width: 8, height: 8, background: colors.text.muted, ...handleStyle }} 
       />
     </>
   );
 });
 
+ConnectionHandles.displayName = 'ConnectionHandles';
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
 
-const EntityNode = memo(function EntityNode({ data, selected }) {
+/**
+ * EntityNode - Canvas node for entities (contacts, companies, properties)
+ * @param {{id: string, data: {entityType?: string, label?: string, notes?: string, role?: string, status?: string, connections?: Array<any>}, selected: boolean}} props
+ */
+const EntityNode = memo(function EntityNode({ id, data, selected }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(data.label || '');
   const [editNotes, setEditNotes] = useState(data.notes || '');
   const [localData, setLocalData] = useState(data);
+  const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   
   const entityType = ENTITY_TYPES[data.entityType] || ENTITY_TYPES.person;
   const connectionCount = (data.connections || []).length;
 
   const handleSave = useCallback(() => {
-    setLocalData(prev => ({ ...prev, label: editName, notes: editNotes }));
+    const updatedData = { ...localData, label: editName, notes: editNotes };
+    setLocalData(updatedData);
     setIsEditing(false);
-    // In real implementation, would call onUpdate callback
-  }, [editName, editNotes]);
+    updateNodeData(id, { label: editName, notes: editNotes });
+  }, [id, editName, editNotes, localData, updateNodeData]);
 
   const toggleEdit = useCallback(() => {
     if (isEditing) {
@@ -254,13 +320,16 @@ const EntityNode = memo(function EntityNode({ data, selected }) {
       transition={{ duration: 0.2 }}
       className="w-full h-full overflow-hidden rounded-2xl"
       style={{
-        background: selected 
-          ? `linear-gradient(135deg, ${entityType.color}15 0%, #1a1d24 100%)`
-          : '#1a1d24',
+        backgroundColor: selected 
+          ? `${entityType.color}15`
+          : colors.surface.elevated,
+        backgroundImage: selected 
+          ? `linear-gradient(135deg, ${entityType.color}15 0%, ${colors.surface.elevated} 100%)`
+          : 'none',
         border: `2px solid ${selected ? entityType.color : entityType.color + '60'}`,
         boxShadow: selected 
           ? `0 0 25px ${entityType.color}40`
-          : '0 4px 20px rgba(0,0,0,0.4)',
+          : shadows.card,
       }}
     >
       {/* Header with Icon */}
@@ -268,7 +337,7 @@ const EntityNode = memo(function EntityNode({ data, selected }) {
         className="flex items-center gap-3 px-4 py-3.5"
         style={{
           borderBottom: `1px solid ${entityType.color}30`,
-          background: entityType.color + '10',
+          backgroundColor: `${entityType.color}10`,
         }}
       >
         <EntityIcon type={entityType} />

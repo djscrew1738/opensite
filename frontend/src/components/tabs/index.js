@@ -23,3 +23,4 @@
 
 export { TabSystem, Tab, TabList, TabPanel } from './TabSystem';
 export { useTabAnimation, useTabKeyboardNav } from './useTabAnimation';
+export { MobileTabBar, ResponsiveTabs } from './MobileTabBar';

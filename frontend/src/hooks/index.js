@@ -113,6 +113,17 @@ export { useFocusTrap } from './useFocusTrap';
 export { useScrollLock, useBodyScrollLock } from './useScrollLock';
 export { useSwipe, useSwipeable } from './useSwipe';
 
+// Responsive
+export {
+  useBreakpoint,
+  useResponsiveValue,
+  useIsTouchDevice,
+  useOrientation,
+  usePrefersReducedMotion,
+  useMediaQuery,
+  BREAKPOINTS,
+} from './useBreakpoint';
+
 // Knowledge Vault & Semantic Search
 export {
   useSemanticSearch,

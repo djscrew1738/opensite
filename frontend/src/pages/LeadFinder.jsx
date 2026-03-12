@@ -36,20 +36,23 @@ import { useBulkSelect } from '../hooks/useBulkSelect';
 import { useSorting } from '../hooks/useSorting';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatCurrency, formatDate } from '../utils/format';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { MobileTabBar } from '../components/tabs';
 
 const tabs = [
-  { key: 'cities', label: 'City Search', icon: Building },
-  { key: 'permits', label: 'All Permits', icon: FileText },
-  { key: 'builders', label: 'Builders', icon: Building2 },
-  { key: 'discovery', label: 'Discovery', icon: Compass },
-  { key: 'manual', label: 'My Leads', icon: Users },
-  { key: 'home', label: 'Overview', icon: LayoutDashboard },
+  { key: 'cities', label: 'City Search', shortLabel: 'Cities', icon: Building },
+  { key: 'permits', label: 'All Permits', shortLabel: 'Permits', icon: FileText },
+  { key: 'builders', label: 'Builders', shortLabel: 'Builders', icon: Building2 },
+  { key: 'discovery', label: 'Discovery', shortLabel: 'Discovery', icon: Compass },
+  { key: 'manual', label: 'My Leads', shortLabel: 'My Leads', icon: Users },
+  { key: 'home', label: 'Overview', shortLabel: 'Overview', icon: LayoutDashboard },
 ];
 
 // Tab order for directional animations
 const TAB_ORDER = { cities: 0, permits: 1, builders: 2, discovery: 3, manual: 4, home: 5 };
 
 export default function LeadFinder() {
+  const { isMobile } = useBreakpoint();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // URL-persisted state
@@ -280,8 +283,16 @@ export default function LeadFinder() {
   const refetch = activeTab === 'manual' ? refetchManual : refetchPermits;
   const hasActiveFilters = search || statusFilter || tierFilter || permitCityFilter;
 
+  // Tab definitions for mobile
+  const tabDefinitions = useMemo(() => tabs.map(t => ({
+    id: t.key,
+    label: t.label,
+    shortLabel: t.shortLabel,
+    icon: t.icon,
+  })), []);
+
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
+    <div className={`${isMobile ? 'pb-20' : ''} p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6`}>
       {/* Header Actions Only */}
       <motion.div 
         className="flex items-center justify-end gap-2 mb-4"
@@ -298,6 +309,7 @@ export default function LeadFinder() {
           className="shrink-0"
         >
           <span className="hidden sm:inline">Search</span>
+          <span className="sm:hidden">Search</span>
           <kbd className="hidden md:inline ml-2 text-xs font-mono px-1.5 py-0.5 rounded bg-[#1F2430] text-[#64748B]">
             ⌘K
           </kbd>
@@ -312,48 +324,62 @@ export default function LeadFinder() {
             showRipple
           >
             <span className="hidden sm:inline">Add Lead</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         )}
       </motion.div>
-      {/* Tabs */}
-      <AnimatedCard variant="glass" className="mb-4">
-        <div className="flex border-b border-[#1F2430] overflow-x-auto scrollbar-hide">
-          {tabs.map((tab, index) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
-            return (
-              <motion.button
-                key={tab.key}
-                onClick={() => handleTabChange(tab.key)}
-                className={cx(
-                  'relative flex items-center gap-2 px-4 sm:px-5 py-3 sm:py-4 font-semibold text-sm whitespace-nowrap transition-all duration-200',
-                  isActive
-                    ? 'text-[#3B82F6]'
-                    : 'text-[#64748B] hover:text-[#94A3B8]'
-                )}
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Icon 
-                  className="w-4 h-4" 
-                  strokeWidth={isActive ? 2.5 : 2} 
-                />
-                <span className="hidden sm:inline">{tab.label}</span>
-                {isActive && (
-                  <motion.div 
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6]"
-                    layoutId="activeTabIndicator"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      {/* Desktop Tabs */}
+      {!isMobile && (
+        <AnimatedCard variant="glass" className="mb-4">
+          <div className="flex border-b border-[#1F2430] overflow-x-auto scrollbar-hide">
+            {tabs.map((tab, index) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <motion.button
+                  key={tab.key}
+                  onClick={() => handleTabChange(tab.key)}
+                  className={cx(
+                    'relative flex items-center gap-2 px-4 sm:px-5 py-3 sm:py-4 font-semibold text-sm whitespace-nowrap transition-all duration-200',
+                    isActive
+                      ? 'text-[#3B82F6]'
+                      : 'text-[#64748B] hover:text-[#94A3B8]'
+                  )}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Icon 
+                    className="w-4 h-4" 
+                    strokeWidth={isActive ? 2.5 : 2} 
                   />
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-      </AnimatedCard>
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <motion.div 
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6]"
+                      layoutId="activeTabIndicator"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </AnimatedCard>
+      )}
+
+      {/* Mobile Bottom Tab Bar */}
+      {isMobile && (
+        <MobileTabBar
+          tabs={tabDefinitions}
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          variant="default"
+          showLabels={true}
+        />
+      )}
 
       {/* Tab Content with smooth transitions */}
       <div 

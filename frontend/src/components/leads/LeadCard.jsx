@@ -1,5 +1,5 @@
-import { Mail, Phone, MapPin, Sparkles, Edit2, Trash2, MoreHorizontal, Copy, Check, TrendingUp, DollarSign, Building2, ExternalLink } from 'lucide-react';
-import { useState, memo } from 'react';
+import { Mail, Phone, MapPin, Sparkles, Edit2, Trash2, Copy, Check, Building2 } from 'lucide-react';
+import { useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useLeadScoring } from '../../hooks/useLeadScoring';
 import { LeadCardSkeleton } from '../shared/LoadingStates';
@@ -28,32 +28,32 @@ const TIER_CONFIG = {
   }
 };
 
-const LeadCard = memo(function LeadCard({ 
-  lead, 
-  onEdit, 
-  onDelete, 
-  isSelected, 
-  onSelect, 
-  selectionMode, 
-  isLoading = false 
+const LeadCard = memo(function LeadCard({
+  lead,
+  onEdit,
+  onDelete,
+  isSelected,
+  onSelect,
+  selectionMode,
+  isLoading = false
 }) {
-  if (isLoading) return <LeadCardSkeleton count={1} />;
-  
+  // All hooks unconditionally before early return
   const scoreLead = useLeadScoring();
   const [copied, setCopied] = useState(false);
-  const [showActions, setShowActions] = useState(false);
 
-  const tier = TIER_CONFIG[lead.status] || TIER_CONFIG.unscored;
-  const hasScore = lead.score !== null && lead.score !== undefined;
+  const tier = TIER_CONFIG[(lead || {}).status] || TIER_CONFIG.unscored;
+  const hasScore = lead && lead.score !== null && lead.score !== undefined;
 
-  const handleCopyEmail = (e) => {
+  if (isLoading) return <LeadCardSkeleton count={1} />;
+
+  const handleCopyEmail = useCallback((e) => {
     e.stopPropagation();
-    if (lead.email) {
+    if (lead?.email) {
       navigator.clipboard.writeText(lead.email);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
+  }, [lead?.email]);
 
   return (
     <motion.div

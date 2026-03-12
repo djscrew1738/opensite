@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo, memo } from 'react';
 import { motion as Motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ArrowRight, Flag, Eye, Check, AlertCircle } from 'lucide-react';
 import PhaseTrack from './PhaseTrack';
@@ -13,13 +13,13 @@ import { useHaptic } from '../../hooks/useHaptic';
  * Swipe right → Update Phase (green reveal)
  * Swipe left  → Flag (red reveal)
  * Tap body    → Open detail
- * 
+ *
  * Accessibility:
  * - Keyboard: ArrowRight to update phase, ArrowLeft to flag, Enter to view detail
  * - Screen readers: Announces job status and available actions
  * - Focus management: Visible focus indicators on all interactive elements
  */
-export default function JobCard({
+const JobCard = memo(function JobCard({
   job,
   index = 0,
   onUpdatePhase,
@@ -28,11 +28,6 @@ export default function JobCard({
   onClick,
   loading = false,
 }) {
-  // Show skeleton during loading
-  if (loading) {
-    return <JobCardSkeleton count={1} />;
-  }
-
   const {
     id,
     address,
@@ -46,7 +41,9 @@ export default function JobCard({
 
   const phaseInfo = PHASE_MAP[phase] || PHASES[0];
   const phaseColor = phaseInfo.color;
-  const [swiped, setSwiped] = useState(null); // 'left' | 'right' | null
+
+  // ─── All hooks unconditionally before any early return ───────────────────
+  const [swiped, setSwiped] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -55,27 +52,44 @@ export default function JobCard({
   const haptic = useHaptic();
   const passedThresholdRef = useRef(false);
 
-  // Background reveal colors based on swipe direction - using design tokens
   const bgLeft = useTransform(x, [-120, 0], [1, 0]);
   const bgRight = useTransform(x, [0, 120], [0, 1]);
 
-  // Status-based left border glow - using design tokens
-  const borderGlow = {
+  // Status-based left border glow — recomputed only when phase changes
+  const borderGlow = useMemo(() => ({
     overdue: `0 0 12px ${colors.danger.glow}, inset 3px 0 0 ${colors.danger.DEFAULT}`,
     'due-today': `0 0 12px ${colors.warning.glow}, inset 3px 0 0 ${colors.warning.DEFAULT}`,
     healthy: `inset 3px 0 0 ${phaseColor}`,
-  };
+  }), [phaseColor]);
 
-  const formattedAddress = [address, city, zip].filter(Boolean).join(', ');
+  const formattedAddress = useMemo(
+    () => [address, city, zip].filter(Boolean).join(', '),
+    [address, city, zip]
+  );
 
-  // Define handlers first (before they're referenced in callbacks)
+  // Outer stagger style — recomputed only when index changes
+  const wrapperStyle = useMemo(() => ({
+    borderRadius: '12px',
+    animationDelay: `${index * 25}ms`,
+    animation: 'staggerFadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+    opacity: 0,
+  }), [index]);
+
+  const statusLabel = useMemo(() => {
+    switch (status) {
+      case 'overdue': return 'Overdue job';
+      case 'due-today': return 'Due today';
+      default: return 'Active job';
+    }
+  }, [status]);
+
   const handleUpdatePhase = useCallback(async (e) => {
     e?.stopPropagation();
     setIsLoading(true);
     setError(null);
     try {
       await onUpdatePhase?.(job);
-    } catch (err) {
+    } catch {
       setError('Failed to update phase');
       setTimeout(() => setError(null), 3000);
     } finally {
@@ -89,7 +103,7 @@ export default function JobCard({
     setError(null);
     try {
       await onFlag?.(job);
-    } catch (err) {
+    } catch {
       setError('Failed to flag job');
       setTimeout(() => setError(null), 3000);
     } finally {
@@ -102,7 +116,6 @@ export default function JobCard({
     onViewDetail?.(job);
   }, [job, onViewDetail]);
 
-  // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'ArrowRight') {
       e.preventDefault();
@@ -117,6 +130,7 @@ export default function JobCard({
   }, [job, onClick, handleUpdatePhase, handleFlag]);
 
   const handleDragEnd = useCallback(async (_, info) => {
+    passedThresholdRef.current = false;
     const threshold = 80;
     const velocity = info.velocity.x;
     const isRight = info.offset.x > threshold || velocity > 500;
@@ -127,7 +141,6 @@ export default function JobCard({
       return;
     }
 
-    // Animate reveal then reset + fire action in one flow
     const target = isRight ? 120 : -120;
     animate(x, target, { type: 'spring', stiffness: 300, damping: 30 });
     setSwiped(isRight ? 'right' : 'left');
@@ -138,41 +151,34 @@ export default function JobCard({
       if (isRight) { haptic.confirm(); await handleUpdatePhase(); }
       else { haptic.warning(); await handleFlag(); }
     }, 400);
-  }, [x, handleUpdatePhase, handleFlag]);
+  }, [x, haptic, handleUpdatePhase, handleFlag]);
 
-  // Determine status label for screen readers
-  const getStatusLabel = () => {
-    switch (status) {
-      case 'overdue': return 'Overdue job';
-      case 'due-today': return 'Due today';
-      default: return 'Active job';
+  const handleDrag = useCallback((_, info) => {
+    const abs = Math.abs(info.offset.x);
+    if (abs >= 80 && !passedThresholdRef.current) {
+      passedThresholdRef.current = true;
+      haptic.tick();
+    } else if (abs < 80 && passedThresholdRef.current) {
+      passedThresholdRef.current = false;
     }
-  };
+  }, [haptic]);
+
+  const handleCardClick = useCallback(() => {
+    if (!swiped) onClick?.(job);
+  }, [swiped, onClick, job]);
+
+  // ─── Early return after all hooks ────────────────────────────────────────
+  if (loading) return <JobCardSkeleton count={1} />;
 
   return (
-    <div
-      className="relative w-full overflow-hidden"
-      style={{
-        borderRadius: '12px',
-        animationDelay: `${index * 25}ms`,
-        animation: 'staggerFadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-        opacity: 0,
-      }}
-    >
+    <div className="relative w-full overflow-hidden" style={wrapperStyle}>
       {/* Swipe-right background: Update Phase (green) */}
       <Motion.div
         className="absolute inset-0 flex items-center pl-5 rounded-xl"
-        style={{
-          background: colors.success.DEFAULT,
-          opacity: bgRight,
-          borderRadius: '12px',
-        }}
+        style={{ background: colors.success.DEFAULT, opacity: bgRight, borderRadius: '12px' }}
         aria-hidden="true"
       >
-        <div 
-          className="flex items-center gap-2 font-semibold text-sm"
-          style={{ color: colors.text.inverse }}
-        >
+        <div className="flex items-center gap-2 font-semibold text-sm" style={{ color: colors.text.inverse }}>
           <Check className="w-5 h-5" />
           <span>Update Phase</span>
         </div>
@@ -181,17 +187,10 @@ export default function JobCard({
       {/* Swipe-left background: Flag (red) */}
       <Motion.div
         className="absolute inset-0 flex items-center justify-end pr-5 rounded-xl"
-        style={{
-          background: colors.danger.DEFAULT,
-          opacity: bgLeft,
-          borderRadius: '12px',
-        }}
+        style={{ background: colors.danger.DEFAULT, opacity: bgLeft, borderRadius: '12px' }}
         aria-hidden="true"
       >
-        <div 
-          className="flex items-center gap-2 font-semibold text-sm"
-          style={{ color: colors.text.inverse }}
-        >
+        <div className="flex items-center gap-2 font-semibold text-sm" style={{ color: colors.text.inverse }}>
           <span>Flag</span>
           <Flag className="w-5 h-5" />
         </div>
@@ -220,25 +219,14 @@ export default function JobCard({
         dragConstraints={{ left: -140, right: 140 }}
         dragElastic={0.1}
         dragDirectionLock
-        onDrag={(_, info) => {
-          const abs = Math.abs(info.offset.x);
-          if (abs >= 80 && !passedThresholdRef.current) {
-            passedThresholdRef.current = true;
-            haptic.tick();
-          } else if (abs < 80 && passedThresholdRef.current) {
-            passedThresholdRef.current = false;
-          }
-        }}
-        onDragEnd={(e, info) => {
-          passedThresholdRef.current = false;
-          handleDragEnd(e, info);
-        }}
-        style={{ x }}
-        className="relative cursor-pointer touch-pan-y active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary"
-        onClick={() => !swiped && onClick?.(job)}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        style={{ x, willChange: 'transform' }}
+        className="relative cursor-pointer touch-pan-y focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary"
+        onClick={handleCardClick}
         onKeyDown={handleKeyDown}
         role="article"
-        aria-label={`${getStatusLabel()} ${id} at ${formattedAddress || 'No address'}. Current phase: ${phaseInfo.label}. Use arrow keys to update phase or flag, Enter to view details.`}
+        aria-label={`${statusLabel} ${id} at ${formattedAddress || 'No address'}. Current phase: ${phaseInfo.label}. Use arrow keys to update phase or flag, Enter to view details.`}
         tabIndex={0}
       >
         <div
@@ -273,16 +261,10 @@ export default function JobCard({
           <div className="flex items-center gap-3 mb-3">
             <PhaseTrack currentPhase={phase} compact />
             <div className="flex items-baseline gap-2 min-w-0">
-              <span
-                className="font-semibold whitespace-nowrap"
-                style={{ color: phaseColor, fontSize: '13px' }}
-              >
+              <span className="font-semibold whitespace-nowrap" style={{ color: phaseColor, fontSize: '13px' }}>
                 {phaseInfo.label}
               </span>
-              <span
-                className="font-mono text-xs tabular-nums"
-                style={{ color: colors.text.muted }}
-              >
+              <span className="font-mono text-xs tabular-nums" style={{ color: colors.text.muted }}>
                 {daysInPhase}d
               </span>
             </div>
@@ -330,6 +312,8 @@ export default function JobCard({
       </Motion.div>
     </div>
   );
-}
+});
 
 JobCard.displayName = 'JobCard';
+
+export default JobCard;

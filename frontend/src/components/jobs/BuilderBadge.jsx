@@ -14,20 +14,20 @@ import { getBuilder } from '../../styles/tokens';
  * 
  * @param {{builder: string, size?: 'xs' | 'sm' | 'md'}} props
  */
+const SIZE_STYLES = {
+  xs: { fontSize: '10px', padding: '1px 6px' },
+  sm: { fontSize: '11px', padding: '2px 8px' },
+  md: { fontSize: '12px', padding: '3px 10px' },
+};
+
 const BuilderBadge = memo(function BuilderBadge({ builder, size = 'sm' }) {
   const b = getBuilder(builder);
-
-  const sizeStyles = {
-    xs: { fontSize: '10px', padding: '1px 6px' },
-    sm: { fontSize: '11px', padding: '2px 8px' },
-    md: { fontSize: '12px', padding: '3px 10px' },
-  };
 
   return (
     <span
       className="inline-flex items-center font-bold uppercase tracking-wide"
       style={{
-        ...sizeStyles[size],
+        ...SIZE_STYLES[size],
         background: b.bg,
         color: b.color,
         borderRadius: '6px',

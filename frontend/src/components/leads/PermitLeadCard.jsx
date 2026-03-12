@@ -1,195 +1,180 @@
 import { formatCurrency, formatDate } from '../../utils/format';
-import { Building2, MapPin, Calendar, DollarSign, Home, ArrowUpRight, CheckCircle2, Clock, Phone, Mail } from 'lucide-react';
+import { Building2, MapPin, Calendar, DollarSign, Home, ArrowUpRight, CheckCircle2, Clock, Phone, Mail, FileText, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { memo } from 'react';
 import StatusProgressBar from './StatusProgressBar';
+import { colors } from '../../styles/tokens';
 
 const TIER_STYLES = {
   hot: {
-    bg: 'bg-gradient-to-br from-red-50 to-rose-50',
-    border: 'border-red-200',
-    accent: 'border-l-red-500',
-    text: 'text-red-700',
-    badge: 'bg-red-100 text-red-700 ring-red-200',
-    icon: '🔥',
-    label: 'Hot'
+    color: colors.danger.DEFAULT,
+    glow: colors.danger.glow,
+    label: 'High Potential'
   },
   warm: {
-    bg: 'bg-gradient-to-br from-orange-50 to-amber-50',
-    border: 'border-orange-200',
-    accent: 'border-l-orange-500',
-    text: 'text-orange-700',
-    badge: 'bg-orange-100 text-orange-700 ring-orange-200',
-    icon: '☀️',
-    label: 'Warm'
+    color: colors.warning.DEFAULT,
+    glow: colors.warning.glow,
+    label: 'Warm Target'
   },
   cold: {
-    bg: 'bg-surface-50',
-    border: 'border-surface-200',
-    accent: 'border-l-surface-400',
-    text: 'text-surface-600',
-    badge: 'bg-surface-100 text-surface-600 ring-surface-200',
-    icon: '❄️',
+    color: colors.text.muted,
+    glow: 'transparent',
     label: 'Cold'
   },
   unscored: {
-    bg: 'bg-surface-50',
-    border: 'border-surface-200',
-    accent: 'border-l-surface-300',
-    text: 'text-surface-500',
-    badge: 'bg-surface-100 text-surface-500',
-    icon: '○',
-    label: 'Unscored'
+    color: colors.border.strong,
+    glow: 'transparent',
+    label: 'No Score'
   }
 };
 
-const STATUS_ICONS = {
-  new: Clock,
-  contacted: Phone,
-  quoted: DollarSign,
-  won: CheckCircle2,
-  lost: null
-};
+function formatPermitType(type) {
+  if (!type) return 'Building Permit';
+  return type
+    .replace(/Permit/g, '')
+    .replace(/Building/g, 'Bldg')
+    .replace(/Residential/g, 'Res')
+    .replace(/Commercial/g, 'Com')
+    .trim();
+}
 
-export default function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, onViewBuilder }) {
+const PermitLeadCard = memo(function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, onViewBuilder }) {
   const tier = TIER_STYLES[permit.leadTier] || TIER_STYLES.unscored;
-  const StatusIcon = STATUS_ICONS[permit.leadStatus];
-
-  // Format permit type for display
-  const formatPermitType = (type) => {
-    if (!type) return 'Building Permit';
-    return type
-      .replace(/Permit/g, '')
-      .replace(/Building/g, 'Bldg')
-      .replace(/Residential/g, 'Res')
-      .replace(/Commercial/g, 'Com')
-      .trim();
-  };
 
   return (
-    <div className={`group relative overflow-hidden rounded-xl border ${tier.border} ${tier.accent} border-l-4 bg-white dark:bg-surface-800 shadow-sm hover:shadow-lg transition-all duration-300`}>
-      {/* Top accent bar */}
-      <div className={`h-1 w-full bg-gradient-to-r ${tier.bg.replace('bg-gradient-to-br', '')}`} />
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      className="group relative overflow-hidden rounded-[22px] border border-white/5 shadow-sm transition-all duration-300"
+      style={{
+        backgroundColor: 'rgba(17, 19, 24, 0.6)',
+        backdropFilter: 'blur(12px)',
+      }}
+    >
+      {/* Top indicator bar */}
+      <div 
+        className="h-1 w-full opacity-60" 
+        style={{ background: `linear-gradient(90deg, transparent, ${tier.color}, transparent)` }} 
+      />
       
-      <div className="p-4 space-y-3">
-        {/* Header: Score + Tier */}
-        <div className="flex items-start justify-between gap-2">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold ring-1 ${tier.badge}`}>
-            <span className="font-mono text-base">{permit.leadScore || '--'}</span>
-            <span className="text-xs">{tier.label}</span>
+      <div className="p-5 space-y-4">
+        {/* Header: Score + Status */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <div 
+                className="text-3xl font-mono font-bold tabular-nums tracking-tighter"
+                style={{ color: tier.color, textShadow: `0 0 15px ${tier.glow}` }}
+              >
+                {permit.leadScore || '--'}
+              </div>
+              <div className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-surface-500">
+                  {tier.label}
+                </p>
+              </div>
+            </div>
           </div>
           
-          {permit.leadStatus && permit.leadStatus !== 'new' && StatusIcon && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-100 text-surface-600 text-xs font-medium">
-              <StatusIcon className="w-3.5 h-3.5" />
-              <span className="capitalize">{permit.leadStatus}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-elevated border border-white/5">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-surface-200">
+              {permit.leadStatus || 'New'}
+            </span>
+          </div>
         </div>
 
-        {/* Contractor */}
-        {permit.contractorName && (
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-surface-900 dark:text-surface-100 text-base truncate">
-              {permit.contractorName}
-            </span>
+        {/* Contractor Info */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <h3 className="text-lg font-bold text-surface-50 truncate tracking-tight">
+              {permit.contractorName || 'Unknown Contractor'}
+            </h3>
             {onViewBuilder && (
               <button
                 onClick={(e) => { e.stopPropagation(); onViewBuilder(permit.contractorName); }}
-                className="shrink-0 p-1.5 rounded-lg bg-steel-50 text-steel-600 hover:bg-steel-100 hover:text-steel-700 transition-colors"
-                title="View builder profile"
+                className="shrink-0 w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-surface-400 hover:text-white transition-colors"
               >
-                <Building2 className="w-4 h-4" />
+                <Building2 size={14} />
               </button>
             )}
           </div>
-        )}
-
-        {/* Permit Type & Number */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
-            {formatPermitType(permit.permitType)}
-          </span>
-          {permit.permitNumber && (
-            <span className="text-2xs text-surface-400 font-mono">
-              #{permit.permitNumber}
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-md bg-accent-500/10 border border-accent-500/20 text-[9px] font-bold uppercase tracking-widest text-accent-500">
+              {formatPermitType(permit.permitType)}
             </span>
-          )}
-        </div>
-
-        {/* Address */}
-        {permit.address && (
-          <div className="flex items-start gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-surface-400 shrink-0 mt-0.5" />
-            <span className="text-surface-600 dark:text-surface-400 line-clamp-2">
-              {permit.address}
-              {permit.city && `, ${permit.city}`}
-              {permit.zipCode && ` ${permit.zipCode}`}
-            </span>
+            <span className="text-[10px] font-mono text-surface-500">#{permit.permitNumber}</span>
           </div>
-        )}
+        </div>
 
-        {/* Key Metrics Grid */}
+        {/* Technical Specs Strip */}
         <div className="grid grid-cols-3 gap-2">
-          {permit.estimatedCost > 0 && (
-            <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-2 text-center">
-              <DollarSign className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
-                {formatCurrency(permit.estimatedCost)}
-              </p>
-              <p className="text-2xs text-surface-400">Est. Value</p>
+          <SpecItem icon={DollarSign} value={formatCurrency(permit.estimatedCost)} label="Est. Value" color="text-emerald-500" />
+          <SpecItem icon={Home} value={permit.units || 0} label="Units" color="text-violet-500" />
+          <SpecItem icon={Zap} value={permit.squareFootage?.toLocaleString() || 0} label="Sq Ft" color="text-amber-500" />
+        </div>
+
+        {/* Location & Context */}
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+            <MapPin size={14} className="text-surface-500 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-surface-200 truncate">{permit.address}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-surface-500">{permit.city}, TX</p>
             </div>
-          )}
-          
-          {permit.units > 0 && (
-            <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-2 text-center">
-              <Home className="w-4 h-4 text-violet-500 mx-auto mb-1" />
-              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
-                {permit.units}
-              </p>
-              <p className="text-2xs text-surface-400">Units</p>
-            </div>
-          )}
-          
-          {permit.squareFootage > 0 && (
-            <div className="bg-surface-50 dark:bg-surface-700/50 rounded-lg p-2 text-center">
-              <div className="w-4 h-4 rounded bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-1 text-2xs font-bold">
-                ft²
+          </div>
+
+          {permit.description && (
+            <div className="p-3 rounded-xl bg-surface-elevated/50 border border-white/5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <FileText size={12} className="text-surface-500" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-surface-500 text-[9px]">Permit Details</span>
               </div>
-              <p className="text-xs font-semibold text-surface-700 dark:text-surface-300">
-                {permit.squareFootage.toLocaleString()}
+              <p className="text-xs text-surface-400 leading-relaxed line-clamp-2">
+                {permit.description}
               </p>
-              <p className="text-2xs text-surface-400">Sq Ft</p>
             </div>
           )}
         </div>
 
-        {/* Description */}
-        {permit.description && (
-          <p className="text-xs text-surface-500 dark:text-surface-500 line-clamp-2 bg-surface-50 dark:bg-surface-700/30 rounded-lg p-2">
-            {permit.description}
-          </p>
-        )}
-
-        {/* Issue Date */}
-        <div className="flex items-center gap-2 text-2xs text-surface-400">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Issued {formatDate(permit.issuedDate)}</span>
+        {/* Footer Meta */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-surface-500">
+            <Calendar size={12} />
+            <span>Issued {formatDate(permit.issuedDate)}</span>
+          </div>
         </div>
 
-        {/* Status Progression */}
-        <StatusProgressBar
-          currentStatus={permit.leadStatus || 'new'}
-          onStatusChange={(status) => onStatusUpdate?.(permit.id, status)}
-        />
+        {/* Status Control */}
+        <div className="pt-2">
+          <StatusProgressBar
+            currentStatus={permit.leadStatus || 'new'}
+            onStatusChange={(status) => onStatusUpdate?.(permit.id, status)}
+          />
+        </div>
 
-        {/* View Details Button */}
+        {/* Details CTA */}
         <button
           onClick={() => onViewDetails?.(permit)}
-          className="w-full btn-secondary text-sm justify-center group/btn"
+          className="w-full h-11 rounded-xl bg-surface-elevated border border-white/5 flex items-center justify-center gap-2 text-xs font-bold text-surface-200 hover:bg-white/5 transition-all active:scale-95 group/cta"
         >
-          <span>View Details</span>
-          <ArrowUpRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
+          <span>VIEW SYSTEM DETAILS</span>
+          <ArrowUpRight size={14} className="text-surface-500 group-hover/cta:text-accent-500 transition-colors" />
         </button>
       </div>
+    </motion.div>
+  );
+});
+
+function SpecItem({ icon: Icon, value, label, color }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-card/50 border border-white/5">
+      <Icon size={14} className={`${color} mb-1`} />
+      <span className="text-xs font-bold text-surface-100 tabular-nums">{value}</span>
+      <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-surface-500">{label}</span>
     </div>
   );
 }
+
+export default PermitLeadCard;

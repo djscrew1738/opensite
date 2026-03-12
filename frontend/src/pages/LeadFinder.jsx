@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,11 +33,27 @@ import {
   SkeletonCard 
 } from '../components/ui';
 import { useBulkSelect } from '../hooks/useBulkSelect';
-import { useSorting } from '../hooks/useSorting';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatCurrency, formatDate } from '../utils/format';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { MobileTabBar } from '../components/tabs';
+
+/**
+ * Mobile-only floating action button for adding leads
+ */
+function AddLeadFAB({ onClick }) {
+  return (
+    <motion.button
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      className="fixed right-6 bottom-24 z-40 w-14 h-14 rounded-2xl bg-accent-500 text-white shadow-xl shadow-accent-500/40 flex items-center justify-center border border-accent-400 md:hidden"
+    >
+      <Plus className="w-7 h-7" strokeWidth={2.5} />
+    </motion.button>
+  );
+}
 
 const tabs = [
   { key: 'cities', label: 'City Search', shortLabel: 'Cities', icon: Building },
@@ -76,17 +92,30 @@ export default function LeadFinder() {
   const queryClient = useQueryClient();
   
   // Helper to update URL params
-  const updateParams = (updates) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === '' || value === null || value === undefined) {
-        next.delete(key);
-      } else {
-        next.set(key, String(value));
-      }
+  const updateParams = useCallback((updates) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
     });
-    setSearchParams(next);
-  };
+  }, [setSearchParams]);
+
+  // Stable sort function — recomputed only when sort params change
+  const sortData = useCallback((data) => {
+    if (!sortField) return data;
+    return [...data].sort((a, b) => {
+      const aVal = a[sortField] ?? 0;
+      const bVal = b[sortField] ?? 0;
+      const modifier = sortOrder === 'asc' ? 1 : -1;
+      return (aVal > bVal ? 1 : -1) * modifier;
+    });
+  }, [sortField, sortOrder]);
 
   // Sorting (from URL params)
   const leadSort = {
@@ -94,15 +123,7 @@ export default function LeadFinder() {
     sortOrder,
     setSortField: (field) => updateParams({ sort: field }),
     setSortOrder: (order) => updateParams({ order: order }),
-    sortData: (data) => {
-      if (!sortField) return data;
-      return [...data].sort((a, b) => {
-        const aVal = a[sortField] ?? 0;
-        const bVal = b[sortField] ?? 0;
-        const modifier = sortOrder === 'asc' ? 1 : -1;
-        return (aVal > bVal ? 1 : -1) * modifier;
-      });
-    }
+    sortData,
   };
   const permitSort = leadSort;
 
@@ -145,15 +166,12 @@ export default function LeadFinder() {
   // Bulk selection
   const bulk = useBulkSelect(manualLeads);
 
-  // Sorted data
-  const sortedLeads = useMemo(() => leadSort.sortData(manualLeads), [manualLeads, leadSort.sortData]);
+  // Sorted data — sortData is stable so these only recompute when data/filter changes
+  const sortedLeads = useMemo(() => sortData(manualLeads), [manualLeads, sortData]);
   const sortedPermits = useMemo(() => {
-    let filtered = permits;
-    if (permitCityFilter) {
-      filtered = permits.filter(p => p.city === permitCityFilter);
-    }
-    return permitSort.sortData(filtered);
-  }, [permits, permitSort.sortData, permitCityFilter]);
+    const filtered = permitCityFilter ? permits.filter(p => p.city === permitCityFilter) : permits;
+    return sortData(filtered);
+  }, [permits, sortData, permitCityFilter]);
 
   // Unique cities from permits for filter
   const permitCities = useMemo(() => {
@@ -217,34 +235,37 @@ export default function LeadFinder() {
   });
 
   // Handlers
-  const handleSaveLead = (data) => {
+  const handleSaveLead = useCallback((data) => {
     if (editingLead) {
       updateMutation.mutate({ id: editingLead.id, data });
     } else {
       createMutation.mutate(data);
     }
-  };
+  }, [editingLead, updateMutation, createMutation]);
 
-  const handleEditLead = (lead) => { setEditingLead(lead); setShowModal(true); };
-  const handleAddNew = () => { setEditingLead(null); setShowModal(true); };
-  const handlePermitStatusUpdate = (permitId, status) => permitStatusMutation.mutate({ id: permitId, status });
-  const handleViewPermitDetails = (permit) => setSelectedPermit(permit);
+  const handleEditLead = useCallback((lead) => { setEditingLead(lead); setShowModal(true); }, []);
+  const handleAddNew = useCallback(() => { setEditingLead(null); setShowModal(true); }, []);
+  const handlePermitStatusUpdate = useCallback((permitId, status) => permitStatusMutation.mutate({ id: permitId, status }), [permitStatusMutation]);
+  const handleViewPermitDetails = useCallback((permit) => setSelectedPermit(permit), []);
+  const handleViewLead = useCallback((lead) => { setEditingLead(lead); setShowModal(true); }, []);
 
-  const handleSearchNavigate = (type, id, item) => {
+  const handleSearchNavigate = useCallback((type, id, item) => {
     if (type === 'permit') { updateParams({ tab: 'permits' }); setSelectedPermit(item); }
     else if (type === 'lead') { updateParams({ tab: 'manual' }); handleEditLead(item); }
     else if (type === 'builder') { updateParams({ tab: 'builders' }); }
-  };
+  }, [updateParams, handleEditLead]);
 
-  const handleViewLead = (lead) => {
-    setEditingLead(lead);
-    setShowModal(true);
-  };
-  
-  // Search handler
-  const handleSearchChange = (e) => {
+  const handleSortFieldChange = useCallback((field) => {
+    if (field === sortField) {
+      updateParams({ order: sortOrder === 'asc' ? 'desc' : 'asc' });
+      return;
+    }
+    updateParams({ sort: field });
+  }, [sortField, sortOrder, updateParams]);
+
+  const handleSearchChange = useCallback((e) => {
     updateParams({ q: e.target.value });
-  };
+  }, [updateParams]);
   
   // Clear all filters
   const handleClearFilters = () => {
@@ -292,42 +313,65 @@ export default function LeadFinder() {
   })), []);
 
   return (
-    <div className={`${isMobile ? 'pb-20' : ''} p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6`}>
-      {/* Header Actions Only */}
-      <motion.div 
-        className="flex items-center justify-end gap-2 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {/* Unified Search Trigger */}
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={Command}
-          onClick={() => setShowUnifiedSearch(true)}
-          className="shrink-0"
-        >
-          <span className="hidden sm:inline">Search</span>
-          <span className="sm:hidden">Search</span>
-          <kbd className="hidden md:inline ml-2 text-xs font-mono px-1.5 py-0.5 rounded bg-[#1F2430] text-[#64748B]">
-            ⌘K
-          </kbd>
-        </Button>
-
-        {activeTab === 'manual' && (
-          <Button 
-            variant="primary" 
-            size="sm"
-            leftIcon={Plus}
-            onClick={handleAddNew}
-            showRipple
+    <div className={`${isMobile ? 'pb-28' : ''} p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6`}>
+      {/* Mobile Page Header */}
+      {isMobile && (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-surface-50 tracking-tight">Lead Finder</h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-surface-500 mt-0.5">
+              {tabs.find(t => t.key === activeTab)?.label}
+            </p>
+          </div>
+          <button 
+            onClick={() => setShowUnifiedSearch(true)}
+            className="w-10 h-10 rounded-xl bg-surface-card border border-white/5 flex items-center justify-center text-surface-400"
           >
-            <span className="hidden sm:inline">Add Lead</span>
-            <span className="sm:hidden">Add</span>
+            <Search className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Header Actions (Desktop Only) */}
+      {!isMobile && (
+        <motion.div 
+          className="flex items-center justify-end gap-2 mb-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Unified Search Trigger */}
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={Command}
+            onClick={() => setShowUnifiedSearch(true)}
+            className="shrink-0"
+          >
+            Search
+            <kbd className="hidden md:inline ml-2 text-xs font-mono px-1.5 py-0.5 rounded bg-[#1F2430] text-[#64748B]">
+              ⌘K
+            </kbd>
           </Button>
-        )}
-      </motion.div>
+
+          {activeTab === 'manual' && (
+            <Button 
+              variant="primary" 
+              size="sm"
+              leftIcon={Plus}
+              onClick={handleAddNew}
+              showRipple
+            >
+              Add Lead
+            </Button>
+          )}
+        </motion.div>
+      )}
+
+      {/* Mobile FAB */}
+      {isMobile && activeTab === 'manual' && (
+        <AddLeadFAB onClick={handleAddNew} />
+      )}
       {/* Desktop Tabs */}
       {!isMobile && (
         <AnimatedCard variant="glass" className="mb-4">
@@ -395,7 +439,7 @@ export default function LeadFinder() {
             onAddLead={handleAddNew}
             onViewLead={handleViewLead}
             onViewPermit={handleViewPermitDetails}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             onOpenSearch={() => setShowUnifiedSearch(true)}
             isLoading={manualLoading || permitLoading}
           />
@@ -413,7 +457,7 @@ export default function LeadFinder() {
         {activeTab === 'cities' && (
           <CitySearch
             onViewPermit={handleViewPermitDetails}
-            onSwitchToBuilders={() => setActiveTab('builders')}
+            onSwitchToBuilders={() => handleTabChange('builders')}
           />
         )}
 
@@ -449,10 +493,7 @@ export default function LeadFinder() {
                   <div className="relative hidden md:block">
                     <select
                       value={activeTab === 'manual' ? leadSort.sortField : permitSort.sortField}
-                      onChange={(e) => {
-                        if (activeTab === 'manual') leadSort.toggleSort(e.target.value);
-                        else permitSort.toggleSort(e.target.value);
-                      }}
+                      onChange={(e) => handleSortFieldChange(e.target.value)}
                       className="input py-2 pr-8 text-sm font-semibold appearance-none cursor-pointer"
                     >
                       {activeTab === 'manual' ? (
@@ -546,7 +587,7 @@ export default function LeadFinder() {
                   {activeTab === 'permits' && permitCities.length > 0 && (
                     <div>
                       <label className="label text-xs">City</label>
-                      <select value={permitCityFilter} onChange={(e) => setPermitCityFilter(e.target.value)} className="input" aria-label="Filter by city">
+                      <select value={permitCityFilter} onChange={(e) => updateParams({ city: e.target.value })} className="input" aria-label="Filter by city">
                         <option value="">All Cities</option>
                         {permitCities.map(c => (
                           <option key={c} value={c}>{c}</option>
@@ -697,7 +738,7 @@ export default function LeadFinder() {
                       permit={permit}
                       onStatusUpdate={handlePermitStatusUpdate}
                       onViewDetails={handleViewPermitDetails}
-                      onViewBuilder={() => setActiveTab('builders')}
+                      onViewBuilder={() => handleTabChange('builders')}
                     />
                   ))}
                 </div>

@@ -583,6 +583,14 @@ export default function Jobs() {
     { id: 'leads', label: 'Lead Finder', shortLabel: 'Leads', icon: Users },
   ], []);
 
+  // Stable callbacks for memoized child lists
+  const handleSelectJob = useCallback((job) => setSelectedJobId(job.id), []);
+  const handleSelectJobMobile = useCallback((job) => {
+    setSelectedJobId(job.id);
+    setShowMobileSidebar(true);
+  }, []);
+  const handleDeleteJobRequest = useCallback((job) => setJobToDelete(job), []);
+
   // Loading state
   if (isLoading) {
     return (
@@ -708,8 +716,8 @@ export default function Jobs() {
               jobs={jobs}
               isLoading={isLoading}
               selectedJobId={selectedJobId}
-              onSelectJob={(job) => setSelectedJobId(job.id)}
-              onDeleteJob={(job) => setJobToDelete(job)}
+              onSelectJob={handleSelectJob}
+              onDeleteJob={handleDeleteJobRequest}
               stats={stats}
             />
           </Tab>
@@ -773,11 +781,8 @@ export default function Jobs() {
                     jobs={jobs}
                     isLoading={isLoading}
                     selectedJobId={selectedJobId}
-                    onSelectJob={(job) => {
-                      setSelectedJobId(job.id);
-                      setShowMobileSidebar(true);
-                    }}
-                    onDeleteJob={(job) => setJobToDelete(job)}
+                    onSelectJob={handleSelectJobMobile}
+                    onDeleteJob={handleDeleteJobRequest}
                     stats={stats}
                     selectedJob={jobs.find(j => j.id === selectedJobId)}
                     onCloseSidebar={() => {

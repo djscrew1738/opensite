@@ -4,11 +4,6 @@
    UI/UX Overhaul — Enhanced Micro-interactions & Polish
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Import design system styles */
 @import './design-system/styles.css';
 
 /* ── CSS Custom Properties (Design Tokens v2.0) ──────────────────────────────── */
@@ -757,5 +752,182 @@
   .safe-area-px {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MOBILE UX ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  .mobile-main-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .mobile-content-safe-bottom {
+    padding-bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-nav-container {
+    min-height: 70px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TOUCH PRESS FEEDBACK
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * .touch-press — physical press feel for any interactive element.
+ * Uses scale + brightness so it works on both light and dark backgrounds.
+ * Pair with Framer Motion whileTap for richer spring-based feedback;
+ * use this for cases where Framer is not available.
+ */
+.touch-press {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 75ms ease, filter 75ms ease;
+}
+.touch-press:active {
+  transform: scale(0.93);
+  filter: brightness(0.88);
+}
+
+/* Lighter variant for cards/larger surfaces */
+.touch-press-light {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 100ms ease, filter 100ms ease;
+}
+.touch-press-light:active {
+  transform: scale(0.975);
+  filter: brightness(0.92);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLL SNAP — horizontal card rails
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Horizontal scroll rail with snap — use on a container.
+ * Children should have .snap-card applied.
+ *
+ * <div class="snap-rail">
+ *   <div class="snap-card">…</div>
+ * </div>
+ */
+.snap-rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 1rem;
+  padding-inline: 1rem;
+  padding-bottom: 4px;            /* room for scrollbar on desktop */
+  /* Prevent momentum from carrying past last card */
+  overscroll-behavior-x: contain;
+}
+.snap-rail::-webkit-scrollbar { display: none; }
+.snap-rail { scrollbar-width: none; }
+
+.snap-card {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Centre-aligned snap variant */
+.snap-rail-center {
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 50%;
+}
+.snap-rail-center .snap-card {
+  scroll-snap-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SWIPE HINT — subtle "peek" on first render for horizontal carousels
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes swipe-hint {
+  0%   { transform: translateX(0); }
+  30%  { transform: translateX(-12px); }
+  60%  { transform: translateX(-6px); }
+  100% { transform: translateX(0); }
+}
+
+.swipe-hint {
+  animation: swipe-hint 0.7s ease-out 0.8s both;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MOMENTUM SCROLL CONTAINER
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Full-height momentum scroll that keeps overscroll contained.
+ * Use on the main page content wrapper on mobile.
+ */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  /* Prevent content from jumping when keyboard opens */
+  scroll-behavior: smooth;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BOTTOM-SHEET DRAG HANDLE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.drag-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE GRID HELPERS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Auto-fill card grid — adapts from 1 col mobile → multi-col desktop */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .card-grid { gap: 1rem; }
+}
+
+/* Stacked list → side-by-side on md+ */
+.stack-to-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (min-width: 768px) {
+  .stack-to-row {
+    flex-direction: row;
+    align-items: center;
   }
 }

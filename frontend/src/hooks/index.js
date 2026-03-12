@@ -1,5 +1,7 @@
 // Theme and UI
 export { useTheme, ThemeProvider } from './useTheme';
+export { useHaptic } from './useHaptic';
+export { usePullToRefresh } from './usePullToRefresh';
 export { useFieldMode, FieldModeProvider } from './useFieldMode';
 export { useToast, ToastProvider } from './useToast';
 

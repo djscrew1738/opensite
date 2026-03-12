@@ -478,27 +478,22 @@ function NotificationItem({
         </div>
 
         {/* Action Button */}
-        <button
+        <motion.button
           type="button"
           onClick={handleAction}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+          whileHover={{ y: -1, boxShadow: `0 6px 16px ${actionConfig.color}60` }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
           style={{
             background: actionConfig.color,
             color: colors.text.inverse,
             boxShadow: `0 4px 12px ${actionConfig.color}40`,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = `0 6px 16px ${actionConfig.color}60`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = `0 4px 12px ${actionConfig.color}40`;
-          }}
         >
           <ActionIcon className="w-4 h-4" />
           {actionConfig.label}
-        </button>
+        </motion.button>
 
         {/* Dismiss button (desktop) */}
         {!isMobile && (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 
 /**
@@ -129,14 +130,15 @@ export function ActionCard({
   };
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={loading}
+      whileTap={loading ? {} : { scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className={`
         w-full text-left card p-5 group relative overflow-hidden
         transition-all duration-300 ease-out
         hover:shadow-elevation-2 hover:-translate-y-0.5
-        active:scale-[0.98]
         ${variants[variant]}
         ${className}
       `}
@@ -166,7 +168,7 @@ export function ActionCard({
           )}
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 }
 

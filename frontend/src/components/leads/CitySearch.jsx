@@ -11,7 +11,7 @@ import { Card, CardHeader } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Skeleton, CardSkeleton } from '../ui/Skeleton';
+import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 
 // Popular DFW cities for quick select
 const POPULAR_CITIES = [
@@ -20,12 +20,12 @@ const POPULAR_CITIES = [
 ];
 
 // City Card Component
-const CityCard = ({ city, stats, onSelect, isSelected }) => {
+const CityCard = React.memo(function CityCard({ city, stats, onSelect, isSelected }) {
   return (
     <Motion.div
-      layout
       whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 30 }}
       onClick={() => onSelect(city)}
       className={`cursor-pointer group ${isSelected ? 'ring-2 ring-brand-400' : ''}`}
     >
@@ -78,7 +78,7 @@ const CityCard = ({ city, stats, onSelect, isSelected }) => {
       </Card>
     </Motion.div>
   );
-};
+});
 
 // Permit List Item
 const PermitListItem = ({ permit, onClick }) => {
@@ -237,7 +237,7 @@ export const CitySearch = ({ onViewPermit, onSwitchToBuilders }) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-            <CardSkeleton key={i} />
+            <SkeletonCard key={i} />
           ))}
         </div>
       </div>

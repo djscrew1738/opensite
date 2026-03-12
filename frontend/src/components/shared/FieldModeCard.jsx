@@ -9,7 +9,8 @@
  * @module components/shared/FieldModeCard
  */
 
-import { useState, memo } from 'react';
+import { useState, useCallback, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Briefcase, Flame, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useFieldMode } from '../../hooks/useFieldMode';
 import { colors } from '../../styles/tokens';
@@ -329,6 +330,7 @@ const FieldModeCard = memo(function FieldModeCard({
 }) {
   const { isFieldMode } = useFieldMode();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const toggleExpanded = useCallback((e) => { e.stopPropagation(); setIsExpanded(v => !v); }, []);
 
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.active;
 
@@ -373,27 +375,28 @@ const FieldModeCard = memo(function FieldModeCard({
 
         {/* Expand Button - Large touch target */}
         {children && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95"
-            style={{ 
+          <motion.button
+            onClick={toggleExpanded}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{
               background: 'var(--field-surface-elevated)',
               border: '2px solid var(--field-border-default)',
             }}
             aria-expanded={isExpanded}
             aria-label={isExpanded ? 'Show less' : 'Show more'}
           >
-            <ChevronDown 
-              className="w-6 h-6 transition-transform duration-200"
-              style={{ 
-                color: 'var(--field-text-secondary)',
-                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}
-            />
-          </button>
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            >
+              <ChevronDown
+                className="w-6 h-6"
+                style={{ color: 'var(--field-text-secondary)' }}
+              />
+            </motion.div>
+          </motion.button>
         )}
       </div>
 
@@ -402,23 +405,26 @@ const FieldModeCard = memo(function FieldModeCard({
       <CriticalDataGrid data={criticalInfo} />
 
       {/* Expandable Secondary Content */}
-      {children && (
-        <div 
-          className="overflow-hidden transition-all duration-300"
-          style={{ 
-            maxHeight: isExpanded ? '500px' : '0',
-            opacity: isExpanded ? 1 : 0,
-            marginTop: isExpanded ? '16px' : '0',
-          }}
-        >
-          <div 
-            className="pt-4 border-t-2"
-            style={{ borderColor: 'var(--field-border-default)' }}
+      <AnimatePresence initial={false}>
+        {children && isExpanded && (
+          <motion.div
+            key="expand"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="overflow-hidden"
+            style={{ marginTop: '16px' }}
           >
-            {children}
-          </div>
-        </div>
-      )}
+            <div
+              className="pt-4 border-t-2"
+              style={{ borderColor: 'var(--field-border-default)' }}
+            >
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

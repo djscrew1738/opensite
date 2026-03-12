@@ -7,6 +7,7 @@
  */
 
 import { memo, useMemo, useCallback, useState, useEffect, useRef, useReducer } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Cpu, Server, Zap, Cog, SlidersHorizontal, 
   HardDrive, Download, Star, XCircle, Clock, Trash2, 
@@ -25,11 +26,13 @@ const ProviderCard = memo(function ProviderCard({
   id, icon: Icon, label, desc, accent, isActive, isSwitching, onClick 
 }) {
   return (
-    <button 
-      key={id} 
-      onClick={() => onClick(id)} 
+    <motion.button
+      key={id}
+      onClick={() => onClick(id)}
       disabled={isSwitching}
-      className={`relative p-4 rounded-xl border transition-all text-left group active:scale-95 ${
+      whileTap={isSwitching ? {} : { scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className={`relative p-4 rounded-xl border transition-colors text-left group ${
         isActive
           ? 'bg-surface-elevated border-accent-blue shadow-lg ring-1 ring-accent-blue/20'
           : 'bg-surface-card border-border-default hover:border-border-strong'
@@ -45,7 +48,7 @@ const ProviderCard = memo(function ProviderCard({
       </div>
       <div className="font-bold text-sm text-text-primary tracking-tight">{label}</div>
       <p className="text-xs font-bold uppercase tracking-widest text-text-muted mt-0.5">{desc}</p>
-    </button>
+    </motion.button>
   );
 });
 
@@ -149,6 +152,7 @@ function DebouncedSlider({ value, onChange, delay = 150, ...props }) {
 
 // Provider configuration definitions (static, outside component)
 const PROVIDER_CONFIGS = [
+  { id: 'gemini', icon: Cpu, label: 'Gemini', desc: 'Default', accent: colors.accent.blue },
   { id: 'ollama', icon: Server, label: 'Ollama', desc: 'Local', accent: colors.accent.blue },
   { id: 'openclaw', icon: Shield, label: 'OpenClaw', desc: 'Gateway', accent: colors.danger.DEFAULT },
   { id: 'groq', icon: Zap, label: 'Groq', desc: 'Speed', accent: colors.warning.DEFAULT },
@@ -163,29 +167,40 @@ export default memo(function AISection() {
   const {
     activeProvider, settings, availableModels, connected, 
     defaultModel, config, switchingProvider, testingOllama,
-    testingGroq, testingOpenClaw, testingOpenai, testingAnthropic,
+    testingGemini, testingGroq, testingOpenClaw, testingOpenai, testingAnthropic,
     savingAI, maxTokens, topP,
     streamingEnabled, systemPrompt, pullModelName, pullingModel,
-    deleteConfirm, deletingModel, showGroqKey, showOpenclawToken,
+    deleteConfirm, deletingModel, showGeminiKey, showGroqKey, showOpenclawToken,
     showOpenaiKey, showAnthropicKey,
-    temperature, groqKey, groqTemperature, ollamaUrl, openclawUrl,
+    temperature, geminiKey, geminiTemperature, groqKey, groqTemperature, ollamaUrl, openclawUrl,
     openclawToken, openclawTemperature, openaiKey, openaiTemperature,
     anthropicKey, anthropicTemperature
   } = ctx;
   
   const {
     handleSwitchProvider, handleSaveAIConfig, handleTestOllama,
-    handleTestGroq, handleSaveGroqKey, handleTestOpenai, handleSaveOpenaiKey,
+    handleTestGemini, handleSaveGeminiKey, handleTestGroq, handleSaveGroqKey, handleTestOpenai, handleSaveOpenaiKey,
     handleTestAnthropic, handleSaveAnthropicKey,
     handleTestOpenClaw, handleSaveOpenclawToken, handleSetDefaultModel, 
     handlePullModel, handleDeleteModel, temperatureLabel
   } = actions;
 
+  const isProviderConnected = useMemo(() => {
+    if (activeProvider === 'ollama') return connected;
+    if (activeProvider === 'openclaw') return Boolean(settings.openclaw_token_configured || openclawUrl);
+    if (activeProvider === 'gemini') return Boolean(settings.gemini_api_key_configured);
+    if (activeProvider === 'groq') return Boolean(settings.groq_api_key_configured);
+    if (activeProvider === 'openai') return Boolean(settings.openai_api_key_configured);
+    if (activeProvider === 'anthropic') return Boolean(settings.anthropic_api_key_configured);
+    return false;
+  }, [activeProvider, connected, openclawUrl, settings]);
+
   // Memoize provider badge
   const providerBadge = useMemo(() => (
     <StatusPill 
-      connected={connected || activeProvider !== 'ollama'} 
+      connected={isProviderConnected}
       label={{ 
+        gemini: 'Google Gemini',
         openclaw: 'OpenClaw Gateway', 
         groq: 'Groq Cloud', 
         anthropic: 'Anthropic Claude', 
@@ -193,7 +208,7 @@ export default memo(function AISection() {
         ollama: 'Ollama Local' 
       }[activeProvider] || activeProvider} 
     />
-  ), [connected, activeProvider]);
+  ), [isProviderConnected, activeProvider]);
 
   // Memoize provider cards render
   const providerCards = useMemo(() => (
@@ -231,6 +246,42 @@ export default memo(function AISection() {
   // Provider-specific content memoization
   const providerContent = useMemo(() => {
     switch (activeProvider) {
+      case 'gemini':
+        return (
+          <div className="space-y-5">
+            <KeyInput
+              label="Gemini API Key"
+              description="Google Gemini via AI Studio or Vertex-compatible key."
+              href="https://aistudio.google.com/app/apikey"
+              hrefLabel="aistudio.google.com"
+              value={geminiKey}
+              onChange={ctx.setGeminiKey}
+              show={showGeminiKey}
+              onToggleShow={() => ctx.setShowGeminiKey(!showGeminiKey)}
+              placeholder={settings.gemini_api_key_masked || 'AIza...'}
+              onTest={handleTestGemini}
+              testing={testingGemini}
+              onSave={handleSaveGeminiKey}
+            />
+            <div className="flex flex-col gap-1.5 pt-2">
+              <label className="text-xs font-semibold uppercase tracking-widest text-text-muted">Default Gemini Model</label>
+              <select value={defaultModel} onChange={e => handleSetDefaultModel(e.target.value)} className="input font-semibold text-sm">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (fast)</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro (reasoning)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (balanced)</option>
+              </select>
+            </div>
+            <DebouncedSlider
+              label="Gemini Temperature"
+              value={geminiTemperature}
+              onChange={ctx.setGeminiTemperature}
+              min={0} max={1} step={0.05}
+              unit={` — ${temperatureLabel(geminiTemperature)}`}
+              markers={['Precise', 'Balanced', 'Creative']}
+            />
+          </div>
+        );
+
       case 'ollama':
         return (
           <div className="space-y-5">
@@ -438,12 +489,13 @@ export default memo(function AISection() {
     }
   }, [
     activeProvider, ollamaUrl, temperature, defaultModel, availableModels, connected,
+    geminiKey, geminiTemperature, showGeminiKey, settings.gemini_api_key_masked,
     groqKey, groqTemperature, showGroqKey, settings.groq_api_key_masked,
     openaiKey, openaiTemperature, showOpenaiKey, settings.openai_api_key_masked,
     anthropicKey, anthropicTemperature, showAnthropicKey, settings.anthropic_api_key_masked,
     openclawUrl, openclawToken, openclawTemperature, showOpenclawToken, settings.openclaw_token_masked,
-    testingOllama, testingGroq, testingOpenai, testingAnthropic, testingOpenClaw,
-    ctx, handleTestOllama, handleSetDefaultModel, handleTestGroq, handleSaveGroqKey,
+    testingOllama, testingGemini, testingGroq, testingOpenai, testingAnthropic, testingOpenClaw,
+    ctx, handleTestOllama, handleTestGemini, handleSaveGeminiKey, handleSetDefaultModel, handleTestGroq, handleSaveGroqKey,
     handleTestOpenai, handleSaveOpenaiKey, handleTestAnthropic, handleSaveAnthropicKey,
     handleTestOpenClaw, handleSaveOpenclawToken, temperatureLabel
   ]);
@@ -458,7 +510,7 @@ export default memo(function AISection() {
         description="Choose the core engine that powers your business intelligence"
       >
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             {providerCards}
           </div>
 
@@ -516,9 +568,9 @@ export default memo(function AISection() {
           </div>
           
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button onClick={handleSaveAIConfig} disabled={savingAI} className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95">
+            <motion.button onClick={handleSaveAIConfig} disabled={savingAI} whileTap={savingAI ? {} : { scale: 0.97 }} transition={{ type: 'spring', stiffness: 700, damping: 35 }} className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20">
               {savingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Configuration
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

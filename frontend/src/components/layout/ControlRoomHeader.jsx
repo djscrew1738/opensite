@@ -196,9 +196,12 @@ GlobalSearch.displayName = 'GlobalSearch';
  */
 const FieldModeToggle = memo(function FieldModeToggle({ isFieldMode, onToggle }) {
   return (
-    <button
+    <Motion.button
       onClick={onToggle}
-      className="relative flex items-center gap-2 px-3 py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95"
+      whileHover={isFieldMode ? {} : { borderColor: colors.border.strong, color: colors.text.primary }}
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className="relative flex items-center gap-2 px-3 py-2 rounded-lg font-semibold"
       style={{
         minHeight: 40,
         backgroundColor: isFieldMode ? FIELD_MODE_COLORS.active : colors.surface.elevated,
@@ -209,18 +212,6 @@ const FieldModeToggle = memo(function FieldModeToggle({ isFieldMode, onToggle })
       aria-pressed={isFieldMode}
       aria-label={isFieldMode ? 'Disable Field Mode' : 'Enable Field Mode'}
       title={isFieldMode ? 'Field Mode On - Outdoor optimized' : 'Enable Field Mode for outdoor use'}
-      onMouseEnter={(e) => {
-        if (!isFieldMode) {
-          e.currentTarget.style.borderColor = colors.border.strong;
-          e.currentTarget.style.color = colors.text.primary;
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isFieldMode) {
-          e.currentTarget.style.borderColor = colors.border.default;
-          e.currentTarget.style.color = colors.text.secondary;
-        }
-      }}
     >
       <Sun 
         style={{ 
@@ -239,7 +230,7 @@ const FieldModeToggle = memo(function FieldModeToggle({ isFieldMode, onToggle })
           style={{ backgroundColor: FIELD_MODE_COLORS.indicator }}
         />
       )}
-    </button>
+    </Motion.button>
   );
 });
 

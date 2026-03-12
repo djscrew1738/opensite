@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { FIXTURE_PRICE } from './constants';
@@ -96,15 +97,17 @@ const Stepper = memo(function Stepper({ count, color, onDecrement, onIncrement, 
         aria-label="Fixture count"
       />
       
-      <button
+      <motion.button
         type="button"
         onClick={onIncrement}
-        className="w-9 h-9 rounded-lg flex items-center justify-center text-white transition-all hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-900"
+        whileTap={{ scale: 0.88 }}
+        transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+        className="w-9 h-9 rounded-lg flex items-center justify-center text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-900"
         style={{ backgroundColor: color }}
         aria-label="Increase count"
       >
         <Plus className="w-4 h-4" />
-      </button>
+      </motion.button>
     </div>
   );
 });

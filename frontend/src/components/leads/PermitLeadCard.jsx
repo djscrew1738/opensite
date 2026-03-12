@@ -1,7 +1,7 @@
 import { formatCurrency, formatDate } from '../../utils/format';
 import { Building2, MapPin, Calendar, DollarSign, Home, ArrowUpRight, CheckCircle2, Clock, Phone, Mail, FileText, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import StatusProgressBar from './StatusProgressBar';
 import { colors } from '../../styles/tokens';
 
@@ -40,6 +40,9 @@ function formatPermitType(type) {
 
 const PermitLeadCard = memo(function PermitLeadCard({ permit, onStatusUpdate, onViewDetails, onViewBuilder }) {
   const tier = TIER_STYLES[permit.leadTier] || TIER_STYLES.unscored;
+
+  const handleStatusChange = useCallback((status) => onStatusUpdate?.(permit.id, status), [permit.id, onStatusUpdate]);
+  const handleViewDetails = useCallback(() => onViewDetails?.(permit), [permit, onViewDetails]);
 
   return (
     <motion.div
@@ -150,18 +153,20 @@ const PermitLeadCard = memo(function PermitLeadCard({ permit, onStatusUpdate, on
         <div className="pt-2">
           <StatusProgressBar
             currentStatus={permit.leadStatus || 'new'}
-            onStatusChange={(status) => onStatusUpdate?.(permit.id, status)}
+            onStatusChange={handleStatusChange}
           />
         </div>
 
         {/* Details CTA */}
-        <button
-          onClick={() => onViewDetails?.(permit)}
-          className="w-full h-11 rounded-xl bg-surface-elevated border border-white/5 flex items-center justify-center gap-2 text-xs font-bold text-surface-200 hover:bg-white/5 transition-all active:scale-95 group/cta"
+        <motion.button
+          onClick={handleViewDetails}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+          className="w-full h-11 rounded-xl bg-surface-elevated border border-white/5 flex items-center justify-center gap-2 text-xs font-bold text-surface-200 hover:bg-white/5 transition-colors group/cta"
         >
           <span>VIEW SYSTEM DETAILS</span>
           <ArrowUpRight size={14} className="text-surface-500 group-hover/cta:text-accent-500 transition-colors" />
-        </button>
+        </motion.button>
       </div>
     </motion.div>
   );

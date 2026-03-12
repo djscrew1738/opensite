@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../api/client';
 import {
   Plus, Search, Filter, X, Command, Trash2,
@@ -22,11 +23,15 @@ import LeadFunnel from '../components/leads/LeadFunnel';
 import StatusProgressBar from '../components/leads/StatusProgressBar';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import { 
-  NoLeadsEmpty, 
-  NoPermitsEmpty, 
-  NoSearchResultsEmpty,
-  NoDiscoveryResultsEmpty 
-} from '../components/empty-states';
+  AnimatedCard,
+  PulseLoader,
+  cx
+} from '../components/shared';
+import { 
+  Button,
+  EmptyLeads,
+  SkeletonCard 
+} from '../components/ui';
 import { useBulkSelect } from '../hooks/useBulkSelect';
 import { useSorting } from '../hooks/useSorting';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -278,52 +283,77 @@ export default function LeadFinder() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header Actions Only */}
-      <div className="flex items-center justify-end gap-2 mb-2">
+      <motion.div 
+        className="flex items-center justify-end gap-2 mb-4"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         {/* Unified Search Trigger */}
-          <button
-            onClick={() => setShowUnifiedSearch(true)}
-            className="btn-secondary shrink-0 gap-2"
-            title="Search everything (Ctrl+K)"
-          >
-            <Command className="w-4 h-4" />
-            <span className="hidden sm:inline text-sm">Search</span>
-            <kbd className="hidden md:inline text-2xs font-mono px-1.5 py-0.5 rounded bg-concrete-200/50 dark:bg-surface-700 text-surface-400">
-              ⌘K
-            </kbd>
-          </button>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={Command}
+          onClick={() => setShowUnifiedSearch(true)}
+          className="shrink-0"
+        >
+          <span className="hidden sm:inline">Search</span>
+          <kbd className="hidden md:inline ml-2 text-xs font-mono px-1.5 py-0.5 rounded bg-[#1F2430] text-[#64748B]">
+            ⌘K
+          </kbd>
+        </Button>
 
-          {activeTab === 'manual' && (
-            <button onClick={handleAddNew} className="btn-primary shrink-0">
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Add Lead</span>
-            </button>
-          )}
-        </div>
+        {activeTab === 'manual' && (
+          <Button 
+            variant="primary" 
+            size="sm"
+            leftIcon={Plus}
+            onClick={handleAddNew}
+            showRipple
+          >
+            <span className="hidden sm:inline">Add Lead</span>
+          </Button>
+        )}
+      </motion.div>
       {/* Tabs */}
-      <div className="card">
-        <div className="flex border-b border-surface-200 dark:border-surface-700 overflow-x-auto scrollbar-hide">
-          {tabs.map(tab => {
+      <AnimatedCard variant="glass" className="mb-4">
+        <div className="flex border-b border-[#1F2430] overflow-x-auto scrollbar-hide">
+          {tabs.map((tab, index) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
             return (
-              <button
+              <motion.button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`relative flex items-center gap-2 px-5 py-4 font-bold text-sm whitespace-nowrap transition-all duration-200 ${
-                  activeTab === tab.key
-                    ? 'text-accent-600 dark:text-accent-400'
-                    : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'
-                }`}
-              >
-                <Icon className="w-4 h-4" strokeWidth={activeTab === tab.key ? 2.5 : 2} />
-                <span className="hidden sm:inline">{tab.label}</span>
-                {activeTab === tab.key && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent-500 to-accent-600" />
+                className={cx(
+                  'relative flex items-center gap-2 px-4 sm:px-5 py-3 sm:py-4 font-semibold text-sm whitespace-nowrap transition-all duration-200',
+                  isActive
+                    ? 'text-[#3B82F6]'
+                    : 'text-[#64748B] hover:text-[#94A3B8]'
                 )}
-              </button>
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Icon 
+                  className="w-4 h-4" 
+                  strokeWidth={isActive ? 2.5 : 2} 
+                />
+                <span className="hidden sm:inline">{tab.label}</span>
+                {isActive && (
+                  <motion.div 
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6]"
+                    layoutId="activeTabIndicator"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </motion.button>
             );
           })}
         </div>
-      </div>
+      </AnimatedCard>
 
       {/* Tab Content with smooth transitions */}
       <div 

@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Calculator, Box, Calendar,
   HardHat, Plus, Clock, DollarSign,
   AlertCircle, Users, RefreshCw, Trash2,
-  FileText, Sparkles, CheckCircle, Download
+  FileText, Sparkles, CheckCircle, Download,
+  FolderOpen, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../api/client';
@@ -13,7 +14,20 @@ import { TabSystem, Tab } from '../components/tabs';
 import { PlumbingVisualizer } from '../plumbing-visualizer/PlumbingVisualizer';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import LeadFinder from './LeadFinder';
-import { AccessibleCard } from '../components/ui';
+import { 
+  AnimatedCard,
+  AnimatedStatCard,
+  useCountUp, 
+  useInView,
+  pageTransitions,
+  cx 
+} from '../components/shared';
+import { 
+  Button, 
+  EmptyJobs, 
+  SkeletonList,
+  PulseLoader 
+} from '../components/ui';
 import { HeroUpload } from '../components/upload';
 import { useToast } from '../hooks/useToast';
 
@@ -38,19 +52,25 @@ const ANALYSIS_STAGES = {
 /* ─────────────────────────────────────────────
    PROJECT LIST (sidebar/card view)
 ───────────────────────────────────────────── */
-const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId, onDeleteJob }) {
+const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId, onDeleteJob, isLoading }) {
   const safeJobs = Array.isArray(jobs) ? jobs : [];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-3">
+        <SkeletonList items={5} hasIcon={false} hasAction={false} />
+      </div>
+    );
+  }
 
   if (safeJobs.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1F2430] flex items-center justify-center">
-          <FileText className="w-8 h-8 text-[#64748B]" />
-        </div>
-        <h3 className="text-lg font-semibold text-white mb-2">No Projects Yet</h3>
-        <p className="text-sm text-[#94A3B8] max-w-xs mx-auto">
-          Upload a blueprint in the Blueprints tab to automatically create your first project
-        </p>
+      <div className="p-4">
+        <EmptyJobs 
+          size="sm"
+          onCreate={() => {}}
+        />
       </div>
     );
   }
@@ -58,63 +78,72 @@ const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId
   return (
     <div className="h-full overflow-auto">
       <div className="p-4 space-y-3">
-        {safeJobs.map((job) => (
-          <div key={job.id} className="relative group">
-            <AccessibleCard
+        {safeJobs.map((job, index) => (
+          <motion.div
+            key={job.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+          >
+            <AnimatedCard
               isInteractive
-              isHoverable
               onClick={() => onSelectJob(job)}
-              ariaLabel={`${job.name || 'Untitled Job'}, ${job.builder || 'No builder'}, ${job.phase || 'No phase'}`}
-              className={`transition-all ${
-                selectedJobId === job.id
-                  ? 'border-blue-500 bg-blue-500/10'
-                  : ''
-              }`}
+              className={cx(
+                selectedJobId === job.id && 'border-[#3B82F6] bg-[rgba(59,130,246,0.05)]'
+              )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate text-surface-100">
-                    {job.name || 'Untitled Job'}
-                  </h3>
-                  <p className="text-sm mt-1 text-surface-400">
-                    {job.builder || 'No builder'} · {job.phase || 'No phase'}
-                  </p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs flex items-center gap-1 text-surface-500">
-                      <Clock className="w-3 h-3" aria-hidden="true" />
-                      {job.updatedAt ? new Date(job.updatedAt).toLocaleDateString() : 'Just created'}
-                    </span>
-                    {job.estimate && (
-                      <span className="text-xs flex items-center gap-1 text-success">
-                        <DollarSign className="w-3 h-3" aria-hidden="true" />
-                        ${job.estimate.toLocaleString()}
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate text-[#F8FAFC]">
+                      {job.name || 'Untitled Job'}
+                    </h3>
+                    <p className="text-sm mt-1 text-[#94A3B8]">
+                      {job.builder || 'No builder'} · <span className="capitalize">{job.phase || 'No phase'}</span>
+                    </p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-xs flex items-center gap-1 text-[#64748B]">
+                        <Clock className="w-3 h-3" aria-hidden="true" />
+                        {job.updatedAt ? new Date(job.updatedAt).toLocaleDateString() : 'Just created'}
                       </span>
-                    )}
+                      {job.estimate && (
+                        <span className="text-xs flex items-center gap-1 text-[#10B981]">
+                          <DollarSign className="w-3 h-3" aria-hidden="true" />
+                          ${job.estimate.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <motion.div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      aria-hidden="true"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      style={{
+                        background: job.status === 'active' ? '#10B981' :
+                                   job.status === 'pending' ? '#F59E0B' : '#64748B',
+                        boxShadow: job.status === 'active' ? '0 0 8px #10B981' : 
+                                  job.status === 'pending' ? '0 0 8px #F59E0B' : 'none'
+                      }}
+                    />
+                    <motion.button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteJob(job);
+                      }}
+                      className="p-2 text-[#64748B] hover:text-[#EF4444] hover:bg-[rgba(239,68,68,0.1)] rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete Job"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </motion.button>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    aria-hidden="true"
-                    style={{
-                      background: job.status === 'active' ? '#10B981' :
-                                 job.status === 'pending' ? '#F59E0B' : '#64748B'
-                    }}
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteJob(job);
-                    }}
-                    className="p-2 text-surface-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                    title="Delete Job"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-            </AccessibleCard>
-          </div>
+            </AnimatedCard>
+          </motion.div>
         ))}
       </div>
     </div>
@@ -134,49 +163,48 @@ function AnalysisResults({ results, onCreateJob, onExport }) {
       className="space-y-6"
     >
       {/* Success header */}
-      <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-green-500/20 flex items-center justify-center">
-            <CheckCircle className="w-7 h-7 text-green-400" />
-          </div>
+      <AnimatedCard variant="elevated" className="border-[rgba(16,185,129,0.3)]">
+        <div className="p-6 flex items-center gap-4">
+          <motion.div 
+            className="w-14 h-14 rounded-2xl bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.2)] flex items-center justify-center"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          >
+            <CheckCircle className="w-7 h-7 text-[#10B981]" />
+          </motion.div>
           <div>
-            <h3 className="text-xl font-bold text-white">Analysis Complete</h3>
+            <h3 className="text-xl font-bold text-[#F8FAFC]">Analysis Complete</h3>
             <p className="text-[#94A3B8]">
               Successfully extracted {fixtures?.length || 0} fixtures and generated estimate
             </p>
           </div>
         </div>
-      </div>
+      </AnimatedCard>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Fixtures', value: fixtures?.length || 0, icon: Box, color: 'blue' },
-          { label: 'Square Feet', value: blueprint?.sqft || 'N/A', icon: LayoutDashboard, color: 'purple' },
-          { label: 'Est. Cost', value: `$${estimate?.total?.toLocaleString() || 0}`, icon: DollarSign, color: 'green' },
-          { label: 'Rooms', value: blueprint?.rooms?.length || 0, icon: HardHat, color: 'amber' },
+          { label: 'Fixtures', value: fixtures?.length || 0, icon: Box, color: '#3B82F6' },
+          { label: 'Square Feet', value: blueprint?.sqft || 'N/A', icon: LayoutDashboard, color: '#8B5CF6' },
+          { label: 'Est. Cost', value: `$${estimate?.total?.toLocaleString() || 0}`, icon: DollarSign, color: '#10B981' },
+          { label: 'Rooms', value: blueprint?.rooms?.length || 0, icon: HardHat, color: '#F59E0B' },
         ].map((stat, idx) => (
-          <motion.div
+          <AnimatedStatCard
             key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="bg-[#111318] rounded-xl p-4 border border-[#1F2430]"
-          >
-            <div className={`w-10 h-10 rounded-lg bg-${stat.color}-500/10 flex items-center justify-center mb-3`}>
-              <stat.icon className={`w-5 h-5 text-${stat.color}-400`} />
-            </div>
-            <p className="text-2xl font-bold text-white">{stat.value}</p>
-            <p className="text-xs text-[#64748B]">{stat.label}</p>
-          </motion.div>
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            delay={idx * 0.1}
+          />
         ))}
       </div>
 
       {/* Fixtures grid */}
       {fixtures && fixtures.length > 0 && (
-        <div className="bg-[#111318] rounded-2xl border border-[#1F2430] overflow-hidden">
+        <AnimatedCard variant="elevated">
           <div className="px-5 py-4 border-b border-[#1F2430]">
-            <h4 className="font-semibold text-white">Detected Fixtures</h4>
+            <h4 className="font-semibold text-[#F8FAFC]">Detected Fixtures</h4>
           </div>
           <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {fixtures.map((fixture, idx) => (
@@ -184,38 +212,43 @@ function AnalysisResults({ results, onCreateJob, onExport }) {
                 key={idx}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-[#0A0B0D] rounded-xl p-3 border border-[#1F2430] flex items-center gap-3"
+                transition={{ delay: idx * 0.05, type: 'spring', stiffness: 300 }}
+                whileHover={{ scale: 1.02 }}
+                className="bg-[#0A0B0D] rounded-xl p-3 border border-[#1F2430] flex items-center gap-3 cursor-default"
               >
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Box className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-[rgba(59,130,246,0.1)] flex items-center justify-center">
+                  <Box className="w-5 h-5 text-[#3B82F6]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{fixture.type}</p>
+                  <p className="text-[#F8FAFC] font-medium text-sm truncate">{fixture.type}</p>
                   <p className="text-xs text-[#64748B]">{fixture.count}x</p>
                 </div>
               </motion.div>
             ))}
           </div>
-        </div>
+        </AnimatedCard>
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-3">
-        <button
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button
+          variant="primary"
+          size="lg"
+          leftIcon={Sparkles}
           onClick={onCreateJob}
-          className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40"
+          className="flex-1 justify-center"
+          showRipple
         >
-          <Sparkles className="w-5 h-5" />
           Create Job from Analysis
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          leftIcon={Download}
           onClick={onExport}
-          className="px-6 py-4 bg-[#1F2430] hover:bg-[#2D3548] rounded-xl font-medium text-white flex items-center gap-2 border border-[#2D3548] transition-all"
         >
-          <Download className="w-5 h-5" />
           Export
-        </button>
+        </Button>
       </div>
     </motion.div>
   );
@@ -410,19 +443,21 @@ export default function Jobs() {
   if (isLoading) {
     return (
       <div className="h-full flex flex-col page-transition-wrapper">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-[#1F2430]">
-          <div>
-            <h1 className="text-2xl font-bold text-[#F1F5F9]">Jobs</h1>
-            <p className="text-sm mt-0.5 text-[#94A3B8]">
-              Upload blueprints and manage projects
-            </p>
-          </div>
+        <div className="px-6 py-4 border-b border-[#1F2430]">
+          <h1 className="text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
+          <p className="text-sm mt-0.5 text-[#94A3B8]">
+            Upload blueprints and manage projects
+          </p>
         </div>
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin border-3 border-blue-500/10 border-t-blue-500" />
-            <p className="text-sm text-[#94A3B8]">Loading jobs...</p>
-          </div>
+          <motion.div 
+            className="text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <PulseLoader size="lg" className="mb-4" />
+            <p className="text-sm text-[#94A3B8]">Loading your projects...</p>
+          </motion.div>
         </div>
       </div>
     );
@@ -432,31 +467,43 @@ export default function Jobs() {
   if (isError) {
     return (
       <div className="h-full flex flex-col page-transition-wrapper">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-[#1F2430]">
-          <div>
-            <h1 className="text-2xl font-bold text-[#F1F5F9]">Jobs</h1>
-            <p className="text-sm mt-0.5 text-[#94A3B8]">
-              Upload blueprints and manage projects
-            </p>
-          </div>
+        <div className="px-6 py-4 border-b border-[#1F2430]">
+          <h1 className="text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
+          <p className="text-sm mt-0.5 text-[#94A3B8]">
+            Upload blueprints and manage projects
+          </p>
         </div>
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full p-6 rounded-xl text-center bg-[#111318] border border-[#1F2430]">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-            <h2 className="text-lg font-semibold mb-2 text-[#F1F5F9]">
-              Failed to load jobs
-            </h2>
-            <p className="text-sm mb-4 text-[#94A3B8]">
-              {error?.message || 'Unable to fetch job data. Please try again.'}
-            </p>
-            <button
-              onClick={() => refetch()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium mx-auto transition-all bg-blue-500 text-white hover:bg-blue-600"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Retry
-            </button>
-          </div>
+          <motion.div 
+            className="max-w-md w-full text-center"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <AnimatedCard className="p-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              >
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.2)] flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-[#EF4444]" />
+                </div>
+              </motion.div>
+              <h2 className="text-lg font-semibold mb-2 text-[#F8FAFC]">
+                Failed to load jobs
+              </h2>
+              <p className="text-sm mb-6 text-[#94A3B8]">
+                {error?.message || 'Unable to fetch job data. Please try again.'}
+              </p>
+              <Button
+                variant="primary"
+                leftIcon={RefreshCw}
+                onClick={() => refetch()}
+              >
+                Retry
+              </Button>
+            </AnimatedCard>
+          </motion.div>
         </div>
       </div>
     );
@@ -465,23 +512,30 @@ export default function Jobs() {
   return (
     <div className="h-full flex flex-col page-transition-wrapper">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-[#1F2430]">
+      <motion.div 
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-[#1F2430] bg-[#0A0B0D]/80 backdrop-blur-sm sticky top-0 z-10"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div>
-          <h1 className="text-2xl font-bold text-[#F1F5F9]">Jobs</h1>
+          <h1 className="text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
           <p className="text-sm mt-0.5 text-[#94A3B8]">
             Upload blueprints and manage projects
           </p>
         </div>
         {activeTab === 'projects' && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={Plus}
             onClick={() => setShowNewJobModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all hover:opacity-90 bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+            showRipple
           >
-            <Plus className="w-4 h-4" />
             New Job
-          </button>
+          </Button>
         )}
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <TabSystem
@@ -553,22 +607,31 @@ export default function Jobs() {
               {analysisState === ANALYSIS_STAGES.ERROR && (
                 <motion.div
                   key="error"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-center py-12"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="max-w-md mx-auto"
                 >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 flex items-center justify-center">
-                    <AlertCircle className="w-8 h-8 text-red-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Analysis Failed</h3>
-                  <p className="text-sm text-[#94A3B8] mb-4">Something went wrong during analysis</p>
-                  <button
-                    onClick={resetAnalysis}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white font-medium transition-all"
-                  >
-                    Try Again
-                  </button>
+                  <AnimatedCard className="p-8 text-center">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                    >
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.2)] flex items-center justify-center">
+                        <AlertCircle className="w-8 h-8 text-[#EF4444]" />
+                      </div>
+                    </motion.div>
+                    <h3 className="text-lg font-semibold text-[#F8FAFC] mb-2">Analysis Failed</h3>
+                    <p className="text-sm text-[#94A3B8] mb-6">Something went wrong during analysis. Please try uploading your blueprint again.</p>
+                    <Button
+                      variant="primary"
+                      onClick={resetAnalysis}
+                      showRipple
+                    >
+                      Try Again
+                    </Button>
+                  </AnimatedCard>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -578,9 +641,9 @@ export default function Jobs() {
         <Tab id="projects" label="Projects" icon={LayoutDashboard}>
           <div className="h-full flex">
             {/* Project list sidebar */}
-            <div className="w-80 border-r border-[#1F2430] overflow-hidden">
+            <div className="w-80 border-r border-[#1F2430] overflow-hidden bg-[#0D0F12]">
               <div className="p-4 border-b border-[#1F2430]">
-                <h3 className="font-semibold text-white">All Projects</h3>
+                <h3 className="font-semibold text-[#F8FAFC]">All Projects</h3>
                 <p className="text-xs text-[#64748B] mt-1">{jobs.length} projects</p>
               </div>
               <ProjectList
@@ -588,27 +651,69 @@ export default function Jobs() {
                 onSelectJob={(job) => setSelectedJobId(job.id)}
                 selectedJobId={selectedJobId}
                 onDeleteJob={(job) => setJobToDelete(job)}
+                isLoading={isLoading}
               />
             </div>
 
             {/* Main content area */}
-            <div className="flex-1 overflow-auto p-6">
-              {selectedJobId ? (
-                <div className="text-center py-12 text-[#64748B]">
-                  <p>Project details view (to be implemented)</p>
-                  <p className="text-sm mt-2">Selected: {jobs.find(j => j.id === selectedJobId)?.name}</p>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1F2430] flex items-center justify-center">
-                    <LayoutDashboard className="w-8 h-8 text-[#64748B]" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Select a Project</h3>
-                  <p className="text-sm text-[#94A3B8]">
-                    Choose a project from the sidebar to view details
-                  </p>
-                </div>
-              )}
+            <div className="flex-1 overflow-auto p-6 bg-[#0A0B0D]">
+              <AnimatePresence mode="wait">
+                {selectedJobId ? (
+                  <motion.div
+                    key="details"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="text-center py-12"
+                  >
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#111318] border border-[#1F2430] flex items-center justify-center">
+                      <HardHat className="w-10 h-10 text-[#3B82F6]" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-[#F8FAFC] mb-2">
+                      {jobs.find(j => j.id === selectedJobId)?.name}
+                    </h3>
+                    <p className="text-sm text-[#94A3B8] max-w-md mx-auto">
+                      Full project details view is coming soon. For now, you can see the project in the sidebar.
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="h-full flex items-center justify-center"
+                  >
+                    <div className="text-center py-12 px-6 max-w-sm">
+                      <motion.div 
+                        className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#111318] border border-[#1F2430] flex items-center justify-center"
+                        animate={{ y: [0, -5, 0] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <FolderOpen className="w-10 h-10 text-[#64748B]" />
+                      </motion.div>
+                      <h3 className="text-lg font-semibold text-[#F8FAFC] mb-2">Select a Project</h3>
+                      <p className="text-sm text-[#94A3B8]">
+                        Choose a project from the sidebar to view details, manage estimates, and track progress.
+                      </p>
+                      <motion.div
+                        className="mt-6"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        <div className="flex items-center justify-center gap-2 text-xs text-[#64748B]">
+                          <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                          <span>{stats.active} active</span>
+                          <span className="w-1 h-1 rounded-full bg-[#64748B]" />
+                          <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+                          <span>{stats.pending} pending</span>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </Tab>

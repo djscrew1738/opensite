@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Files, ScanEye, BookOpenText } from 'lucide-react';
 
 import { useDocumentsLibrary } from '../hooks/useDocumentsLibrary';
@@ -52,22 +53,24 @@ export default function Documents() {
   return (
     <div className="h-full flex flex-col page-transition-wrapper">
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-4"
-        style={{ borderBottom: '1px solid #1F2430' }}
+      <motion.div
+        className="flex items-center justify-between px-6 py-4 border-b border-[#1F2430] bg-[#0A0B0D]/80 backdrop-blur-sm sticky top-0 z-10"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
       >
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#F1F5F9' }}>Documents</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#94A3B8' }}>
+          <h1 className="text-2xl font-bold text-[#F8FAFC]">Documents</h1>
+          <p className="text-sm mt-0.5 text-[#94A3B8]">
             Manage files and AI-powered blueprint analysis
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm" style={{ color: '#64748B' }}>
+          <span className="text-sm text-[#64748B]">
             {documents.length} document{documents.length !== 1 ? 's' : ''}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <TabSystem

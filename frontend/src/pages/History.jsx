@@ -9,6 +9,7 @@ import {
 import { api } from '../api/client';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import { PageHeader, EmptyState, ListItemCard, CardSkeleton, InlineLoader } from '../components/shared';
+import { TabSystem, Tab } from '../components/tabs';
 
 const TABS = [
   { id: 'conversations', label: 'AI Conversations', icon: MessageSquare },
@@ -206,6 +207,119 @@ function EstimateModal({ estimate, onClose }) {
   );
 }
 
+// ─── Conversations Tab ───
+function ConversationsTab({ data, loading, onSelect, onDelete, onOpenInAssistant }) {
+  if (loading) return <CardSkeleton count={4} />;
+  if (data.length === 0) return (
+    <EmptyState
+      icon={Inbox}
+      title="No conversations yet"
+      description="Your AI conversation history will appear here"
+      action={{ label: 'Start Chat', href: '/ai' }}
+    />
+  );
+  return (
+    <div className="space-y-3">
+      {data.map(conv => (
+        <ListItemCard
+          key={conv.id}
+          icon={MessageSquare}
+          iconColor="accent"
+          title={conv.title || 'Untitled Conversation'}
+          subtitle={
+            <span className="flex items-center gap-2">
+              <span>{conv.messageCount || 0} messages</span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {formatDate(conv.lastMessageAt || conv.createdAt)}
+              </span>
+            </span>
+          }
+          meta={<span className="text-xs text-surface-400">{formatDate(conv.createdAt)}</span>}
+          onClick={() => onSelect(conv.id)}
+          actions={[
+            { icon: ChevronRight, label: 'Open', onClick: () => onOpenInAssistant(conv.id), variant: 'primary' },
+            { icon: Trash2, label: 'Delete', onClick: () => onDelete(conv.id, conv.title || 'Untitled'), variant: 'danger' },
+          ]}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Estimates Tab ───
+function EstimatesTab({ data, loading, onSelect, onDelete }) {
+  if (loading) return <CardSkeleton count={4} />;
+  if (data.length === 0) return (
+    <EmptyState
+      icon={Calculator}
+      title="No saved estimates"
+      description="Estimates you generate will appear here"
+      action={{ label: 'Create Estimate', href: '/jobs' }}
+    />
+  );
+  return (
+    <div className="space-y-3">
+      {data.map(est => (
+        <ListItemCard
+          key={est.id}
+          icon={FileText}
+          iconColor="emerald"
+          title={est.projectName || `Estimate #${est.id?.slice(-6)}`}
+          subtitle={
+            <span className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1">
+                <Building2 className="w-3 h-3" />
+                {est.sqft?.toLocaleString() || '--'} sqft
+              </span>
+              <span className="flex items-center gap-1">
+                <Hash className="w-3 h-3" />
+                {est.units || '--'} units
+              </span>
+            </span>
+          }
+          meta={
+            <div className="text-right">
+              <p className="font-bold text-surface-900 dark:text-surface-100">{formatCurrency(est.total)}</p>
+              <p className="text-xs text-surface-400">{formatCurrency(est.perUnit)}/unit</p>
+            </div>
+          }
+          onClick={() => onSelect(est.id)}
+          actions={[
+            { icon: ChevronRight, label: 'View', onClick: () => onSelect(est.id), variant: 'primary' },
+            { icon: Trash2, label: 'Delete', onClick: () => onDelete(est.id, est.projectName || `Estimate #${est.id?.slice(-6)}`), variant: 'danger' },
+          ]}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Search Bar Component ───
+function SearchBar({ value, onChange, placeholder, onClear }) {
+  return (
+    <div className="relative max-w-md">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        className="w-full pl-10 pr-10 py-2 text-sm rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500 transition-all"
+      />
+      {value && (
+        <button 
+          onClick={onClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1 rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main History Page ───
 export default function History() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -302,73 +416,60 @@ export default function History() {
       {/* Header */}
       <div className="px-6 pt-4 pb-0 bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex-shrink-0">
         <PageHeader title="History" subtitle="Your AI conversations and saved estimates" />
+      </div>
+
+      {/* Main Content with TabSystem */}
+      <TabSystem 
+        defaultTab={activeTab}
+        variant="underline" 
+        className="flex-1 flex flex-col min-h-0"
+        listClassName="px-6 border-b border-surface-200 dark:border-surface-700 flex-shrink-0"
+        contentClassName="flex-1 overflow-hidden flex flex-col"
+        onTabChange={handleTabChange}
+      >
+        <Tab id="conversations" label="AI Conversations" icon={MessageSquare}>
+          {/* Search */}
+          <div className="px-6 py-3 bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex-shrink-0">
+            <SearchBar
+              value={search}
+              onChange={handleSearch}
+              placeholder="Search conversations..."
+              onClear={() => { setSearch(''); setDebouncedSearch(''); }}
+            />
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <ConversationsTab
+              data={conversations}
+              loading={convQuery.isLoading}
+              onSelect={setSelectedConv}
+              onDelete={(id, label) => setDeleteTarget({ type: 'conversation', id, label })}
+              onOpenInAssistant={handleOpenInAssistant}
+            />
+          </div>
+        </Tab>
         
-        <nav className="flex -mb-px mt-4">
-          {TABS.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`
-                  flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-all duration-200
-                  ${isActive
-                    ? 'border-accent-500 text-accent-600 dark:text-accent-400'
-                    : 'border-transparent text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 hover:border-surface-300'
-                  }
-                `}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Search */}
-      <div className="px-6 py-3 bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex-shrink-0">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-          <input
-            type="text"
-            placeholder={activeTab === 'conversations' ? 'Search conversations...' : 'Search estimates...'}
-            value={search}
-            onChange={handleSearch}
-            className="w-full pl-10 pr-10 py-2 text-sm rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500 transition-all"
-          />
-          {search && (
-            <button 
-              onClick={() => { setSearch(''); setDebouncedSearch(''); }} 
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1 rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'conversations' && (
-          <ConversationsTab
-            data={conversations}
-            loading={convQuery.isLoading}
-            onSelect={setSelectedConv}
-            onDelete={(id, label) => setDeleteTarget({ type: 'conversation', id, label })}
-            onOpenInAssistant={handleOpenInAssistant}
-          />
-        )}
-        {activeTab === 'estimates' && (
-          <EstimatesTab
-            data={estimates}
-            loading={estQuery.isLoading}
-            onSelect={setSelectedEstimate}
-            onDelete={(id, label) => setDeleteTarget({ type: 'estimate', id, label })}
-          />
-        )}
-      </div>
+        <Tab id="estimates" label="Plans & Estimates" icon={Calculator}>
+          {/* Search */}
+          <div className="px-6 py-3 bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex-shrink-0">
+            <SearchBar
+              value={search}
+              onChange={handleSearch}
+              placeholder="Search estimates..."
+              onClear={() => { setSearch(''); setDebouncedSearch(''); }}
+            />
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <EstimatesTab
+              data={estimates}
+              loading={estQuery.isLoading}
+              onSelect={setSelectedEstimate}
+              onDelete={(id, label) => setDeleteTarget({ type: 'estimate', id, label })}
+            />
+          </div>
+        </Tab>
+      </TabSystem>
 
       {/* Modals */}
       {selectedConv && convDetailQuery.data && (
@@ -389,152 +490,6 @@ export default function History() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
-    </div>
-  );
-}
-
-// ─── Conversations Tab ───
-function ConversationsTab({ data, loading, onSelect, onDelete, onOpenInAssistant }) {
-  if (loading) return <CardSkeleton count={4} />;
-  if (data.length === 0) return (
-    <EmptyState 
-      icon={Inbox}
-      title="No conversations yet"
-      subtitle="Start chatting with the AI Assistant to see your conversation history here."
-    />
-  );
-
-  return (
-    <div className="space-y-3 stagger-container">
-      {data.map((conv, i) => (
-        <ListItemCard
-          key={conv.id}
-          icon={MessageSquare}
-          iconColor="blue"
-          title={conv.preview}
-          subtitle={
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-surface-500 dark:text-surface-400 flex items-center gap-1">
-                <Hash className="w-3 h-3" />{conv.messageCount} messages
-              </span>
-              <span className="text-xs text-surface-400 dark:text-surface-500 flex items-center gap-1">
-                <Clock className="w-3 h-3" />{formatDate(conv.updatedAt)}
-              </span>
-            </div>
-          }
-          onClick={() => onSelect(conv.id)}
-          actions={
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => { e.stopPropagation(); onOpenInAssistant(conv.id); }}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-all"
-                title="Open in AI Assistant"
-              >
-                Open in Assistant
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(conv.id, conv.preview?.slice(0, 40)); }}
-                className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          }
-          style={{ animationDelay: `${i * 40}ms` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Estimates Tab ───
-function EstimatesTab({ data, loading, onSelect, onDelete }) {
-  const queryClient = useQueryClient();
-  const [syncingId, setSyncingId] = useState(null);
-
-  const handleSync = async (e, estId) => {
-    e.stopPropagation();
-    setSyncingId(estId);
-    try {
-      await api.quickbooks.syncEstimate(estId);
-      alert('Estimate synced to QuickBooks!');
-      queryClient.invalidateQueries({ queryKey: ['history', 'estimates'] });
-    } catch (err) {
-      alert(`Sync failed: ${err.message}`);
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  if (loading) return <CardSkeleton count={4} />;
-  if (data.length === 0) return (
-    <EmptyState 
-      icon={Calculator}
-      title="No estimates yet"
-      subtitle="Create an estimate from the Plans page to see your saved estimates here."
-    />
-  );
-
-  return (
-    <div className="space-y-3 stagger-container">
-      {data.map((est, i) => (
-        <ListItemCard
-          key={est.id}
-          icon={Calculator}
-          iconColor="green"
-          title={formatCurrency(est.total)}
-          subtitle={
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <span className="text-xs text-surface-500 dark:text-surface-400 flex items-center gap-1">
-                <Building2 className="w-3 h-3" />{est.sqft?.toLocaleString()} sqft
-              </span>
-              <span className="text-xs text-surface-500 dark:text-surface-400">
-                {est.units} units · {est.stories} stories
-              </span>
-              <span className="text-xs text-surface-400 dark:text-surface-500 flex items-center gap-1">
-                <Clock className="w-3 h-3" />{formatDate(est.createdAt)}
-              </span>
-            </div>
-          }
-          meta={
-            <div className="flex items-center gap-2">
-              {est.qboId && (
-                <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  QBO Synced
-                </span>
-              )}
-              {est.margin && (
-                <span className="text-xs px-2 py-1 rounded-full bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 font-semibold uppercase">
-                  {est.margin}
-                </span>
-              )}
-            </div>
-          }
-          onClick={() => onSelect(est.id)}
-          actions={
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => handleSync(e, est.id)}
-                disabled={!!syncingId}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex items-center gap-1.5"
-                title="Sync to QuickBooks"
-              >
-                {syncingId === est.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                Sync
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(est.id, `${formatCurrency(est.total)} estimate`); }}
-                className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          }
-          style={{ animationDelay: `${i * 40}ms` }}
-        />
-      ))}
     </div>
   );
 }

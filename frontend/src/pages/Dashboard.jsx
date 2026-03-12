@@ -4,6 +4,8 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import JobPulseHome from '../components/dashboard/JobPulseHome';
 import { DashboardSkeleton } from '../components/shared/LoadingStates';
 import { colors } from '../styles/tokens';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { PullToRefresh } from '../components/shared/PullToRefresh';
 
 /**
  * Dashboard Page — Job Pulse Command Center
@@ -21,6 +23,8 @@ export default function Dashboard() {
     timeAgo, 
     handleRefresh 
   } = useDashboardData();
+
+  const ptr = usePullToRefresh(handleRefresh);
 
   // Navigate to Jobs page when a job card is clicked
   const handleJobClick = () => {
@@ -90,9 +94,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen page-transition-wrapper">
+    <div ref={ptr.ref} className="relative min-h-screen page-transition-wrapper momentum-scroll">
+      <PullToRefresh {...ptr} />
+
       {/* Refresh indicator */}
-      <div 
+      <div
         className="absolute top-4 right-4 flex items-center gap-2 text-xs z-10"
         style={{ color: colors.text.muted }}
       >

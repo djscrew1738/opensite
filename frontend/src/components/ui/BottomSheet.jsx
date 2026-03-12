@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { colors } from '../../styles/tokens';
+import { useHaptic } from '../../hooks/useHaptic';
 
 /* ═══════════════════════════════════════════════════════════════
    BottomSheet — Job Pulse Design System
@@ -51,6 +52,7 @@ export const BottomSheet = ({
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [autoHeight, setAutoHeight] = useState(null);
+  const [showHandleHint, setShowHandleHint] = useState(false);
 
   // ── Refs ─────────────────────────────────────────────────
   const sheetRef = useRef(null);
@@ -59,6 +61,8 @@ export const BottomSheet = ({
   const dragStartY = useRef(0);
   const dragStartTime = useRef(0);
   const currentDragY = useRef(0);
+  const passedThresholdRef = useRef(false);
+  const haptic = useHaptic();
 
   // ── Compute resolved height ─────────────────────────────
   const resolvedHeightVh = heightVh || SNAP_HEIGHTS[snapPoint];
@@ -75,6 +79,9 @@ export const BottomSheet = ({
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setIsAnimating(true);
+          // Show drag handle hint 600ms after sheet settles
+          setTimeout(() => setShowHandleHint(true), 600);
+          setTimeout(() => setShowHandleHint(false), 1400);
         });
       });
 
@@ -158,11 +165,23 @@ export const BottomSheet = ({
 
     // Only allow dragging downward (positive deltaY)
     if (deltaY > 0) {
-      setDragOffset(deltaY);
-      // Prevent default to avoid scroll interference on the drag handle
+      // Rubber-band resistance: drag feels heavy past threshold
+      const visual = deltaY / (1 + deltaY * 0.006);
+      setDragOffset(visual);
+
+      // Haptic tick when crossing dismiss threshold
+      const sheetHeight = sheetRef.current?.offsetHeight || window.innerHeight * 0.5;
+      const threshold = sheetHeight * DISMISS_THRESHOLD;
+      if (visual >= threshold && !passedThresholdRef.current) {
+        passedThresholdRef.current = true;
+        haptic.tick();
+      } else if (visual < threshold && passedThresholdRef.current) {
+        passedThresholdRef.current = false;
+      }
+
       e.preventDefault();
     }
-  }, [isDragging]);
+  }, [isDragging, haptic]);
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
@@ -177,17 +196,18 @@ export const BottomSheet = ({
     const thresholdDistance = sheetHeight * DISMISS_THRESHOLD;
 
     if (delta > thresholdDistance || velocity > VELOCITY_THRESHOLD) {
-      // Dismiss: animate fully off screen then close
+      haptic.confirm();
       setDragOffset(sheetHeight);
       setTimeout(() => {
         setDragOffset(0);
         onClose();
       }, 300);
     } else {
-      // Snap back to open position
+      // Snap back with no offset
       setDragOffset(0);
     }
-  }, [isDragging, onClose]);
+    passedThresholdRef.current = false;
+  }, [isDragging, onClose, haptic]);
 
   // ── Backdrop click ──────────────────────────────────────
   const handleBackdropClick = useCallback((e) => {
@@ -291,7 +311,11 @@ export const BottomSheet = ({
                 width: 36,
                 height: 4,
                 borderRadius: 2,
-                background: 'var(--border-strong, #2D3548)',
+                background: showHandleHint
+                  ? 'var(--color-blue-400, #60A5FA)'
+                  : 'var(--border-strong, #2D3548)',
+                transform: showHandleHint ? 'scaleX(1.25)' : 'scaleX(1)',
+                transition: 'background 300ms ease, transform 300ms ease',
               }}
             />
           </div>

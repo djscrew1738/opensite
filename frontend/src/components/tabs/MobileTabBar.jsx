@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTabKeyboardNav } from './useTabAnimation';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -215,6 +215,8 @@ export function ResponsiveTabs({
   const haptic = useHaptic();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const directionRef = useRef(0); // -1 = going backward, +1 = going forward
+  // Scroll memory: remember window.scrollY per tab so users don't lose position
+  const scrollMemory = useRef(new Map());
 
   // All tab defs (no hidden)
   const tabs = useMemo(() => {
@@ -238,9 +240,16 @@ export function ResponsiveTabs({
   const navigateTo = useCallback((tabId) => {
     const newIndex = tabs.findIndex(t => t.id === tabId);
     directionRef.current = newIndex > activeIndex ? 1 : -1;
+    // Save current scroll position before leaving
+    scrollMemory.current.set(activeTab, window.scrollY);
     setActiveTab(tabId);
     onTabChange?.(tabId);
-  }, [tabs, activeIndex, onTabChange]);
+    // Restore saved scroll position for the destination tab after paint
+    requestAnimationFrame(() => {
+      const saved = scrollMemory.current.get(tabId);
+      window.scrollTo({ top: saved ?? 0, behavior: 'instant' });
+    });
+  }, [tabs, activeIndex, activeTab, onTabChange]);
 
   const goNext = useCallback(() => {
     const currentEnabledIdx = enabledTabs.findIndex(t => t.id === activeTab);

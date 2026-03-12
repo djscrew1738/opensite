@@ -98,10 +98,12 @@ export const AnimatedCard = forwardRef(({
       }
     } : undefined,
     tap: isInteractive && !reducedMotion ? {
-      scale: 0.99,
-      y: -1,
+      scale: 0.965,
+      y: 0,
       transition: {
-        duration: 0.05,
+        type: 'spring',
+        stiffness: 700,
+        damping: 35,
       }
     } : undefined,
   };

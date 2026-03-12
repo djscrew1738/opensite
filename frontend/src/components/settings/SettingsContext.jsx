@@ -6,7 +6,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, useReducer } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { useOllama } from '../../hooks/useOllama';
 import { useModelPreference } from '../../hooks/useModelPreference';
 import { useToast } from '../../hooks/useToast';
 import { NAV_ITEMS, getTabOrder } from './navigation';
@@ -21,7 +20,6 @@ export function useSettings() {
 
 export function SettingsProvider({ children }) {
   const queryClient = useQueryClient();
-  const { connected, model, available, refetch: refetchOllama } = useOllama();
   const { defaultModel, setDefaultModel } = useModelPreference();
   const { success: showToastSuccess, error: showToastError, warning: showToastWarning } = useToast();
   
@@ -63,18 +61,13 @@ export function SettingsProvider({ children }) {
   }, [activeTab]);
 
   /* ── AI provider ── */
-  const [activeProvider, setActiveProvider] = useState('openclaw');
-  const [ollamaUrl, setOllamaUrl] = useState('');
-  const [temperature, setTemperature] = useState(0.7);
-  const [groqKey, setGroqKey] = useState('');
-  const [showGroqKey, setShowGroqKey] = useState(false);
-  const [groqTemperature, setGroqTemperature] = useState(0.7);
+  const [activeProvider, setActiveProvider] = useState('gemini');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiTemperature, setGeminiTemperature] = useState(0.7);
   const [openaiKey, setOpenaiKey] = useState('');
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [openaiTemperature, setOpenaiTemperature] = useState(0.7);
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [anthropicTemperature, setAnthropicTemperature] = useState(0.7);
   const [openclawUrl, setOpenclawUrl] = useState('http://localhost:18789');
   const [openclawToken, setOpenclawToken] = useState('');
   const [showOpenclawToken, setShowOpenclawToken] = useState(false);
@@ -211,16 +204,10 @@ export function SettingsProvider({ children }) {
     localStorage.getItem('number_format') || 'US'
   );
 
-  /* ── Misc ── */
-  const [pullModelName, setPullModelName] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-
   /* ── Loading states ── */
-  const [testingOllama, setTestingOllama] = useState(false);
-  const [testingGroq, setTestingGroq] = useState(false);
+  const [testingGemini, setTestingGemini] = useState(false);
   const [testingOpenClaw, setTestingOpenClaw] = useState(false);
   const [testingSerper, setTestingSerper] = useState(false);
-  const [testingAnthropic, setTestingAnthropic] = useState(false);
   const [testingOpenai, setTestingOpenai] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
   const [testingSendgrid, setTestingSendgrid] = useState(false);
@@ -234,8 +221,6 @@ export function SettingsProvider({ children }) {
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [savingPerformance, setSavingPerformance] = useState(false);
   const [switchingProvider, setSwitchingProvider] = useState(false);
-  const [pullingModel, setPullingModel] = useState(false);
-  const [deletingModel, setDeletingModel] = useState(null);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [exportingData, setExportingData] = useState(false);
@@ -256,7 +241,7 @@ export function SettingsProvider({ children }) {
   const { data: modelsData, refetch: refetchModels } = useQuery({
     queryKey: ['ollama-models', activeProvider],
     queryFn: () => api.ai.getModels(),
-    enabled: connected || ['groq', 'openclaw', 'anthropic', 'openai'].includes(activeProvider),
+    enabled: ['gemini', 'openclaw', 'openai'].includes(activeProvider),
     staleTime: 60000,      // 1 minute - models change infrequently
     gcTime: 300000,        // 5 minutes
     retry: 1,
@@ -291,11 +276,8 @@ export function SettingsProvider({ children }) {
     const s = settingsData;
     
     setActiveProvider(prev => s.ai_provider || prev);
-    setOllamaUrl(s.ollama_url || 'http://localhost:11434');
-    setTemperature(num(s.ollama_temperature, 0.7));
-    setGroqTemperature(num(s.groq_temperature, 0.7));
+    setGeminiTemperature(num(s.gemini_temperature, 0.7));
     setOpenaiTemperature(num(s.openai_temperature, 0.7));
-    setAnthropicTemperature(num(s.anthropic_temperature, 0.7));
     setOpenclawUrl(s.openclaw_url || 'http://localhost:18789');
     setOpenclawTemperature(num(s.openclaw_temperature, 0.7));
     setMaxTokens(num(s.ai_max_tokens, 2048));
@@ -304,11 +286,8 @@ export function SettingsProvider({ children }) {
     setSystemPrompt(s.ai_system_prompt || '');
   }, [
     settingsData?.ai_provider,
-    settingsData?.ollama_url,
-    settingsData?.ollama_temperature,
-    settingsData?.groq_temperature,
+    settingsData?.gemini_temperature,
     settingsData?.openai_temperature,
-    settingsData?.anthropic_temperature,
     settingsData?.openclaw_url,
     settingsData?.openclaw_temperature,
     settingsData?.ai_max_tokens,
@@ -472,19 +451,15 @@ export function SettingsProvider({ children }) {
     
     // Data
     settings, availableModels, metrics, config,
-    connected, model, available, defaultModel, setDefaultModel,
+    defaultModel, setDefaultModel,
     isLoadingSettings,
-    
+
     // AI Provider
     activeProvider, setActiveProvider,
-    ollamaUrl, setOllamaUrl,
-    temperature, setTemperature,
-    groqKey, setGroqKey, showGroqKey, setShowGroqKey,
-    groqTemperature, setGroqTemperature,
+    geminiKey, setGeminiKey, showGeminiKey, setShowGeminiKey,
+    geminiTemperature, setGeminiTemperature,
     openaiKey, setOpenaiKey, showOpenaiKey, setShowOpenaiKey,
     openaiTemperature, setOpenaiTemperature,
-    anthropicKey, setAnthropicKey, showAnthropicKey, setShowAnthropicKey,
-    anthropicTemperature, setAnthropicTemperature,
     openclawUrl, setOpenclawUrl,
     openclawToken, setOpenclawToken, showOpenclawToken, setShowOpenclawToken,
     openclawTemperature, setOpenclawTemperature,
@@ -595,16 +570,10 @@ export function SettingsProvider({ children }) {
     dateFormat, setDateFormat,
     numberFormat, setNumberFormat,
     
-    // Misc
-    pullModelName, setPullModelName,
-    deleteConfirm, setDeleteConfirm,
-    
     // Loading states
-    testingOllama, setTestingOllama,
-    testingGroq, setTestingGroq,
+    testingGemini, setTestingGemini,
     testingOpenClaw, setTestingOpenClaw,
     testingSerper, setTestingSerper,
-    testingAnthropic, setTestingAnthropic,
     testingOpenai, setTestingOpenai,
     testingTwilio, setTestingTwilio,
     testingSendgrid, setTestingSendgrid,
@@ -618,8 +587,6 @@ export function SettingsProvider({ children }) {
     savingNotifications, setSavingNotifications,
     savingPerformance, setSavingPerformance,
     switchingProvider, setSwitchingProvider,
-    pullingModel, setPullingModel,
-    deletingModel, setDeletingModel,
     creatingBackup, setCreatingBackup,
     clearingCache, setClearingCache,
     exportingData, setExportingData,
@@ -630,7 +597,6 @@ export function SettingsProvider({ children }) {
     refetchSettings,
     refetchModels,
     refetchMetrics,
-    refetchOllama,
     queryClient,
   };
 

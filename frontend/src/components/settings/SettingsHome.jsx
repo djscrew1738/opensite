@@ -29,10 +29,7 @@ const SettingsHome = memo(function SettingsHome({
   isLoading = false
 }) {
   const configStatus = useMemo(() => {
-    const hasAI = activeProvider === 'ollama' ? connected :
-      activeProvider === 'gemini' ? settings.gemini_api_key_configured :
-      activeProvider === 'groq' ? settings.groq_api_key_configured :
-      activeProvider === 'anthropic' ? settings.anthropic_api_key_configured :
+    const hasAI = activeProvider === 'gemini' ? settings.gemini_api_key_configured :
       activeProvider === 'openai' ? settings.openai_api_key_configured :
       settings.openclaw_token_configured;
 
@@ -45,7 +42,7 @@ const SettingsHome = memo(function SettingsHome({
     const total = categories.length;
 
     return { configured, total, percentage: Math.round((configured / total) * 100) };
-  }, [settings, activeProvider, connected]);
+  }, [settings, activeProvider]);
 
   const successRate = metrics.totalRequests > 0
     ? ((metrics.successCount / metrics.totalRequests) * 100).toFixed(1) : '0.0';
@@ -55,16 +52,6 @@ const SettingsHome = memo(function SettingsHome({
 
   const alerts = useMemo(() => {
     const list = [];
-
-    if (!connected && activeProvider === 'ollama') {
-      list.push({
-        status: 'warning',
-        title: 'Ollama Not Connected',
-        message: 'Local AI is unavailable. Check your Ollama server or switch to a cloud provider.',
-        actionLabel: 'Go to AI Settings',
-        onAction: () => onTabChange('ai'),
-      });
-    }
 
     if (activeProvider === 'gemini' && !settings.gemini_api_key_configured) {
       list.push({
@@ -105,7 +92,7 @@ const SettingsHome = memo(function SettingsHome({
     }
 
     return list;
-  }, [settings, connected, activeProvider, configStatus.percentage, onTabChange]);
+  }, [settings, activeProvider, configStatus.percentage, onTabChange]);
 
   if (isLoading) {
     return (
@@ -250,10 +237,8 @@ const SettingsHome = memo(function SettingsHome({
             title="AI & Models"
             description={`Active: ${activeProvider} — ${availableModels.length} models available`}
             status={
-              activeProvider === 'ollama' 
-                ? (connected ? 'configured' : 'empty') 
-                : activeProvider === 'openclaw'
-                  ? (settings.openclaw_token_configured || settings.openclaw_url ? 'configured' : 'empty')
+              activeProvider === 'openclaw'
+                ? (settings.openclaw_token_configured || settings.openclaw_url ? 'configured' : 'empty')
                 : (settings[`${activeProvider}_api_key_configured`] ? 'configured' : 'empty')
             }
             onClick={() => onTabChange('ai')}
@@ -317,11 +302,9 @@ const SettingsHome = memo(function SettingsHome({
               label="AI Provider"
               value={activeProvider}
               status={
-                activeProvider === 'ollama'
-                  ? (connected ? 'good' : 'error')
-                  : activeProvider === 'openclaw'
-                    ? ((settings.openclaw_token_configured || settings.openclaw_url) ? 'good' : 'warning')
-                    : (settings[`${activeProvider}_api_key_configured`] ? 'good' : 'warning')
+                activeProvider === 'openclaw'
+                  ? ((settings.openclaw_token_configured || settings.openclaw_url) ? 'good' : 'warning')
+                  : (settings[`${activeProvider}_api_key_configured`] ? 'good' : 'warning')
               }
               icon={Cpu}
             />

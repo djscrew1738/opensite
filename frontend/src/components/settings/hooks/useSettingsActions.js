@@ -15,17 +15,15 @@ const logger = {
 
 export function useSettingsActions() {
   const ctx = useSettings();
-  const { showToast, refetchSettings, refetchModels, refetchOllama, queryClient } = ctx;
+  const { showToast, refetchSettings, refetchModels, queryClient } = ctx;
 
   /* ── AI Provider ── */
   const handleSwitchProvider = useCallback(async (provider) => {
     const previousProvider = ctx.activeProvider;
-    const providerLabels = { 
-      openclaw: 'OpenClaw Gateway', 
-      groq: 'Groq Cloud', 
-      anthropic: 'Anthropic Claude', 
+    const providerLabels = {
+      gemini: 'Google Gemini',
+      openclaw: 'OpenClaw Gateway',
       openai: 'OpenAI',
-      ollama: 'Ollama Local' 
     };
     
     // Optimistic UI update - immediately show new provider
@@ -41,7 +39,6 @@ export function useSettingsActions() {
       // Immediately refetch models for the new provider
       refetchModels();
       queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      refetchOllama();
       
       showToast(`Switched to ${providerLabels[provider] || provider}`);
     } catch (err) {
@@ -53,7 +50,7 @@ export function useSettingsActions() {
       // Background refresh to sync actual state
       setTimeout(() => refetchSettings(), 100);
     }
-  }, [ctx, refetchSettings, refetchModels, refetchOllama, queryClient, showToast]);
+  }, [ctx, refetchSettings, refetchModels, queryClient, showToast]);
 
   const handleSaveAIConfig = useCallback(async () => {
     ctx.setSavingAI(true);
@@ -61,14 +58,10 @@ export function useSettingsActions() {
       let base = {};
       if (ctx.activeProvider === 'openclaw') {
         base = { openclaw_url: ctx.openclawUrl, openclaw_temperature: String(ctx.openclawTemperature) };
-      } else if (ctx.activeProvider === 'groq') {
-        base = { groq_temperature: String(ctx.groqTemperature) };
+      } else if (ctx.activeProvider === 'gemini') {
+        base = { gemini_temperature: String(ctx.geminiTemperature) };
       } else if (ctx.activeProvider === 'openai') {
         base = { openai_temperature: String(ctx.openaiTemperature) };
-      } else if (ctx.activeProvider === 'anthropic') {
-        base = { anthropic_temperature: String(ctx.anthropicTemperature) };
-      } else {
-        base = { ollama_url: ctx.ollamaUrl, ollama_temperature: String(ctx.temperature) };
       }
 
       await api.settings.update({
@@ -79,47 +72,33 @@ export function useSettingsActions() {
         ai_system_prompt: ctx.systemPrompt,
       });
       refetchSettings();
-      refetchOllama();
       showToast('AI configuration saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     } finally {
       ctx.setSavingAI(false);
     }
-  }, [ctx, refetchSettings, refetchOllama, showToast]);
+  }, [ctx, refetchSettings, showToast]);
 
-  const handleTestOllama = useCallback(async () => {
-    ctx.setTestingOllama(true);
+  const handleTestGemini = useCallback(async () => {
+    ctx.setTestingGemini(true);
     try {
-      const result = await api.settings.testOllama(ctx.ollamaUrl);
-      if (result.connected) showToast(`Connected to Ollama (${result.modelCount} models available)`);
-      else showToast(`Cannot connect: ${result.error}`, 'error');
-    } catch (err) {
-      showToast(`Connection test failed: ${err.message}`, 'error');
-    } finally {
-      ctx.setTestingOllama(false);
-    }
-  }, [ctx, showToast]);
-
-  const handleTestGroq = useCallback(async () => {
-    ctx.setTestingGroq(true);
-    try {
-      const result = await api.settings.testGroq(ctx.groqKey || undefined);
-      if (result.valid) showToast(`Groq API valid (${result.modelCount} models available)`);
+      const result = await api.settings.testGemini(ctx.geminiKey || undefined);
+      if (result.valid) showToast(`Gemini API valid (${result.modelCount} models available)`);
       else showToast(result.error || 'Invalid API key', 'error');
     } catch (err) {
       showToast(`Test failed: ${err.message}`, 'error');
     } finally {
-      ctx.setTestingGroq(false);
+      ctx.setTestingGemini(false);
     }
   }, [ctx, showToast]);
 
-  const handleSaveGroqKey = useCallback(async () => {
+  const handleSaveGeminiKey = useCallback(async () => {
     try {
-      await api.settings.update({ groq_api_key: ctx.groqKey });
-      ctx.setGroqKey('');
+      await api.settings.update({ gemini_api_key: ctx.geminiKey });
+      ctx.setGeminiKey('');
       refetchSettings();
-      showToast('Groq API key saved');
+      showToast('Gemini API key saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     }
@@ -144,30 +123,6 @@ export function useSettingsActions() {
       ctx.setOpenaiKey('');
       refetchSettings();
       showToast('OpenAI API key saved');
-    } catch (err) {
-      showToast(`Failed to save: ${err.message}`, 'error');
-    }
-  }, [ctx, refetchSettings, showToast]);
-
-  const handleTestAnthropic = useCallback(async () => {
-    ctx.setTestingAnthropic(true);
-    try {
-      const result = await api.settings.testAnthropic(ctx.anthropicKey || undefined);
-      if (result.valid) showToast('Anthropic API key is valid');
-      else showToast(result.error || 'Invalid API key', 'error');
-    } catch (err) {
-      showToast(`Test failed: ${err.message}`, 'error');
-    } finally {
-      ctx.setTestingAnthropic(false);
-    }
-  }, [ctx, showToast]);
-
-  const handleSaveAnthropicKey = useCallback(async () => {
-    try {
-      await api.settings.update({ anthropic_api_key: ctx.anthropicKey });
-      ctx.setAnthropicKey('');
-      refetchSettings();
-      showToast('Anthropic API key saved');
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     }
@@ -200,11 +155,9 @@ export function useSettingsActions() {
   const handleSetDefaultModel = useCallback(async (modelName) => {
     try {
       ctx.setDefaultModel(modelName);
-      const modelKey = ctx.activeProvider === 'groq' ? 'groq_model'
-        : ctx.activeProvider === 'anthropic' ? 'anthropic_model'
+      const modelKey = ctx.activeProvider === 'gemini' ? 'gemini_model'
         : ctx.activeProvider === 'openai' ? 'openai_model'
-        : ctx.activeProvider === 'openclaw' ? 'openclaw_model'
-        : 'ollama_model';
+        : 'openclaw_model';
       await api.settings.update({ [modelKey]: modelName });
       refetchSettings();
       showToast(`Default model set to ${modelName}`);
@@ -212,57 +165,6 @@ export function useSettingsActions() {
       showToast(`Failed: ${err.message}`, 'error');
     }
   }, [ctx, refetchSettings, showToast]);
-
-  const handlePullModel = useCallback(async () => {
-    if (!ctx.pullModelName.trim()) return;
-    ctx.setPullingModel(true);
-    try {
-      const response = await fetch('/api/ai/models/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: ctx.pullModelName.trim() }),
-      });
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let lastStatus = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split('\n').filter(l => l.startsWith('data: '));
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.status) lastStatus = data.status;
-            if (data.done) break;
-          } catch { /* skip */ }
-        }
-      }
-      ctx.setPullModelName('');
-      refetchModels();
-      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      showToast(`Model pulled successfully: ${lastStatus}`);
-    } catch (err) {
-      showToast(`Failed to pull model: ${err.message}`, 'error');
-    } finally {
-      ctx.setPullingModel(false);
-    }
-  }, [ctx, refetchModels, queryClient, showToast]);
-
-  const handleDeleteModel = useCallback(async (modelName) => {
-    ctx.setDeletingModel(modelName);
-    try {
-      await api.ai.deleteModel(modelName);
-      ctx.setDeleteConfirm(null);
-      refetchModels();
-      queryClient.invalidateQueries({ queryKey: ['ollama-models'] });
-      showToast(`Model ${modelName} deleted`);
-    } catch (err) {
-      showToast(`Failed to delete: ${err.message}`, 'error');
-    } finally {
-      ctx.setDeletingModel(null);
-    }
-  }, [ctx, refetchModels, queryClient, showToast]);
 
   /* ── Business ── */
   const handleSaveBusiness = useCallback(async () => {
@@ -676,18 +578,13 @@ export function useSettingsActions() {
   return {
     handleSwitchProvider,
     handleSaveAIConfig,
-    handleTestOllama,
-    handleTestGroq,
-    handleSaveGroqKey,
+    handleTestGemini,
+    handleSaveGeminiKey,
     handleTestOpenai,
     handleSaveOpenaiKey,
-    handleTestAnthropic,
-    handleSaveAnthropicKey,
     handleTestOpenClaw,
     handleSaveOpenclawToken,
     handleSetDefaultModel,
-    handlePullModel,
-    handleDeleteModel,
     handleSaveBusiness,
     handleSaveEstimating,
     handleSaveDiscovery,

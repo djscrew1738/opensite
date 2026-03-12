@@ -19,7 +19,7 @@ export function useAIStatus(options = {}) {
     retry: 1
   });
 
-  const activeProvider = data?.active || 'ollama';
+  const activeProvider = data?.active || 'gemini';
   const providers = data?.providers || [];
   const activeProviderData = providers.find(p => p.name === activeProvider);
 
@@ -34,11 +34,9 @@ export function useAIStatus(options = {}) {
 
   const getProviderInfo = useCallback((name) => {
     const infoMap = {
-      ollama:    { iconType: 'server',   color: 'text-orange-500',  label: 'Ollama (Local)' },
-      openclaw:  { iconType: 'zap',      color: 'text-violet-500',  label: 'OpenClaw Gateway' },
-      groq:      { iconType: 'zap',      color: 'text-orange-400',  label: 'Groq Cloud' },
-      anthropic: { iconType: 'cloud',    color: 'text-blue-500',    label: 'Anthropic Claude' },
-      openai:    { iconType: 'cpu',      color: 'text-emerald-500', label: 'OpenAI GPT' },
+      gemini:   { iconType: 'cpu',  color: 'text-sky-400',     label: 'Google Gemini' },
+      openclaw: { iconType: 'zap',  color: 'text-violet-500',  label: 'OpenClaw Gateway' },
+      openai:   { iconType: 'cpu',  color: 'text-emerald-500', label: 'OpenAI GPT' },
     };
     return infoMap[name] || { iconType: 'activity', color: 'text-slate-500', label: name };
   }, []);

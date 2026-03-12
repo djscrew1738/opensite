@@ -23,6 +23,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import { useHaptic } from '../../hooks/useHaptic';
 import { colors, shadows } from '../../styles/tokens';
 
 // ═══════════════════════════════════════════════════════════════
@@ -199,7 +200,8 @@ const MainFabButton = memo(function MainFabButton({ isOpen, hasUnprocessed, onCl
           ease: 'easeInOut',
         } : {},
       }}
-      className="relative w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-colors z-50"
+      whileTap={{ scale: 0.88 }}
+      className="relative w-14 h-14 rounded-full flex items-center justify-center transition-colors z-50"
       style={{
         backgroundColor: FAB_COLOR,
         boxShadow: `0 8px 30px ${FAB_COLOR}59, 0 0 0 1px ${FAB_COLOR}33`,
@@ -603,6 +605,7 @@ function useFileUpload(onUpload) {
  *   onAddNote?: (note: string) => void;
  *   hasUnprocessedBlueprints?: boolean;
  *   className?: string;
+ *   bottomOffset?: string;
  * }} props
  */
 export const QuickAddFAB = memo(function QuickAddFAB({ 
@@ -610,11 +613,13 @@ export const QuickAddFAB = memo(function QuickAddFAB({
   onAddLead, 
   onAddNote,
   hasUnprocessedBlueprints = false,
-  className = ''
+  className = '',
+  bottomOffset
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const fabRef = useRef(null);
+  const haptic = useHaptic();
   
   const { fileInputRef, handleFileSelect, triggerFileInput } = useFileUpload(onUpload);
 
@@ -679,7 +684,7 @@ export const QuickAddFAB = memo(function QuickAddFAB({
         ref={fabRef}
         className={`fixed bottom-6 right-6 md:bottom-6 md:right-6 z-50 ${className}`}
         style={{ 
-          bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+          bottom: bottomOffset || 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
         }}
       >
         {/* Radial Menu Items */}
@@ -710,7 +715,7 @@ export const QuickAddFAB = memo(function QuickAddFAB({
         <MainFabButton
           isOpen={isOpen}
           hasUnprocessed={hasUnprocessedBlueprints}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => { haptic.select(); setIsOpen(!isOpen); }}
         />
       </div>
 

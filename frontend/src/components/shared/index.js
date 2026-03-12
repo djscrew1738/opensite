@@ -169,6 +169,7 @@ export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as LegacyStatCard } from './StatCard';
 export { default as ThemeToggle } from './ThemeToggle';
 export { PullToRefresh, default as PullToRefreshIndicator } from './PullToRefresh';
+export { ScrollToTop } from './ScrollToTop';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DESIGN SYSTEM RE-EXPORTS (for convenience)

@@ -18,6 +18,7 @@ import { UploadFAB } from '../upload';
 import { PageHeaderContext } from '../../hooks/usePageHeader';
 import { useSwipe } from '../../hooks/useSwipe';
 import { QuickAddFAB } from '../shared/QuickAddFAB';
+import { ScrollToTop } from '../shared/ScrollToTop';
 import { api } from '../../api/client';
 import { uploadApi } from '../../api/upload';
 
@@ -103,7 +104,7 @@ const MobileSidebarDrawer = memo(function MobileSidebarDrawer({
       {/* Sidebar */}
       <div 
         {...swipeHandlers}
-        className="absolute left-0 top-0 bottom-0 w-[280px] touch-pan-y animate-slide-in-left"
+        className="absolute left-0 top-0 bottom-0 w-[86vw] max-w-[320px] touch-pan-y animate-slide-in-left shadow-2xl"
       >
         <Sidebar 
           onCommandPaletteOpen={() => {
@@ -263,6 +264,8 @@ export default function Layout() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [pageTitle, setPageTitle] = useState(null);
   const [pageActions, setPageActions] = useState(null);
@@ -288,7 +291,32 @@ export default function Layout() {
   useEffect(() => {
     setPageTitle(null);
     setPageActions(null);
+    setShowMobileSidebar(false);
   }, [location.pathname]);
+
+  // Detect mobile keyboard visibility using visual viewport.
+  useEffect(() => {
+    if (!isMobile || typeof window === 'undefined' || !window.visualViewport) {
+      setIsKeyboardOpen(false);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const KEYBOARD_THRESHOLD = 120;
+    const onViewportChange = () => {
+      const heightDelta = window.innerHeight - viewport.height;
+      setIsKeyboardOpen(heightDelta > KEYBOARD_THRESHOLD);
+    };
+
+    onViewportChange();
+    viewport.addEventListener('resize', onViewportChange);
+    viewport.addEventListener('scroll', onViewportChange);
+
+    return () => {
+      viewport.removeEventListener('resize', onViewportChange);
+      viewport.removeEventListener('scroll', onViewportChange);
+    };
+  }, [isMobile]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -350,6 +378,15 @@ export default function Layout() {
     reset: () => { setPageTitle(null); setPageActions(null); }
   };
 
+  const hasRouteLevelMobileTabs = isMobile && (
+    location.pathname.startsWith('/jobs') ||
+    location.pathname.startsWith('/documents') ||
+    location.pathname.startsWith('/history') ||
+    location.pathname.startsWith('/leads')
+  );
+
+  const shouldHideQuickAdd = showAI || showNotifications || showCommandPalette || (isMobile && hasRouteLevelMobileTabs);
+
   return (
     <ErrorBoundary componentName="App">
       <div className="flex h-screen h-[100dvh] overflow-hidden bg-forge">
@@ -367,7 +404,7 @@ export default function Layout() {
 
         {/* Main Content */}
         <PageHeaderContext.Provider value={pageHeaderContextValue}>
-          <main className="flex-1 overflow-y-auto relative flex flex-col">
+          <main className={`flex-1 overflow-y-auto relative flex flex-col overscroll-y-contain ${isMobile ? 'mobile-main-scroll' : ''}`}>
             <RadialGradient />
             <GrainOverlay />
 
@@ -386,7 +423,7 @@ export default function Layout() {
               {/* Mobile/Tablet Sticky Header */}
               {(isMobile || isTablet) && (
                 <StickyHeader
-                  onMenuClick={() => {}}
+                  onMenuClick={() => setShowMobileSidebar(true)}
                   onCommandPaletteOpen={() => setShowCommandPalette(true)}
                   onNotificationsOpen={() => setShowNotifications(true)}
                   notificationCount={unreadCount}
@@ -396,7 +433,7 @@ export default function Layout() {
               )}
 
               {/* Page Content */}
-              <div className="flex-1 relative">
+              <div className={`flex-1 relative ${isMobile && !isKeyboardOpen && !hasRouteLevelMobileTabs ? 'mobile-content-safe-bottom' : ''}`}>
                 <SectionErrorBoundary>
                   <div className="page-transition-wrapper">
                     <Outlet />
@@ -432,16 +469,39 @@ export default function Layout() {
           <AIFloatingButton onClick={() => setShowAI(true)} isOpen={showAI} />
         )}
 
+        {isMobile && !showMobileSidebar && !showNotifications && !showAI && (
+          <EdgeSwipeDetector onSwipeRight={() => setShowMobileSidebar(true)} />
+        )}
+
+        {isMobile && (
+          <MobileSidebarDrawer
+            isOpen={showMobileSidebar}
+            onClose={() => setShowMobileSidebar(false)}
+            onCommandPaletteOpen={() => setShowCommandPalette(true)}
+            onNotificationsOpen={() => setShowNotifications(true)}
+            notificationCount={unreadCount}
+            hasUrgent={hasUrgent}
+          />
+        )}
+
         <QuickAddFAB
           onUpload={handleFileUpload}
           onAddLead={handleAddLead}
           onAddNote={handleAddNote}
           hasUnprocessedBlueprints={processingFiles.length > 0}
+          className={shouldHideQuickAdd ? 'opacity-0 pointer-events-none' : ''}
+          bottomOffset={isMobile
+            ? (isKeyboardOpen
+              ? 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+              : hasRouteLevelMobileTabs
+                ? 'calc(5.75rem + env(safe-area-inset-bottom, 0px))'
+                : 'calc(6.25rem + env(safe-area-inset-bottom, 0px))')
+            : undefined}
         />
 
-        <UploadFAB />
+        <UploadFAB hidden={isMobile} />
 
-        {isMobile && (
+        {isMobile && !isKeyboardOpen && !hasRouteLevelMobileTabs && (
           <MobileNav
             alertCount={unreadCount}
             hasUrgent={hasUrgent}
@@ -449,10 +509,12 @@ export default function Layout() {
             onNotificationsOpen={() => setShowNotifications(true)}
             onAIOpen={() => setShowAI(true)}
             isAIOpen={showAI}
+            hidden={showAI || showNotifications || showCommandPalette || showMobileSidebar || hasRouteLevelMobileTabs}
           />
         )}
 
         <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   );

@@ -5,6 +5,7 @@ import PhaseTrack from './PhaseTrack';
 import BuilderBadge from './BuilderBadge';
 import { colors, PHASES, PHASE_MAP } from '../../styles/tokens';
 import { JobCardSkeleton } from '../shared/LoadingStates';
+import { useHaptic } from '../../hooks/useHaptic';
 
 /**
  * JobCard — The most-used element in Job Pulse.
@@ -51,6 +52,8 @@ export default function JobCard({
 
   const x = useMotionValue(0);
   const cardRef = useRef(null);
+  const haptic = useHaptic();
+  const passedThresholdRef = useRef(false);
 
   // Background reveal colors based on swipe direction - using design tokens
   const bgLeft = useTransform(x, [-120, 0], [1, 0]);
@@ -132,8 +135,8 @@ export default function JobCard({
     setTimeout(async () => {
       animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
       setSwiped(null);
-      if (isRight) await handleUpdatePhase();
-      else await handleFlag();
+      if (isRight) { haptic.confirm(); await handleUpdatePhase(); }
+      else { haptic.warning(); await handleFlag(); }
     }, 400);
   }, [x, handleUpdatePhase, handleFlag]);
 
@@ -217,7 +220,19 @@ export default function JobCard({
         dragConstraints={{ left: -140, right: 140 }}
         dragElastic={0.1}
         dragDirectionLock
-        onDragEnd={handleDragEnd}
+        onDrag={(_, info) => {
+          const abs = Math.abs(info.offset.x);
+          if (abs >= 80 && !passedThresholdRef.current) {
+            passedThresholdRef.current = true;
+            haptic.tick();
+          } else if (abs < 80 && passedThresholdRef.current) {
+            passedThresholdRef.current = false;
+          }
+        }}
+        onDragEnd={(e, info) => {
+          passedThresholdRef.current = false;
+          handleDragEnd(e, info);
+        }}
         style={{ x }}
         className="relative cursor-pointer touch-pan-y active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary"
         onClick={() => !swiped && onClick?.(job)}

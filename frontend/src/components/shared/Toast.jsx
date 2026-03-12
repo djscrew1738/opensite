@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useIsTouchDevice } from '../../hooks/useBreakpoint';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle2, 
@@ -212,11 +213,16 @@ const ToastItem = ({
 // TOAST CONTAINER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const ToastContainer = ({ 
-  toasts = [], 
+export const ToastContainer = ({
+  toasts = [],
   onDismiss,
   position = 'bottom-right',
 }) => {
+  const isTouch = useIsTouchDevice();
+
+  // On mobile/touch: always use bottom-center, raised above tab bar (80px)
+  const resolvedPosition = isTouch ? 'bottom-center' : position;
+
   const positionClasses = {
     'top-left': 'top-4 left-4',
     'top-right': 'top-4 right-4',
@@ -226,13 +232,19 @@ export const ToastContainer = ({
     'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
   };
 
+  // Mobile: raise above tab bar (≈80px) + safe-area
+  const mobileOffset = isTouch
+    ? { bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)' }
+    : undefined;
+
   return (
-    <div 
+    <div
       className={cx(
-        'fixed z-50 flex flex-col gap-3 pointer-events-none',
-        positionClasses[position]
+        'fixed z-[60] flex flex-col gap-2 pointer-events-none',
+        !isTouch && positionClasses[resolvedPosition],
+        isTouch && 'w-[calc(100%-2rem)]',
       )}
-      style={{ maxWidth: '100%', padding: 'env(safe-area-inset-right) env(safe-area-inset-bottom)' }}
+      style={{ maxWidth: isTouch ? 420 : undefined, ...mobileOffset }}
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (

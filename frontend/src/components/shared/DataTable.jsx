@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
@@ -149,13 +150,15 @@ export function DataTable({
       {mobileCardView && (
         <div className="md:hidden space-y-3">
           {paginatedData.map((row, index) => (
-            <div
+            <motion.div
               key={keyExtractor ? keyExtractor(row) : index}
               onClick={() => onRowClick?.(row)}
+              whileTap={onRowClick ? { scale: 0.98 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
               className={`
                 card p-5 space-y-3
-                transition-all duration-150 ease-out
-                ${onRowClick ? 'cursor-pointer hover:shadow-lg hover:border-surface-300 dark:hover:border-surface-600 active:scale-[0.98] active:bg-surface-100 dark:active:bg-surface-800' : ''}
+                transition-colors duration-150 ease-out
+                ${onRowClick ? 'cursor-pointer hover:shadow-lg hover:border-surface-300 dark:hover:border-surface-600 active:bg-surface-100 dark:active:bg-surface-800' : ''}
                 ${rowClassName?.(row) || ''}
               `}
             >
@@ -172,7 +175,7 @@ export function DataTable({
                   </span>
                 </div>
               ))}
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -184,25 +187,31 @@ export function DataTable({
             Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, data.length)} of {data.length}
           </p>
           <div className="flex items-center gap-1">
-            <button
+            <motion.button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="btn-secondary p-2 disabled:opacity-40 hover:scale-105 active:scale-95 transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-secondary p-2 disabled:opacity-40"
               aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
+            </motion.button>
             <span className="text-sm px-3 text-surface-600 dark:text-surface-400">
               {currentPage} / {totalPages}
             </span>
-            <button
+            <motion.button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="btn-secondary p-2 disabled:opacity-40 hover:scale-105 active:scale-95 transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-secondary p-2 disabled:opacity-40"
               aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
         </div>
       )}

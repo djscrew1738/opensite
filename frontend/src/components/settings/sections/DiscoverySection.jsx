@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Search, MapPin, Target, Archive, Clock, 
+import { motion } from 'framer-motion';
+import {
+  Search, MapPin, Target, Archive, Clock,
   Settings2, Filter, Save, Loader2, Radius
 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
@@ -121,14 +122,16 @@ export default memo(function DiscoverySection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSaveDiscovery} 
-              disabled={ctx.savingDiscovery} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSaveDiscovery}
+              disabled={ctx.savingDiscovery}
+              whileTap={!ctx.savingDiscovery ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              {ctx.savingDiscovery ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              {ctx.savingDiscovery ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save Discovery Settings
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

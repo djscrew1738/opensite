@@ -1,4 +1,5 @@
 import { useMemo, useCallback, memo } from 'react';
+import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { 
   Calculator, FileText, TrendingUp, Clock, CheckCircle2, AlertCircle,
@@ -81,11 +82,13 @@ const QuickAction = memo(function QuickAction({
   description 
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center gap-2 p-4 rounded-xl border border-surface-700 bg-surface-800 transition-all duration-200 min-w-[90px] focus:outline-none focus:ring-2 focus:ring-accent-500/50 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent-500/50 hover:shadow-md active:scale-95'
+      whileTap={!disabled ? { scale: 0.93 } : undefined}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className={`flex flex-col items-center gap-2 p-4 rounded-xl border border-surface-700 bg-surface-800 transition-colors duration-200 min-w-[90px] focus:outline-none focus:ring-2 focus:ring-accent-500/50 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent-500/50 hover:shadow-md'
       }`}
     >
       <div className="relative">
@@ -98,7 +101,7 @@ const QuickAction = memo(function QuickAction({
       </div>
       <span className="text-xs font-medium text-surface-400">{label}</span>
       {description && <span className="text-xs text-surface-500">{description}</span>}
-    </button>
+    </motion.button>
   );
 });
 

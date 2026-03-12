@@ -119,7 +119,7 @@ export const AccessibleCard = forwardRef(({
     : '';
 
   const hoverClasses = isClickable
-    ? 'hover:shadow-dark-glow hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]'
+    ? 'hover:shadow-dark-glow'
     : '';
 
   const disabledClasses = disabled
@@ -172,7 +172,7 @@ export const AccessibleCard = forwardRef(({
       <motion.div
         whileHover={!disabled ? { y: -2 } : undefined}
         whileTap={!disabled ? { scale: 0.99 } : undefined}
-        transition={{ duration: 0.2 }}
+        transition={{ type: 'spring', stiffness: 600, damping: 30 }}
       >
         {content}
       </motion.div>

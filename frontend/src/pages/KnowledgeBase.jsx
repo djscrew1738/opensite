@@ -79,19 +79,21 @@ export default function KnowledgeBase() {
           </p>
         </div>
 
-        <button
+        <motion.button
           onClick={() => reindexMutation.mutate()}
           disabled={isReindexing || isLoading}
+          whileTap={!(isReindexing || isLoading) ? { scale: 0.95 } : undefined}
+          transition={{ type: 'spring', stiffness: 700, damping: 35 }}
           className={`
-            flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all
-            ${isReindexing 
-              ? 'bg-surface-800 text-surface-500 cursor-not-allowed' 
-              : 'bg-accent-500 hover:bg-accent-600 text-white shadow-lg shadow-accent-500/20 active:scale-95'}
+            flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold
+            ${isReindexing
+              ? 'bg-surface-800 text-surface-500 cursor-not-allowed'
+              : 'bg-accent-500 hover:bg-accent-600 text-white shadow-lg shadow-accent-500/20'}
           `}
         >
           <RefreshCw className={`w-4 h-4 ${isReindexing ? 'animate-spin' : ''}`} />
           {isReindexing ? 'Indexing...' : 'Re-index Everything'}
-        </button>
+        </motion.button>
       </div>
 
       {/* Stats Cards */}

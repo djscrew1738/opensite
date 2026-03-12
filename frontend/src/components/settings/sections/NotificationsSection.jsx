@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Bell, Mail, Smartphone, Calendar, Clock, 
+import { motion } from 'framer-motion';
+import {
+  Bell, Mail, Smartphone, Calendar, Clock,
   Save, Loader2, MessageSquare, ShieldCheck,
   Send, Laptop, AlertTriangle
 } from 'lucide-react';
@@ -148,14 +149,16 @@ export default memo(function NotificationsSection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSaveNotifications} 
-              disabled={ctx.savingNotifications} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSaveNotifications}
+              disabled={ctx.savingNotifications}
+              whileTap={!ctx.savingNotifications ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              {ctx.savingNotifications ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              {ctx.savingNotifications ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save Notification Preferences
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

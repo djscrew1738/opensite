@@ -65,30 +65,36 @@ const SidebarHeader = memo(function SidebarHeader({
         
         <div className="flex items-center gap-1">
           {showClear && (
-            <button
+            <motion.button
               onClick={onClear}
-              className="p-2 rounded-xl text-surface-400 hover:text-danger-500 hover:bg-danger-500/10 transition-all active:scale-95"
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="p-2 rounded-xl text-surface-400 hover:text-danger-500 hover:bg-danger-500/10 transition-colors"
               title="Clear conversation"
             >
               <Trash2 className="w-5 h-5" />
-            </button>
+            </motion.button>
           )}
-          
-          <button
+
+          <motion.button
             onClick={onExpand}
-            className="p-2 rounded-xl text-surface-400 hover:text-surface-100 hover:bg-white/5 transition-all active:scale-95"
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="p-2 rounded-xl text-surface-400 hover:text-surface-100 hover:bg-white/5 transition-colors"
             title="Open full page"
           >
             <Maximize2 className="w-5 h-5" />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             onClick={onClose}
-            className="p-2 rounded-xl text-surface-400 hover:text-surface-100 hover:bg-white/5 transition-all active:scale-95"
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="p-2 rounded-xl text-surface-400 hover:text-surface-100 hover:bg-white/5 transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
-          </button>
+          </motion.button>
         </div>
       </div>
     </div>
@@ -104,14 +110,16 @@ const QuickActionChips = memo(function QuickActionChips({ actions, onActionClick
   return (
     <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide no-wrap">
       {actions.map((action, idx) => (
-        <button
+        <motion.button
           key={idx}
           onClick={() => onActionClick(action.prompt)}
           disabled={disabled}
-          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full bg-surface-elevated/80 border border-surface-700/50 text-xs font-bold text-surface-200 hover:border-accent-500/50 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+          whileTap={!disabled ? { scale: 0.93 } : undefined}
+          transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full bg-surface-elevated/80 border border-surface-700/50 text-xs font-bold text-surface-200 hover:border-accent-500/50 hover:text-white transition-colors disabled:opacity-50"
         >
           {action.label}
-        </button>
+        </motion.button>
       ))}
     </div>
   );
@@ -150,7 +158,7 @@ function AISidebar({ isOpen, onClose }) {
     staleTime: 60000,
   });
 
-  const activeProvider = modelsData?.provider || 'ollama';
+  const activeProvider = modelsData?.provider || 'gemini';
 
   // Auto-focus
   useEffect(() => {
@@ -332,21 +340,25 @@ function AISidebar({ isOpen, onClose }) {
               />
               
               {isStreaming ? (
-                <button
+                <motion.button
                   type="button"
                   onClick={stopStreaming}
-                  className="w-10 h-10 rounded-full bg-danger-500/10 text-danger-500 flex items-center justify-center hover:bg-danger-500 hover:text-white transition-all active:scale-90"
+                  whileTap={{ scale: 0.88 }}
+                  transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                  className="w-10 h-10 rounded-full bg-danger-500/10 text-danger-500 flex items-center justify-center hover:bg-danger-500 hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" strokeWidth={2.5} />
-                </button>
+                </motion.button>
               ) : (
-                <button
+                <motion.button
                   type="submit"
                   disabled={!inputMessage.trim()}
-                  className="w-10 h-10 rounded-full bg-accent-500 text-white flex items-center justify-center disabled:opacity-30 disabled:bg-surface-elevated transition-all active:scale-90 shadow-lg shadow-accent-500/20"
+                  whileTap={inputMessage.trim() ? { scale: 0.88 } : undefined}
+                  transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                  className="w-10 h-10 rounded-full bg-accent-500 text-white flex items-center justify-center disabled:opacity-30 disabled:bg-surface-elevated shadow-lg shadow-accent-500/20"
                 >
                   <Send className="w-5 h-5" strokeWidth={2.5} />
-                </button>
+                </motion.button>
               )}
             </div>
           </form>

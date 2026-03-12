@@ -272,41 +272,47 @@ const JobCard = memo(function JobCard({
 
           {/* Row 4: Action buttons */}
           <div className="flex items-center gap-2">
-            <button
+            <Motion.button
               type="button"
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+              whileTap={!isLoading ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
               style={{ color: colors.text.secondary, height: '36px' }}
               onClick={handleUpdatePhase}
               aria-label="Update job phase"
             >
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Update</span>
-            </button>
+            </Motion.button>
 
-            <button
+            <Motion.button
               type="button"
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+              whileTap={!isLoading ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
               style={{ color: colors.text.secondary, height: '36px' }}
               onClick={handleViewDetail}
               aria-label="View job details"
             >
               <Eye className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Detail</span>
-            </button>
+            </Motion.button>
 
-            <button
+            <Motion.button
               type="button"
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-red-500/10 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
+              whileTap={!isLoading ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-semibold text-xs transition-colors duration-150 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
               style={{ color: colors.text.muted, height: '36px' }}
               onClick={handleFlag}
               aria-label="Flag job for review"
             >
               <Flag className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Flag</span>
-            </button>
+            </Motion.button>
           </div>
         </div>
       </Motion.div>

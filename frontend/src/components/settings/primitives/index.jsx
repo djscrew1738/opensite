@@ -4,6 +4,7 @@
  */
 
 import { useState, memo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Eye, EyeOff, Loader2, Save, Zap, ExternalLink, 
   AlertCircle, ChevronRight, CheckCircle2, Info,
@@ -122,20 +123,15 @@ export const QuickAction = memo(function QuickAction({ icon: Icon, label, onClic
   if (!Icon) return null;
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all duration-200 min-w-[100px] shrink-0 active:scale-95 group"
+      whileHover={{ borderColor: `${colors.accent.DEFAULT}66`, backgroundColor: colors.surface.elevated }}
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className="flex flex-col items-center gap-2 p-4 rounded-xl duration-200 min-w-[100px] shrink-0 group"
       style={{
         backgroundColor: colors.surface.card,
         border: `1px solid ${colors.border.default}`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = `${colors.accent.DEFAULT}66`;
-        e.currentTarget.style.backgroundColor = colors.surface.elevated;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = colors.border.default;
-        e.currentTarget.style.backgroundColor = colors.surface.card;
       }}
     >
       <div className="relative p-2 rounded-lg bg-surface-elevated group-hover:bg-surface-card transition-colors">
@@ -157,7 +153,7 @@ export const QuickAction = memo(function QuickAction({ icon: Icon, label, onClic
           </span>
         )}
       </div>
-    </button>
+    </motion.button>
   );
 });
 
@@ -246,20 +242,15 @@ export const ConfigCategory = memo(function ConfigCategory({ icon: Icon, title, 
   const statusColors = CONFIG_STATUS_COLORS[status || 'empty'];
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left group active:scale-[0.99]"
+      whileHover={{ borderColor: `${colors.accent.DEFAULT}66`, backgroundColor: colors.surface.elevated }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className="w-full flex items-center gap-4 p-4 rounded-xl text-left group"
       style={{
         backgroundColor: colors.surface.card,
         border: `1px solid ${colors.border.default}`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = `${colors.accent.DEFAULT}66`;
-        e.currentTarget.style.backgroundColor = colors.surface.elevated;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = colors.border.default;
-        e.currentTarget.style.backgroundColor = colors.surface.card;
       }}
     >
       <div 
@@ -287,10 +278,10 @@ export const ConfigCategory = memo(function ConfigCategory({ icon: Icon, title, 
           {description}
         </p>
       </div>
-      <ChevronRight 
+      <ChevronRight
         className="w-5 h-5 text-border-strong group-hover:text-accent-blue transition-all group-hover:translate-x-0.5"
       />
-    </button>
+    </motion.button>
   );
 });
 
@@ -400,24 +391,28 @@ export const KeyInput = memo(function KeyInput({
         </div>
         
         {onTest && (
-          <button 
-            onClick={onTest} 
-            disabled={testing || !value.trim() || !!error} 
-            className="btn-secondary h-[44px] px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95"
+          <motion.button
+            onClick={onTest}
+            disabled={testing || !value.trim() || !!error}
+            whileTap={!(testing || !value.trim() || !!error) ? { scale: 0.95 } : undefined}
+            transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+            className="btn-secondary h-[44px] px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 disabled:opacity-50"
           >
             {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
             Test
-          </button>
+          </motion.button>
         )}
-        
-        <button 
-          onClick={onSave} 
-          disabled={!value.trim() || saving || !isValid} 
-          className="btn-primary h-[44px] px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95"
+
+        <motion.button
+          onClick={onSave}
+          disabled={!value.trim() || saving || !isValid}
+          whileTap={value.trim() && !saving && isValid ? { scale: 0.95 } : undefined}
+          transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+          className="btn-primary h-[44px] px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
           Save
-        </button>
+        </motion.button>
       </div>
 
       {showError && (
@@ -505,9 +500,11 @@ export const StatCard = memo(function StatCard({ label, value, subtext, icon: Ic
   if (!Icon) return null;
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="p-5 rounded-xl transition-all cursor-pointer group text-left bg-surface-card border border-border-default hover:border-accent-blue/30 hover:shadow-lg active:scale-[0.98]"
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+      className="p-5 rounded-xl cursor-pointer group text-left bg-surface-card border border-border-default hover:border-accent-blue/30 hover:shadow-lg transition-shadow"
     >
       <div className="flex items-start justify-between mb-4">
         <div className="p-2 rounded-xl bg-surface-elevated group-hover:bg-surface-card transition-colors border border-border-muted group-hover:border-accent-blue/20">
@@ -528,7 +525,7 @@ export const StatCard = memo(function StatCard({ label, value, subtext, icon: Ic
           {subtext}
         </div>
       )}
-    </button>
+    </motion.button>
   );
 });
 

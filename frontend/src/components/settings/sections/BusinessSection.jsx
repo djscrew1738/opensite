@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Building2, Phone, Mail, Globe, MapPin, 
+import { motion } from 'framer-motion';
+import {
+  Building2, Phone, Mail, Globe, MapPin,
   Briefcase, FileText, ShieldCheck, Save, Loader2
 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
@@ -140,14 +141,16 @@ export default memo(function BusinessSection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSaveBusiness} 
-              disabled={ctx.savingBusiness} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSaveBusiness}
+              disabled={ctx.savingBusiness}
+              whileTap={!ctx.savingBusiness ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              {ctx.savingBusiness ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              {ctx.savingBusiness ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save Profile
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

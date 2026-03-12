@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Send, CheckCircle, Bot, Sparkles, Cpu, Menu, Plus, Trash2, 
@@ -16,6 +17,7 @@ import {
   useModelPreference,
   useToast 
 } from '../hooks';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { PageHeader, ConfirmDialog } from '../components/shared';
 
 // Format date for conversation list
@@ -213,6 +215,7 @@ export default function AIAssistant() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { success, error: showError } = useToast();
+  const { isMobile } = useBreakpoint();
   
   // URL param for opening specific conversation
   const urlConversationId = searchParams.get('id');
@@ -291,8 +294,9 @@ export default function AIAssistant() {
     retry: false
   });
   
-  const activeProvider = modelsData?.provider || 'ollama';
+  const activeProvider = modelsData?.provider || 'gemini';
   const providerLabel = {
+    gemini: 'Google Gemini',
     groq: 'Groq Cloud',
     anthropic: 'Anthropic Claude',
     ollama: 'Ollama Local',
@@ -402,7 +406,7 @@ export default function AIAssistant() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 p-4 sm:p-6">
+        <div className="bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 p-3 sm:p-6">
           <div className="flex items-center gap-3">
             {/* Menu button (mobile) */}
             <button
@@ -425,7 +429,7 @@ export default function AIAssistant() {
               }
               subtitle={`Powered by ${providerLabel} — Ask about leads, pricing, materials, and code compliance`}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 {/* Action buttons */}
                 {messages.length > 0 && (
                   <div className="flex items-center gap-1 mr-2">
@@ -465,10 +469,12 @@ export default function AIAssistant() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
                   <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">CTL Context Active</span>
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    {isMobile ? 'Context' : 'CTL Context Active'}
+                  </span>
                 </div>
 
                 {/* Smart Mode Toggle */}
@@ -482,7 +488,7 @@ export default function AIAssistant() {
                   `}
                 >
                   <Sparkles className={`w-4 h-4 ${isSmartMode ? 'animate-pulse' : ''}`} />
-                  <span className="text-sm font-bold">Smart Mode</span>
+                  <span className="text-sm font-bold">{isMobile ? 'Smart' : 'Smart Mode'}</span>
                 </button>
 
                 {/* Knowledge Base Link */}
@@ -491,14 +497,14 @@ export default function AIAssistant() {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300 dark:border-surface-700 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all"
                 >
                   <BookOpen className="w-4 h-4" />
-                  <span className="text-sm font-bold">Knowledge</span>
+                  <span className="text-sm font-bold hidden sm:inline">Knowledge</span>
                 </button>
               </div>
             </PageHeader>
           </div>
           
           {/* Model Selector */}
-          <div className="flex items-center gap-3 mt-4 p-3 rounded-xl bg-surface-100 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700/50 w-fit">
+          <div className="flex items-center gap-3 mt-4 p-3 rounded-xl bg-surface-100 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700/50 w-full sm:w-fit">
             <div className="w-8 h-8 rounded-lg bg-accent-50 dark:bg-accent-900/20 flex items-center justify-center">
               <Cpu className="w-4 h-4 text-accent-600 dark:text-accent-400" />
             </div>
@@ -534,7 +540,10 @@ export default function AIAssistant() {
         </div>
 
         {/* Input Form */}
-        <div className="bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 p-4">
+        <div
+          className="bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 p-4"
+          style={isMobile ? { paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' } : undefined}
+        >
           <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto">
             <div className="flex gap-3 items-end">
               <div className="flex-1 relative">
@@ -554,14 +563,16 @@ export default function AIAssistant() {
               </div>
               
               {isStreaming ? (
-                <button
+                <motion.button
                   type="button"
                   onClick={stopStreaming}
-                  className="bg-danger-500 hover:bg-danger-600 text-white flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-danger-500/20 active:scale-95"
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                  className="bg-danger-500 hover:bg-danger-600 text-white flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-colors shadow-lg shadow-danger-500/20"
                 >
                   <X className="w-4 h-4" />
                   <span>Stop</span>
-                </button>
+                </motion.button>
               ) : (
                 <button
                   type="submit"
@@ -575,7 +586,7 @@ export default function AIAssistant() {
             </div>
             
             {/* Character/Token Counter */}
-            <div className="flex items-center justify-between mt-2">
+            <div className={`mt-2 flex ${isMobile ? 'flex-col items-start gap-1' : 'items-center justify-between'}`}>
               <p className="text-xs text-surface-400 dark:text-surface-500">
                 AI responses are generated based on your data and may require verification.
               </p>

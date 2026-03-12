@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Palette, Sun, Moon, Monitor, Layout, 
+import { motion } from 'framer-motion';
+import {
+  Palette, Sun, Moon, Monitor, Layout,
   Type, Calendar, Hash, Save
 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
@@ -36,10 +37,12 @@ export default memo(function AppearanceSection() {
               ].map(({ id, icon: Icon, label }) => {
                 const isActive = ctx.themePreference === id;
                 return (
-                  <button
+                  <motion.button
                     key={id}
                     onClick={() => handleApplyTheme(id)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all active:scale-95 ${
+                    whileTap={{ scale: 0.93 }}
+                    transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${
                       isActive
                         ? 'bg-surface-card border-accent-blue shadow-md text-accent-blue'
                         : 'bg-surface-elevated border-border-muted text-text-muted hover:border-border-strong'
@@ -47,7 +50,7 @@ export default memo(function AppearanceSection() {
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-xs font-semibold uppercase tracking-widest">{label}</span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -119,13 +122,15 @@ export default memo(function AppearanceSection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSaveAppearance} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSaveAppearance}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              <Save className="w-4 h-4 mr-2" /> 
+              <Save className="w-4 h-4 mr-2" />
               Save Appearance
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

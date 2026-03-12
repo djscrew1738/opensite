@@ -7,6 +7,7 @@
  */
 
 import { memo } from 'react';
+import { motion } from 'framer-motion';
 import { Sun, Monitor } from 'lucide-react';
 import { useFieldMode } from '../../hooks/useFieldMode';
 import { colors } from '../../styles/tokens';
@@ -65,20 +66,22 @@ const ButtonVariant = memo(function ButtonVariant({
   className,
 }) {
   return (
-    <button
+    <motion.button
       onClick={onToggle}
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className={`
         relative inline-flex items-center gap-2 rounded-lg font-semibold
-        transition-all duration-200 active:scale-95
-        ${isFieldMode 
-          ? 'text-black' 
+        transition-colors duration-200
+        ${isFieldMode
+          ? 'text-black'
           : 'bg-surface-elevated text-text-secondary hover:text-text-primary border border-border hover:border-border-strong'
         }
         ${sizes.button}
         ${className}
       `}
-      style={{ 
-        minHeight: 48, 
+      style={{
+        minHeight: 48,
         minWidth: 48,
         backgroundColor: isFieldMode ? FIELD_MODE_GREEN : undefined,
         boxShadow: isFieldMode ? `0 0 20px ${FIELD_MODE_GREEN}66` : undefined,
@@ -87,7 +90,7 @@ const ButtonVariant = memo(function ButtonVariant({
       aria-label={isFieldMode ? 'Disable Field Mode' : 'Enable Field Mode'}
       title={isFieldMode ? 'Field Mode On - Optimized for outdoor use' : 'Enable Field Mode for outdoor visibility'}
     >
-      <Sun 
+      <Sun
         className={`${sizes.icon} ${isFieldMode ? 'animate-pulse' : ''}`}
         strokeWidth={isFieldMode ? 2.5 : 2}
       />
@@ -96,15 +99,15 @@ const ButtonVariant = memo(function ButtonVariant({
           {isFieldMode ? 'Field On' : 'Field Mode'}
         </span>
       )}
-      
+
       {/* Active indicator dot */}
       {isFieldMode && (
-        <span 
-          className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse" 
+        <span
+          className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse"
           style={{ backgroundColor: FIELD_MODE_INDICATOR }}
         />
       )}
-    </button>
+    </motion.button>
   );
 });
 
@@ -175,20 +178,22 @@ const IconVariant = memo(function IconVariant({
   className,
 }) {
   return (
-    <button
+    <motion.button
       onClick={onToggle}
+      whileTap={{ scale: 0.88 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className={`
         relative inline-flex items-center justify-center rounded-lg
-        transition-all duration-200 active:scale-95
-        ${!isFieldMode 
+        transition-colors duration-200
+        ${!isFieldMode
           ? 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
           : ''
         }
         ${sizes.button}
         ${className}
       `}
-      style={{ 
-        minHeight: 48, 
+      style={{
+        minHeight: 48,
         minWidth: 48,
         backgroundColor: isFieldMode ? `${FIELD_MODE_GREEN}1A` : undefined,
         border: isFieldMode ? `2px solid ${FIELD_MODE_GREEN}` : undefined,
@@ -204,11 +209,11 @@ const IconVariant = memo(function IconVariant({
       />
       
       {/* Status indicator */}
-      <span 
+      <span
         className="absolute bottom-1 right-1 w-2 h-2 rounded-full"
         style={{ backgroundColor: isFieldMode ? FIELD_MODE_GREEN : colors.text.muted }}
       />
-    </button>
+    </motion.button>
   );
 });
 

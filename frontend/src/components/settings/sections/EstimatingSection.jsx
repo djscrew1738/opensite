@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Calculator, DollarSign, Percent, TrendingUp, 
+import { motion } from 'framer-motion';
+import {
+  Calculator, DollarSign, Percent, TrendingUp,
   Clock, ShieldCheck, FileCheck, Save, Loader2,
   BadgeDollarSign
 } from 'lucide-react';
@@ -153,14 +154,16 @@ export default memo(function EstimatingSection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSaveEstimating} 
-              disabled={ctx.savingEstimating} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSaveEstimating}
+              disabled={ctx.savingEstimating}
+              whileTap={!ctx.savingEstimating ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              {ctx.savingEstimating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              {ctx.savingEstimating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save Estimating Defaults
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

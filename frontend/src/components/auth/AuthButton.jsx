@@ -4,6 +4,7 @@
  */
 
 import { memo } from 'react';
+import { motion } from 'framer-motion';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { colors, shadows } from '../../styles/tokens';
 
@@ -28,30 +29,23 @@ export const AuthButton = memo(function AuthButton({
   const isDisabled = disabled || isLoading;
   
   return (
-    <button
+    <motion.button
       type={type}
       onClick={onClick}
       disabled={isDisabled}
+      whileHover={!isDisabled ? { backgroundColor: colors.accent.hover } : undefined}
+      whileTap={!isDisabled ? { scale: 0.98 } : undefined}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className={`
-        w-full py-4 font-bold rounded-xl transition-all 
-        flex items-center justify-center gap-2 
-        active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+        w-full py-4 font-bold rounded-xl
+        flex items-center justify-center gap-2
+        disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
       `}
       style={{
         backgroundColor: isDisabled ? colors.surface.card : colors.accent.DEFAULT,
         color: 'white',
         boxShadow: isDisabled ? 'none' : shadows.glowBlue,
-      }}
-      onMouseEnter={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.backgroundColor = colors.accent.hover;
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.backgroundColor = colors.accent.DEFAULT;
-        }
       }}
     >
       {isLoading ? (
@@ -65,7 +59,7 @@ export const AuthButton = memo(function AuthButton({
           />
         </>
       )}
-    </button>
+    </motion.button>
   );
 });
 
@@ -85,27 +79,22 @@ export const AuthSecondaryButton = memo(function AuthSecondaryButton({
   const isDisabled = disabled || isLoading;
   
   return (
-    <button
+    <motion.button
       type={type}
       onClick={onClick}
       disabled={isDisabled}
+      whileHover={!isDisabled ? { backgroundColor: colors.surface.card } : undefined}
+      whileTap={!isDisabled ? { scale: 0.98 } : undefined}
+      transition={{ type: 'spring', stiffness: 700, damping: 35 }}
       className="
-        w-full py-3.5 border font-semibold rounded-xl transition-all 
-        flex items-center justify-center gap-2 
-        active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+        w-full py-3.5 border font-semibold rounded-xl
+        flex items-center justify-center gap-2
+        disabled:opacity-50 disabled:cursor-not-allowed
       "
       style={{
         backgroundColor: colors.surface.primary,
         borderColor: colors.border.strong,
         color: colors.text.primary,
-      }}
-      onMouseEnter={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.backgroundColor = colors.surface.card;
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = colors.surface.primary;
       }}
     >
       {isLoading ? (
@@ -116,7 +105,7 @@ export const AuthSecondaryButton = memo(function AuthSecondaryButton({
           {children}
         </>
       )}
-    </button>
+    </motion.button>
   );
 });
 

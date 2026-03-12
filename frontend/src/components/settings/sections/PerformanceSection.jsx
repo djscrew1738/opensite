@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Gauge, Clock, Zap, Shield, Server, 
+import { motion } from 'framer-motion';
+import {
+  Gauge, Clock, Zap, Shield, Server,
   Save, Loader2, HardDrive, Cpu, Database
 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
@@ -113,14 +114,16 @@ export default memo(function PerformanceSection() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border-default">
-            <button 
-              onClick={handleSavePerformance} 
-              disabled={ctx.savingPerformance} 
-              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+            <motion.button
+              onClick={handleSavePerformance}
+              disabled={ctx.savingPerformance}
+              whileTap={!ctx.savingPerformance ? { scale: 0.95 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="btn-primary h-11 px-8 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-accent-blue/20"
             >
-              {ctx.savingPerformance ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} 
+              {ctx.savingPerformance ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Apply Optimizations
-            </button>
+            </motion.button>
           </div>
         </div>
       </Section>

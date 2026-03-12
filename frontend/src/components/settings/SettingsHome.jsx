@@ -4,6 +4,7 @@
  */
 
 import { useMemo, memo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Settings, Cpu, Building2, Calculator, Search, Bell, Key,
   Activity, Clock, Zap, Shield, Server, Sparkles,
@@ -20,7 +21,7 @@ import {
 const SettingsHome = memo(function SettingsHome({
   settings = {},
   metrics = {},
-  activeProvider = 'openclaw',
+  activeProvider = 'gemini',
   connected = false,
   availableModels = [],
   onTabChange,
@@ -29,6 +30,7 @@ const SettingsHome = memo(function SettingsHome({
 }) {
   const configStatus = useMemo(() => {
     const hasAI = activeProvider === 'ollama' ? connected :
+      activeProvider === 'gemini' ? settings.gemini_api_key_configured :
       activeProvider === 'groq' ? settings.groq_api_key_configured :
       activeProvider === 'anthropic' ? settings.anthropic_api_key_configured :
       activeProvider === 'openai' ? settings.openai_api_key_configured :
@@ -59,6 +61,16 @@ const SettingsHome = memo(function SettingsHome({
         status: 'warning',
         title: 'Ollama Not Connected',
         message: 'Local AI is unavailable. Check your Ollama server or switch to a cloud provider.',
+        actionLabel: 'Go to AI Settings',
+        onAction: () => onTabChange('ai'),
+      });
+    }
+
+    if (activeProvider === 'gemini' && !settings.gemini_api_key_configured) {
+      list.push({
+        status: 'warning',
+        title: 'Gemini API Key Missing',
+        message: 'Add a Gemini API key to use Gemini as your default AI provider.',
         actionLabel: 'Go to AI Settings',
         onAction: () => onTabChange('ai'),
       });
@@ -240,6 +252,8 @@ const SettingsHome = memo(function SettingsHome({
             status={
               activeProvider === 'ollama' 
                 ? (connected ? 'configured' : 'empty') 
+                : activeProvider === 'openclaw'
+                  ? (settings.openclaw_token_configured || settings.openclaw_url ? 'configured' : 'empty')
                 : (settings[`${activeProvider}_api_key_configured`] ? 'configured' : 'empty')
             }
             onClick={() => onTabChange('ai')}
@@ -302,7 +316,13 @@ const SettingsHome = memo(function SettingsHome({
             <HealthItem
               label="AI Provider"
               value={activeProvider}
-              status={connected || activeProvider !== 'ollama' ? 'good' : 'error'}
+              status={
+                activeProvider === 'ollama'
+                  ? (connected ? 'good' : 'error')
+                  : activeProvider === 'openclaw'
+                    ? ((settings.openclaw_token_configured || settings.openclaw_url) ? 'good' : 'warning')
+                    : (settings[`${activeProvider}_api_key_configured`] ? 'good' : 'warning')
+              }
               icon={Cpu}
             />
             <HealthItem
@@ -339,10 +359,12 @@ const SettingsHome = memo(function SettingsHome({
               { label: 'Auto-Score Leads', value: settings.discovery_auto_score === 'true', icon: Search, tab: 'discovery' },
               { label: 'Background Jobs', value: settings.perf_bg_jobs !== 'false', icon: Server, tab: 'performance' },
             ].map((setting) => (
-              <button
+              <motion.button
                 key={setting.label}
                 onClick={() => onTabChange(setting.tab)}
-                className="w-full flex items-center justify-between p-4 rounded-xl transition-all text-left bg-surface-elevated border border-transparent hover:border-border-strong group active:scale-[0.98]"
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                className="w-full flex items-center justify-between p-4 rounded-xl transition-colors text-left bg-surface-elevated border border-transparent hover:border-border-strong group"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-surface-card group-hover:bg-surface-elevated transition-colors">
@@ -359,7 +381,7 @@ const SettingsHome = memo(function SettingsHome({
                 }`}>
                   {setting.value ? 'Active' : 'Inactive'}
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -383,16 +405,18 @@ const SettingsHome = memo(function SettingsHome({
             { label: 'Release Notes', href: '#', icon: ExternalLink },
             { label: 'Get Support', href: '#', icon: ExternalLink },
           ].map((resource) => (
-            <a
+            <motion.a
               key={resource.label}
               href={resource.href}
-              className="p-4 rounded-xl text-center transition-all bg-surface-elevated border border-border-muted hover:border-accent-blue/40 hover:shadow-md group active:scale-95"
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="p-4 rounded-xl text-center transition-colors bg-surface-elevated border border-border-muted hover:border-accent-blue/40 hover:shadow-md group"
             >
               <resource.icon className="w-5 h-5 mx-auto mb-3 text-text-muted group-hover:text-accent-blue transition-colors" />
               <p className="text-xs font-semibold text-text-secondary group-hover:text-text-primary transition-colors tracking-tight">
                 {resource.label}
               </p>
-            </a>
+            </motion.a>
           ))}
         </div>
       </section>

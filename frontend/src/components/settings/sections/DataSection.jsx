@@ -4,8 +4,9 @@
  */
 
 import { memo } from 'react';
-import { 
-  Database, Download, Upload, Trash2, 
+import { motion } from 'framer-motion';
+import {
+  Database, Download, Upload, Trash2,
   History, Shield, Save, Loader2, RefreshCw,
   AlertCircle, FileJson, Archive
 } from 'lucide-react';
@@ -30,10 +31,12 @@ export default memo(function DataSection() {
         <div className="space-y-6 mt-4">
           <div className="grid md:grid-cols-2 gap-4">
             {/* Export Settings */}
-            <button 
+            <motion.button
               onClick={handleExportSettings}
               disabled={ctx.exportingData}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-surface-elevated border border-border-default hover:border-accent-blue/40 transition-all group active:scale-[0.98]"
+              whileTap={!ctx.exportingData ? { scale: 0.98 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-surface-elevated border border-border-default hover:border-accent-blue/40 transition-colors group"
             >
               <div className="p-3 rounded-xl bg-surface-card group-hover:bg-accent-muted transition-colors">
                 <FileJson className="w-6 h-6 text-accent-blue" />
@@ -42,13 +45,15 @@ export default memo(function DataSection() {
                 <h4 className="text-sm font-bold text-text-primary tracking-tight">Export Settings</h4>
                 <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">JSON Payload</p>
               </div>
-            </button>
+            </motion.button>
 
             {/* Create Backup */}
-            <button 
+            <motion.button
               onClick={handleCreateBackup}
               disabled={ctx.creatingBackup}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-surface-elevated border border-border-default hover:border-success-border/40 transition-all group active:scale-[0.98]"
+              whileTap={!ctx.creatingBackup ? { scale: 0.98 } : undefined}
+              transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-surface-elevated border border-border-default hover:border-success-border/40 transition-colors group"
             >
               <div className="p-3 rounded-xl bg-surface-card group-hover:bg-success-muted transition-colors">
                 <Archive className="w-6 h-6 text-success-light" />
@@ -57,7 +62,7 @@ export default memo(function DataSection() {
                 <h4 className="text-sm font-bold text-text-primary tracking-tight">Database Backup</h4>
                 <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">SQLite Snapshot</p>
               </div>
-            </button>
+            </motion.button>
           </div>
 
           <div className="p-5 rounded-2xl bg-surface-elevated border border-border-default space-y-1">

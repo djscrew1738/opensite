@@ -32,7 +32,7 @@ import { NotificationBellCompact } from '../notifications';
 const primaryNav = [
   { path: '/',       icon: LayoutDashboard, label: 'Home' },
   { path: '/jobs',   icon: HardHat,         label: 'Jobs' },
-  { path: '/leads',  icon: Zap,             label: 'Leads' }, // Changed to leads direct or /jobs?tab=leads
+  { path: '/jobs?tab=leads',  icon: Zap,    label: 'Leads' },
 ];
 
 const moreNavItems = [
@@ -53,6 +53,7 @@ const triggerLogout = () => {
 // Utilities
 // ═══════════════════════════════════════════════════════════════
 
+// Legacy shim — kept for call sites not yet migrated
 const triggerHaptic = (type = 'light') => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
     if (type === 'light') window.navigator.vibrate(10);
@@ -73,10 +74,14 @@ export default function MobileNav({
   onAIOpen,
   isAIOpen = false,
   onQuickAddOpen,
+  hidden = false,
 }) {
   const [showMore, setShowMore] = useState(false);
   const location = useLocation();
   const moreButtonRef = useRef(null);
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const isLeadsTab = location.pathname.startsWith('/jobs') && searchParams.get('tab') === 'leads';
+  const isJobsTab = location.pathname.startsWith('/jobs') && !isLeadsTab;
 
   // Close menus on route change
   useEffect(() => {
@@ -102,15 +107,24 @@ export default function MobileNav({
   }, [showMore]);
 
   const activeIndex = useMemo(() => {
-    const idx = primaryNav.findIndex(item => 
-      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
-    );
-    return idx === -1 ? null : idx;
-  }, [location.pathname]);
+    if (location.pathname === '/') return 0;
+    if (isJobsTab) return 1;
+    if (isLeadsTab) return 2;
+    return null;
+  }, [location.pathname, isJobsTab, isLeadsTab]);
+
+  if (hidden) return null;
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[env(safe-area-inset-bottom,16px)] pointer-events-none">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 px-3 sm:px-4 pointer-events-none"
+        style={{
+          paddingBottom: 'max(env(safe-area-inset-bottom), 10px)',
+          paddingLeft: 'max(env(safe-area-inset-left), 12px)',
+          paddingRight: 'max(env(safe-area-inset-right), 12px)',
+        }}
+      >
         <nav 
           className="mobile-nav-container pointer-events-auto mx-auto max-w-md relative"
           style={{
@@ -185,7 +199,9 @@ export default function MobileNav({
                   triggerHaptic('medium');
                   onAIOpen?.();
                 }}
-                className="relative w-14 h-14 -mt-10 rounded-full flex items-center justify-center transition-all active:scale-90"
+                whileTap={{ scale: 0.87 }}
+                transition={{ type: 'spring', stiffness: 700, damping: 35 }}
+                className="relative w-14 h-14 -mt-10 rounded-full flex items-center justify-center transition-colors"
                 style={{
                   background: `linear-gradient(135deg, ${colors.accent.DEFAULT}, ${colors.accent.hover})`,
                   border: '4px solid #0A0B0D',
@@ -363,9 +379,11 @@ function QuickActionButton({ icon: Icon, label, sub, color, onClick }) {
   };
 
   return (
-    <button 
+    <motion.button
       onClick={onClick}
-      className={`flex flex-col items-start gap-3 p-4 rounded-2xl border bg-gradient-to-br transition-all active:scale-95 text-left ${colors[color]}`}
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 32 }}
+      className={`flex flex-col items-start gap-3 p-4 rounded-2xl border bg-gradient-to-br transition-colors text-left ${colors[color]}`}
     >
       <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md">
         <Icon className="w-5 h-5" />
@@ -374,6 +392,6 @@ function QuickActionButton({ icon: Icon, label, sub, color, onClick }) {
         <p className="font-bold text-surface-100">{label}</p>
         <p className="text-[10px] uppercase tracking-wider opacity-60">{sub}</p>
       </div>
-    </button>
+    </motion.button>
   );
 }

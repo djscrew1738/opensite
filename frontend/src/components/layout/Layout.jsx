@@ -17,6 +17,7 @@ import { GlobalSearch } from '../search';
 import { UploadFAB } from '../upload';
 import { PageHeaderContext } from '../../hooks/usePageHeader';
 import { useSwipe } from '../../hooks/useSwipe';
+import { useInputFocusScroll } from '../../hooks/useInputFocusScroll';
 import { QuickAddFAB } from '../shared/QuickAddFAB';
 import { ScrollToTop } from '../shared/ScrollToTop';
 import { api } from '../../api/client';
@@ -317,6 +318,9 @@ export default function Layout() {
       viewport.removeEventListener('scroll', onViewportChange);
     };
   }, [isMobile]);
+
+  // Auto-scroll focused inputs above keyboard on mobile
+  useInputFocusScroll();
 
   // Keyboard shortcuts
   useKeyboardShortcuts({

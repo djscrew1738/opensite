@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './hooks/useTheme';
@@ -92,39 +93,71 @@ function PageLoader() {
   );
 }
 
+// ─── Page transition variants ─────────────────────────────────────────────────
+// Keyed by navigation direction: +1 = forward (left slide), -1 = back (right slide)
+const pageVariants = {
+  forward: {
+    initial: { opacity: 0, x: 18 },
+    animate: { opacity: 1, x: 0 },
+    exit:    { opacity: 0, x: -10 },
+  },
+  back: {
+    initial: { opacity: 0, x: -18 },
+    animate: { opacity: 1, x: 0 },
+    exit:    { opacity: 0, x: 10 },
+  },
+  neutral: {
+    initial: { opacity: 0, y: 6 },
+    animate: { opacity: 1, y: 0 },
+    exit:    { opacity: 0, y: -3 },
+  },
+};
+
+const pageTransition = {
+  duration: 0.22,
+  ease: [0.25, 1, 0.5, 1],
+};
+
 /**
- * Page transition wrapper with directional animation
+ * PageTransition — Framer-powered enter + exit animations
+ * Direction is derived from the route order in routePrefetchMap.
  */
 function PageTransition({ children }) {
   const location = useLocation();
-  const [displayChildren, setDisplayChildren] = useState(children);
-  const [prevPath, setPrevPath] = useState(location.pathname);
-  const [transitionClass, setTransitionClass] = useState('page-transition-wrapper');
+  const directionRef = useRef('neutral');
+  const prevPathRef = useRef(location.pathname);
 
-  useEffect(() => {
-    if (location.pathname === prevPath) return;
+  // Determine direction before render so variants are set on first frame
+  const paths = Object.keys(routePrefetchMap);
+  const currentIdx = paths.indexOf(location.pathname);
+  const prevIdx    = paths.indexOf(prevPathRef.current);
 
-    const paths = Object.keys(routePrefetchMap);
-    const currentIdx = paths.indexOf(location.pathname);
-    const prevIdx = paths.indexOf(prevPath);
-    
-    const hasValidTransition = currentIdx !== -1 && prevIdx !== -1;
-    const direction = currentIdx > prevIdx ? 'page-slide-left' : 'page-slide-right';
-    const nextClass = hasValidTransition ? direction : 'page-transition-wrapper';
+  if (location.pathname !== prevPathRef.current) {
+    if (currentIdx !== -1 && prevIdx !== -1) {
+      directionRef.current = currentIdx > prevIdx ? 'forward' : 'back';
+    } else {
+      directionRef.current = 'neutral';
+    }
+    prevPathRef.current = location.pathname;
+  }
 
-    const timer = setTimeout(() => {
-      setTransitionClass(nextClass);
-      setDisplayChildren(children);
-      setPrevPath(location.pathname);
-    }, 30);
-    
-    return () => clearTimeout(timer);
-  }, [location.pathname, children, prevPath]);
+  const variants = pageVariants[directionRef.current];
 
   return (
-    <div className={`tab-content-wrapper ${transitionClass}`} key={location.pathname}>
-      {displayChildren}
-    </div>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={location.pathname}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={variants}
+        transition={pageTransition}
+        className="tab-content-wrapper"
+        style={{ willChange: 'transform, opacity' }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }
 

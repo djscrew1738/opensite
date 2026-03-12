@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTabKeyboardNav } from './useTabAnimation';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -63,6 +63,19 @@ function MobileTabButton({ tab, isActive, onClick, variant = 'default', showLabe
   const styles = MOBILE_VARIANTS[variant] || MOBILE_VARIANTS.default;
   const Icon = tab.icon;
   const haptic = useHaptic();
+  // Track badge changes so we can ping when a new badge appears
+  const prevBadgeRef = useRef(tab.badge || 0);
+  const [isPinging, setIsPinging] = useState(false);
+  useEffect(() => {
+    const prev = prevBadgeRef.current;
+    const curr = tab.badge || 0;
+    if (curr > prev) {
+      setIsPinging(true);
+      const t = setTimeout(() => setIsPinging(false), 1200);
+      return () => clearTimeout(t);
+    }
+    prevBadgeRef.current = curr;
+  }, [tab.badge]);
 
   const handleClick = useCallback(() => {
     haptic.select();
@@ -122,13 +135,20 @@ function MobileTabButton({ tab, isActive, onClick, variant = 'default', showLabe
 
       {/* Badge */}
       {tab.badge > 0 && (
-        <motion.span
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-[#EF4444] text-white text-[9px] font-bold rounded-full flex items-center justify-center"
-        >
-          {tab.badge > 99 ? '99+' : tab.badge}
-        </motion.span>
+        <div className="absolute top-1 right-1">
+          {/* Ping ring — shows briefly when badge count increases */}
+          {isPinging && (
+            <span className="absolute inset-0 rounded-full bg-[#EF4444] animate-ping opacity-75" />
+          )}
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+            className="relative min-w-[16px] h-4 px-1 bg-[#EF4444] text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+          >
+            {tab.badge > 99 ? '99+' : tab.badge}
+          </motion.span>
+        </div>
       )}
     </motion.button>
   );

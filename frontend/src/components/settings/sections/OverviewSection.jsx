@@ -13,7 +13,6 @@ export default function OverviewSection() {
     metrics, 
     config, 
     activeProvider, 
-    connected, 
     availableModels,
     refetchMetrics 
   } = useSettings();
@@ -24,7 +23,6 @@ export default function OverviewSection() {
       metrics={metrics}
       config={config}
       activeProvider={activeProvider}
-      connected={connected}
       availableModels={availableModels}
       onTabChange={handleTabChange}
       onRefreshMetrics={refetchMetrics}

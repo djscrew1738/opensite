@@ -15,6 +15,69 @@ import {
   QuickAction, StatusCard, StatCard, ConfigCategory, HealthItem, ProgressBar
 } from './primitives';
 
+function buildSettingsAlerts({ settings = {}, activeProvider = 'gemini' }) {
+  const alerts = [];
+  const activeProviderConfigured =
+    activeProvider === 'gemini'
+      ? settings.gemini_api_key_configured
+      : activeProvider === 'openai'
+        ? settings.openai_api_key_configured
+        : Boolean(settings.openclaw_token_configured || settings.openclaw_url);
+
+  if (!activeProviderConfigured) {
+    alerts.push({
+      key: 'ai',
+      status: 'warning',
+      title: 'AI provider setup incomplete',
+      message: 'Add credentials for the active provider to unlock model access and AI responses.',
+      actionLabel: 'Open AI settings',
+      tab: 'ai',
+    });
+  }
+
+  if (!settings.company_name) {
+    alerts.push({
+      key: 'business',
+      status: 'info',
+      title: 'Business profile incomplete',
+      message: 'Add your company details so estimating, responses, and automations can use the right business context.',
+      actionLabel: 'Configure business',
+      tab: 'business',
+    });
+  }
+
+  if (!settings.serper_api_key_configured && !settings.google_places_api_key_configured) {
+    alerts.push({
+      key: 'discovery',
+      status: 'info',
+      title: 'Lead discovery is not configured',
+      message: 'Add Serper.dev or Google Places credentials before expecting lead discovery to produce results.',
+      actionLabel: 'Add API keys',
+      tab: 'apikeys',
+    });
+  }
+
+  return alerts;
+}
+
+export function getSettingsPriorityStatus({ settings = {}, activeProvider = 'gemini' }) {
+  const alerts = buildSettingsAlerts({ settings, activeProvider });
+
+  if (alerts.length === 0) {
+    return {
+      key: 'overview',
+      status: 'success',
+      title: 'Core configuration is in place',
+      message: 'Review the remaining categories below whenever you need finer control, but the main setup path is complete.',
+      actionLabel: 'Review overview',
+      tab: 'overview',
+    };
+  }
+
+  const priorityAlert = alerts[0];
+  return priorityAlert;
+}
+
 /**
  * SettingsHome - Settings dashboard and overview
  */
@@ -22,7 +85,6 @@ const SettingsHome = memo(function SettingsHome({
   settings = {},
   metrics = {},
   activeProvider = 'gemini',
-  connected = false,
   availableModels = [],
   onTabChange,
   onRefreshMetrics,
@@ -50,49 +112,29 @@ const SettingsHome = memo(function SettingsHome({
   const uptimeFormatted = metrics.uptimeMs
     ? `${Math.floor(metrics.uptimeMs / 3600000)}h ${Math.floor((metrics.uptimeMs % 3600000) / 60000)}m` : '--';
 
+  const priorityStatus = useMemo(
+    () => getSettingsPriorityStatus({ settings, activeProvider }),
+    [settings, activeProvider]
+  );
+
   const alerts = useMemo(() => {
-    const list = [];
+    const remainingAlerts = buildSettingsAlerts({ settings, activeProvider })
+      .filter((alert) => alert.key !== priorityStatus.key)
+      .map((alert) => ({
+        ...alert,
+        onAction: () => onTabChange(alert.tab),
+      }));
 
-    if (activeProvider === 'gemini' && !settings.gemini_api_key_configured) {
-      list.push({
-        status: 'warning',
-        title: 'Gemini API Key Missing',
-        message: 'Add a Gemini API key to use Gemini as your default AI provider.',
-        actionLabel: 'Go to AI Settings',
-        onAction: () => onTabChange('ai'),
-      });
-    }
-
-    if (!settings.company_name) {
-      list.push({
-        status: 'info',
-        title: 'Business Profile Incomplete',
-        message: 'Add your company details for personalized AI responses and estimates.',
-        actionLabel: 'Configure Business',
-        onAction: () => onTabChange('business'),
-      });
-    }
-
-    if (!settings.serper_api_key_configured && !settings.google_places_api_key_configured) {
-      list.push({
-        status: 'info',
-        title: 'Discovery API Keys Missing',
-        message: 'Add Serper.dev or Google Places API key to enable lead discovery.',
-        actionLabel: 'Add API Keys',
-        onAction: () => onTabChange('apikeys'),
-      });
-    }
-
-    if (configStatus.percentage === 100) {
-      list.push({
+    if (priorityStatus.status === 'success' && configStatus.percentage === 100) {
+      remainingAlerts.push({
         status: 'success',
-        title: 'All Systems Configured',
+        title: 'All systems configured',
         message: 'Your OpenSite instance is fully configured and ready to use.',
       });
     }
 
-    return list;
-  }, [settings, activeProvider, configStatus.percentage, onTabChange]);
+    return remainingAlerts;
+  }, [settings, activeProvider, priorityStatus, configStatus.percentage, onTabChange]);
 
   if (isLoading) {
     return (

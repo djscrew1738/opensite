@@ -86,6 +86,7 @@ const MobileSidebarDrawer = memo(function MobileSidebarDrawer({
   const swipeHandlers = useSwipe({
     onSwipeLeft: onClose,
     threshold: 50,
+    preventScrollOnSwipe: true,
   });
 
   useEffect(() => {
@@ -333,6 +334,13 @@ export default function Layout() {
     onSearch: () => setShowSearch(true),
   });
 
+  // Global event for route-level mobile tab bars to open AI assistant consistently.
+  useEffect(() => {
+    const handleOpenAI = () => setShowAI(true);
+    window.addEventListener('app-open-ai', handleOpenAI);
+    return () => window.removeEventListener('app-open-ai', handleOpenAI);
+  }, []);
+
   // QuickAddFAB callbacks
   const handleFileUpload = useCallback(async (file) => {
     try {
@@ -392,7 +400,18 @@ export default function Layout() {
     location.pathname.startsWith('/leads')
   );
 
-  const shouldHideQuickAdd = showAI || showNotifications || showCommandPalette || (isMobile && hasRouteLevelMobileTabs);
+  const shouldHideGlobalMobileActions = isMobile && (
+    hasRouteLevelMobileTabs ||
+    showAI ||
+    showNotifications ||
+    showCommandPalette ||
+    showMobileSidebar
+  );
+
+  const mobileActionVisibility = {
+    hideFloatingActions: shouldHideGlobalMobileActions,
+    hideNavigation: isKeyboardOpen || shouldHideGlobalMobileActions,
+  };
 
   return (
     <ErrorBoundary componentName="App">
@@ -440,7 +459,7 @@ export default function Layout() {
               )}
 
               {/* Page Content */}
-              <div className={`flex-1 relative ${isMobile && !isKeyboardOpen && !hasRouteLevelMobileTabs ? 'mobile-content-safe-bottom' : ''}`}>
+              <div className={`flex-1 relative ${isMobile && !mobileActionVisibility.hideNavigation && !hasRouteLevelMobileTabs ? 'mobile-content-safe-bottom' : ''}`}>
                 <SectionErrorBoundary>
                   <div className="page-transition-wrapper">
                     <Outlet />
@@ -476,7 +495,7 @@ export default function Layout() {
           <AIFloatingButton onClick={() => setShowAI(true)} isOpen={showAI} />
         )}
 
-        {isMobile && !showMobileSidebar && !showNotifications && !showAI && (
+        {isMobile && !showMobileSidebar && !showNotifications && !showAI && !showCommandPalette && (
           <EdgeSwipeDetector onSwipeRight={() => setShowMobileSidebar(true)} />
         )}
 
@@ -496,7 +515,7 @@ export default function Layout() {
           onAddLead={handleAddLead}
           onAddNote={handleAddNote}
           hasUnprocessedBlueprints={processingFiles.length > 0}
-          className={shouldHideQuickAdd ? 'opacity-0 pointer-events-none' : ''}
+          hidden={mobileActionVisibility.hideFloatingActions}
           bottomOffset={isMobile
             ? (isKeyboardOpen
               ? 'calc(1rem + env(safe-area-inset-bottom, 0px))'
@@ -506,17 +525,13 @@ export default function Layout() {
             : undefined}
         />
 
-        <UploadFAB hidden={isMobile} />
+        <UploadFAB hidden={isMobile || mobileActionVisibility.hideFloatingActions} />
 
-        {isMobile && !isKeyboardOpen && !hasRouteLevelMobileTabs && (
+        {isMobile && (
           <MobileNav
-            alertCount={unreadCount}
-            hasUrgent={hasUrgent}
-            onCommandPaletteOpen={() => setShowCommandPalette(true)}
-            onNotificationsOpen={() => setShowNotifications(true)}
             onAIOpen={() => setShowAI(true)}
             isAIOpen={showAI}
-            hidden={showAI || showNotifications || showCommandPalette || showMobileSidebar || hasRouteLevelMobileTabs}
+            hidden={mobileActionVisibility.hideNavigation}
           />
         )}
 

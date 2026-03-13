@@ -21,6 +21,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 export function useTabAnimation(tabs, options = {}) {
   const {
     defaultTab,
+    activeTab: controlledActiveTab,
     duration = 350,
     persistKey,
     syncUrl = false,
@@ -45,9 +46,10 @@ export function useTabAnimation(tabs, options = {}) {
     return defaultTab || tabs[0]?.id;
   }, [defaultTab, persistKey, syncUrl, tabs]);
 
-  const [activeTab, setActiveTabState] = useState(getInitialTab);
+  const [internalActiveTab, setActiveTabState] = useState(getInitialTab);
+  const activeTab = controlledActiveTab ?? internalActiveTab;
   const [direction, setDirection] = useState(null);
-  const prevTab = useRef(activeTab);
+  const prevTab = useRef(controlledActiveTab ?? getInitialTab());
 
   // Build tab order map for directional animations
   const tabOrder = useMemo(() => 
@@ -61,6 +63,21 @@ export function useTabAnimation(tabs, options = {}) {
     const timer = setTimeout(() => setDirection(null), duration);
     return () => clearTimeout(timer);
   }, [direction, duration, activeTab]);
+
+  useEffect(() => {
+    if (!controlledActiveTab || controlledActiveTab === internalActiveTab) {
+      return;
+    }
+
+    if (!tabs.some((tab) => tab.id === controlledActiveTab)) {
+      return;
+    }
+
+    const newDirection = tabOrder[controlledActiveTab] > tabOrder[prevTab.current] ? 'left' : 'right';
+    setDirection(newDirection);
+    prevTab.current = controlledActiveTab;
+    setActiveTabState(controlledActiveTab);
+  }, [controlledActiveTab, internalActiveTab, tabOrder, tabs]);
 
   // Handle tab change with direction calculation
   const handleTabChange = useCallback((newTab) => {

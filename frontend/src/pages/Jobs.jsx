@@ -62,6 +62,7 @@ const MobileProjectList = memo(function MobileProjectList({
   selectedJobId, 
   onDeleteJob, 
   isLoading,
+  onCreateJob,
   onClose 
 }) {
   const safeJobs = Array.isArray(jobs) ? jobs : [];
@@ -77,7 +78,7 @@ const MobileProjectList = memo(function MobileProjectList({
   if (safeJobs.length === 0) {
     return (
       <div className="p-4">
-        <EmptyJobs size="sm" onCreate={() => {}} />
+        <EmptyJobs size="sm" onCreate={onCreateJob} />
       </div>
     );
   }
@@ -162,7 +163,7 @@ const MobileProjectList = memo(function MobileProjectList({
 /* ─────────────────────────────────────────────
    DESKTOP PROJECT LIST (sidebar)
 ───────────────────────────────────────────── */
-const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId, onDeleteJob, isLoading }) {
+const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId, onDeleteJob, isLoading, onCreateJob }) {
   const safeJobs = Array.isArray(jobs) ? jobs : [];
 
   if (isLoading) {
@@ -176,7 +177,7 @@ const ProjectList = memo(function ProjectList({ jobs, onSelectJob, selectedJobId
   if (safeJobs.length === 0) {
     return (
       <div className="p-4">
-        <EmptyJobs size="sm" onCreate={() => {}} />
+        <EmptyJobs size="sm" onCreate={onCreateJob} />
       </div>
     );
   }
@@ -373,7 +374,107 @@ const EMPTY_JOB = {
   notes: ''
 };
 
-const JOB_TAB_IDS = ['blueprints', 'projects', 'estimating', 'plumbing', 'analysis-jobs', 'leads'];
+const DEFAULT_JOB_TAB = 'projects';
+
+const JOB_PRIMARY_TABS = [
+  { id: 'projects', label: 'Projects', shortLabel: 'Projects', icon: LayoutDashboard },
+  { id: 'blueprints', label: 'Blueprints', shortLabel: 'Blueprints', icon: FileText },
+  { id: 'estimating', label: 'Estimating', shortLabel: 'Estimate', icon: Calculator },
+  { id: 'leads', label: 'Leads', shortLabel: 'Leads', icon: Users },
+];
+
+const JOB_UTILITY_TOOLS = [
+  {
+    id: 'plumbing',
+    label: '4D View',
+    description: 'Inspect the plumbing visualizer without promoting it to a peer workflow.',
+    icon: Box,
+  },
+  {
+    id: 'analysis-jobs',
+    label: 'Analysis Jobs',
+    description: 'Review background blueprint processing when you need deeper diagnostics.',
+    icon: Calendar,
+  },
+];
+
+const JOB_UTILITY_PANEL = {
+  title: 'More tools',
+  description: 'Lower-frequency utilities stay nearby without crowding the main Jobs entry path.',
+};
+
+const LEGACY_JOB_TAB_REDIRECTS = {
+  'plumbing': 'projects',
+  'analysis-jobs': 'projects',
+};
+
+const JOB_PRIMARY_TAB_IDS = JOB_PRIMARY_TABS.map(({ id }) => id);
+const JOB_UTILITY_TOOL_IDS = JOB_UTILITY_TOOLS.map(({ id }) => id);
+
+function resolveJobsWorkspace(tabValue) {
+  if (JOB_PRIMARY_TAB_IDS.includes(tabValue)) {
+    return { primaryTab: tabValue, utilityTool: null };
+  }
+
+  if (JOB_UTILITY_TOOL_IDS.includes(tabValue)) {
+    return {
+      primaryTab: LEGACY_JOB_TAB_REDIRECTS[tabValue] || DEFAULT_JOB_TAB,
+      utilityTool: tabValue,
+    };
+  }
+
+  return { primaryTab: DEFAULT_JOB_TAB, utilityTool: null };
+}
+
+function renderUtilityTool(toolId) {
+  if (toolId === 'plumbing') {
+    return <PlumbingVisualizer />;
+  }
+
+  if (toolId === 'analysis-jobs') {
+    return <AnalysisJobsDashboard />;
+  }
+
+  return null;
+}
+
+function UtilityWorkspace({ tool, onBack }) {
+  if (!tool) {
+    return null;
+  }
+
+  const Icon = tool.icon;
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-[#111318] border border-[#1F2430] flex items-center justify-center shrink-0">
+            <Icon className="w-6 h-6 text-[#3B82F6]" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-[#64748B] mb-2">
+              {JOB_UTILITY_PANEL.title}
+            </p>
+            <h3 className="text-xl font-semibold text-[#F8FAFC]">{tool.label}</h3>
+            <p className="text-sm text-[#94A3B8] mt-1 max-w-2xl">{tool.description}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#1F2430] text-sm text-[#CBD5E1] hover:text-white hover:border-[#334155] hover:bg-[#111318] transition-colors"
+        >
+          <ArrowRight className="w-4 h-4 rotate-180" />
+          Back to projects
+        </button>
+      </div>
+      <div className="flex-1 min-h-0">
+        {renderUtilityTool(tool.id)}
+      </div>
+    </div>
+  );
+}
 
 /* ─────────────────────────────────────────────
    MAIN JOBS PAGE
@@ -386,41 +487,73 @@ export default function Jobs() {
   const isTouch = useIsTouchDevice();
 
   const queryTab = searchParams.get('tab');
-  const initialTab = JOB_TAB_IDS.includes(queryTab) ? queryTab : 'blueprints';
+  const initialWorkspace = resolveJobsWorkspace(queryTab);
 
-  const [activeTab, setActiveTabState] = useState(initialTab);
+  const [activeTab, setActiveTabState] = useState(initialWorkspace.primaryTab);
+  const [activeUtilityTool, setActiveUtilityTool] = useState(initialWorkspace.utilityTool);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobData, setNewJobData] = useState(EMPTY_JOB);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
-  const setActiveTab = useCallback((nextTab) => {
-    if (!JOB_TAB_IDS.includes(nextTab)) return;
-
-    setActiveTabState(nextTab);
-
+  const syncJobsQuery = useCallback((nextPrimaryTab, nextUtilityTool = null) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (nextTab === 'blueprints') {
+
+    if (nextUtilityTool) {
+      nextParams.set('tab', nextUtilityTool);
+    } else if (nextPrimaryTab === DEFAULT_JOB_TAB) {
       nextParams.delete('tab');
     } else {
-      nextParams.set('tab', nextTab);
+      nextParams.set('tab', nextPrimaryTab);
     }
+
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const setActiveTab = useCallback((nextTab) => {
+    if (!JOB_PRIMARY_TAB_IDS.includes(nextTab)) return;
+
+    setActiveTabState(nextTab);
+    setActiveUtilityTool(null);
+    setSelectedJobId(null);
+    setShowMobileSidebar(false);
+    syncJobsQuery(nextTab, null);
+  }, [syncJobsQuery]);
+
+  const openUtilityTool = useCallback((toolId) => {
+    if (!JOB_UTILITY_TOOL_IDS.includes(toolId)) return;
+
+    setActiveTabState(DEFAULT_JOB_TAB);
+    setActiveUtilityTool(toolId);
+    setSelectedJobId(null);
+    setShowMobileSidebar(false);
+    syncJobsQuery(DEFAULT_JOB_TAB, toolId);
+  }, [syncJobsQuery]);
+
+  const closeUtilityTool = useCallback(() => {
+    setActiveUtilityTool(null);
+    syncJobsQuery(DEFAULT_JOB_TAB, null);
+  }, [syncJobsQuery]);
+
   useEffect(() => {
-    if (queryTab && !JOB_TAB_IDS.includes(queryTab)) {
+    if (queryTab && !JOB_PRIMARY_TAB_IDS.includes(queryTab) && !JOB_UTILITY_TOOL_IDS.includes(queryTab)) {
       const cleaned = new URLSearchParams(searchParams);
       cleaned.delete('tab');
       setSearchParams(cleaned, { replace: true });
       return;
     }
 
-    if (queryTab && queryTab !== activeTab) {
-      setActiveTabState(queryTab);
+    const resolvedWorkspace = resolveJobsWorkspace(queryTab);
+
+    if (resolvedWorkspace.primaryTab !== activeTab) {
+      setActiveTabState(resolvedWorkspace.primaryTab);
     }
-  }, [queryTab, activeTab, searchParams, setSearchParams]);
+
+    if (resolvedWorkspace.utilityTool !== activeUtilityTool) {
+      setActiveUtilityTool(resolvedWorkspace.utilityTool);
+    }
+  }, [queryTab, activeTab, activeUtilityTool, searchParams, setSearchParams]);
 
   // Blueprint analysis state
   const [analysisState, setAnalysisState] = useState(ANALYSIS_STAGES.IDLE);
@@ -489,37 +622,41 @@ export default function Jobs() {
         }
       });
 
-      setUploadProgress({ stage: 'Extract', percent: 30 });
-
-      if (uploadResult?.files?.[0]) {
-        const filePath = uploadResult.files[0].path;
-        await new Promise(r => setTimeout(r, 800));
-        setUploadProgress({ stage: 'Extract', percent: 50 });
-
-        const extractResult = await api.upload.extract({ filePath });
-        setUploadProgress({ stage: 'Analyze', percent: 60 });
-
-        await new Promise(r => setTimeout(r, 1000));
-        setUploadProgress({ stage: 'Analyze', percent: 75 });
-
-        const estimateResult = await api.estimates.calculate({
-          fixtures: extractResult.fixtures || [],
-          blueprint: extractResult.blueprint
-        });
-
-        setUploadProgress({ stage: 'Estimate', percent: 90 });
-        await new Promise(r => setTimeout(r, 500));
-        setUploadProgress({ stage: 'Complete', percent: 100 });
-
-        setAnalysisResults({
-          fixtures: extractResult.fixtures || [],
-          blueprint: extractResult.blueprint,
-          estimate: estimateResult
-        });
-
-        setAnalysisState(ANALYSIS_STAGES.COMPLETE);
-        showToast('Blueprint analysis complete', 'success');
+      if (!uploadResult?.files?.[0]) {
+        setUploadProgress({ stage: 'Upload', percent: 0 });
+        setAnalysisState(ANALYSIS_STAGES.ERROR);
+        showToast('Upload completed without a file to analyze', 'error');
+        return;
       }
+
+      setUploadProgress({ stage: 'Extract', percent: 30 });
+      const filePath = uploadResult.files[0].path;
+      await new Promise(r => setTimeout(r, 800));
+      setUploadProgress({ stage: 'Extract', percent: 50 });
+
+      const extractResult = await api.upload.extract({ filePath });
+      setUploadProgress({ stage: 'Analyze', percent: 60 });
+
+      await new Promise(r => setTimeout(r, 1000));
+      setUploadProgress({ stage: 'Analyze', percent: 75 });
+
+      const estimateResult = await api.estimates.calculate({
+        fixtures: extractResult.fixtures || [],
+        blueprint: extractResult.blueprint
+      });
+
+      setUploadProgress({ stage: 'Estimate', percent: 90 });
+      await new Promise(r => setTimeout(r, 500));
+      setUploadProgress({ stage: 'Complete', percent: 100 });
+
+      setAnalysisResults({
+        fixtures: extractResult.fixtures || [],
+        blueprint: extractResult.blueprint,
+        estimate: estimateResult
+      });
+
+      setAnalysisState(ANALYSIS_STAGES.COMPLETE);
+      showToast('Blueprint analysis complete', 'success');
     } catch (err) {
       console.error('Analysis error:', err);
       setAnalysisState(ANALYSIS_STAGES.ERROR);
@@ -573,19 +710,18 @@ export default function Jobs() {
     setUploadProgress({ stage: 'Upload', percent: 0 });
   }, []);
 
-  // Tab definitions for mobile bottom bar
-  const tabDefinitions = useMemo(() => [
-    { id: 'blueprints', label: 'Blueprints', shortLabel: 'Blueprints', icon: FileText },
-    { id: 'projects', label: 'Projects', shortLabel: 'Projects', icon: LayoutDashboard },
-    { id: 'estimating', label: 'Estimating', shortLabel: 'Estimate', icon: Calculator },
-    { id: 'plumbing', label: '4D View', shortLabel: '4D View', icon: Box },
-    { id: 'analysis-jobs', label: 'Analysis Jobs', shortLabel: 'Analysis', icon: Calendar },
-    { id: 'leads', label: 'Lead Finder', shortLabel: 'Leads', icon: Users },
-  ], []);
-
   // Stable callbacks for memoized child lists
-  const handleSelectJob = useCallback((job) => setSelectedJobId(job.id), []);
+  const activeUtility = useMemo(
+    () => JOB_UTILITY_TOOLS.find((tool) => tool.id === activeUtilityTool) || null,
+    [activeUtilityTool]
+  );
+
+  const handleSelectJob = useCallback((job) => {
+    setActiveUtilityTool(null);
+    setSelectedJobId(job.id);
+  }, []);
   const handleSelectJobMobile = useCallback((job) => {
+    setActiveUtilityTool(null);
     setSelectedJobId(job.id);
     setShowMobileSidebar(true);
   }, []);
@@ -595,12 +731,6 @@ export default function Jobs() {
   if (isLoading) {
     return (
       <div className="h-full flex flex-col page-transition-wrapper">
-        <div className="px-4 sm:px-6 py-4 border-b border-[#1F2430]">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
-          <p className="text-sm mt-0.5 text-[#94A3B8]">
-            Upload blueprints and manage projects
-          </p>
-        </div>
         <div className="flex-1 flex items-center justify-center p-6">
           <motion.div 
             className="text-center"
@@ -619,12 +749,6 @@ export default function Jobs() {
   if (isError) {
     return (
       <div className="h-full flex flex-col page-transition-wrapper">
-        <div className="px-4 sm:px-6 py-4 border-b border-[#1F2430]">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
-          <p className="text-sm mt-0.5 text-[#94A3B8]">
-            Upload blueprints and manage projects
-          </p>
-        </div>
         <div className="flex-1 flex items-center justify-center p-6">
           <motion.div 
             className="max-w-md w-full text-center"
@@ -664,20 +788,13 @@ export default function Jobs() {
   return (
     <div ref={ptr.ref} className="h-full flex flex-col page-transition-wrapper momentum-scroll">
       <PullToRefresh {...ptr} />
-      {/* Header */}
-      <motion.div
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-[#1F2430] bg-[#0A0B0D]/80 backdrop-blur-sm sticky top-0 z-10"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#F8FAFC]">Jobs</h1>
-          <p className="text-sm mt-0.5 text-[#94A3B8]">
-            Upload blueprints and manage projects
-          </p>
-        </div>
-        {activeTab === 'projects' && (
+      {activeTab === 'projects' && (
+        <motion.div
+          className="flex justify-end px-4 sm:px-6 py-4 border-b border-[#1F2430] bg-[#0A0B0D]/80 backdrop-blur-sm"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <Button
             variant="primary"
             size="sm"
@@ -688,16 +805,17 @@ export default function Jobs() {
             <span className="hidden sm:inline">New Job</span>
             <span className="sm:hidden">New</span>
           </Button>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Desktop Tabs */}
       {!isMobile && (
         <TabSystem
           defaultTab={activeTab}
+          activeTab={activeTab}
           variant="default"
           className="border-b border-[#1F2430]"
-          onChange={setActiveTab}
+          onTabChange={setActiveTab}
         >
           <Tab id="blueprints" label="Blueprints" icon={FileText}>
             <BlueprintsTab 
@@ -716,9 +834,16 @@ export default function Jobs() {
               jobs={jobs}
               isLoading={isLoading}
               selectedJobId={selectedJobId}
+              activeUtilityTool={activeUtility}
               onSelectJob={handleSelectJob}
               onDeleteJob={handleDeleteJobRequest}
               stats={stats}
+              onCreateJob={() => setShowNewJobModal(true)}
+              onOpenBlueprints={() => setActiveTab('blueprints')}
+              utilityTools={JOB_UTILITY_TOOLS}
+              utilityPanelTitle={JOB_UTILITY_PANEL.title}
+              onOpenUtilityTool={openUtilityTool}
+              onCloseUtilityTool={closeUtilityTool}
             />
           </Tab>
 
@@ -728,17 +853,7 @@ export default function Jobs() {
             </div>
           </Tab>
 
-          <Tab id="plumbing" label="4D View" icon={Box}>
-            <div className="h-full">
-              <PlumbingVisualizer />
-            </div>
-          </Tab>
-
-          <Tab id="analysis-jobs" label="Analysis Jobs" icon={Calendar}>
-            <AnalysisJobsDashboard />
-          </Tab>
-
-          <Tab id="leads" label="Lead Finder" icon={Users}>
+          <Tab id="leads" label="Leads" icon={Users}>
             <LeadFinder />
           </Tab>
         </TabSystem>
@@ -781,6 +896,7 @@ export default function Jobs() {
                     jobs={jobs}
                     isLoading={isLoading}
                     selectedJobId={selectedJobId}
+                    activeUtilityTool={activeUtility}
                     onSelectJob={handleSelectJobMobile}
                     onDeleteJob={handleDeleteJobRequest}
                     stats={stats}
@@ -790,6 +906,12 @@ export default function Jobs() {
                       setSelectedJobId(null);
                     }}
                     showSidebar={showMobileSidebar}
+                    onCreateJob={() => setShowNewJobModal(true)}
+                    onOpenBlueprints={() => setActiveTab('blueprints')}
+                    utilityTools={JOB_UTILITY_TOOLS}
+                    utilityPanelTitle={JOB_UTILITY_PANEL.title}
+                    onOpenUtilityTool={openUtilityTool}
+                    onCloseUtilityTool={closeUtilityTool}
                   />
                 </motion.div>
               )}
@@ -803,29 +925,6 @@ export default function Jobs() {
                   className="p-4"
                 >
                   <EstimatingTab />
-                </motion.div>
-              )}
-              
-              {activeTab === 'plumbing' && (
-                <motion.div 
-                  key="plumbing"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="h-full"
-                >
-                  <PlumbingVisualizer />
-                </motion.div>
-              )}
-              
-              {activeTab === 'analysis-jobs' && (
-                <motion.div 
-                  key="analysis-jobs"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <AnalysisJobsDashboard />
                 </motion.div>
               )}
               
@@ -844,11 +943,12 @@ export default function Jobs() {
 
           {/* Mobile Bottom Navigation */}
           <MobileTabBar
-            tabs={tabDefinitions}
+            tabs={JOB_PRIMARY_TABS}
             activeTab={activeTab}
             onChange={setActiveTab}
             variant="default"
             showLabels={true}
+            showCenterAction
           />
         </>
       )}
@@ -1005,7 +1105,21 @@ function BlueprintsTab({
 /* ─────────────────────────────────────────────
    DESKTOP PROJECTS TAB
 ───────────────────────────────────────────── */
-function ProjectsTab({ jobs, isLoading, selectedJobId, onSelectJob, onDeleteJob, stats }) {
+function ProjectsTab({
+  jobs,
+  isLoading,
+  selectedJobId,
+  activeUtilityTool,
+  onSelectJob,
+  onDeleteJob,
+  stats,
+  onCreateJob,
+  onOpenBlueprints,
+  utilityTools,
+  utilityPanelTitle,
+  onOpenUtilityTool,
+  onCloseUtilityTool,
+}) {
   return (
     <div className="h-full flex">
       {/* Project list sidebar */}
@@ -1020,6 +1134,7 @@ function ProjectsTab({ jobs, isLoading, selectedJobId, onSelectJob, onDeleteJob,
           selectedJobId={selectedJobId}
           onDeleteJob={onDeleteJob}
           isLoading={isLoading}
+          onCreateJob={onCreateJob}
         />
       </div>
 
@@ -1044,40 +1159,38 @@ function ProjectsTab({ jobs, isLoading, selectedJobId, onSelectJob, onDeleteJob,
                 Full project details view is coming soon. For now, you can see the project in the sidebar.
               </p>
             </motion.div>
+          ) : activeUtilityTool ? (
+            <motion.div
+              key={activeUtilityTool.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="h-full"
+            >
+              <UtilityWorkspace
+                tool={activeUtilityTool}
+                onBack={onCloseUtilityTool}
+              />
+            </motion.div>
           ) : (
             <motion.div
-              key="empty"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="h-full flex items-center justify-center"
+              key="overview"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
             >
-              <div className="text-center py-12 px-6 max-w-sm">
-                <motion.div 
-                  className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#111318] border border-[#1F2430] flex items-center justify-center"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <FolderOpen className="w-10 h-10 text-[#64748B]" />
-                </motion.div>
-                <h3 className="text-lg font-semibold text-[#F8FAFC] mb-2">Select a Project</h3>
-                <p className="text-sm text-[#94A3B8]">
-                  Choose a project from the sidebar to view details, manage estimates, and track progress.
-                </p>
-                <motion.div
-                  className="mt-6"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <div className="flex items-center justify-center gap-2 text-xs text-[#64748B]">
-                    <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                    <span>{stats.active} active</span>
-                    <span className="w-1 h-1 rounded-full bg-[#64748B]" />
-                    <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                    <span>{stats.pending} pending</span>
-                  </div>
-                </motion.div>
+              <div className="max-w-5xl mx-auto">
+                <OverviewDashboard
+                  jobs={jobs}
+                  stats={stats}
+                  onSelectJob={onSelectJob}
+                  onDeleteJob={onDeleteJob}
+                  onCreateJob={onCreateJob}
+                  onOpenBlueprints={onOpenBlueprints}
+                  utilityTools={utilityTools}
+                  utilityPanelTitle={utilityPanelTitle}
+                  onOpenUtilityTool={onOpenUtilityTool}
+                />
               </div>
             </motion.div>
           )}
@@ -1094,12 +1207,19 @@ function MobileProjectsTab({
   jobs, 
   isLoading, 
   selectedJobId, 
+  activeUtilityTool,
   onSelectJob, 
   onDeleteJob, 
   stats,
   selectedJob,
   onCloseSidebar,
-  showSidebar
+  showSidebar,
+  onCreateJob,
+  onOpenBlueprints,
+  utilityTools,
+  utilityPanelTitle,
+  onOpenUtilityTool,
+  onCloseUtilityTool,
 }) {
   return (
     <div className="h-full relative">
@@ -1119,14 +1239,60 @@ function MobileProjectsTab({
             </div>
           </div>
         </div>
-        <MobileProjectList
-          jobs={jobs}
-          onSelectJob={onSelectJob}
-          selectedJobId={selectedJobId}
-          onDeleteJob={onDeleteJob}
-          isLoading={isLoading}
-          onClose={() => {}}
-        />
+        {activeUtilityTool ? (
+          <div className="p-4 bg-[#0A0B0D]">
+            <UtilityWorkspace
+              tool={activeUtilityTool}
+              onBack={onCloseUtilityTool}
+            />
+          </div>
+        ) : jobs.length === 0 ? (
+          <OverviewDashboard
+            jobs={jobs}
+            stats={stats}
+            onSelectJob={onSelectJob}
+            onDeleteJob={onDeleteJob}
+            onCreateJob={onCreateJob}
+            onOpenBlueprints={onOpenBlueprints}
+            utilityTools={utilityTools}
+            utilityPanelTitle={utilityPanelTitle}
+            onOpenUtilityTool={onOpenUtilityTool}
+          />
+        ) : (
+          <>
+            {utilityTools?.length > 0 && (
+              <div className="px-4 py-3 border-b border-[#1F2430] bg-[#0A0B0D]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-[#F8FAFC]">{utilityPanelTitle}</p>
+                    <p className="text-xs text-[#64748B]">Open lower-frequency utilities without leaving Projects.</p>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {utilityTools.map((tool) => (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => onOpenUtilityTool(tool.id)}
+                        className="px-3 py-2 rounded-lg border border-[#1F2430] text-xs text-[#CBD5E1] hover:text-white hover:border-[#334155] hover:bg-[#111318] transition-colors"
+                      >
+                        {tool.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <MobileProjectList
+              jobs={jobs}
+              onSelectJob={onSelectJob}
+              selectedJobId={selectedJobId}
+              onDeleteJob={onDeleteJob}
+              isLoading={isLoading}
+              onCreateJob={onCreateJob}
+              onClose={() => {}}
+            />
+          </>
+        )}
       </div>
 
       {/* Mobile Sidebar Overlay */}

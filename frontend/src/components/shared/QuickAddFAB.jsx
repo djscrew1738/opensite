@@ -604,6 +604,7 @@ function useFileUpload(onUpload) {
  *   onAddLead?: (data: any) => void;
  *   onAddNote?: (note: string) => void;
  *   hasUnprocessedBlueprints?: boolean;
+ *   hidden?: boolean;
  *   className?: string;
  *   bottomOffset?: string;
  * }} props
@@ -613,6 +614,7 @@ export const QuickAddFAB = memo(function QuickAddFAB({
   onAddLead, 
   onAddNote,
   hasUnprocessedBlueprints = false,
+  hidden = false,
   className = '',
   bottomOffset
 }) {
@@ -636,6 +638,13 @@ export const QuickAddFAB = memo(function QuickAddFAB({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (hidden) {
+      setIsOpen(false);
+      setActiveModal(null);
+    }
+  }, [hidden]);
 
   const handleMenuItemClick = useCallback((itemId) => {
     setIsOpen(false);
@@ -662,6 +671,8 @@ export const QuickAddFAB = memo(function QuickAddFAB({
   const handleNoteSubmit = useCallback((note) => {
     onAddNote?.(note);
   }, [onAddNote]);
+
+  if (hidden) return null;
 
   return (
     <>

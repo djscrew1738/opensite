@@ -1,11 +1,10 @@
 import { Suspense } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowRight } from 'lucide-react';
 import { SettingsProvider, useSettings } from '../components/settings/SettingsContext';
-import { useSettingsActions } from '../components/settings/hooks/useSettingsActions';
-import { StatusPill } from '../components/settings/primitives';
 import TabErrorBoundary from '../components/settings/TabErrorBoundary';
 import TabFallback from '../components/settings/TabFallback';
 import { lazyWithError } from '../components/settings/lazyWithError';
+import { getSettingsPriorityStatus } from '../components/settings/SettingsHome';
 
 /* ─────────────────────────────────────────────
    LAZY TAB COMPONENTS
@@ -34,11 +33,16 @@ function SettingsContent() {
     handleTabChange, 
     tabDirection, 
     NAV_ITEMS, 
-    connected,
+    settings,
+    activeProvider,
     isLoadingSettings
   } = useSettings();
-  
-  const actions = useSettingsActions();
+  const priorityStatus = getSettingsPriorityStatus({ settings, activeProvider });
+  const priorityTone = priorityStatus.status === 'warning'
+    ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+    : priorityStatus.status === 'success'
+      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+      : 'border-blue-500/30 bg-blue-500/10 text-blue-100';
 
   // Render active tab
   const renderActiveTab = () => {
@@ -67,18 +71,33 @@ function SettingsContent() {
 
   return (
     <div className="p-4 md:p-8 page-transition-wrapper max-w-7xl mx-auto">
-      {/* Page header */}
-      <div className="command-header mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1">Settings</h1>
-            <p className="text-sm font-medium text-blue-200/60 leading-relaxed">
-              Advanced configuration — AI models, business profile, and system performance
-            </p>
-          </div>
-          <div className="shrink-0">
-            <StatusPill connected={connected} loading={isLoadingSettings} />
-          </div>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <p className="text-sm font-medium text-blue-200/60 leading-relaxed max-w-2xl">
+          Review setup health and resolve the highest-priority configuration issues below.
+        </p>
+        <div
+          data-settings-priority-status
+          className={`w-full md:max-w-md rounded-2xl border px-4 py-3 shadow-sm ${priorityTone}`}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] opacity-70">
+            {isLoadingSettings ? 'Checking configuration' : 'Next recommended fix'}
+          </p>
+          <p className="mt-2 text-sm font-semibold">
+            {priorityStatus.title}
+          </p>
+          <p className="mt-1 text-sm opacity-80">
+            {priorityStatus.message}
+          </p>
+          {priorityStatus.actionLabel && (
+            <button
+              type="button"
+              onClick={() => handleTabChange(priorityStatus.tab)}
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white transition-colors hover:text-blue-100"
+            >
+              {priorityStatus.actionLabel}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

@@ -222,6 +222,7 @@ export const EmptyState = ({
         <motion.div
           variants={animate ? itemVariants : undefined}
           className="flex items-center gap-3"
+          aria-label="Empty state actions"
         >
           {action && (
             <Button
@@ -229,6 +230,8 @@ export const EmptyState = ({
               size="sm"
               leftIcon={action.icon}
               onClick={action.onClick}
+              aria-label={action.label}
+              data-empty-state-primary-action
             >
               {action.label}
             </Button>
@@ -390,5 +393,24 @@ export const LoadingState = ({
     </motion.div>
   </EmptyState>
 );
+
+// Legacy compatibility exports expected by older barrels/imports.
+export const NoActiveJobsEmpty = EmptyJobs;
+export const NoLeadsTodayEmpty = EmptyLeads;
+export const NoInspectionsEmpty = EmptyState;
+export const NoCanvasDocumentsEmpty = EmptyUploads;
+export const NoAlertsEmpty = EmptyState;
+export const NoSearchResultsEmpty = EmptySearch;
+export const NoJobsEmptyState = EmptyJobs;
+export const NoLeadsEmptyState = EmptyLeads;
+export const NoDocumentsEmptyState = EmptyUploads;
+export const NoSearchResultsEmptyState = EmptySearch;
+export const NoCanvasNodesEmptyState = EmptyState;
+export const NoProposalsEmptyState = EmptyState;
+export const NoNotificationsEmptyState = EmptyState;
+export const ErrorEmptyState = ErrorState;
+export const NoPermitsEmptyState = EmptyState;
+export const NoBlueprintsEmptyState = EmptyUploads;
+export const NoHistoryEmptyState = EmptyState;
 
 export default EmptyState;

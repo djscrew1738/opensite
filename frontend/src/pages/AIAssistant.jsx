@@ -87,7 +87,10 @@ function ConversationDrawer({
   onSelect,
   onNew,
   onDelete,
-  isLoading 
+  isLoading,
+  isError,
+  error,
+  onRetry
 }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   
@@ -140,6 +143,22 @@ function ConversationDrawer({
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-14 rounded-lg bg-surface-200 dark:bg-surface-800 animate-pulse" />
               ))}
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 px-4 text-surface-500">
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm font-medium text-surface-700 dark:text-surface-200">
+                Conversation history unavailable
+              </p>
+              <p className="text-xs mt-1 text-surface-500 dark:text-surface-400">
+                {error?.message || 'We could not load previous chats.'}
+              </p>
+              <button
+                onClick={onRetry}
+                className="mt-4 inline-flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-700 px-3 py-2 text-sm font-medium text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800"
+              >
+                Retry history
+              </button>
             </div>
           ) : conversations.length === 0 ? (
             <div className="text-center py-8 text-surface-500">
@@ -246,7 +265,13 @@ export default function AIAssistant() {
   const effectiveModel = selectedModel || defaultModel;
   
   // Fetch conversations list
-  const { data: conversationsData, isLoading: isLoadingConversations } = useQuery({
+  const {
+    data: conversationsData,
+    isLoading: isLoadingConversations,
+    isError: isConversationsError,
+    error: conversationsError,
+    refetch: refetchConversations,
+  } = useQuery({
     queryKey: ['conversations'],
     queryFn: () => api.history.getConversations({ limit: 50 }),
   });
@@ -401,6 +426,9 @@ export default function AIAssistant() {
         onNew={handleNewConversation}
         onDelete={(id) => deleteMutation.mutate(id)}
         isLoading={isLoadingConversations}
+        isError={isConversationsError}
+        error={conversationsError}
+        onRetry={() => refetchConversations()}
       />
       
       {/* Main Content */}
@@ -531,6 +559,21 @@ export default function AIAssistant() {
 
         {/* Chat Interface */}
         <div className="flex-1 overflow-hidden bg-surface-50 dark:bg-surface-925">
+          {isConversationsError && (
+            <div className="px-4 pt-4">
+              <div className="mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                <div className="flex items-center justify-between gap-3">
+                  <p>History is unavailable right now, but you can still start a new chat.</p>
+                  <button
+                    onClick={() => refetchConversations()}
+                    className="shrink-0 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-100 dark:hover:bg-amber-900/30"
+                  >
+                    Retry history
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <ChatInterface
             messages={messages}
             streamingMessage={streamingMessage}

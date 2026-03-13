@@ -256,6 +256,7 @@ function TabPanel({ children, id, activeTab, direction, animation = 'directional
 export function TabSystem({
   children,
   defaultTab,
+  activeTab: controlledActiveTab,
   variant = 'default',
   animation = 'directional',
   persistKey,
@@ -290,6 +291,7 @@ export function TabSystem({
     handleTabChange,
   } = useTabAnimation(tabs, {
     defaultTab,
+    activeTab: controlledActiveTab,
     persistKey,
     syncUrl,
     onChange: onTabChange,
@@ -299,7 +301,7 @@ export function TabSystem({
     <div className={className}>
       <TabList
         tabs={tabs}
-        activeTab={activeTab}
+        activeTab={controlledActiveTab ?? activeTab}
         onChange={handleTabChange}
         variant={variant}
         showIcons={showIcons}
@@ -315,7 +317,7 @@ export function TabSystem({
           return (
             <TabPanel
               id={child.props.id}
-              activeTab={activeTab}
+              activeTab={controlledActiveTab ?? activeTab}
               direction={direction}
               animation={animation}
             >

@@ -6,14 +6,13 @@
  */
 
 import { memo, useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   HardHat, Clock, CheckCircle2, DollarSign, ChevronRight,
   Trash2, ChevronDown, Paperclip, ExternalLink, File
 } from 'lucide-react';
-import { NoJobsEmpty } from '../empty-states';
-import { AccessibleCard } from '../ui';
+import { AccessibleCard, EmptyState } from '../ui';
 import { UploadDropzone } from '../upload';
 import { uploadApi } from '../../api/upload';
 import { colors, shadows } from '../../styles/tokens';
@@ -40,6 +39,7 @@ const STAT_CARDS = [
  */
 const JobFilesPreview = memo(function JobFilesPreview({ jobId }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: files = [], isLoading } = useQuery({
     queryKey: ['job-files', jobId],
     queryFn: () => uploadApi.getFiles({ jobId }),
@@ -47,7 +47,8 @@ const JobFilesPreview = memo(function JobFilesPreview({ jobId }) {
 
   const handleFiles = useCallback(async (fileList) => {
     await uploadApi.upload(Array.from(fileList), { jobId });
-  }, [jobId]);
+    await queryClient.invalidateQueries({ queryKey: ['job-files', jobId] });
+  }, [jobId, queryClient]);
 
   return (
     <div
@@ -281,14 +282,23 @@ JobRow.displayName = 'JobRow';
  *   jobs: Array<Record<string, any>>,
  *   stats: Record<string, number>,
  *   onSelectJob: (job: any) => void,
- *   onDeleteJob: (job: any) => void
+ *   onDeleteJob: (job: any) => void,
+ *   onCreateJob?: () => void,
+ *   onOpenBlueprints?: () => void,
+ *   utilityTools?: Array<{id: string, label: string, description?: string, icon: React.ComponentType}>,
+ *   onOpenUtilityTool?: (toolId: string) => void
  * }} props
  */
 const OverviewDashboard = memo(function OverviewDashboard({ 
   jobs, 
   stats, 
   onSelectJob, 
-  onDeleteJob 
+  onDeleteJob,
+  onCreateJob,
+  onOpenBlueprints,
+  utilityTools = [],
+  utilityPanelTitle = 'More tools',
+  onOpenUtilityTool,
 }) {
   const [expandedJobId, setExpandedJobId] = useState(null);
 
@@ -321,12 +331,28 @@ const OverviewDashboard = memo(function OverviewDashboard({
         {jobs.length === 0 ? (
           <AccessibleCard 
             ariaLabel="No jobs available"
+            className="p-6"
             style={{
               backgroundColor: colors.surface.card,
               border: `1px solid ${colors.border.default}`,
             }}
           >
-            <NoJobsEmpty onCreate={() => {}} />
+            <EmptyState
+              iconName="clipboard"
+              title="Create your first job"
+              description="Manage jobs, attach plans, and move straight into estimating."
+              action={onCreateJob ? {
+                label: 'Create job',
+                onClick: onCreateJob,
+              } : undefined}
+              secondaryAction={onOpenBlueprints ? {
+                label: 'Upload blueprint',
+                onClick: onOpenBlueprints,
+              } : undefined}
+              size="sm"
+              animate={false}
+              className="min-h-0 px-0 py-2"
+            />
           </AccessibleCard>
         ) : (
           <div className="space-y-3">
@@ -346,6 +372,78 @@ const OverviewDashboard = memo(function OverviewDashboard({
           </div>
         )}
       </div>
+
+      {utilityTools.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h3
+                title={utilityPanelTitle}
+                className="font-semibold"
+                style={{ color: colors.text.primary }}
+              >
+                {utilityPanelTitle}
+              </h3>
+              <p
+                className="text-sm mt-1"
+                style={{ color: colors.text.muted }}
+              >
+                Keep lower-frequency utilities close without crowding the primary workflow.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {utilityTools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <AccessibleCard
+                  key={tool.id}
+                  isInteractive
+                  isHoverable
+                  onClick={() => onOpenUtilityTool?.(tool.id)}
+                  ariaLabel={`${tool.label} tool`}
+                  className="p-4"
+                  style={{
+                    backgroundColor: colors.surface.card,
+                    border: `1px solid ${colors.border.default}`,
+                    boxShadow: shadows.card,
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: colors.surface.elevated }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: colors.accent.DEFAULT }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p
+                          className="font-medium"
+                          style={{ color: colors.text.primary }}
+                        >
+                          {tool.label}
+                        </p>
+                        <ChevronRight
+                          className="w-4 h-4 shrink-0"
+                          style={{ color: colors.text.muted }}
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <p
+                        className="text-sm mt-1"
+                        style={{ color: colors.text.muted }}
+                      >
+                        {tool.description}
+                      </p>
+                    </div>
+                  </div>
+                </AccessibleCard>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

@@ -1,7 +1,7 @@
 /**
  * JobPulseHome Component
  * Dashboard view for job management with metrics, weather, and job board
- * 
+ *
  * @module components/dashboard/JobPulseHome
  */
 
@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { JobCard } from '../jobs';
+import { EmptyState } from '../ui';
 import { PHASES, PHASE_MAP } from '../../styles/tokens';
 import { DashboardSkeleton } from '../shared/LoadingStates';
 import { colors, shadows } from '../../styles/tokens';
@@ -50,29 +51,29 @@ const PHASE_TABS = [
  */
 const MetricCard = memo(function MetricCard({ metric }) {
   if (!metric) return null;
-  
+
   const Icon = ICON_MAP[metric.icon] || HardHat;
-  
+
   return (
-    <div 
+    <div
       className="snap-start flex-shrink-0 w-[140px] rounded-xl border p-3.5 transition-colors hover:border-border-strong"
-      style={{ 
+      style={{
         backgroundColor: colors.surface.card,
         borderColor: colors.border.default,
       }}
     >
-      <div 
+      <div
         className={`${metric.bg} ${metric.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}
       >
         <Icon size={18} />
       </div>
-      <p 
+      <p
         className="font-mono text-2xl font-extrabold tabular-nums leading-none"
         style={{ color: colors.text.primary }}
       >
         {metric.value}
       </p>
-      <p 
+      <p
         className="text-xs mt-1 truncate"
         style={{ color: colors.text.muted }}
       >
@@ -94,7 +95,7 @@ const MetricsStrip = memo(function MetricsStrip({ metrics }) {
   return (
     <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
       <div className="flex gap-3 w-max">
-        {metrics.map(m => (
+        {metrics.map((m) => (
           <MetricCard key={m.label} metric={m} />
         ))}
       </div>
@@ -111,7 +112,7 @@ MetricsStrip.displayName = 'MetricsStrip';
 const WeatherDay = memo(function WeatherDay({ day }) {
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0 w-12 text-center">
-      <p 
+      <p
         className="text-xs font-medium"
         style={{ color: colors.text.secondary }}
       >
@@ -120,14 +121,14 @@ const WeatherDay = memo(function WeatherDay({ day }) {
       <span className="text-xl leading-none" role="img" aria-label={day.forecast}>
         {day.icon}
       </span>
-      <p 
+      <p
         className="text-xs font-semibold tabular-nums"
         style={{ color: colors.text.primary }}
       >
         {day.hi}°
       </p>
       {day.lo !== null && (
-        <p 
+        <p
           className="text-xs tabular-nums"
           style={{ color: colors.text.muted }}
         >
@@ -145,14 +146,14 @@ WeatherDay.displayName = 'WeatherDay';
  * @param {{today: {icon: string, hi: number, lo: number | null, forecast: string, precip: number}}} props
  */
 const TodayWeather = memo(function TodayWeather({ today }) {
-  const precipColor = today.precip >= 50 
-    ? colors.accent.light 
-    : today.precip >= 20 
-      ? colors.text.secondary 
+  const precipColor = today.precip >= 50
+    ? colors.accent.light
+    : today.precip >= 20
+      ? colors.text.secondary
       : colors.text.muted;
 
   return (
-    <div 
+    <div
       className="flex items-center gap-3 shrink-0 pr-4"
       style={{ borderRight: `1px solid ${colors.border.default}` }}
     >
@@ -160,19 +161,19 @@ const TodayWeather = memo(function TodayWeather({ today }) {
         {today.icon}
       </span>
       <div>
-        <p 
+        <p
           className="text-xs font-semibold"
           style={{ color: colors.text.secondary }}
         >
           Today
         </p>
-        <p 
+        <p
           className="text-lg font-extrabold tabular-nums leading-tight"
           style={{ color: colors.text.primary }}
         >
           {today.hi}°
           {today.lo !== null && (
-            <span 
+            <span
               className="text-sm font-normal ml-1"
               style={{ color: colors.text.muted }}
             >
@@ -180,14 +181,14 @@ const TodayWeather = memo(function TodayWeather({ today }) {
             </span>
           )}
         </p>
-        <p 
+        <p
           className="text-xs truncate max-w-[120px]"
           style={{ color: colors.text.muted }}
         >
           {today.forecast}
         </p>
         {today.precip > 0 && (
-          <p 
+          <p
             className="text-xs mt-0.5 font-medium"
             style={{ color: precipColor }}
           >
@@ -212,22 +213,22 @@ const WeatherStrip = memo(function WeatherStrip({ weather }) {
   const upcoming = weather.slice(1, 5);
 
   return (
-    <div 
+    <div
       className="rounded-xl border overflow-hidden"
-      style={{ 
+      style={{
         backgroundColor: colors.surface.primary,
         borderColor: colors.border.default,
       }}
     >
-      <div 
+      <div
         className="flex items-center gap-2 px-4 py-2"
-        style={{ 
+        style={{
           borderBottom: `1px solid ${colors.border.default}`,
           backgroundColor: colors.surface.card,
         }}
       >
         <CloudSun size={14} style={{ color: colors.text.muted }} />
-        <span 
+        <span
           className="text-xs font-semibold uppercase tracking-wide"
           style={{ color: colors.text.muted }}
         >
@@ -237,9 +238,9 @@ const WeatherStrip = memo(function WeatherStrip({ weather }) {
 
       <div className="flex items-center gap-4 px-4 py-3 overflow-x-auto scrollbar-hide">
         <TodayWeather today={today} />
-        
+
         <div className="flex items-center gap-3">
-          {upcoming.map(d => (
+          {upcoming.map((d) => (
             <WeatherDay key={d.date} day={d} />
           ))}
         </div>
@@ -267,7 +268,7 @@ const FocusItem = memo(function FocusItem({ item, onClick }) {
       type="button"
       onClick={handleClick}
       className="w-full flex items-center gap-3 rounded-lg border h-14 px-3 text-left transition-all active:scale-[0.99]"
-      style={{ 
+      style={{
         backgroundColor: colors.surface.card,
         borderColor: colors.border.default,
       }}
@@ -279,20 +280,20 @@ const FocusItem = memo(function FocusItem({ item, onClick }) {
         style={{ backgroundColor: phase.color }}
       />
       <span className="flex-1 min-w-0">
-        <p 
+        <p
           className="text-sm truncate"
           style={{ color: colors.text.primary }}
         >
           {job.address}
         </p>
-        <p 
+        <p
           className="text-xs truncate"
           style={{ color: colors.text.muted }}
         >
           {job.city}, TX {job.zip}
         </p>
       </span>
-      <span 
+      <span
         className="text-xs font-semibold flex-shrink-0"
         style={{ color: reasonColor }}
       >
@@ -315,7 +316,7 @@ const TodaysFocus = memo(function TodaysFocus({ items, onJobClick }) {
     <section>
       <div className="flex items-center gap-2 mb-3">
         <Target size={18} style={{ color: colors.warning.DEFAULT }} />
-        <h2 
+        <h2
           className="text-label font-bold"
           style={{ color: colors.text.primary }}
         >
@@ -325,9 +326,9 @@ const TodaysFocus = memo(function TodaysFocus({ items, onJobClick }) {
 
       <div className="space-y-2">
         {items.map(({ job, reason, reasonColor }) => (
-          <FocusItem 
-            key={job.id} 
-            item={{ job, reason, reasonColor }} 
+          <FocusItem
+            key={job.id}
+            item={{ job, reason, reasonColor }}
             onClick={onJobClick}
           />
         ))}
@@ -342,11 +343,11 @@ TodaysFocus.displayName = 'TodaysFocus';
  * Phase tab button
  * @param {{tab: {key: string, label: string}, isActive: boolean, count: number, onClick: () => void}} props
  */
-const PhaseTab = memo(function PhaseTab({ 
-  tab, 
-  isActive, 
-  count, 
-  onClick 
+const PhaseTab = memo(function PhaseTab({
+  tab,
+  isActive,
+  count,
+  onClick,
 }) {
   return (
     <button
@@ -382,15 +383,15 @@ PhaseTab.displayName = 'PhaseTab';
  * Phase tabs section
  * @param {{activePhase: string, phaseCounts: Record<string, number>, onPhaseChange: (phase: string) => void}} props
  */
-const PhaseTabs = memo(function PhaseTabs({ 
-  activePhase, 
-  phaseCounts, 
-  onPhaseChange 
+const PhaseTabs = memo(function PhaseTabs({
+  activePhase,
+  phaseCounts,
+  onPhaseChange,
 }) {
   return (
     <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4 mb-4">
       <div className="flex gap-2 w-max">
-        {PHASE_TABS.map(tab => (
+        {PHASE_TABS.map((tab) => (
           <PhaseTab
             key={tab.key}
             tab={tab}
@@ -413,9 +414,9 @@ PhaseTabs.displayName = 'PhaseTabs';
 const JobBoard = memo(function JobBoard({ jobs, onJobClick }) {
   if (jobs.length === 0) {
     return (
-      <div 
+      <div
         className="rounded-xl border p-8 text-center"
-        style={{ 
+        style={{
           backgroundColor: colors.surface.card,
           borderColor: colors.border.default,
         }}
@@ -446,23 +447,23 @@ JobBoard.displayName = 'JobBoard';
  * Job board section with tabs
  * @param {{jobs: Array<Record<string, any>>, phaseCounts: Record<string, number>, onJobClick?: (job: any) => void}} props
  */
-const JobBoardSection = memo(function JobBoardSection({ 
-  jobs, 
-  phaseCounts, 
-  onJobClick 
+const JobBoardSection = memo(function JobBoardSection({
+  jobs,
+  phaseCounts,
+  onJobClick,
 }) {
   const [activePhase, setActivePhase] = useState('all');
 
   const filteredJobs = useMemo(() => {
     if (activePhase === 'all') return jobs;
-    return jobs.filter(j => j?.phase === activePhase);
+    return jobs.filter((j) => j?.phase === activePhase);
   }, [jobs, activePhase]);
 
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
         <LayoutDashboard size={18} style={{ color: colors.accent.DEFAULT }} />
-        <h2 
+        <h2
           className="text-label font-bold"
           style={{ color: colors.text.primary }}
         >
@@ -470,13 +471,38 @@ const JobBoardSection = memo(function JobBoardSection({
         </h2>
       </div>
 
-      <PhaseTabs
-        activePhase={activePhase}
-        phaseCounts={phaseCounts}
-        onPhaseChange={setActivePhase}
-      />
+      {jobs.length === 0 ? (
+        <div
+          className="rounded-xl border"
+          style={{
+            backgroundColor: colors.surface.card,
+            borderColor: colors.border.default,
+            boxShadow: shadows.md,
+          }}
+        >
+          <EmptyState
+            iconName="clipboard"
+            title="No jobs yet"
+            description="Open the jobs workspace to create your first job and start organizing production work."
+            action={{
+              label: 'Open jobs workspace',
+              icon: HardHat,
+              onClick: () => onJobClick?.(),
+            }}
+            className="py-10"
+          />
+        </div>
+      ) : (
+        <>
+          <PhaseTabs
+            activePhase={activePhase}
+            phaseCounts={phaseCounts}
+            onPhaseChange={setActivePhase}
+          />
 
-      <JobBoard jobs={filteredJobs} onJobClick={onJobClick} />
+          <JobBoard jobs={filteredJobs} onJobClick={onJobClick} />
+        </>
+      )}
     </section>
   );
 });
@@ -489,7 +515,7 @@ JobBoardSection.displayName = 'JobBoardSection';
 const Attribution = memo(function Attribution() {
   return (
     <div className="flex justify-end pt-4">
-      <span 
+      <span
         className="text-xs tracking-wide"
         style={{ color: `${colors.text.muted}40` }}
       >
@@ -507,7 +533,7 @@ Attribution.displayName = 'Attribution';
 
 /**
  * JobPulseHome - Dashboard view for job management
- * 
+ *
  * @param {{
  *   jobs?: Array<Record<string, any>>,
  *   metrics?: Array<Record<string, any>>,
@@ -527,7 +553,7 @@ const JobPulseHome = memo(function JobPulseHome({
 }) {
   // Compute safe jobs array
   const safeJobs = useMemo(() => Array.isArray(jobs) ? jobs : [], [jobs]);
-  
+
   // Compute phase counts
   const phaseCounts = useMemo(() => {
     const counts = { all: safeJobs.length };
@@ -550,8 +576,8 @@ const JobPulseHome = memo(function JobPulseHome({
       <MetricsStrip metrics={metrics} />
       <WeatherStrip weather={weather} />
       <TodaysFocus items={focusItems} onJobClick={onJobClick} />
-      <JobBoardSection 
-        jobs={safeJobs} 
+      <JobBoardSection
+        jobs={safeJobs}
         phaseCounts={phaseCounts}
         onJobClick={onJobClick}
       />
